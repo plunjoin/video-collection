@@ -1,0 +1,144 @@
+# 视频智能采集聚合与自动化调度服务配置文件
+
+# 数据库配置可被环境变量或 .env 覆盖（DB_DRIVER / DB_DSN / DB_HOST 等，见 .env.example），生产环境建议不要在此填写真实密码
+database:
+  driver: "postgres" # 支持 "postgres" 或 "sqlite" (优先连接 PostgreSQL，失败则平滑降级至本地 SQLite)
+  dsn: "postgres://postgres:postgres@localhost:5432/videodb?sslmode=disable"
+  sqlite_path: "data/collection.db"
+
+sources:
+  # 采集源 1: 标准 MacCMS v10 JSON 接口源
+  - id: "example_json"
+    name: "示例数据源 (MacCMS JSON)"
+    api: "https://example.com/api.php/provide/vod/"
+    type: "json" # 协议类型: "json"(MacCMS JSON), "xml"(MacCMS XML), "rss"(网页RSS/Atom), "custom_json"(自定义通用JSON)
+    enabled: true
+    collect_hours: 24 # 采集最近24小时内更新的数据；0 表示全量采集 (对应接口参数 h=24)
+    page_limit: 5 # 限制最大采集页数；0 表示一直采集到最后一页
+    timeout_sec: 15 # 请求单次超时时间(秒)
+    retry_count: 3 # 失败重试次数
+    interval_ms: 300 # 每次请求翻页间隔(毫秒)，避免对接口源造成频控拦截
+    concurrency: 2 # 并发处理协程数
+
+    # 自定义 HTTP Headers 请求头 (例如伪装 Referer、设置 Token 授权等)
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+    # 自定义附加 Query 参数 (在 URL 后面拼接的附加参数，如 token=xxx)
+    custom_params: {}
+
+    # 分类绑定规则：将采集源的分类与本地系统的分类进行映射
+    category_mappings:
+      - source_type_id: 1
+        source_type_name: "电影"
+        target_type_id: 10
+        target_type_name: "电影频道"
+      - source_type_id: 2
+        source_type_name: "电视剧"
+        target_type_id: 20
+        target_type_name: "连续剧"
+      - source_type_id: 3
+        source_type_name: "综艺"
+        target_type_id: 30
+        target_type_name: "综艺专区"
+      - source_type_id: 4
+        source_type_name: "动漫"
+        target_type_id: 40
+        target_type_name: "动漫专区"
+      - source_type_id: 6
+        source_type_name: "动作片"
+        target_type_id: 101
+        target_type_name: "动作电影"
+      - source_type_id: 7
+        source_type_name: "喜剧片"
+        target_type_id: 102
+        target_type_name: "喜剧电影"
+
+    # 清洗与过滤规则
+    filter:
+      ignore_name_keywords:
+        - "预告片"
+        - "抢先看"
+        - "花絮"
+        - "测试"
+      ignore_type_ids:
+        - 999
+      allowed_players:
+        - "lzm3u8"
+        - "m3u8"
+      player_mappings:
+        lzm3u8: "m3u8"
+        kkm3u8: "m3u8"
+      require_play_urls: true
+      name_clean_prefixes:
+        - "【独家】"
+        - "【高清】"
+        - "【未删减】"
+      content_replace_patterns:
+        - pattern: "(?i)http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+          is_regex: true
+          replacement: ""
+        - pattern: "本片由.*提供"
+          is_regex: true
+          replacement: ""
+        - pattern: "关注微信公众号.*"
+          is_regex: true
+          replacement: ""
+
+  # 采集源 2: 苹果CMS / 飞飞CMS XML 格式采集源示例
+  - id: "ffm3u8_xml"
+    name: "示例数据源 (MacCMS XML 规范)"
+    api: "https://example.org/api.php/provide/vod/"
+    type: "xml" # 指定解析 MacCMS 标准 XML (<rss version="5.1">)
+    enabled: false
+    collect_hours: 24
+    page_limit: 3
+    timeout_sec: 15
+    retry_count: 2
+    interval_ms: 500
+    concurrency: 2
+    filter:
+      allowed_players:
+        - "ffm3u8"
+        - "m3u8"
+      player_mappings:
+        ffm3u8: "m3u8"
+      require_play_urls: true
+
+  # 采集源 3: 外部网页 RSS 2.0 / Atom 视频订阅采集源示例
+  - id: "sample_rss_feed"
+    name: "公开影视播客与更新 (RSS 订阅源)"
+    api: "https://example.com/rss.xml" # 外部网站的 RSS 2.0 订阅链接
+    type: "rss" # 指定为通用 RSS 订阅采集模式
+    enabled: false
+    collect_hours: 24
+    page_limit: 1
+    timeout_sec: 15
+    filter:
+      require_play_urls: false
+
+  # 采集源 4: 自定义通用 JSON 格式采集源示例 (字段映射模式)
+  - id: "custom_rest_api"
+    name: "第三方自建影视库 (通用 JSON)"
+    api: "https://api.example.com/v1/videos"
+    type: "custom_json" # 指定为自定义通用 JSON 模式
+    enabled: false
+    headers:
+      Authorization: "Bearer your_token_here"
+    custom_params:
+      limit: "50"
+    custom_mapping:
+      list_path: "data.items" # 视频列表在 JSON 中的字段路径
+      id_path: "video_id"
+      name_path: "title"
+      type_path: "category_name"
+      pic_path: "cover_image"
+      play_url_path: "stream_url"
+      remarks_path: "status_text"
+      actor_path: "actors"
+      director_path: "director"
+      area_path: "region"
+      year_path: "release_year"
+      content_path: "summary"
+    filter:
+      require_play_urls: true
