@@ -1,0 +1,1387 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MacCMS v10 智能采集聚合平台 RESTful API",
+    "version": "1.0.0",
+    "description": "MacCMS v10 视频智能采集聚合平台 & 客户端纯后端 RESTful API 服务接口文档。\n\n本服务已全面完成前后端分离重构，移除了内部模板与前端静态页面，专注于提供高性能、高可用、标准规范的数据接口服务。\n\n### 认证机制说明\n- 管理员接口与用户个人中心接口支持通过 Cookie 认证（`auth_token`）或 HTTP 请求头传递 Authorization Token（`Bearer <token>`）。\n- 公开接口无需任何鉴权即可直接调用。",
+    "contact": {
+      "name": "API 维护团队",
+      "email": "support@video-collection.local"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "当前服务节点"
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "用户认证与登录会话管理" },
+    { "name": "Videos", "description": "视频检索、详情与排行榜" },
+    { "name": "Categories", "description": "视频分类信息" },
+    { "name": "User", "description": "用户个人中心（播放历史、云端同步、追剧收藏）" },
+    { "name": "Player", "description": "播放器插件与配置" },
+    { "name": "Site", "description": "站点公开配置与用户求片留言" },
+    { "name": "Admin - Dashboard", "description": "管理员控制台统计看板" },
+    { "name": "Admin - Sources", "description": "采集源管理与实时采集调度" },
+    { "name": "Admin - Videos", "description": "视频数据维护与批量操作" },
+    { "name": "Admin - Users", "description": "用户账号与权限管理" },
+    { "name": "Admin - Themes", "description": "客户端主题模板管理" },
+    { "name": "Admin - Players", "description": "播放器引擎与插件管理" },
+    { "name": "Admin - Site", "description": "全局系统配置与自动计划任务" },
+    { "name": "Admin - Feedbacks", "description": "求片留言工单处理" },
+    { "name": "Admin - Logs", "description": "采集日志与操作审计" },
+    { "name": "RSS", "description": "RSS 2.0 聚合订阅源" }
+  ],
+  "paths": {
+    "/api/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "用户/管理员登录",
+        "description": "验证用户名与密码，生成 Session Token 并设置 Cookie",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": { "description": "参数解析失败", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "用户名或密码错误", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "账号被禁用", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "用户快速注册",
+        "description": "注册普通用户账号",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": { "description": "用户名已存在或参数不规范", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "退出登录",
+        "description": "清除当前用户的 Session 会话并注销 Cookie",
+        "responses": {
+          "200": {
+            "description": "退出成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommonResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "获取当前登录用户信息",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "用户信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/UserInfo" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "未登录", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "获取视频分类列表",
+        "description": "获取系统内维护的标准视频一级与二级分类",
+        "responses": {
+          "200": {
+            "description": "分类列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Category" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/videos": {
+      "get": {
+        "tags": ["Videos"],
+        "summary": "分页检索视频列表",
+        "description": "支持多种维度筛选、关键字模糊搜索以及排序",
+        "parameters": [
+          { "name": "wd", "in": "query", "description": "搜索关键字", "schema": { "type": "string" } },
+          { "name": "t", "in": "query", "description": "分类 ID", "schema": { "type": "integer" } },
+          { "name": "pg", "in": "query", "description": "当前页码", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "description": "每页条数", "schema": { "type": "integer", "default": 20 } },
+          { "name": "from", "in": "query", "description": "按采集源筛选", "schema": { "type": "string" } },
+          { "name": "year", "in": "query", "description": "按上映年份筛选", "schema": { "type": "string" } },
+          { "name": "area", "in": "query", "description": "按地区筛选", "schema": { "type": "string" } },
+          { "name": "lang", "in": "query", "description": "按语言筛选", "schema": { "type": "string" } },
+          { "name": "by", "in": "query", "description": "排序依据（time/hits/score/id）", "schema": { "type": "string", "default": "time" } },
+          { "name": "order", "in": "query", "description": "升降序（asc/desc）", "schema": { "type": "string", "default": "desc" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "视频列表与分页信息",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VideoListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/video": {
+      "get": {
+        "tags": ["Videos"],
+        "summary": "获取指定视频详情",
+        "description": "包含影片详细介绍、演职员、多线路播放源列表与集数切片",
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "description": "视频 ID", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "视频详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/VideoRecord" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "视频不存在", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/video/detail": {
+      "get": {
+        "tags": ["Videos"],
+        "summary": "获取指定视频详情 (别名接口)",
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "description": "视频 ID", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "视频详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/VideoRecord" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/video/hit": {
+      "post": {
+        "tags": ["Videos"],
+        "summary": "累加视频播放热度点击数",
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "description": "视频 ID", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "累加成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "hits": { "type": "integer", "example": 1024 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rankings": {
+      "get": {
+        "tags": ["Videos"],
+        "summary": "获取视频排行榜",
+        "parameters": [
+          { "name": "type", "in": "query", "description": "榜单类型: total(总榜), day(日榜), week(周榜), month(月榜)", "schema": { "type": "string", "default": "total" } },
+          { "name": "limit", "in": "query", "description": "返回数量，默认 10", "schema": { "type": "integer", "default": 10 } },
+          { "name": "t", "in": "query", "description": "指定分类 ID 过滤", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "榜单数据",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/VideoRecord" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/latest": {
+      "get": {
+        "tags": ["Videos"],
+        "summary": "获取最新更新的视频列表",
+        "parameters": [
+          { "name": "limit", "in": "query", "description": "返回数量，默认 20", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "最新视频列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/VideoRecord" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/history": {
+      "get": {
+        "tags": ["User"],
+        "summary": "获取用户云端播放历史",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "历史播放进度列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/UserHistoryItem" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["User"],
+        "summary": "上报并保存单条播放历史",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserHistoryItem" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "保存成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "清空用户播放历史",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "清空成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/user/history/sync": {
+      "post": {
+        "tags": ["User"],
+        "summary": "离线播放历史批量合并同步",
+        "description": "用于前端客户端将未登录状态下的本地观看记录同步上传至云端",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": { "type": "array", "items": { "$ref": "#/components/schemas/UserHistoryItem" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "同步成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/user/favorites": {
+      "get": {
+        "tags": ["User"],
+        "summary": "获取用户追剧收藏列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "收藏列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/UserFavoriteItem" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["User"],
+        "summary": "添加追剧收藏",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["video_id"],
+                "properties": {
+                  "video_id": { "type": "integer", "example": 1001 },
+                  "vod_name": { "type": "string", "example": "流浪地球" },
+                  "vod_pic": { "type": "string", "example": "https://example.com/cover.jpg" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "收藏成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "tags": ["User"],
+        "summary": "取消追剧收藏",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "video_id", "in": "query", "required": true, "description": "视频 ID", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "取消成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/site/config": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "获取站点公开展示配置",
+        "responses": {
+          "200": {
+            "description": "站点配置",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/SiteConfig" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/feedback": {
+      "post": {
+        "tags": ["Site"],
+        "summary": "提交用户求片留言或报错",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["request", "report", "suggest"], "default": "request" },
+                  "title": { "type": "string", "example": "求片：复仇者联盟" },
+                  "content": { "type": "string", "example": "希望能上线 4K 杜比视界版本" },
+                  "contact": { "type": "string", "example": "user@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "提交成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/player/active": {
+      "get": {
+        "tags": ["Player"],
+        "summary": "获取当前激活的播放器配置与类型",
+        "responses": {
+          "200": {
+            "description": "播放器配置详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/PlayerInfo" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/stats": {
+      "get": {
+        "tags": ["Admin - Dashboard"],
+        "summary": "获取管理端全局看板统计数据",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "仪表盘统计指标",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/AdminStats" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/admin/sources": {
+      "get": {
+        "tags": ["Admin - Sources"],
+        "summary": "获取采集源配置列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "采集源列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/SourceConfig" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin - Sources"],
+        "summary": "新增或更新采集源",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SourceConfig" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "保存成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Admin - Sources"],
+        "summary": "删除采集源",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "description": "采集源 ID", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "删除成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/sources/test": {
+      "post": {
+        "tags": ["Admin - Sources"],
+        "summary": "测试远程采集源连通性与耗时",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["api"],
+                "properties": {
+                  "api": { "type": "string", "example": "https://api.example.com/api.php/provide/vod" },
+                  "type": { "type": "string", "enum": ["json", "xml"], "default": "json" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "测试结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "duration_ms": { "type": "integer", "example": 235 },
+                    "status": { "type": "string", "example": "ok" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sources/collect": {
+      "post": {
+        "tags": ["Admin - Sources"],
+        "summary": "手动触发指定采集源采集任务",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["source_id"],
+                "properties": {
+                  "source_id": { "type": "string", "example": "zy_main" },
+                  "hours": { "type": "integer", "description": "采集小时范围，0 为全量，24 为过去24小时", "default": 24 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "已启动采集任务", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/sources/collect-all": {
+      "post": {
+        "tags": ["Admin - Sources"],
+        "summary": "批量触发全部激活采集源采集任务",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hours": { "type": "integer", "default": 24 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "已触发全部采集", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/logs": {
+      "get": {
+        "tags": ["Admin - Logs"],
+        "summary": "查询系统审计与采集日志",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "description": "返回数量，默认 100", "schema": { "type": "integer", "default": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "日志列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/AuditLog" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/videos": {
+      "delete": {
+        "tags": ["Admin - Videos"],
+        "summary": "删除单条视频记录",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "description": "视频 ID", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "删除成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/videos/save": {
+      "post": {
+        "tags": ["Admin - Videos"],
+        "summary": "新增或更新视频详情",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VideoRecord" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "保存成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/videos/batch-delete": {
+      "post": {
+        "tags": ["Admin - Videos"],
+        "summary": "批量删除视频",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids"],
+                "properties": {
+                  "ids": { "type": "array", "items": { "type": "integer" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "批量删除成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin - Users"],
+        "summary": "分页查询系统用户列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "description": "页码", "schema": { "type": "integer", "default": 1 } },
+          { "name": "page_size", "in": "query", "description": "每页条数", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "用户列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+                    "total": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin - Users"],
+        "summary": "创建或修改用户信息/状态",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "保存成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Admin - Users"],
+        "summary": "删除用户",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "删除成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/themes": {
+      "get": {
+        "tags": ["Admin - Themes"],
+        "summary": "获取系统已安装主题列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "主题列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/ThemeInfo" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/themes/switch": {
+      "post": {
+        "tags": ["Admin - Themes"],
+        "summary": "切换当前激活主题",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["theme_id"],
+                "properties": {
+                  "theme_id": { "type": "string", "example": "default" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "切换成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/themes/upload": {
+      "post": {
+        "tags": ["Admin - Themes"],
+        "summary": "上传并安装 ZIP 主题包",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary", "description": "ZIP 格式的主题压缩包" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "导入成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/players": {
+      "get": {
+        "tags": ["Admin - Players"],
+        "summary": "获取已安装播放器引擎插件列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "播放器插件列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/PlayerInfo" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/players/switch": {
+      "post": {
+        "tags": ["Admin - Players"],
+        "summary": "切换当前全局默认播放器引擎",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["player_id"],
+                "properties": {
+                  "player_id": { "type": "string", "example": "videojs" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "切换成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/players/upload": {
+      "post": {
+        "tags": ["Admin - Players"],
+        "summary": "上传并安装 ZIP 播放器插件包",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "上传成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/players/config": {
+      "post": {
+        "tags": ["Admin - Players"],
+        "summary": "更新播放器自定义配置",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["player_id", "config"],
+                "properties": {
+                  "player_id": { "type": "string", "example": "videojs" },
+                  "config": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "配置更新成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/site/config": {
+      "get": {
+        "tags": ["Admin - Site"],
+        "summary": "获取管理端完整站点配置",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "站点配置详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "$ref": "#/components/schemas/SiteConfig" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin - Site"],
+        "summary": "更新管理端完整站点配置",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SiteConfig" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "配置保存成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/scheduler/auto": {
+      "post": {
+        "tags": ["Admin - Site"],
+        "summary": "开启/关闭定时自动采集任务",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["enabled"],
+                "properties": {
+                  "enabled": { "type": "boolean", "example": true },
+                  "interval_minutes": { "type": "integer", "default": 60 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "设置成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/api/admin/feedbacks": {
+      "get": {
+        "tags": ["Admin - Feedbacks"],
+        "summary": "分页查询用户求片与报错反馈列表",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "description": "工单状态(pending/processing/resolved/rejected)", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "反馈列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 1 },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Feedback" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/feedbacks/reply": {
+      "post": {
+        "tags": ["Admin - Feedbacks"],
+        "summary": "管理员答复并更新反馈状态",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id", "status"],
+                "properties": {
+                  "id": { "type": "integer", "example": 1 },
+                  "status": { "type": "string", "enum": ["pending", "processing", "resolved", "rejected"], "example": "resolved" },
+                  "reply": { "type": "string", "example": "已收录该影片，欢迎观看！" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "处理成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommonResponse" } } } }
+        }
+      }
+    },
+    "/rss.xml": {
+      "get": {
+        "tags": ["RSS"],
+        "summary": "RSS 2.0 聚合订阅源",
+        "description": "提供标准 RSS 2.0 XML 格式输出，同时兼容 /rss, /feed.xml, /feed, /api/rss 路由",
+        "responses": {
+          "200": {
+            "description": "RSS 2.0 XML 内容",
+            "content": {
+              "application/xml": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "auth_token",
+        "description": "基于 HTTP Cookie 的会话认证"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Token",
+        "description": "基于 Authorization 标头的 Bearer Token 认证"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "未授权 / 登录凭据失效",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "权限不足 / 需管理员角色",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "CommonResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 1 },
+          "msg": { "type": "string", "example": "操作成功" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 0 },
+          "error": { "type": "string", "example": "错误描述信息" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "admin" },
+          "password": { "type": "string", "example": "admin123" }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "newuser" },
+          "password": { "type": "string", "example": "mypassword" },
+          "nickname": { "type": "string", "example": "极客影迷" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 1 },
+          "msg": { "type": "string", "example": "登录成功" },
+          "token": { "type": "string", "example": "sess_89f3b140ae2b4c..." },
+          "user": { "$ref": "#/components/schemas/UserInfo" }
+        }
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "username": { "type": "string", "example": "admin" },
+          "nickname": { "type": "string", "example": "系统管理员" },
+          "avatar": { "type": "string", "example": "https://api.dicebear.com/7.x/identicon/svg?seed=admin" },
+          "role": { "type": "string", "example": "admin" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "username": { "type": "string", "example": "user01" },
+          "nickname": { "type": "string", "example": "小明" },
+          "avatar": { "type": "string", "example": "" },
+          "role": { "type": "string", "enum": ["admin", "user"], "example": "user" },
+          "status": { "type": "integer", "description": "1 正常, 0 禁用", "example": 1 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "pid": { "type": "integer", "example": 0 },
+          "name": { "type": "string", "example": "动作片" },
+          "sort": { "type": "integer", "example": 10 }
+        }
+      },
+      "PlayUrl": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "第01集" },
+          "url": { "type": "string", "example": "https://cdn.example.com/play/ep01.m3u8" }
+        }
+      },
+      "PlayGroup": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string", "example": "示例线路" },
+          "urls": { "type": "array", "items": { "$ref": "#/components/schemas/PlayUrl" } }
+        }
+      },
+      "VideoRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1001 },
+          "name": { "type": "string", "example": "星际穿越" },
+          "sub_name": { "type": "string", "example": "Interstellar" },
+          "type_id": { "type": "integer", "example": 1 },
+          "type_name": { "type": "string", "example": "科幻片" },
+          "picture": { "type": "string", "example": "https://example.com/cover.jpg" },
+          "actor": { "type": "string", "example": "马修·麦康纳, 安妮·海瑟薇" },
+          "director": { "type": "string", "example": "克里斯托弗·诺兰" },
+          "area": { "type": "string", "example": "美国" },
+          "language": { "type": "string", "example": "英语" },
+          "year": { "type": "string", "example": "2014" },
+          "remarks": { "type": "string", "example": "超清原盘中字" },
+          "content": { "type": "string", "example": "影片讲述了一组宇航员通过穿越虫洞为人类寻找新家园的故事..." },
+          "source_id": { "type": "string", "example": "src_1" },
+          "hits": { "type": "integer", "example": 2350 },
+          "play_groups": { "type": "array", "items": { "$ref": "#/components/schemas/PlayGroup" } },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "VideoListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 1 },
+          "msg": { "type": "string", "example": "数据列表" },
+          "page": { "type": "integer", "example": 1 },
+          "pagecount": { "type": "integer", "example": 15 },
+          "limit": { "type": "integer", "example": 20 },
+          "total": { "type": "integer", "example": 300 },
+          "list": { "type": "array", "items": { "$ref": "#/components/schemas/VideoRecord" } }
+        }
+      },
+      "UserHistoryItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "user_id": { "type": "integer", "example": 1 },
+          "video_id": { "type": "integer", "example": 1001 },
+          "video_name": { "type": "string", "example": "星际穿越" },
+          "picture": { "type": "string", "example": "https://example.com/cover.jpg" },
+          "episode_name": { "type": "string", "example": "第01集" },
+          "route_index": { "type": "integer", "example": 0 },
+          "episode_index": { "type": "integer", "example": 0 },
+          "current_time": { "type": "integer", "description": "播放进度秒数", "example": 1280 },
+          "duration": { "type": "integer", "description": "总时长秒数", "example": 7200 },
+          "progress": { "type": "number", "format": "float", "example": 17.7 },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UserFavoriteItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "user_id": { "type": "integer", "example": 1 },
+          "video_id": { "type": "integer", "example": 1001 },
+          "video_name": { "type": "string", "example": "星际穿越" },
+          "picture": { "type": "string", "example": "https://example.com/cover.jpg" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SourceConfig": {
+        "type": "object",
+        "required": ["name", "api"],
+        "properties": {
+          "id": { "type": "string", "example": "src_maccms" },
+          "name": { "type": "string", "example": "示例数据源" },
+          "api": { "type": "string", "example": "https://api.example.com/api.php/provide/vod" },
+          "type": { "type": "string", "enum": ["json", "xml"], "default": "json" },
+          "collect_hours": { "type": "integer", "default": 24 },
+          "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "AdminStats": {
+        "type": "object",
+        "properties": {
+          "total_videos": { "type": "integer", "example": 15840 },
+          "total_sources": { "type": "integer", "example": 8 },
+          "total_users": { "type": "integer", "example": 120 },
+          "today_updates": { "type": "integer", "example": 450 },
+          "db_size": { "type": "string", "example": "48.5 MB" }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "action": { "type": "string", "example": "COLLECT_SOURCE" },
+          "detail": { "type": "string", "example": "采集完成：更新 28 条，新增 10 条" },
+          "operator": { "type": "string", "example": "admin" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ThemeInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "default" },
+          "name": { "type": "string", "example": "极光暗夜" },
+          "version": { "type": "string", "example": "1.0.0" },
+          "author": { "type": "string", "example": "VideoCollection" },
+          "description": { "type": "string", "example": "默认主题" },
+          "is_active": { "type": "boolean", "example": true }
+        }
+      },
+      "PlayerInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "videojs" },
+          "name": { "type": "string", "example": "极光超清播放器" },
+          "version": { "type": "string", "example": "2.0.0" },
+          "type": { "type": "string", "enum": ["videojs", "iframe", "custom"], "example": "videojs" },
+          "is_active": { "type": "boolean", "example": true },
+          "config": { "type": "object" }
+        }
+      },
+      "SiteConfig": {
+        "type": "object",
+        "properties": {
+          "site_name": { "type": "string", "example": "极光智能影视聚合平台" },
+          "site_url": { "type": "string", "example": "https://video.example.com" },
+          "keywords": { "type": "string", "example": "高清电影, 在线电视剧, 免费动漫" },
+          "description": { "type": "string", "example": "免VIP超清在线影视播放聚合平台" },
+          "announcement": { "type": "string", "example": "欢迎使用全新纯后端 API 服务平台！" },
+          "icp": { "type": "string", "example": "京ICP备12345678号" }
+        }
+      },
+      "Feedback": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "type": { "type": "string", "enum": ["request", "report", "suggest"], "example": "request" },
+          "title": { "type": "string", "example": "求片：阿凡达 3" },
+          "content": { "type": "string", "example": "希望尽快上架" },
+          "contact": { "type": "string", "example": "fan@example.com" },
+          "status": { "type": "string", "enum": ["pending", "processing", "resolved", "rejected"], "example": "pending" },
+          "reply": { "type": "string", "example": "" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
