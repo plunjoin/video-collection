@@ -1,0 +1,13 @@
+{
+  "id": "iframe",
+  "name": "第三方解析/嵌入式播放器 (iFrame)",
+  "version": "1.0.0",
+  "author": "Antigravity Team",
+  "description": "通用第三方 iframe 解析播放器，直接填入解析接口前缀即可嵌入任意第三方播放器或 VIP 解析接口",
+  "type": "iframe",
+  "entry": "",
+  "config": {
+    "api_url_template": "https://jx.jsonplayer.com/player/?url={url}",
+    "allow_fullscreen": true
+  }
+}
