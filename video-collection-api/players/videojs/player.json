@@ -1,0 +1,15 @@
+{
+  "id": "videojs",
+  "name": "极光超清播放器 (Video.js 现代深度增强版)",
+  "version": "2.0.0",
+  "author": "Antigravity Team",
+  "description": "基于 Video.js 现代化流媒体内核，内置画质超清增强引擎(支持开关与滤镜增强)、Control 控制栏集成线路切换与选集抽屉、自动播放下一集(默认开启/可开关)",
+  "type": "videojs",
+  "entry": "player.html",
+  "config": {
+    "enhance_default": true,
+    "autoplay_next": true,
+    "next_countdown": 3,
+    "theme_color": "#6366f1"
+  }
+}
