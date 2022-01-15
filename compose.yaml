@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: videodb
+      POSTGRES_USER: video
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?请在部署环境文件中设置 DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U video -d videodb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: video-collection-api/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      TZ: Asia/Shanghai
+      DB_DRIVER: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: video
+      DB_PASSWORD: ${DB_PASSWORD:?请设置 DB_PASSWORD}
+      DB_NAME: videodb
+      DB_SSLMODE: disable
+      DB_REQUIRE_PRIMARY: "true"
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?请设置管理员初始密码}
+      COLLECTION_TEMPLATES_PATH: /app/config/collection_templates.yaml
+      COLLECTION_UPLOAD_DIR: /app/data/collection-uploads
+    volumes:
+      - api-data:/app/data
+      - api-themes:/app/themes
+      - api-players:/app/players
+      - ./video-collection-api/config:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+  web:
+    build:
+      context: .
+      dockerfile: video-collection-web/Dockerfile
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_URL: http://api:8080
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-4321}:4321"
+    depends_on:
+      api:
+        condition: service_healthy
+  admin:
+    build:
+      context: .
+      dockerfile: video-collection-admin/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${ADMIN_PORT:-3000}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  postgres-data:
+  api-data:
+  api-themes:
+  api-players:
