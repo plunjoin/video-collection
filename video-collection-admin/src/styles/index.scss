@@ -1,0 +1,121 @@
+// 全局基础样式与现代管理后台微调
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+// 浅色模式全局变量
+:root {
+  --bg-color: #f3f4f6;
+  --card-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --text-primary: #111827;
+  --text-regular: #4b5563;
+  --text-secondary: #9ca3af;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #94a3b8;
+  --sidebar-active-text: #ffffff;
+  --sidebar-active-bg: #4f46e5;
+  --navbar-bg: #ffffff;
+  --navbar-border: #e2e8f0;
+}
+
+// 暗黑模式全局变量
+html.dark {
+  --bg-color: #090d16;
+  --card-bg: #111827;
+  --border-color: #1f2937;
+  --text-primary: #f9fafb;
+  --text-regular: #9ca3af;
+  --text-secondary: #6b7280;
+  --sidebar-bg: #030712;
+  --sidebar-text: #9ca3af;
+  --sidebar-active-text: #ffffff;
+  --sidebar-active-bg: #6366f1;
+  --navbar-bg: #0b0f19;
+  --navbar-border: #1e293b;
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+  }
+
+  .el-card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .el-table {
+    --el-table-bg-color: var(--card-bg);
+    --el-table-tr-bg-color: var(--card-bg);
+    --el-table-header-bg-color: #0f172a;
+    --el-table-border-color: #1f2937;
+    --el-table-text-color: #e2e8f0;
+  }
+
+  .el-dialog {
+    background-color: #111827;
+    border: 1px solid #1f2937;
+    .el-dialog__title {
+      color: #f3f4f6;
+    }
+  }
+
+  .el-input__wrapper, .el-select__wrapper {
+    background-color: #1f2937 !important;
+    box-shadow: 0 0 0 1px #374151 inset !important;
+    .el-input__inner {
+      color: #f9fafb !important;
+    }
+  }
+
+  .el-descriptions {
+    --el-descriptions-table-border: 1px solid #1f2937;
+    --el-descriptions-item-bordered-label-background: #0f172a;
+  }
+}
+
+// 滚动条样式美化
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 3px;
+  &:hover {
+    background: rgba(148, 163, 184, 0.6);
+  }
+}
+
+// 路由过渡动画
+.fade-transform-leave-active,
+.fade-transform-enter-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(15px);
+}
