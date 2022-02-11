@@ -77,8 +77,9 @@ type segmentGroup struct {
 
 var (
 	extinfRegex = regexp.MustCompile(`^#EXTINF:\s*([0-9.]+)(?:,(.*))?`)
-	// 匹配文件名末尾紧邻扩展名的纯数字序号，例如 825e24e3d9e000073.ts -> 73, seg_01.ts -> 1
-	tsSeqRegex  = regexp.MustCompile(`(?:^|[^0-9])([0-9]{1,12})\.(?:ts|image|jpeg|jpg|png|webp|m4s|mp4)`)
+	// 匹配扩展名前完整的连续数字串；数字前缀可能与序号连在一起，超过 12 位。
+	// 保留完整数值用于比较跳变，由 ParseInt 检查 int64 溢出，避免截断后误判。
+	tsSeqRegex = regexp.MustCompile(`(?:^|[^0-9])([0-9]+)\.(?:ts|image|jpeg|jpg|png|webp|m4s|mp4)`)
 )
 
 // extractTSSeq 尝试从切片路径中提取数字序号
@@ -191,6 +192,28 @@ func finalizeGroup(grp *segmentGroup) {
 		grp.maxSeq = maxVal
 		grp.hasSeq = true
 	}
+}
+
+// isSequenceDetour 判断中间组是否偏离前后严格连续的正片序列。
+// 使用实际相邻切片，且要求中间所有切片都有序号、整体落在正片边界同一侧。
+func isSequenceDetour(prev, curr, next *segmentGroup) bool {
+	if len(prev.items) == 0 || len(curr.items) == 0 || len(next.items) == 0 {
+		return false
+	}
+	before := prev.items[len(prev.items)-1]
+	after := next.items[0]
+	if !before.hasSeq || !after.hasSeq || after.seq-before.seq != 1 {
+		return false
+	}
+	allHigher, allLower := true, true
+	for _, item := range curr.items {
+		if !item.hasSeq {
+			return false
+		}
+		allHigher = allHigher && item.seq > after.seq
+		allLower = allLower && item.seq < before.seq
+	}
+	return allHigher || allLower
 }
 
 // processMediaPlaylist 处理正片切片清单，执行广告过滤与路径补全
@@ -319,7 +342,14 @@ func processMediaPlaylist(lines []string, originURL *url.URL, opts CleanOptions)
 					continue
 				}
 
-				// 规则 1：基于序号剧烈突变的插播广告识别（100% 命中精准度）
+				// 前后正片严格续接（如 15000073 -> 15000074），中间组整体偏离序列。
+				// 不要求广告序号更大，也不要求跳变超过 50。
+				if isSequenceDetour(prev, curr, next) {
+					isGroupAd[i] = true
+					continue
+				}
+
+				// 规则 1：基于序号剧烈突变的插播广告识别
 				if prev.hasSeq && curr.hasSeq && next.hasSeq {
 					jumpForward := curr.minSeq - prev.maxSeq
 					jumpBackward := curr.maxSeq - next.minSeq
@@ -348,7 +378,8 @@ func processMediaPlaylist(lines []string, originURL *url.URL, opts CleanOptions)
 		}
 
 		// (B) 判定片头广告
-		if opts.FilterHeadAd && len(groups) >= 2 {
+		// 已识别的中插广告不能作为片头/片尾判断的正片参照。
+		if opts.FilterHeadAd && len(groups) >= 2 && !isGroupAd[1] {
 			head := groups[0]
 			next := groups[1]
 
@@ -371,7 +402,7 @@ func processMediaPlaylist(lines []string, originURL *url.URL, opts CleanOptions)
 			last := groups[lastIdx]
 			prev := groups[lastIdx-1]
 
-			if last.totalDuration <= opts.MaxMiddleAdDuration && last.hasLeadingDiscontinuity {
+			if !isGroupAd[lastIdx-1] && last.totalDuration <= opts.MaxMiddleAdDuration && last.hasLeadingDiscontinuity {
 				if last.hasSeq && prev.hasSeq && last.minSeq-prev.maxSeq > 100 {
 					isGroupAd[lastIdx] = true
 				}
