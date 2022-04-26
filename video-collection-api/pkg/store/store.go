@@ -38,7 +38,7 @@ type VideoRecord struct {
 	TypeID     int                `json:"type_id"`
 	TypeName   string             `json:"type_name"`
 	Picture    string             `json:"picture"`
-	Pic        string             `json:"pic,omitempty"`         // 兼容 Admin 管理后台 pic 字段
+	Pic        string             `json:"pic,omitempty"` // 兼容 Admin 管理后台 pic 字段
 	Actor      string             `json:"actor"`
 	Director   string             `json:"director"`
 	Area       string             `json:"area"`
@@ -47,7 +47,7 @@ type VideoRecord struct {
 	Remarks    string             `json:"remarks"`
 	Content    string             `json:"content"`
 	SourceID   string             `json:"source_id"`
-	SourceIDs  []string           `json:"source_ids,omitempty"`  // 所属的所有采集节点ID集合
+	SourceIDs  []string           `json:"source_ids,omitempty"` // 所属的所有采集节点ID集合
 	Hits       int                `json:"hits"`
 	CreatedAt  time.Time          `json:"created_at"`
 	UpdatedAt  time.Time          `json:"updated_at"`
@@ -150,12 +150,12 @@ type VideoQuery struct {
 // Feedback 用户留言求片与播放故障报错
 type Feedback struct {
 	ID        int       `json:"id"`
-	Type      string    `json:"type"`      // "request" (求片), "report" (报错), "suggest" (建议)
-	Title     string    `json:"title"`     // 影片名或反馈主题
-	Content   string    `json:"content"`   // 详细内容/失效集数
-	Contact   string    `json:"contact"`   // 联系方式 (邮箱/QQ/微信)
-	Status    string    `json:"status"`    // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
-	Reply     string    `json:"reply"`     // 管理员答复内容
+	Type      string    `json:"type"`    // "request" (求片), "report" (报错), "suggest" (建议)
+	Title     string    `json:"title"`   // 影片名或反馈主题
+	Content   string    `json:"content"` // 详细内容/失效集数
+	Contact   string    `json:"contact"` // 联系方式 (邮箱/QQ/微信)
+	Status    string    `json:"status"`  // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
+	Reply     string    `json:"reply"`   // 管理员答复内容
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -200,6 +200,7 @@ type StatsInfo struct {
 
 // Store 统一存储接口
 type Store interface {
+	ContentStore
 	// 用户管理
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	GetUserByID(ctx context.Context, id int) (*User, error)
