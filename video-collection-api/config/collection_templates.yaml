@@ -1,0 +1,47 @@
+# 可追加模板，无需修改 Go / Vue 代码。选择模板后，规则副本保存在采集源中。
+- id: maccms-json
+  name: MacCMS JSON
+  description: MacCMS v10 视频接口，支持分类、多线路及增量采集
+  aliases: [json, maccms_json]
+  rule:
+    version: 1
+    format: maccms_json
+    method: GET
+    query: {ac: "{action}", pg: "{page}", h: "{hours}", t: "{type_id}", wd: "{keyword}", ids: "{ids}", out: json}
+- id: maccms-xml
+  name: MacCMS XML
+  description: MacCMS XML 视频接口
+  aliases: [xml, maccms_xml]
+  rule:
+    version: 1
+    format: maccms_xml
+    method: GET
+    query: {ac: videolist, pg: "{page}", h: "{hours}", t: "{type_id}", wd: "{keyword}", ids: "{ids}"}
+- id: rss
+  name: RSS / Atom
+  description: 单页订阅源，不附加视频 CMS 参数
+  aliases: [rss, rss_feed]
+  rule:
+    version: 1
+    format: rss
+    method: GET
+    query: {}
+- id: rest-json
+  name: 通用 REST JSON
+  description: 自定义请求参数、嵌套字段映射和响应分页路径
+  aliases: [custom, custom_json]
+  rule:
+    version: 1
+    format: custom_json
+    method: GET
+    query: {page: "{page}"}
+    mapping:
+      list_path: data.items
+      page_path: data.page
+      page_count_path: data.pages
+      total_path: data.total
+      id_path: id
+      name_path: title
+      type_path: category
+      pic_path: cover
+      play_url_path: stream_url
