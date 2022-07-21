@@ -19,12 +19,17 @@ import (
 
 type SQLiteStore struct {
 	*SQLContentStore
-	db        *sql.DB
-	upsertMu  sync.Mutex
-	catMu     sync.RWMutex
-	catCache  []Category
+	*dbAdminHelper
+	db       *sql.DB
+	dbPath   string
+	upsertMu sync.Mutex
+	catMu    sync.RWMutex
+	catCache []Category
 	lastCatAt time.Time
 }
+
+// 编译期断言：SQLiteStore 实现数据库管理接口
+var _ DBAdmin = (*SQLiteStore)(nil)
 
 // NewSQLiteStore 初始化 SQLite 存储
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
@@ -42,7 +47,13 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 
 	db.SetMaxOpenConns(1)
 
-	s := &SQLiteStore{db: db}
+	s := &SQLiteStore{db: db, dbPath: dbPath}
+	s.dbAdminHelper = &dbAdminHelper{
+		db:         db,
+		engine:     "sqlite",
+		filePath:   dbPath,
+		backupsDir: filepath.Join(filepath.Dir(dbPath), "backups"),
+	}
 	if err := s.initSchema(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("init schema failed: %w", err)
