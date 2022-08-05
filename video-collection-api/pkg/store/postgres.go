@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -18,12 +19,17 @@ import (
 
 type PostgresStore struct {
 	*SQLContentStore
-	db        *sql.DB
-	upsertMu  sync.Mutex
-	catMu     sync.RWMutex
-	catCache  []Category
+	*dbAdminHelper
+	db       *sql.DB
+	dsn      string
+	upsertMu sync.Mutex
+	catMu    sync.RWMutex
+	catCache []Category
 	lastCatAt time.Time
 }
+
+// 编译期断言：PostgresStore 实现数据库管理接口
+var _ DBAdmin = (*PostgresStore)(nil)
 
 // NewPostgresStore 初始化 PostgreSQL 存储并自动创建必要表与索引
 func NewPostgresStore(dsn string) (*PostgresStore, error) {
@@ -44,7 +50,15 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 		return nil, fmt.Errorf("ping postgres failed: %w", err)
 	}
 
-	s := &PostgresStore{db: db}
+	s := &PostgresStore{db: db, dsn: dsn}
+	host, dbName := parsePGDSN(dsn)
+	s.dbAdminHelper = &dbAdminHelper{
+		db:         db,
+		engine:     "postgres",
+		host:       host,
+		dbName:     dbName,
+		backupsDir: filepath.Join("data", "backups"),
+	}
 	if err := s.initSchema(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("init postgres schema failed: %w", err)
@@ -60,6 +74,17 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 	_ = s.InitDefaultAdmin(ctx)
 
 	return s, nil
+}
+
+// parsePGDSN 从 PostgreSQL 连接串中提取主机与库名，供数据库管理接口展示
+func parsePGDSN(dsn string) (host, dbName string) {
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return "", ""
+	}
+	host = u.Host
+	dbName = strings.TrimPrefix(u.Path, "/")
+	return host, dbName
 }
 
 // ensureDatabaseExists 如果目标数据库不存在，自动连接系统库执行 CREATE DATABASE
