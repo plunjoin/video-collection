@@ -1049,16 +1049,10 @@ func (s *SQLiteStore) SaveVideoManual(ctx context.Context, v *VideoRecord) (int,
 }
 
 func (s *SQLiteStore) DeleteVideo(ctx context.Context, id int) error {
-	_, _ = s.db.ExecContext(ctx, "DELETE FROM play_sources WHERE video_id = ?", id)
-	_, err := s.db.ExecContext(ctx, "DELETE FROM videos WHERE id = ?", id)
-	return err
+	return s.SQLContentStore.deleteVideosWithComments(ctx, []int{id})
 }
-
 func (s *SQLiteStore) BatchDeleteVideos(ctx context.Context, ids []int) error {
-	for _, id := range ids {
-		_ = s.DeleteVideo(ctx, id)
-	}
-	return nil
+	return s.SQLContentStore.deleteVideosWithComments(ctx, ids)
 }
 
 func (s *SQLiteStore) IncrementVideoHits(ctx context.Context, id int) error {
