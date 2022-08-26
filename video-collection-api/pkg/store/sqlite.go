@@ -18,6 +18,7 @@ import (
 )
 
 type SQLiteStore struct {
+	*SQLContentStore
 	db        *sql.DB
 	upsertMu  sync.Mutex
 	catMu     sync.RWMutex
@@ -45,6 +46,11 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	if err := s.initSchema(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("init schema failed: %w", err)
+	}
+	s.SQLContentStore = &SQLContentStore{db: db}
+	if err := s.SQLContentStore.initSchema(false); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("init content schema failed: %w", err)
 	}
 
 	ctx := context.Background()
@@ -629,7 +635,6 @@ func (s *SQLiteStore) matchCategorySmart(ctx context.Context, srcName string) (i
 	}
 	return 0, srcName
 }
-
 
 // UpsertVideo 写入或更新视频数据（深度支持 SQLite 智能多采集节点独立聚合存储）
 func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *maccms.CleanedVod) (int, error) {
