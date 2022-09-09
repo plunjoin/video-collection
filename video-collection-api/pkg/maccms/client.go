@@ -20,6 +20,8 @@ type Client struct {
 	cfg        config.SourceConfig
 	httpClient *http.Client
 	filter     *FilterEngine
+	rule       *config.CollectionRule
+	ruleErr    error
 }
 
 // QueryParams 采集查询参数
@@ -40,7 +42,9 @@ func NewClient(cfg config.SourceConfig) *Client {
 		timeout = 15 * time.Second
 	}
 
+	rule, ruleErr := config.ResolveCollectionRule(cfg)
 	return &Client{
+		rule: rule, ruleErr: ruleErr,
 		cfg: cfg,
 		httpClient: &http.Client{
 			Timeout: timeout,
@@ -51,7 +55,10 @@ func NewClient(cfg config.SourceConfig) *Client {
 
 // FetchRawResponse 请求接口并反序列化为统一响应格式
 func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*MacCmsResponse, error) {
-	protoType := strings.ToLower(strings.TrimSpace(c.cfg.Type))
+	if c.ruleErr != nil {
+		return nil, c.ruleErr
+	}
+	protoType := c.rule.Format
 
 	// 针对纯网页 RSS 订阅源，第二页以后无需重复拉取
 	if (protoType == "rss" || protoType == "rss_feed") && params.Page > 1 {
@@ -73,17 +80,26 @@ func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Mac
 	var respBody []byte
 	var reqErr error
 
-	retries := c.cfg.RetryCount
-	if retries <= 0 {
-		retries = 1
-	}
+	retries := c.cfg.RetryCount + 1
 
 	for i := 0; i < retries; i++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+		if i > 0 {
+			timer := time.NewTimer(500 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return nil, ctx.Err()
+			case <-timer.C:
+			}
+		}
+		req, err := http.NewRequestWithContext(ctx, c.rule.Method, reqURL, strings.NewReader(c.rule.Body))
 		if err != nil {
 			return nil, fmt.Errorf("create request error: %w", err)
 		}
 
+		if c.rule.Method == "POST" {
+			req.Header.Set("Content-Type", "application/json")
+		}
 		// 默认请求头
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 		req.Header.Set("Accept", "*/*")
@@ -102,22 +118,22 @@ func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Mac
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			reqErr = err
-			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
-		respBody, err = io.ReadAll(resp.Body)
+		respBody, err = io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024+1))
 		_ = resp.Body.Close()
 
 		if err != nil {
 			reqErr = err
-			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
-		if resp.StatusCode != http.StatusOK {
+		if len(respBody) > 8*1024*1024 {
+			return nil, fmt.Errorf("单次响应超过 8 MB 上限")
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			reqErr = fmt.Errorf("http status not 200: %d", resp.StatusCode)
-			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
@@ -126,43 +142,26 @@ func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Mac
 	}
 
 	if reqErr != nil {
-		return nil, fmt.Errorf("request to %s failed after %d retries: %w", reqURL, retries, reqErr)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("上游请求失败 (%d 次尝试)", retries)
 	}
 
-	// 清理 BOM
 	respBody = bytes.TrimPrefix(respBody, []byte("\xef\xbb\xbf"))
 	trimmed := bytes.TrimSpace(respBody)
-
-	// 智能多格式分流解析
-	// 1. 如果明确指定为 xml / rss，或者响应以 '<' 开头，使用 XML/RSS 解析器
-	if protoType == "xml" || protoType == "maccms_xml" || protoType == "rss" || protoType == "rss_feed" || (len(trimmed) > 0 && trimmed[0] == '<') {
-		xmlResp, xmlErr := ParseXmlResponse(trimmed)
-		if xmlErr == nil {
-			return xmlResp, nil
-		}
-		// 如果 XML 解析失败但内容不是以 '<' 开头，继续尝试 JSON
-		if len(trimmed) > 0 && trimmed[0] == '<' {
-			return nil, fmt.Errorf("xml/rss parse failed: %w", xmlErr)
-		}
+	switch protoType {
+	case "maccms_xml", "rss":
+		return ParseXmlResponse(trimmed)
+	case "custom_json":
+		return ParseCustomJsonResponse(trimmed, c.rule.Mapping)
 	}
-
-	// 2. 如果指定为自定义 JSON 映射
-	mapping := c.cfg.CustomMapping
-	if mapping.ListPath == "" && c.cfg.Filter.CustomMapping != nil {
-		mapping = *c.cfg.Filter.CustomMapping
-	}
-	if protoType == "custom_json" {
-		return ParseCustomJsonResponse(trimmed, mapping)
-	}
-
-	// 3. 默认 MacCMS JSON 解析
 	var cmsResp MacCmsResponse
 	if err := json.Unmarshal(trimmed, &cmsResp); err != nil {
-		// 回退尝试自定义 JSON 解析器 (针对某些非标准但类似 JSON 的返回)
-		if customResp, cErr := ParseCustomJsonResponse(trimmed, mapping); cErr == nil && len(customResp.List) > 0 {
-			return customResp, nil
-		}
-		return nil, fmt.Errorf("unmarshal json response failed: %w, raw response: %s", err, string(trimmed))
+		return nil, fmt.Errorf("JSON 响应解析失败: %w", err)
+	}
+	if cmsResp.Code != 1 {
+		return nil, fmt.Errorf("上游报告采集失败")
 	}
 
 	return &cmsResp, nil
@@ -206,67 +205,48 @@ func (c *Client) BuildURL(params QueryParams) string {
 
 // buildURL 构造符合协议规范的请求 URL (智能支持 MacCMS、XML、RSS Feed 及附加参数)
 func (c *Client) buildURL(params QueryParams) (string, error) {
+	if c.ruleErr != nil {
+		return "", c.ruleErr
+	}
 	u, err := url.Parse(c.cfg.API)
-	if err != nil {
-		return "", fmt.Errorf("invalid api url: %w", err)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return "", fmt.Errorf("invalid api url")
 	}
-
-	protoType := strings.ToLower(strings.TrimSpace(c.cfg.Type))
 	q := u.Query()
-
-	// 针对 RSS 订阅源，通常 API 地址即完整 Feed URL，不需要强加 MacCMS 参数
-	if protoType == "rss" || protoType == "rss_feed" {
-		// 附加自定义 Query 参数
-		c.appendCustomParams(&q)
-		u.RawQuery = q.Encode()
-		return u.String(), nil
-	}
-
 	action := params.Action
 	if action == "" {
-		if protoType == "xml" || protoType == "maccms_xml" {
-			action = "videolist"
-		} else {
-			action = "detail"
+		action = "detail"
+	}
+	hours := params.Hours
+	if hours == 0 && !params.IsAll {
+		hours = c.cfg.CollectHours
+	}
+	positive := func(n int) string {
+		if n > 0 {
+			return strconv.Itoa(n)
 		}
+		return ""
 	}
-	q.Set("ac", action)
-
-	if params.Page > 0 {
-		q.Set("pg", strconv.Itoa(params.Page))
+	values := map[string]string{"{page}": positive(params.Page), "{hours}": positive(hours), "{action}": action, "{type_id}": positive(params.TypeID), "{keyword}": params.WD, "{ids}": params.IDs}
+	if params.IsAll {
+		values["{hours}"] = ""
 	}
-
-	if params.TypeID > 0 {
-		q.Set("t", strconv.Itoa(params.TypeID))
-	}
-
-	// 仅在非全量模式且有 hours 时添加 h 参数
-	if !params.IsAll {
-		hours := params.Hours
-		if hours == 0 && c.cfg.CollectHours > 0 {
-			hours = c.cfg.CollectHours
-		}
-		if hours > 0 {
-			q.Set("h", strconv.Itoa(hours))
-		}
-	}
-
-	if params.WD != "" {
-		q.Set("wd", params.WD)
-	}
-
-	if params.IDs != "" {
-		q.Set("ids", params.IDs)
-	}
-
-	// 针对 MacCMS JSON 格式强制参数
-	if protoType == "json" || protoType == "maccms_json" || protoType == "" {
-		q.Set("out", "json")
-	}
-
-	// 注入自定义 URL Query 参数 (如 token=xxx)
 	c.appendCustomParams(&q)
-
+	for key, template := range c.rule.Query {
+		value := template
+		omit := false
+		for token, replacement := range values {
+			if strings.Contains(value, token) && replacement == "" {
+				omit = true
+			}
+			value = strings.ReplaceAll(value, token, replacement)
+		}
+		if omit {
+			q.Del(key)
+		} else {
+			q.Set(key, value)
+		}
+	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
