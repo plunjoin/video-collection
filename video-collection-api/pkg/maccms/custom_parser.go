@@ -3,6 +3,7 @@ package maccms
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 // ParseCustomJsonResponse 解析任意自定义结构的 JSON API
 func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCmsResponse, error) {
 	var raw any
-	if err := json.Unmarshal(data, &raw); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("json unmarshal failed: %w", err)
 	}
 
@@ -23,14 +26,14 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 	}
 
 	rawItems := extractSliceByPath(raw, listPath)
-	if len(rawItems) == 0 {
+	if rawItems == nil && strings.TrimSpace(mapping.ListPath) == "" {
 		// 尝试根直接为数组
 		if slice, ok := raw.([]any); ok {
 			rawItems = slice
 		} else {
 			// 尝试常见的其他列表名称
 			for _, candidate := range []string{"list", "items", "results", "videos", "data.list", "data.items"} {
-				if s := extractSliceByPath(raw, candidate); len(s) > 0 {
+				if s := extractSliceByPath(raw, candidate); s != nil {
 					rawItems = s
 					break
 				}
@@ -38,6 +41,9 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 		}
 	}
 
+	if rawItems == nil {
+		return nil, fmt.Errorf("列表路径 %q 未指向数组", listPath)
+	}
 	resp := &MacCmsResponse{
 		Code:      1,
 		Msg:       "自定义JSON解析成功",
@@ -47,6 +53,19 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 		Total:     FlexInt(len(rawItems)),
 	}
 
+	number := func(path string, fallback FlexInt) FlexInt {
+		if path == "" {
+			return fallback
+		}
+		n, _ := strconv.Atoi(fmt.Sprint(extractValueByPath(raw, path)))
+		return FlexInt(n)
+	}
+	resp.Page = number(mapping.PagePath, 1)
+	resp.PageCount = number(mapping.PageCountPath, 1)
+	resp.Total = number(mapping.TotalPath, resp.Total)
+	if resp.PageCount < 1 {
+		resp.PageCount = 1
+	}
 	// 2. 遍历提取字段
 	for idx, item := range rawItems {
 		itemMap, ok := item.(map[string]any)
@@ -87,6 +106,10 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 			vodPlayURL = "正片$" + vodPlayURL
 		}
 
+		player := extractStringField(itemMap, mapping.PlayFromPath)
+		if player == "" {
+			player = "m3u8"
+		}
 		vodItem := VodItem{
 			VodID:       FlexInt(vodID),
 			VodName:     name,
@@ -98,7 +121,7 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 			VodYear:     year,
 			VodRemarks:  remarks,
 			VodContent:  content,
-			VodPlayFrom: "m3u8",
+			VodPlayFrom: player,
 			VodPlayURL:  vodPlayURL,
 			VodTime:     time.Now().Format("2006-01-02 15:04:05"),
 		}
@@ -109,37 +132,43 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 	return resp, nil
 }
 
-func extractSliceByPath(root any, path string) []any {
-	parts := strings.Split(strings.TrimSpace(path), ".")
+func extractValueByPath(root any, path string) any {
+	if path == "" || path == "$" {
+		return root
+	}
 	current := root
-
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		m, ok := current.(map[string]any)
-		if !ok {
+	for _, part := range strings.Split(strings.TrimPrefix(path, "$."), ".") {
+		switch obj := current.(type) {
+		case map[string]any:
+			current = obj[part]
+		case []any:
+			i, err := strconv.Atoi(part)
+			if err != nil || i < 0 || i >= len(obj) {
+				return nil
+			}
+			current = obj[i]
+		default:
 			return nil
 		}
-		current = m[part]
 	}
+	return current
+}
 
-	if slice, ok := current.([]any); ok {
-		return slice
-	}
-	return nil
+func extractSliceByPath(root any, path string) []any {
+	list, _ := extractValueByPath(root, path).([]any)
+	return list
 }
 
 func extractStringField(item map[string]any, specificField string, fallbacks ...string) string {
 	if specificField != "" {
-		if val, exists := item[specificField]; exists && val != nil {
-			return fmt.Sprintf("%v", val)
+		if val := extractValueByPath(item, specificField); val != nil {
+			return fmt.Sprint(val)
 		}
+		return ""
 	}
-
 	for _, fb := range fallbacks {
-		if val, exists := item[fb]; exists && val != nil {
-			return fmt.Sprintf("%v", val)
+		if val := extractValueByPath(item, fb); val != nil {
+			return fmt.Sprint(val)
 		}
 	}
 	return ""
