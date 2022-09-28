@@ -1092,23 +1092,10 @@ func (s *PostgresStore) SaveVideoManual(ctx context.Context, v *VideoRecord) (in
 }
 
 func (s *PostgresStore) DeleteVideo(ctx context.Context, id int) error {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM videos WHERE id = $1", id)
-	return err
+	return s.SQLContentStore.deleteVideosWithComments(ctx, []int{id})
 }
-
 func (s *PostgresStore) BatchDeleteVideos(ctx context.Context, ids []int) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
-	query := fmt.Sprintf("DELETE FROM videos WHERE id IN (%s)", strings.Join(placeholders, ","))
-	_, err := s.db.ExecContext(ctx, query, args...)
-	return err
+	return s.SQLContentStore.deleteVideosWithComments(ctx, ids)
 }
 
 func (s *PostgresStore) IncrementVideoHits(ctx context.Context, id int) error {
