@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统管理控制台 - MacCMS 采集与输出平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .badge { padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+
+  <!-- 顶部导航栏 -->
+  <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-white flex items-center gap-2">
+          管理控制台 (Admin Console)
+          <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] px-1.5 py-0.2 rounded font-mono">PostgreSQL</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">多源智能采集 • 数据清洗聚合 • 客户端主题引擎</p>
+      </div>
+    </div>
+
+    <!-- 导航菜单 -->
+    <nav class="flex items-center space-x-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800 text-xs flex-wrap gap-y-1">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-indigo-400 bg-slate-800/80 shadow-sm transition">仪表盘</button>
+      <button onclick="switchTab('sources')" id="nav-sources" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">采集点管理</button>
+      <button onclick="switchTab('cron')" id="nav-cron" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">定时计划</button>
+      <button onclick="switchTab('videos')" id="nav-videos" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">视频仓库</button>
+      <button onclick="switchTab('feedbacks')" id="nav-feedbacks" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">求片反馈</button>
+      <button onclick="switchTab('users')" id="nav-users" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">用户管理</button>
+      <button onclick="switchTab('themes')" id="nav-themes" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">客户端主题</button>
+      <button onclick="switchTab('players')" id="nav-players" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">播放器管理</button>
+      <button onclick="switchTab('settings')" id="nav-settings" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">系统配置</button>
+      <button onclick="switchTab('logs')" id="nav-logs" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">运行日志</button>
+      <button onclick="switchTab('rss')" id="nav-rss" class="tab-btn px-2.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">RSS 订阅</button>
+    </nav>
+
+    <!-- 右侧用户状态与前台链接 -->
+    <div class="flex items-center space-x-3 text-xs">
+      <a href="/" target="_blank" class="px-2.5 py-1 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 rounded-lg transition font-medium flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        进入客户端门户
+      </a>
+      <span id="admin-user-tag" class="text-slate-400">admin</span>
+      <button onclick="doLogout()" class="text-rose-400 hover:text-rose-300">退出</button>
+    </div>
+  </header>
+
+  <!-- 主体内容 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
+    <!-- 1. 仪表盘 Tab -->
+    <section id="tab-dashboard" class="tab-content space-y-6">
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">采集源数量</div>
+          <div class="mt-2 text-2xl font-bold text-white flex items-baseline gap-2">
+            <span id="stat-sources">0</span>
+            <span id="stat-sources-active" class="text-[11px] text-emerald-400">启用 0</span>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">已入库总视频</div>
+          <div class="mt-2 text-2xl font-bold text-white" id="stat-videos">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">今日更新数据</div>
+          <div class="mt-2 text-2xl font-bold text-emerald-400" id="stat-today">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">聚合播放线路</div>
+          <div class="mt-2 text-2xl font-bold text-amber-400" id="stat-playgroups">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">系统用户数</div>
+          <div class="mt-2 text-2xl font-bold text-indigo-400" id="stat-users">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase">求片留言反馈</div>
+          <div class="mt-2 text-2xl font-bold text-violet-400" id="stat-feedbacks">0</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-white">活跃采集点与即时触发</h2>
+          <button onclick="switchTab('sources')" class="text-xs text-indigo-400 hover:underline">管理采集点 &rarr;</button>
+        </div>
+        <div id="dash-sources-list" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- 2. 采集点管理 Tab (强化两种采集模式) -->
+    <section id="tab-sources" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">多采集点管理</h2>
+          <p class="text-xs text-slate-400">支持全量历史采集与近24小时增量采集，独立配置分类映射与清洗规则</p>
+        </div>
+        <button onclick="openSourceModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          添加采集点
+        </button>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <tr>
+              <th class="py-3 px-4">采集点名称</th>
+              <th class="py-3 px-3">API 地址</th>
+              <th class="py-3 px-3">默认设置</th>
+              <th class="py-3 px-3">规则过滤</th>
+              <th class="py-3 px-3">状态</th>
+              <th class="py-3 px-4 text-right">采集操作</th>
+            </tr>
+          </thead>
+          <tbody id="sources-table-body" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2.5 定时计划 Tab -->
+    <section id="tab-cron" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>定时自动采集计划 (Auto Cron)</span>
+            <span id="cron-status-badge" class="badge bg-slate-800 text-slate-400">检测中...</span>
+          </h2>
+          <p class="text-xs text-slate-400">后台全自动轮询采集器，定时自动对所有启用的采集点拉取最新24小时更新数据，保障片库实时常新</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="triggerCollectAll(24)" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            一键立即采集全网 (24h)
+          </button>
+          <button onclick="triggerCollectAll(0)" class="px-3 py-1.5 bg-amber-600/40 hover:bg-amber-600 text-amber-200 hover:text-white border border-amber-500/40 rounded-xl text-xs font-semibold transition">
+            全网全量采集
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 md:col-span-1">
+          <h3 class="text-sm font-bold text-white border-b border-slate-800 pb-2">定时自动轮询设置</h3>
+          <form id="cron-config-form" onsubmit="saveAutoCollectConfig(event)" class="space-y-4 text-xs">
+            <div>
+              <label class="block text-slate-400 mb-1.5">定时任务运行开关</label>
+              <select id="cron-enabled-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                <option value="1">开启自动轮询 (推荐)</option>
+                <option value="0">关闭定时轮询</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1.5">轮询间隔频率 (小时)</label>
+              <select id="cron-interval-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                <option value="1">每 1 小时轮询一次</option>
+                <option value="2" selected>每 2 小时轮询一次 (默认)</option>
+                <option value="4">每 4 小时轮询一次</option>
+                <option value="6">每 6 小时轮询一次</option>
+                <option value="12">每 12 小时轮询一次</option>
+                <option value="24">每 24 小时轮询一次</option>
+              </select>
+            </div>
+            <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-600/30 transition">
+              保存定时计划设置
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 md:col-span-2 flex flex-col justify-between">
+          <h3 class="text-sm font-bold text-white border-b border-slate-800 pb-2">轮询运行状态看板</h3>
+          <div class="grid grid-cols-2 gap-4 text-xs">
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <span class="text-slate-400 block">上次自动执行时间</span>
+              <span id="cron-last-run-text" class="text-sm font-bold text-white mt-1 block">未记录</span>
+            </div>
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <span class="text-slate-400 block">下次预计触发时间</span>
+              <span id="cron-next-run-text" class="text-sm font-bold text-emerald-400 mt-1 block">未计划</span>
+            </div>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 leading-relaxed">
+            <p>💡 <strong class="text-white">运行机制说明：</strong></p>
+            <ul class="list-disc list-inside mt-1 space-y-1 text-slate-400">
+              <li>自动定时采集在后端独立 Go 协程中持续巡检，即使关闭浏览器也全天候守护。</li>
+              <li>定时任务触发时仅对“状态正常启用”的采集源拉取最新 24 小时增量，速度极快（通常在数秒内完成增量入库）。</li>
+              <li>采集详细步骤与清洗记录可在【运行日志】选项卡中实时查看。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 视频数据仓库 Tab -->
+    <section id="tab-videos" class="tab-content hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-3.5 rounded-2xl">
+        <div class="flex items-center gap-2.5 flex-1 min-w-[280px]">
+          <input id="search-video-kw" type="text" placeholder="搜索片名或演员..." onkeydown="if(event.key==='Enter') loadVideos(1)"
+                 class="w-48 md:w-56 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+          
+          <select id="search-video-type" onchange="loadVideos(1)" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <option value="0">全部分类 (全部大类及子类)</option>
+          </select>
+
+          <button onclick="loadVideos(1)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition">搜索</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="openVideoModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1 shadow-md shadow-emerald-600/20">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            新增视频
+          </button>
+          <button onclick="batchDeleteSelectedVideos()" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            批量删除
+          </button>
+          <div class="text-xs text-slate-400 pl-2">
+            共 <span id="videos-total-count" class="text-indigo-400 font-bold">0</span> 部
+          </div>
+        </div>
+      </div>
+
+      <div id="admin-videos-table-wrap" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <tr>
+              <th class="py-2.5 px-3 w-10 text-center"><input type="checkbox" id="check-all-videos" onchange="toggleCheckAllVideos(this)"></th>
+              <th class="py-2.5 px-2">ID</th>
+              <th class="py-2.5 px-3">海报</th>
+              <th class="py-2.5 px-3">片名</th>
+              <th class="py-2.5 px-3">系统分类</th>
+              <th class="py-2.5 px-3">热度点击</th>
+              <th class="py-2.5 px-3">播放线路</th>
+              <th class="py-2.5 px-3">更新时间</th>
+              <th class="py-2.5 px-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="videos-table-body" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between pt-1">
+        <button id="page-prev-btn" onclick="prevPage()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs disabled:opacity-40">上一页</button>
+        <span id="page-indicator" class="text-xs text-slate-400">第 1 页</span>
+        <button id="page-next-btn" onclick="nextPage()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs disabled:opacity-40">下一页</button>
+      </div>
+    </section>
+
+    <!-- 4. 用户求片与反馈管理 Tab -->
+    <section id="tab-feedbacks" class="tab-content hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-white">用户留言求片与播放故障管理</h2>
+          <p class="text-xs text-slate-400">处理来自前台访客的求片心愿单、播放失效报错以及产品体验建议</p>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button onclick="filterFeedbacks('')" id="fb-filter-all" class="fb-filter-btn px-2.5 py-1 rounded-lg text-indigo-400 bg-slate-800">全部</button>
+          <button onclick="filterFeedbacks('pending')" id="fb-filter-pending" class="fb-filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">待处理</button>
+          <button onclick="filterFeedbacks('processing')" id="fb-filter-processing" class="fb-filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">处理中</button>
+          <button onclick="filterFeedbacks('resolved')" id="fb-filter-resolved" class="fb-filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">已收录/已修复</button>
+          <button onclick="filterFeedbacks('rejected')" id="fb-filter-rejected" class="fb-filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">已驳回</button>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <tr>
+              <th class="py-3 px-4">ID</th>
+              <th class="py-3 px-3">类型</th>
+              <th class="py-3 px-3">影片/主题</th>
+              <th class="py-3 px-3">详情说明</th>
+              <th class="py-3 px-3">联系方式</th>
+              <th class="py-3 px-3">状态</th>
+              <th class="py-3 px-3">管理员回复</th>
+              <th class="py-3 px-3">提交时间</th>
+              <th class="py-3 px-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="feedbacks-table-body" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. 用户管理 Tab (新增) -->
+    <section id="tab-users" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">用户权限管理</h2>
+          <p class="text-xs text-slate-400">管理管理员与普通系统用户，支持添加、修改密码与角色权限</p>
+        </div>
+        <button onclick="openUserModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+          + 添加新用户
+        </button>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <tr>
+              <th class="py-3 px-4">用户ID</th>
+              <th class="py-3 px-3">用户名</th>
+              <th class="py-3 px-3">昵称</th>
+              <th class="py-3 px-3">角色权限</th>
+              <th class="py-3 px-3">状态</th>
+              <th class="py-3 px-3">创建时间</th>
+              <th class="py-3 px-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. 客户端主题管理 Tab (新增支持导入与切换) -->
+    <section id="tab-themes" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">客户端主题管理</h2>
+          <p class="text-xs text-slate-400">管理面向前台访客的模板主题，支持一键切换与上传 ZIP 主题包在线导入</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="file" id="theme-zip-input" accept=".zip" class="hidden" onchange="uploadThemeZip(event)">
+          <button onclick="document.getElementById('theme-zip-input').click()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            上传并导入新主题 (.ZIP)
+          </button>
+        </div>
+      </div>
+
+      <!-- 主题卡片网格 -->
+      <div id="themes-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- 6. 播放器管理 Tab (支持Video.js与第三方导入) -->
+    <section id="tab-players" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>流媒体播放器引擎管理</span>
+            <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] px-2 py-0.5 rounded font-mono">内核引擎</span>
+          </h2>
+          <p class="text-xs text-slate-400">支持系统内置极光 Video.js 现代超清增强版、第三方在线解析/iframe播放器、以及在线上传导入 ZIP 播放器插件</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="file" id="player-zip-input" accept=".zip" class="hidden" onchange="uploadPlayerZip(event)">
+          <button onclick="document.getElementById('player-zip-input').click()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            上传并导入新播放器 (.ZIP)
+          </button>
+        </div>
+      </div>
+
+      <!-- 播放器卡片网格 -->
+      <div id="players-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- 7. 网站系统全局配置 Tab -->
+    <section id="tab-settings" class="tab-content hidden space-y-4">
+      <div>
+        <h2 class="text-base font-bold text-white">网站全局系统配置</h2>
+        <p class="text-xs text-slate-400">设置网站主名称、前台公告广播、SEO元数据、备案号与苹果CMS对接安全密钥</p>
+      </div>
+
+      <form id="settings-form" onsubmit="saveSiteConfig(event)" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 max-w-3xl text-xs">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">网站主名称</label>
+            <input type="text" id="set-site-name" required placeholder="如: 影视聚合Portal" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">网站副标题 / Slogan</label>
+            <input type="text" id="set-site-subtitle" placeholder="如: 海量超清影视 • 智能聚合播放" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-slate-400 font-semibold">前台滚动广播公告</label>
+            <label class="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+              <input type="checkbox" id="set-notice-enabled" class="rounded bg-slate-850">
+              在前台顶部显示公告栏
+            </label>
+          </div>
+          <textarea id="set-site-announcement" rows="2" placeholder="输入前台广播公告内容..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">SEO 关键词 (Keywords)</label>
+            <input type="text" id="set-site-keywords" placeholder="电影,电视剧,动漫,在线观看" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">网站备案号 (ICP)</label>
+            <input type="text" id="set-site-icp" placeholder="萌ICP备20260001号" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">SEO 网站描述 (Description)</label>
+          <textarea id="set-site-desc" rows="2" placeholder="网站简要介绍..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea>
+        </div>
+
+        <div class="border-t border-slate-800 pt-4 flex items-center justify-end">
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-600/30 transition">
+            保存全部系统配置
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 8. 运行日志 Tab -->
+    <section id="tab-logs" class="tab-content hidden space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-white">实时采集流水日志</h2>
+        <div class="flex items-center gap-3 text-xs">
+          <label class="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+            <input type="checkbox" id="auto-refresh-logs" checked class="rounded bg-slate-850">
+            自动轮询 (2s)
+          </label>
+          <button onclick="loadLogs()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg">刷新</button>
+        </div>
+      </div>
+      <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 font-mono text-xs h-[520px] overflow-y-auto space-y-1.5" id="logs-container"></div>
+    </section>
+
+    <!-- 7. 网页 RSS 2.0 聚合订阅服务 Tab -->
+    <section id="tab-rss" class="tab-content hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              网页标准 RSS 2.0 聚合订阅分发服务
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">对外提供标准 Web RSS 2.0 / Atom XML 订阅流，各端 RSS 阅读器可直接无缝订阅全站或特定分类新片。</p>
+          </div>
+          <span class="px-2.5 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold">RSS 2.0 Active</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">全站最新更新 RSS (默认 30 部)</span>
+              <span class="text-[11px] text-slate-500 font-mono">/rss.xml</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <code id="admin-rss-all" class="text-xs font-mono text-amber-400 flex-1 truncate bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-800">/rss.xml</code>
+              <button onclick="copyToClipboard('admin-rss-all')" class="text-xs px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition">复制</button>
+              <a id="admin-link-rss-all" href="/rss.xml" target="_blank" class="text-xs px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">打开</a>
+              <button onclick="previewRssXML('/rss.xml')" class="text-xs px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition">预览</button>
+            </div>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">最近 24 小时增量更新 RSS</span>
+              <span class="text-[11px] text-slate-500 font-mono">/rss.xml?hours=24</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <code id="admin-rss-24h" class="text-xs font-mono text-amber-400 flex-1 truncate bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-800">/rss.xml?hours=24</code>
+              <button onclick="copyToClipboard('admin-rss-24h')" class="text-xs px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition">复制</button>
+              <a id="admin-link-rss-24h" href="/rss.xml?hours=24" target="_blank" class="text-xs px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">打开</a>
+              <button onclick="previewRssXML('/rss.xml?hours=24')" class="text-xs px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition">预览</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800">
+          <h4 class="text-xs font-bold text-white mb-2">分类专属订阅链接列表 (动态生成)</h4>
+          <div id="admin-rss-cat-list" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold text-white">实时 RSS XML 输出检查器</h4>
+            <span class="text-[11px] text-slate-500">点击上方“预览”按钮可在此处审查 XML 结构</span>
+          </div>
+          <pre id="admin-rss-preview" class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-[11px] font-mono text-slate-300 max-h-72 overflow-auto whitespace-pre-wrap break-all">点击上方【预览】按钮拉取并格式化实时 RSS 2.0 XML 内容...</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 采集源高级配置弹窗 (多协议、多类型、全配置项) -->
+  <div id="source-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+        <div>
+          <h3 id="source-modal-title" class="text-sm font-bold text-white">配置采集源</h3>
+          <p class="text-[11px] text-slate-400">支持 MacCMS JSON、MacCMS XML、网页 RSS 订阅及自定义通用 JSON</p>
+        </div>
+        <button onclick="closeSourceModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+
+      <form id="source-form" onsubmit="saveSource(event)" class="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+        <input type="hidden" id="form-src-id">
+
+        <!-- 采集源基础与协议选择 -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <h4 class="font-bold text-white text-xs border-b border-slate-800 pb-2 flex items-center justify-between">
+            <span>1. 基础信息与采集协议</span>
+            <span class="text-[10px] text-indigo-400 font-normal">多协议智能自适应</span>
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1 font-semibold">采集源名称 <span class="text-rose-400">*</span></label>
+              <input type="text" id="form-src-name" required placeholder="如: 示例数据源 / 某影视RSS" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1 font-semibold">采集协议与数据格式 <span class="text-rose-400">*</span></label>
+              <select id="form-src-type" onchange="toggleSourceTypeFields()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium">
+                <option value="json">苹果CMS (MacCMS v10 JSON API)</option>
+                <option value="xml">苹果CMS / 飞飞CMS (MacCMS XML 规范)</option>
+                <option value="rss">网页 RSS 2.0 / Atom 订阅源 (外部订阅采集)</option>
+                <option value="custom_json">自定义通用 REST JSON 接口 (字段映射)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">API 端点 / 订阅 URL <span class="text-rose-400">*</span></label>
+            <div class="flex gap-2">
+              <input type="url" id="form-src-api" required placeholder="https://example.com/api.php/provide/vod/" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs">
+              <button type="button" onclick="testRemoteAPI()" class="px-3.5 py-2 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 rounded-xl font-semibold transition shrink-0">
+                探测连通性
+              </button>
+            </div>
+            <p id="test-remote-result" class="mt-1 text-[11px] text-slate-400"></p>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+              <input type="checkbox" id="form-src-enabled" checked class="rounded bg-slate-800">
+              <span>启用此采集源 (启用后参与定时自动全网增量采集)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 采集请求与频控配置 -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <h4 class="font-bold text-white text-xs border-b border-slate-800 pb-2">2. 请求与频控参数</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1">默认采集跨度(小时)</label>
+              <input type="number" id="form-src-hours" value="24" placeholder="0为全量" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">单次最大页数限制</label>
+              <input type="number" id="form-src-limit" value="5" placeholder="0为到底" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">翻页请求间隔(ms)</label>
+              <input type="number" id="form-src-interval" value="300" placeholder="防封禁防频控" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">请求超时时间(秒)</label>
+              <input type="number" id="form-src-timeout" value="15" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-slate-400 mb-1">自定义 HTTP Headers (JSON 或每行 key: value)</label>
+              <textarea id="form-src-headers" rows="2" placeholder='{"User-Agent": "Mozilla/5.0...", "Referer": "https://..."}' class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]"></textarea>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">自定义 URL Query 附加参数 (如 token=xxx&key=yyy)</label>
+              <textarea id="form-src-params" rows="2" placeholder="token=abc&auth=xyz" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自定义 JSON 字段映射 (当选择 custom_json 时展示) -->
+        <div id="custom-json-box" class="hidden bg-slate-950 border border-indigo-900/60 rounded-2xl p-4 space-y-3">
+          <h4 class="font-bold text-indigo-300 text-xs border-b border-slate-800 pb-2 flex items-center justify-between">
+            <span>3. 通用 JSON 字段路径映射</span>
+            <span class="text-[10px] text-slate-400">将第三方 JSON 字段自动映射至系统规范字段</span>
+          </h4>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1">列表对象路径</label>
+              <input type="text" id="form-src-map-list" placeholder="data 或 items" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">片名字段 (name)</label>
+              <input type="text" id="form-src-map-name" placeholder="title 或 name" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">播放链接 (play_url)</label>
+              <input type="text" id="form-src-map-url" placeholder="url 或 play_url" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">封面图片 (pic)</label>
+              <input type="text" id="form-src-map-pic" placeholder="pic 或 cover" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">分类名称 (type)</label>
+              <input type="text" id="form-src-map-type" placeholder="category 或 type" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">连载状态 (remarks)</label>
+              <input type="text" id="form-src-map-remarks" placeholder="remarks 或 note" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- 清洗与过滤规则 -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <h4 class="font-bold text-white text-xs border-b border-slate-800 pb-2">4. 清洗与过滤规则</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1">播放器白名单 (逗号隔开，留空保留全部)</label>
+              <input type="text" id="form-src-players" placeholder="m3u8,lzm3u8,ffm3u8" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">播放器别名映射 (如: lzm3u8:m3u8)</label>
+              <input type="text" id="form-src-player-mappings" placeholder="lzm3u8:m3u8,kkm3u8:m3u8" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1">片名黑名单词 (逗号隔开，命中直接跳过)</label>
+              <input type="text" id="form-src-ignore-kw" placeholder="预告片,抢先看,测试,花絮" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">片名前缀水印清理 (逗号隔开)</label>
+              <input type="text" id="form-src-clean-prefixes" placeholder="【独家】,【高清】,[未删减]" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white">
+            </div>
+          </div>
+
+          <div>
+            <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+              <input type="checkbox" id="form-src-require-urls" checked class="rounded bg-slate-800">
+              <span>丢弃没有有效播放链接的条目</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeSourceModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">取消</button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition">保存采集配置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 用户管理弹窗 -->
+  <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="user-modal-title" class="text-sm font-bold text-white">添加用户</h3>
+        <button onclick="closeUserModal()" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form id="user-form" onsubmit="saveUser(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="form-user-id">
+        <div>
+          <label class="block text-slate-400 mb-1">用户名</label>
+          <input type="text" id="form-user-name" required placeholder="如: admin2" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">密码 (留空则不修改)</label>
+          <input type="password" id="form-user-pwd" placeholder="设置新密码" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">昵称</label>
+          <input type="text" id="form-user-nickname" placeholder="如: 运营专员" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">角色权限</label>
+            <select id="form-user-role" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <option value="admin">管理员 (Admin)</option>
+              <option value="user">普通用户 (User)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">账号状态</label>
+            <select id="form-user-status" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <option value="1">正常启用</option>
+              <option value="0">封禁冻结</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl">取消</button>
+          <button type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold">保存用户</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 视频编辑/新增弹窗 -->
+  <div id="video-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="video-modal-title" class="text-sm font-bold text-white">新增/编辑视频</h3>
+        <button onclick="closeVideoModal()" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form id="video-form" onsubmit="saveVideo(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="form-video-id">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">片名 (Name) *</label>
+            <input type="text" id="form-video-name" required placeholder="如: 星际穿越" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">副标题 / 又名</label>
+            <input type="text" id="form-video-subname" placeholder="如: Interstellar / 星际启示录" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">系统分类 *</label>
+            <select id="form-video-type" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <!-- 动态插入分类 -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">年份</label>
+            <input type="text" id="form-video-year" placeholder="2026" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">地区</label>
+            <input type="text" id="form-video-area" placeholder="中国大陆 / 美国" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">语言</label>
+            <input type="text" id="form-video-lang" placeholder="国语 / 英语" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">海报封面 URL</label>
+          <input type="url" id="form-video-pic" placeholder="https://.../poster.jpg" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">导演</label>
+            <input type="text" id="form-video-director" placeholder="导演名称" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">主演</label>
+            <input type="text" id="form-video-actor" placeholder="演员名单，逗号或空格隔开" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">连载状态/备注</label>
+            <input type="text" id="form-video-remarks" placeholder="如: 4K超清 / 更新至12集" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">剧情简介</label>
+          <textarea id="form-video-content" rows="2" placeholder="影片故事梗概介绍..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-slate-400 font-semibold">播放源与剧集配置 (MacCMS 格式)</label>
+            <span class="text-[11px] text-slate-500">集数用 # 分隔，名称与地址用 $ 分隔</span>
+          </div>
+          <textarea id="form-video-play-urls" rows="4" placeholder="线路格式示例：&#10;m3u8$$$第01集$https://domain.com/1.m3u8#第02集$https://domain.com/2.m3u8&#10;&#10;多线路可用 $$$ 换行添加新线路" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeVideoModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl">取消</button>
+          <button type="submit" class="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold">保存视频</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 反馈处理/回复弹窗 -->
+  <div id="feedback-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white">处理求片/留言反馈</h3>
+        <button onclick="closeFeedbackModal()" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form id="feedback-form" onsubmit="submitFeedbackReply(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="form-fb-id">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+          <div class="font-bold text-white" id="fb-view-title"></div>
+          <div class="text-slate-400 leading-relaxed text-[11px]" id="fb-view-content"></div>
+          <div class="text-[10px] text-slate-500 pt-1 border-t border-slate-800/60" id="fb-view-contact"></div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">更新处理状态</label>
+          <select id="form-fb-status" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium">
+            <option value="pending">待处理</option>
+            <option value="processing">处理中 (正在核查/压制)</option>
+            <option value="resolved">已解决 / 已收录入库</option>
+            <option value="rejected">已驳回 / 暂无片源</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">管理员官方答复 (将在前台公开展示)</label>
+          <textarea id="form-fb-reply" rows="3" placeholder="填写答复内容，如：该影片已收录，搜索即可观看！" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeFeedbackModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl">取消</button>
+          <button type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold">保存处理结果</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentTab = 'dashboard';
+    let allCategories = [];
+    let currentVideoPage = 1;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStats();
+      loadCategories().then(() => updateRSSURLs());
+      loadSources();
+      loadLogs();
+      updateRSSURLs();
+
+      setInterval(() => {
+        if (document.getElementById('auto-refresh-logs')?.checked && currentTab === 'logs') {
+          loadLogs();
+        }
+      }, 2000);
+    });
+
+    function updateRSSURLs() {
+      const origin = window.location.origin;
+      const elAll = document.getElementById('admin-rss-all');
+      const el24h = document.getElementById('admin-rss-24h');
+      const linkAll = document.getElementById('admin-link-rss-all');
+      const link24h = document.getElementById('admin-link-rss-24h');
+      if (elAll) elAll.innerText = origin + '/rss.xml';
+      if (el24h) el24h.innerText = origin + '/rss.xml?hours=24';
+      if (linkAll) linkAll.href = origin + '/rss.xml';
+      if (link24h) link24h.href = origin + '/rss.xml?hours=24';
+      renderAdminRssCategories();
+    }
+
+    async function previewRssXML(urlPath) {
+      const preEl = document.getElementById('admin-rss-preview');
+      preEl.innerText = '正在向 ' + urlPath + ' 发送请求拉取实时 XML...';
+      try {
+        const res = await fetch(urlPath);
+        const text = await res.text();
+        preEl.innerText = text.slice(0, 15000);
+      } catch (err) {
+        preEl.innerText = '拉取失败: ' + err.message;
+      }
+    }
+
+    function renderAdminRssCategories() {
+      const catBox = document.getElementById('admin-rss-cat-list');
+      if (!catBox || !allCategories || allCategories.length === 0) return;
+      const origin = window.location.origin;
+      catBox.innerHTML = allCategories.map(c => `
+        <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+          <div>
+            <span class="text-white font-semibold text-xs">${c.name}</span>
+            <span class="text-[10px] text-slate-500 font-mono block">/rss.xml?type_id=${c.id}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="navigator.clipboard.writeText('${origin}/rss.xml?type_id=${c.id}').then(()=>alert('已复制分类订阅地址！'))"
+                    class="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded transition">复制</button>
+            <a href="${origin}/rss.xml?type_id=${c.id}" target="_blank" class="text-[10px] px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition">打开</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-indigo-400', 'bg-slate-800/80', 'shadow-sm');
+        btn.classList.add('text-slate-400');
+      });
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+
+      const activeBtn = document.getElementById('nav-' + tab);
+      const activeContent = document.getElementById('tab-' + tab);
+      if (activeBtn) {
+        activeBtn.classList.add('text-indigo-400', 'bg-slate-800/80', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-400');
+      }
+      if (activeContent) activeContent.classList.remove('hidden');
+
+      if (tab === 'dashboard') loadStats();
+      if (tab === 'sources') loadSources();
+      if (tab === 'cron') loadAutoCollect();
+      if (tab === 'videos') loadVideos(1);
+      if (tab === 'feedbacks') loadFeedbacks();
+      if (tab === 'users') loadUsers();
+      if (tab === 'themes') loadThemes();
+      if (tab === 'players') loadPlayers();
+      if (tab === 'settings') loadSiteConfig();
+      if (tab === 'logs') loadLogs();
+      if (tab === 'rss') updateRSSURLs();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        if (data.code === 1) {
+          const s = data.data;
+          document.getElementById('stat-sources').innerText = s.total_sources || 0;
+          document.getElementById('stat-sources-active').innerText = `启用 ${s.active_sources || 0}`;
+          document.getElementById('stat-videos').innerText = s.total_videos || 0;
+          document.getElementById('stat-today').innerText = s.today_updated || 0;
+          document.getElementById('stat-playgroups').innerText = s.total_play_groups || 0;
+          document.getElementById('stat-users').innerText = s.total_users || 0;
+          if (document.getElementById('stat-feedbacks')) {
+            document.getElementById('stat-feedbacks').innerText = s.total_feedbacks || 0;
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // 加载带层级的分类列表，解决级联筛选
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/categories');
+        const data = await res.json();
+        if (data.code === 1) {
+          allCategories = data.data || [];
+          const select = document.getElementById('search-video-type');
+          const modalSelect = document.getElementById('form-video-type');
+          
+          let html = `<option value="0">全部分类 (全部大类及子类)</option>`;
+          let modalHtml = `<option value="">请选择系统分类...</option>`;
+          const parents = allCategories.filter(c => c.pid === 0);
+          parents.forEach(p => {
+            html += `<option value="${p.id}" class="font-bold">【${p.name}】大类 (包含所有子分类)</option>`;
+            modalHtml += `<option value="${p.id}" class="font-bold">【${p.name}】</option>`;
+            const children = allCategories.filter(c => c.pid === p.id);
+            children.forEach(ch => {
+              html += `<option value="${ch.id}">&nbsp;&nbsp;&nbsp;&nbsp;└─ ${ch.name}</option>`;
+              modalHtml += `<option value="${ch.id}">&nbsp;&nbsp;&nbsp;&nbsp;└─ ${ch.name}</option>`;
+            });
+          });
+          if (select) select.innerHTML = html;
+          if (modalSelect) modalSelect.innerHTML = modalHtml;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // 采集源
+    async function loadSources() {
+      try {
+        const res = await fetch('/api/admin/sources');
+        const data = await res.json();
+        if (data.code === 1) {
+          renderSourcesTable(data.data || []);
+          renderDashboardSources(data.data || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderDashboardSources(sources) {
+      const c = document.getElementById('dash-sources-list');
+      if (!sources || sources.length === 0) {
+        c.innerHTML = `<div class="text-xs text-slate-500 py-3 col-span-3">暂无采集源</div>`;
+        return;
+      }
+      c.innerHTML = sources.map(s => `
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white">${s.name}</span>
+              <span class="badge ${s.enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">${s.enabled ? '已启用' : '禁用'}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate mt-1">${s.api}</div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+            <button onclick="triggerCollect('${s.id}', 24)" class="flex-1 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg transition font-medium text-[11px]">
+              采集近24小时
+            </button>
+            <button onclick="triggerCollect('${s.id}', 0)" class="flex-1 py-1 bg-amber-600/30 hover:bg-amber-600 text-amber-300 hover:text-white rounded-lg transition font-medium text-[11px]">
+              全量采集
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    let cachedSources = [];
+
+    function renderSourcesTable(sources) {
+      cachedSources = sources || [];
+      const tbody = document.getElementById('sources-table-body');
+      if (!sources || sources.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">暂无采集点配置</td></tr>`;
+        return;
+      }
+
+      const getProtoBadge = (type) => {
+        const t = (type || 'json').toLowerCase();
+        if (t === 'xml' || t === 'maccms_xml') return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">MacCMS XML</span>`;
+        if (t === 'rss' || t === 'rss_feed') return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">网页 RSS</span>`;
+        if (t === 'custom_json') return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-400 border border-violet-500/30">通用 JSON</span>`;
+        return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">MacCMS JSON</span>`;
+      };
+
+      tbody.innerHTML = sources.map(s => `
+        <tr class="hover:bg-slate-850/50">
+          <td class="py-3 px-4">
+            <div class="font-semibold text-white">${s.name}</div>
+            <div class="mt-1">${getProtoBadge(s.type)}</div>
+          </td>
+          <td class="py-3 px-3 font-mono text-[11px] text-indigo-300 max-w-xs truncate" title="${s.api}">${s.api}</td>
+          <td class="py-3 px-3 text-[11px] text-slate-300">
+            <div>跨度: ${s.collect_hours || 24}h | 页限: ${s.page_limit || '不限'}</div>
+            <div class="text-slate-500 text-[10px]">间隔: ${s.interval_ms || 300}ms</div>
+          </td>
+          <td class="py-3 px-3 text-[11px] text-slate-400">
+            <div>播放器: ${s.filter?.allowed_players?.join(',') || '全部'}</div>
+            ${s.filter?.ignore_name_keywords?.length ? `<div class="text-[10px] text-slate-500 truncate max-w-[120px]">过滤: ${s.filter.ignore_name_keywords.join(',')}</div>` : ''}
+          </td>
+          <td class="py-3 px-3"><span class="badge ${s.enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">${s.enabled ? '正常' : '禁用'}</span></td>
+          <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+            <button onclick="editSource('${s.id}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition">编辑</button>
+            <button onclick="triggerCollect('${s.id}', 24)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold transition">采集24h</button>
+            <button onclick="triggerCollect('${s.id}', 0)" class="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-[11px] font-semibold transition">全量采集</button>
+            <button onclick="deleteSource('${s.id}')" class="text-rose-400 hover:text-rose-300 ml-2">删除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // 触发采集：明确支持 24h vs 全量 (hours=0)
+    async function triggerCollect(sourceID, hours) {
+      const modeText = hours === 0 ? '【全量采集】' : `【近${hours}小时增量采集】`;
+      if (!confirm(`确定要对该采集源启动 ${modeText} 吗？`)) return;
+
+      try {
+        const res = await fetch('/api/admin/sources/collect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_id: sourceID, hours: hours })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert(`已成功触发 ${modeText} 任务！已自动切到日志监控。`);
+          switchTab('logs');
+        } else {
+          alert('触发失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('网络异常: ' + err.message);
+      }
+    }
+
+    // 视频检索 (支持分类级联展开)
+    async function loadVideos(page = 1) {
+      currentVideoPage = page;
+      const kw = document.getElementById('search-video-kw').value.trim();
+      const typeID = document.getElementById('search-video-type').value;
+
+      try {
+        const res = await fetch(`/api/videos?page=${page}&page_size=15&keyword=${encodeURIComponent(kw)}&type_id=${typeID}`);
+        const data = await res.json();
+        if (data.code === 1) {
+          renderVideosTable(data.data || []);
+          document.getElementById('videos-total-count').innerText = data.total || 0;
+          const totalP = Math.ceil(data.total / 15) || 1;
+          document.getElementById('page-indicator').innerText = `第 ${currentVideoPage} / ${totalP} 页`;
+          document.getElementById('page-prev-btn').disabled = currentVideoPage <= 1;
+          document.getElementById('page-next-btn').disabled = currentVideoPage >= totalP;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function prevPage() { if (currentVideoPage > 1) loadVideos(currentVideoPage - 1); }
+    function nextPage() { loadVideos(currentVideoPage + 1); }
+
+    let currentFeedbacks = [];
+    let currentFbFilter = '';
+
+    function toggleCheckAllVideos(master) {
+      document.querySelectorAll('.video-row-check').forEach(cb => cb.checked = master.checked);
+    }
+
+    function renderVideosTable(list) {
+      const tbody = document.getElementById('videos-table-body');
+      const masterCheck = document.getElementById('check-all-videos');
+      if (masterCheck) masterCheck.checked = false;
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">未检索到视频数据</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(v => {
+        const safeData = encodeURIComponent(JSON.stringify(v));
+        return `
+        <tr class="hover:bg-slate-850/50">
+          <td class="py-2.5 px-3 text-center">
+            <input type="checkbox" class="video-row-check rounded bg-slate-900 border-slate-700" value="${v.id}">
+          </td>
+          <td class="py-2.5 px-2 font-mono text-slate-500 text-[11px]">${v.id}</td>
+          <td class="py-2.5 px-3">
+            <img src="${v.picture || ''}" class="w-8 h-11 object-cover rounded bg-slate-800" onerror="this.src='https://via.placeholder.com/80x110?text=No+Pic'">
+          </td>
+          <td class="py-2.5 px-3 font-semibold text-white max-w-[200px]">
+            <div class="truncate">${v.name}</div>
+            <div class="text-[10px] text-slate-500 truncate">${v.remarks || (v.sub_name ? '别名: '+v.sub_name : '')}</div>
+          </td>
+          <td class="py-2.5 px-3"><span class="badge bg-indigo-500/20 text-indigo-300">${v.type_name || '未分类'}</span></td>
+          <td class="py-2.5 px-3 text-[11px] font-mono text-amber-400 font-bold">${v.hits || 0}</td>
+          <td class="py-2.5 px-3 text-[11px] text-slate-400 max-w-[120px] truncate" title="${v.play_groups?.map(p=>p.player_code).join(', ') || ''}">
+            ${v.play_groups?.map(p=>p.player_code).join(', ') || '<span class="text-slate-600">无源</span>'}
+          </td>
+          <td class="py-2.5 px-3 text-[11px] text-slate-500 whitespace-nowrap">${v.updated_at ? v.updated_at.split('T')[0] : ''}</td>
+          <td class="py-2.5 px-4 text-right space-x-2 whitespace-nowrap">
+            <button onclick="editVideoData('${safeData}')" class="text-indigo-400 hover:text-indigo-300">编辑</button>
+            <button onclick="deleteVideo(${v.id})" class="text-rose-400 hover:text-rose-300">删除</button>
+          </td>
+        </tr>
+      `}).join('');
+    }
+
+    async function deleteVideo(id) {
+      if (!confirm('确定删除此视频及关联的所有播放源吗？')) return;
+      try {
+        const res = await fetch('/api/admin/videos?id=' + id, { method: 'DELETE' });
+        const d = await res.json();
+        if (d.code === 1) {
+          loadVideos(currentVideoPage);
+          loadStats();
+        } else {
+          alert('删除失败: ' + d.error);
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function batchDeleteSelectedVideos() {
+      const checkedBoxes = document.querySelectorAll('.video-row-check:checked');
+      if (checkedBoxes.length === 0) {
+        alert('请先勾选需要批量删除的视频！');
+        return;
+      }
+      const ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value)).filter(id => id > 0);
+      if (!confirm(`确定要批量删除选中的 ${ids.length} 部视频吗？删除后不可恢复！`)) return;
+
+      try {
+        const res = await fetch('/api/admin/videos/batch-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert(data.msg);
+          loadVideos(currentVideoPage);
+          loadStats();
+        } else {
+          alert('批量删除失败: ' + data.error);
+        }
+      } catch (err) { alert('请求异常: ' + err.message); }
+    }
+
+    // 视频新建与编辑
+    function openVideoModal() {
+      document.getElementById('video-modal-title').innerText = '新增自定义视频';
+      document.getElementById('form-video-id').value = '';
+      document.getElementById('form-video-name').value = '';
+      document.getElementById('form-video-subname').value = '';
+      document.getElementById('form-video-type').value = '';
+      document.getElementById('form-video-pic').value = '';
+      document.getElementById('form-video-year').value = new Date().getFullYear();
+      document.getElementById('form-video-area').value = '中国大陆';
+      document.getElementById('form-video-lang').value = '国语';
+      document.getElementById('form-video-director').value = '';
+      document.getElementById('form-video-actor').value = '';
+      document.getElementById('form-video-remarks').value = 'HD';
+      document.getElementById('form-video-content').value = '';
+      document.getElementById('form-video-play-urls').value = '';
+      document.getElementById('video-modal').classList.remove('hidden');
+    }
+
+    function editVideoData(encoded) {
+      const v = JSON.parse(decodeURIComponent(encoded));
+      document.getElementById('video-modal-title').innerText = `编辑视频: ${v.name}`;
+      document.getElementById('form-video-id').value = v.id;
+      document.getElementById('form-video-name').value = v.name || '';
+      document.getElementById('form-video-subname').value = v.sub_name || '';
+      document.getElementById('form-video-type').value = v.type_id || '';
+      document.getElementById('form-video-pic').value = v.picture || '';
+      document.getElementById('form-video-year').value = v.year || '';
+      document.getElementById('form-video-area').value = v.area || '';
+      document.getElementById('form-video-lang').value = v.language || '';
+      document.getElementById('form-video-director').value = v.director || '';
+      document.getElementById('form-video-actor').value = v.actor || '';
+      document.getElementById('form-video-remarks').value = v.remarks || '';
+      document.getElementById('form-video-content').value = v.content || '';
+
+      // 解析生成 MacCMS 播放源格式
+      let playRaw = '';
+      if (v.play_groups && v.play_groups.length > 0) {
+        playRaw = v.play_groups.map(pg => {
+          const epStr = (pg.episodes || []).map(e => `${e.name}$${e.url}`).join('#');
+          return `${pg.player_code}$$$${epStr}`;
+        }).join('\n');
+      }
+      document.getElementById('form-video-play-urls').value = playRaw;
+      document.getElementById('video-modal').classList.remove('hidden');
+    }
+
+    function closeVideoModal() {
+      document.getElementById('video-modal').classList.add('hidden');
+    }
+
+    async function saveVideo(e) {
+      e.preventDefault();
+      const vid = parseInt(document.getElementById('form-video-id').value) || 0;
+      const typeID = parseInt(document.getElementById('form-video-type').value) || 0;
+      const playRaw = document.getElementById('form-video-play-urls').value.trim();
+
+      // 解析播放地址
+      const playGroups = [];
+      if (playRaw) {
+        const lines = playRaw.split('\n').map(l => l.trim()).filter(l => l);
+        lines.forEach(line => {
+          let playerCode = 'm3u8';
+          let epPart = line;
+          if (line.includes('$$$')) {
+            const parts = line.split('$$$');
+            playerCode = parts[0].trim();
+            epPart = parts[1] || '';
+          }
+          const episodes = [];
+          if (epPart) {
+            epPart.split('#').forEach(item => {
+              item = item.trim();
+              if (item) {
+                if (item.includes('$')) {
+                  const s = item.split('$');
+                  episodes.push({ name: s[0].trim(), url: s[1].trim() });
+                } else {
+                  episodes.push({ name: '正片', url: item });
+                }
+              }
+            });
+          }
+          if (episodes.length > 0) {
+            playGroups.push({
+              player_code: playerCode,
+              server: 'no',
+              note: '',
+              episodes: episodes
+            });
+          }
+        });
+      }
+
+      const payload = {
+        id: vid,
+        name: document.getElementById('form-video-name').value.trim(),
+        sub_name: document.getElementById('form-video-subname').value.trim(),
+        type_id: typeID,
+        picture: document.getElementById('form-video-pic').value.trim(),
+        year: document.getElementById('form-video-year').value.trim(),
+        area: document.getElementById('form-video-area').value.trim(),
+        language: document.getElementById('form-video-lang').value.trim(),
+        director: document.getElementById('form-video-director').value.trim(),
+        actor: document.getElementById('form-video-actor').value.trim(),
+        remarks: document.getElementById('form-video-remarks').value.trim(),
+        content: document.getElementById('form-video-content').value.trim(),
+        play_groups: playGroups
+      };
+
+      try {
+        const res = await fetch('/api/admin/videos/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('视频保存成功！');
+          closeVideoModal();
+          loadVideos(currentVideoPage);
+          loadStats();
+        } else {
+          alert('保存失败: ' + data.error);
+        }
+      } catch (err) { alert('网络异常: ' + err.message); }
+    }
+
+    // 定时采集计划 (Auto Cron)
+    async function loadAutoCollect() {
+      try {
+        const res = await fetch('/api/admin/scheduler/auto');
+        const data = await res.json();
+        if (data.code === 1) {
+          const s = data.data;
+          const badge = document.getElementById('cron-status-badge');
+          if (s.enabled) {
+            badge.className = 'badge bg-emerald-500/20 text-emerald-400';
+            badge.innerText = `运行中 (每 ${s.interval_hours} 小时)`;
+            document.getElementById('cron-enabled-select').value = '1';
+          } else {
+            badge.className = 'badge bg-slate-800 text-slate-500';
+            badge.innerText = '已禁用';
+            document.getElementById('cron-enabled-select').value = '0';
+          }
+          document.getElementById('cron-interval-select').value = s.interval_hours || '2';
+          document.getElementById('cron-last-run-text').innerText = s.last_run && !s.last_run.startsWith('0001') ? new Date(s.last_run).toLocaleString() : '暂无自动记录';
+          document.getElementById('cron-next-run-text').innerText = s.next_run && !s.next_run.startsWith('0001') ? new Date(s.next_run).toLocaleString() : (s.enabled ? '计算中...' : '已关闭');
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    async function saveAutoCollectConfig(e) {
+      e.preventDefault();
+      const enabled = document.getElementById('cron-enabled-select').value === '1';
+      const interval = parseInt(document.getElementById('cron-interval-select').value) || 2;
+      try {
+        const res = await fetch('/api/admin/scheduler/auto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: enabled, interval_hours: interval })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert(data.msg);
+          loadAutoCollect();
+        } else { alert(data.error); }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function triggerCollectAll(hours) {
+      const title = hours === 0 ? '全量采集到底' : `最近 ${hours} 小时增量采集`;
+      if (!confirm(`确定要立即对全网所有已启用的采集点启动【${title}】吗？`)) return;
+      try {
+        const res = await fetch('/api/admin/sources/collect-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hours: hours })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert(data.msg + '！已自动切换至运行日志监控。');
+          switchTab('logs');
+        } else { alert(data.error); }
+      } catch (err) { alert(err.message); }
+    }
+
+    // 用户求片与留言反馈管理
+    async function loadFeedbacks(status = currentFbFilter) {
+      currentFbFilter = status;
+      try {
+        const res = await fetch(`/api/admin/feedbacks?status=${encodeURIComponent(status)}&page_size=50`);
+        const data = await res.json();
+        if (data.code === 1) {
+          currentFeedbacks = data.data || [];
+          renderFeedbacksTable(currentFeedbacks);
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    function filterFeedbacks(status) {
+      currentFbFilter = status;
+      document.querySelectorAll('.fb-filter-btn').forEach(btn => {
+        btn.classList.remove('text-indigo-400', 'bg-slate-800');
+        btn.classList.add('text-slate-400');
+      });
+      const targetId = status === '' ? 'fb-filter-all' : 'fb-filter-' + status;
+      const targetBtn = document.getElementById(targetId);
+      if (targetBtn) {
+        targetBtn.classList.add('text-indigo-400', 'bg-slate-800');
+        targetBtn.classList.remove('text-slate-400');
+      }
+      loadFeedbacks(status);
+    }
+
+    function renderFeedbacksTable(list) {
+      const tbody = document.getElementById('feedbacks-table-body');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">暂无留言或求片数据</td></tr>`;
+        return;
+      }
+      const typeLabels = { 'request': '🎬 求片', 'report': '⚠️ 报错', 'suggest': '💡 建议' };
+      const statusBadges = {
+        'pending': '<span class="badge bg-amber-500/20 text-amber-400">待处理</span>',
+        'processing': '<span class="badge bg-indigo-500/20 text-indigo-400">处理中</span>',
+        'resolved': '<span class="badge bg-emerald-500/20 text-emerald-400">已处理</span>',
+        'rejected': '<span class="badge bg-rose-500/20 text-rose-400">已驳回</span>'
+      };
+
+      tbody.innerHTML = list.map(f => {
+        const safeData = encodeURIComponent(JSON.stringify(f));
+        return `
+        <tr class="hover:bg-slate-850/50">
+          <td class="py-3 px-4 font-mono text-slate-500 text-[11px]">${f.id}</td>
+          <td class="py-3 px-3 font-medium text-slate-300">${typeLabels[f.type] || f.type}</td>
+          <td class="py-3 px-3 font-bold text-white max-w-xs truncate">${f.title}</td>
+          <td class="py-3 px-3 text-slate-400 max-w-sm truncate" title="${f.content}">${f.content}</td>
+          <td class="py-3 px-3 text-slate-400">${f.contact || '-'}</td>
+          <td class="py-3 px-3">${statusBadges[f.status] || f.status}</td>
+          <td class="py-3 px-3 text-slate-400 max-w-xs truncate" title="${f.reply || ''}">${f.reply || '<span class="text-slate-600">未答复</span>'}</td>
+          <td class="py-3 px-3 text-slate-500 text-[11px]">${f.created_at ? f.created_at.split('T')[0] : ''}</td>
+          <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+            <button onclick="openFeedbackModal('${safeData}')" class="text-indigo-400 hover:text-indigo-300 font-medium">处理/回复</button>
+            <button onclick="deleteFeedback(${f.id})" class="text-rose-400 hover:text-rose-300">删除</button>
+          </td>
+        </tr>
+      `}).join('');
+    }
+
+    function openFeedbackModal(encoded) {
+      const fb = JSON.parse(decodeURIComponent(encoded));
+      document.getElementById('form-fb-id').value = fb.id;
+      document.getElementById('fb-view-title').innerText = `【${fb.type === 'request' ? '求片' : (fb.type === 'report' ? '报错' : '建议')}】${fb.title}`;
+      document.getElementById('fb-view-content').innerText = fb.content;
+      document.getElementById('fb-view-contact').innerText = `联系方式: ${fb.contact || '匿名访客'} | 提交时间: ${fb.created_at ? fb.created_at.replace('T', ' ').split('.')[0] : ''}`;
+      document.getElementById('form-fb-status').value = fb.status || 'pending';
+      document.getElementById('form-fb-reply').value = fb.reply || '';
+      document.getElementById('feedback-modal').classList.remove('hidden');
+    }
+
+    function closeFeedbackModal() {
+      document.getElementById('feedback-modal').classList.add('hidden');
+    }
+
+    async function submitFeedbackReply(e) {
+      e.preventDefault();
+      const id = parseInt(document.getElementById('form-fb-id').value);
+      const status = document.getElementById('form-fb-status').value;
+      const reply = document.getElementById('form-fb-reply').value.trim();
+
+      try {
+        const res = await fetch('/api/admin/feedbacks/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, status: status, reply: reply })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('反馈处理结果已保存！');
+          closeFeedbackModal();
+          loadFeedbacks();
+          loadStats();
+        } else { alert('保存失败: ' + data.error); }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function deleteFeedback(id) {
+      if (!confirm('确定删除该条留言记录吗？')) return;
+      try {
+        const res = await fetch('/api/admin/feedbacks?id=' + id, { method: 'DELETE' });
+        const d = await res.json();
+        if (d.code === 1) { loadFeedbacks(); loadStats(); }
+      } catch (err) { alert(err.message); }
+    }
+
+    // 网站系统全局配置
+    async function loadSiteConfig() {
+      try {
+        const res = await fetch('/api/site/config');
+        const data = await res.json();
+        if (data.code === 1) {
+          const cfg = data.data || {};
+          document.getElementById('set-site-name').value = cfg.site_name || '影视聚合Portal';
+          document.getElementById('set-site-subtitle').value = cfg.site_subtitle || '';
+          document.getElementById('set-site-announcement').value = cfg.site_announcement || '';
+          document.getElementById('set-notice-enabled').checked = cfg.site_notice_enabled !== '0';
+          document.getElementById('set-site-keywords').value = cfg.site_keywords || '';
+          document.getElementById('set-site-icp').value = cfg.site_icp || '';
+          document.getElementById('set-site-desc').value = cfg.site_description || '';
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    async function saveSiteConfig(e) {
+      e.preventDefault();
+      const payload = {
+        site_name: document.getElementById('set-site-name').value.trim(),
+        site_subtitle: document.getElementById('set-site-subtitle').value.trim(),
+        site_announcement: document.getElementById('set-site-announcement').value.trim(),
+        site_notice_enabled: document.getElementById('set-notice-enabled').checked ? '1' : '0',
+        site_keywords: document.getElementById('set-site-keywords').value.trim(),
+        site_icp: document.getElementById('set-site-icp').value.trim(),
+        site_description: document.getElementById('set-site-desc').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/admin/site/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('系统全局配置已成功保存！前台客户端即刻生效。');
+        } else { alert('保存失败: ' + data.error); }
+      } catch (err) { alert(err.message); }
+    }
+
+    // 用户管理
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (data.code === 1) renderUsersTable(data.data || []);
+      } catch (err) { console.error(err); }
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = users.map(u => `
+        <tr class="hover:bg-slate-850/50">
+          <td class="py-3 px-4 font-mono text-slate-500">${u.id}</td>
+          <td class="py-3 px-3 font-semibold text-white">${u.username}</td>
+          <td class="py-3 px-3 text-slate-300">${u.nickname || '-'}</td>
+          <td class="py-3 px-3"><span class="badge ${u.role === 'admin' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-400'}">${u.role}</span></td>
+          <td class="py-3 px-3"><span class="badge ${u.status === 1 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${u.status === 1 ? '正常' : '封禁'}</span></td>
+          <td class="py-3 px-3 text-slate-500">${u.created_at ? u.created_at.split('T')[0] : ''}</td>
+          <td class="py-3 px-4 text-right space-x-2">
+            <button onclick='editUser(${JSON.stringify(u)})' class="text-slate-400 hover:text-white">编辑</button>
+            ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="text-rose-400 hover:text-rose-300">删除</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openUserModal() {
+      document.getElementById('user-modal-title').innerText = '添加新用户';
+      document.getElementById('form-user-id').value = '';
+      document.getElementById('form-user-name').value = '';
+      document.getElementById('form-user-pwd').value = '';
+      document.getElementById('form-user-pwd').required = true;
+      document.getElementById('form-user-nickname').value = '';
+      document.getElementById('form-user-role').value = 'user';
+      document.getElementById('form-user-status').value = '1';
+      document.getElementById('user-modal').classList.remove('hidden');
+    }
+
+    function closeUserModal() { document.getElementById('user-modal').classList.add('hidden'); }
+
+    function editUser(u) {
+      document.getElementById('user-modal-title').innerText = '编辑用户: ' + u.username;
+      document.getElementById('form-user-id').value = u.id;
+      document.getElementById('form-user-name').value = u.username;
+      document.getElementById('form-user-pwd').value = '';
+      document.getElementById('form-user-pwd').required = false;
+      document.getElementById('form-user-nickname').value = u.nickname || '';
+      document.getElementById('form-user-role').value = u.role;
+      document.getElementById('form-user-status').value = u.status;
+      document.getElementById('user-modal').classList.remove('hidden');
+    }
+
+    async function saveUser(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-user-id').value;
+      const username = document.getElementById('form-user-name').value.trim();
+      const password = document.getElementById('form-user-pwd').value.trim();
+      const nickname = document.getElementById('form-user-nickname').value.trim();
+      const role = document.getElementById('form-user-role').value;
+      const status = parseInt(document.getElementById('form-user-status').value);
+
+      const payload = { id: id ? parseInt(id) : 0, username, password, nickname, role, status };
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          closeUserModal();
+          loadUsers();
+          loadStats();
+        } else {
+          alert('操作失败: ' + data.error);
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('确定删除该用户吗？')) return;
+      try {
+        const res = await fetch('/api/admin/users?id=' + id, { method: 'DELETE' });
+        const d = await res.json();
+        if (d.code === 1) { loadUsers(); loadStats(); }
+      } catch (err) { alert(err.message); }
+    }
+
+    // 主题管理与导入
+    async function loadThemes() {
+      try {
+        const res = await fetch('/api/admin/themes');
+        const data = await res.json();
+        if (data.code === 1) renderThemes(data.data || []);
+      } catch (err) { console.error(err); }
+    }
+
+    function renderThemes(themes) {
+      const c = document.getElementById('themes-grid');
+      c.innerHTML = themes.map(t => `
+        <div class="bg-slate-900 border ${t.is_active ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : 'border-slate-800'} rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-sm text-white">${t.name}</h4>
+              ${t.is_active ? '<span class="badge bg-indigo-600 text-white font-bold">当前生效</span>' : ''}
+            </div>
+            <p class="text-xs text-slate-400 mt-2 line-clamp-2">${t.description || '影视客户端主题模板'}</p>
+            <div class="text-[11px] text-slate-500 mt-3 font-mono">ID: ${t.id} | 版本: ${t.version || '1.0'}</div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+            <span class="text-[11px] text-slate-500">作者: ${t.author || '官方'}</span>
+            ${!t.is_active ? `
+              <button onclick="switchTheme('${t.id}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition">
+                应用此主题
+              </button>
+            ` : '<span class="text-xs text-indigo-400 font-semibold">正在使用中</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function switchTheme(id) {
+      try {
+        const res = await fetch('/api/admin/themes/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme_id: id })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('客户端主题已成功切换！');
+          loadThemes();
+        } else { alert(data.error); }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function uploadThemeZip(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        alert('正在上传并解压主题包，请稍候...');
+        const res = await fetch('/api/admin/themes/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('主题导入成功！主题名称: ' + data.data?.name);
+          loadThemes();
+        } else {
+          alert('导入失败: ' + data.error);
+        }
+      } catch (err) { alert('上传异常: ' + err.message); }
+    }
+
+    // 播放器引擎管理与导入
+    async function loadPlayers() {
+      try {
+        const res = await fetch('/api/admin/players');
+        const data = await res.json();
+        if (data.code === 1) renderPlayers(data.data || []);
+      } catch (err) { console.error('loadPlayers error:', err); }
+    }
+
+    function renderPlayers(players) {
+      const c = document.getElementById('players-grid');
+      c.innerHTML = players.map(p => {
+        const isVjs = p.type === 'videojs' || p.id === 'videojs';
+        const isIframe = p.type === 'iframe';
+        return `
+          <div class="bg-slate-900 border ${p.is_active ? 'border-indigo-500 shadow-xl shadow-indigo-500/20' : 'border-slate-800'} rounded-2xl p-5 flex flex-col justify-between transition hover:border-slate-700">
+            <div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full ${p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}"></span>
+                  <h4 class="font-bold text-sm text-white">${p.name}</h4>
+                </div>
+                ${p.is_active ? '<span class="badge bg-indigo-600 text-white font-bold">当前生效</span>' : '<span class="badge bg-slate-800 text-slate-400">已就绪</span>'}
+              </div>
+              <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">${p.description || '影视流媒体播放器引擎'}</p>
+              
+              <div class="mt-3.5 space-y-2 text-xs">
+                ${isVjs ? `
+                  <div class="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 space-y-1 text-slate-300 text-[11px]">
+                    <div class="flex items-center gap-1.5 text-indigo-300 font-semibold">
+                      <span>✨</span>
+                      <span>内置画质超清增强引擎 (SVG卷积锐化+高动态色彩强化)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-indigo-300 font-semibold">
+                      <span>🎛️</span>
+                      <span>Control 控制栏集成线路切换与选集悬浮抽屉</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-indigo-300 font-semibold">
+                      <span>🔁</span>
+                      <span>自动连播下一集 (默认开启，支持倒计时取消与提示)</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${isIframe ? `
+                  <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2 text-[11px]">
+                    <label class="block text-slate-400 font-medium">第三方解析接口模板 (用 {url} 占位):</label>
+                    <div class="flex items-center gap-1.5">
+                      <input type="text" id="cfg-iframe-${p.id}" value="${p.config?.api_url_template || 'https://jx.jsonplayer.com/player/?url={url}'}" 
+                             class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500">
+                      <button onclick="saveIframeConfig('${p.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-lg text-xs font-semibold transition">
+                        保存
+                      </button>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div class="text-[11px] text-slate-500 font-mono pt-1">
+                  ID: ${p.id} | 类型: ${p.type} | 版本: ${p.version || '1.0'}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">作者: ${p.author || 'Antigravity'}</span>
+              ${!p.is_active ? `
+                <button onclick="switchPlayer('${p.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition shadow-md shadow-indigo-600/30">
+                  应用此播放器
+                </button>
+              ` : '<span class="text-xs text-indigo-400 font-semibold flex items-center gap-1">✓ 客户端正在使用</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function switchPlayer(id) {
+      try {
+        const res = await fetch('/api/admin/players/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player_id: id })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('流媒体播放器已成功切换！客户端门户将立即生效。');
+          loadPlayers();
+        } else {
+          alert(data.error);
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function uploadPlayerZip(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        alert('正在上传并解压播放器插件，请稍候...');
+        const res = await fetch('/api/admin/players/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('播放器扩展包导入成功！名称: ' + (data.data?.name || data.data?.id));
+          loadPlayers();
+        } else {
+          alert('导入失败: ' + data.error);
+        }
+      } catch (err) { alert('上传异常: ' + err.message); }
+    }
+
+    async function saveIframeConfig(playerId) {
+      const input = document.getElementById('cfg-iframe-' + playerId);
+      if (!input) return;
+      const tpl = input.value.trim();
+      try {
+        const res = await fetch('/api/admin/players/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            player_id: playerId,
+            config: { api_url_template: tpl }
+          })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          alert('解析接口配置已成功保存！');
+          loadPlayers();
+        } else {
+          alert(data.error);
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    // 日志
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/admin/logs?limit=80');
+        const data = await res.json();
+        if (data.code === 1) {
+          const list = data.data || [];
+          const c = document.getElementById('logs-container');
+          if (list.length === 0) {
+            c.innerHTML = `<div class="text-slate-600">暂无运行日志</div>`;
+            return;
+          }
+          c.innerHTML = list.map(item => {
+            let color = 'text-slate-400';
+            if (item.level === 'SUCCESS') color = 'text-emerald-400';
+            if (item.level === 'WARN') color = 'text-amber-400';
+            if (item.level === 'ERROR') color = 'text-rose-400';
+            const timeStr = item.time ? item.time.split('T')[1].split('.')[0] : '';
+            return `
+              <div>
+                <span class="text-slate-600">[${timeStr}]</span>
+                <span class="text-indigo-400 font-semibold">[${item.source_name || '系统'}]</span>
+                <span class="${color} font-bold">[${item.level}]</span>
+                <span class="text-slate-300">${item.message}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    async function doLogout() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/admin/login';
+    }
+
+    function toggleSourceTypeFields() {
+      const type = document.getElementById('form-src-type').value;
+      const box = document.getElementById('custom-json-box');
+      if (type === 'custom_json') {
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function openSourceModal(src = null) {
+      document.getElementById('form-src-id').value = src ? src.id : '';
+      document.getElementById('form-src-name').value = src ? src.name : '';
+      document.getElementById('form-src-type').value = src ? (src.type || 'json') : 'json';
+      document.getElementById('form-src-api').value = src ? src.api : '';
+      document.getElementById('form-src-enabled').checked = src ? (src.enabled !== false) : true;
+      document.getElementById('form-src-hours').value = src ? (src.collect_hours ?? 24) : 24;
+      document.getElementById('form-src-limit').value = src ? (src.page_limit ?? 5) : 5;
+      document.getElementById('form-src-interval').value = src ? (src.interval_ms ?? 300) : 300;
+      document.getElementById('form-src-timeout').value = src ? (src.timeout_sec ?? 15) : 15;
+
+      let headersStr = '';
+      if (src && src.headers) {
+        headersStr = JSON.stringify(src.headers, null, 2);
+      }
+      document.getElementById('form-src-headers').value = headersStr;
+
+      let paramsStr = '';
+      if (src && src.custom_params) {
+        paramsStr = typeof src.custom_params === 'object' ? Object.entries(src.custom_params).map(([k,v])=>`${k}=${v}`).join('&') : src.custom_params;
+      }
+      document.getElementById('form-src-params').value = paramsStr;
+
+      document.getElementById('form-src-players').value = src?.filter?.allowed_players?.join(',') || '';
+      let mappingsStr = '';
+      if (src?.filter?.player_mappings) {
+        mappingsStr = Object.entries(src.filter.player_mappings).map(([k,v])=>`${k}:${v}`).join(',');
+      }
+      document.getElementById('form-src-player-mappings').value = mappingsStr;
+      document.getElementById('form-src-ignore-kw').value = src?.filter?.ignore_name_keywords?.join(',') || '';
+      document.getElementById('form-src-clean-prefixes').value = src?.filter?.name_clean_prefixes?.join(',') || '';
+      document.getElementById('form-src-require-urls').checked = src ? (src.filter?.require_play_urls !== false) : true;
+
+      // custom mapping
+      const cm = src?.custom_mapping || {};
+      document.getElementById('form-src-map-list').value = cm.list_path || '';
+      document.getElementById('form-src-map-name').value = cm.name_path || '';
+      document.getElementById('form-src-map-url').value = cm.play_url_path || '';
+      document.getElementById('form-src-map-pic').value = cm.pic_path || '';
+      document.getElementById('form-src-map-type').value = cm.type_path || '';
+      document.getElementById('form-src-map-remarks').value = cm.remarks_path || '';
+
+      document.getElementById('source-modal-title').innerText = src ? `编辑采集源 [${src.name}]` : '配置新采集源';
+      document.getElementById('test-remote-result').innerText = '';
+      toggleSourceTypeFields();
+      document.getElementById('source-modal').classList.remove('hidden');
+    }
+
+    function editSource(id) {
+      const src = cachedSources.find(s => s.id === id);
+      if (src) {
+        openSourceModal(src);
+      } else {
+        openSourceModal({ id });
+      }
+    }
+
+    function closeSourceModal() {
+      document.getElementById('source-modal').classList.add('hidden');
+    }
+
+    function parseHeadersInput(raw) {
+      raw = (raw || '').trim();
+      if (!raw) return {};
+      if (raw.startsWith('{')) {
+        try { return JSON.parse(raw); } catch (e) {}
+      }
+      const res = {};
+      raw.split('\n').forEach(line => {
+        const idx = line.indexOf(':');
+        if (idx > 0) {
+          const k = line.substring(0, idx).trim();
+          const v = line.substring(idx + 1).trim();
+          if (k && v) res[k] = v;
+        }
+      });
+      return res;
+    }
+
+    function parseParamsInput(raw) {
+      raw = (raw || '').trim();
+      if (!raw) return {};
+      if (raw.startsWith('{')) {
+        try { return JSON.parse(raw); } catch (e) {}
+      }
+      const res = {};
+      if (raw.startsWith('?')) raw = raw.substring(1);
+      raw.split('&').forEach(part => {
+        const idx = part.indexOf('=');
+        if (idx > 0) {
+          const k = part.substring(0, idx).trim();
+          const v = part.substring(idx + 1).trim();
+          if (k && v) res[k] = v;
+        }
+      });
+      return res;
+    }
+
+    async function testRemoteAPI() {
+      const api = document.getElementById('form-src-api').value.trim();
+      const type = document.getElementById('form-src-type').value;
+      const resEl = document.getElementById('test-remote-result');
+      if (!api) { resEl.innerText = '请先输入 API 地址'; return; }
+      resEl.innerText = '正在向远程接口探测连通性并解析样本...';
+
+      const headers = parseHeadersInput(document.getElementById('form-src-headers').value);
+      const customParams = parseParamsInput(document.getElementById('form-src-params').value);
+      const customMapping = {
+        list_path: document.getElementById('form-src-map-list').value.trim(),
+        name_path: document.getElementById('form-src-map-name').value.trim(),
+        play_url_path: document.getElementById('form-src-map-url').value.trim(),
+        pic_path: document.getElementById('form-src-map-pic').value.trim(),
+        type_path: document.getElementById('form-src-map-type').value.trim(),
+        remarks_path: document.getElementById('form-src-map-remarks').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/sources/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api, type, headers, custom_params: customParams, custom_mapping: customMapping })
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          let msg = `[探测成功] `;
+          if (data.classes_total > 0) {
+            msg += `发现分类 ${data.classes_total} 个 (${data.classes?.slice(0, 5).map(c=>c.type_name).join(', ')})；`;
+          }
+          if (data.samples && data.samples.length > 0) {
+            msg += `抓取到样本片源: ${data.samples.slice(0, 3).join(', ')}`;
+          } else if (data.sample_count > 0) {
+            msg += `已验证入库规则，抓取到 ${data.sample_count} 条条目`;
+          }
+          resEl.innerText = msg;
+          resEl.className = 'mt-1 text-[11px] text-emerald-400 font-medium';
+        } else {
+          resEl.innerText = '探测失败: ' + (data.error || '无法连接该源');
+          resEl.className = 'mt-1 text-[11px] text-rose-400';
+        }
+      } catch (err) {
+        resEl.innerText = '请求异常: ' + err.message;
+        resEl.className = 'mt-1 text-[11px] text-rose-400';
+      }
+    }
+
+    async function saveSource(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-src-id').value.trim();
+      const name = document.getElementById('form-src-name').value.trim();
+      const type = document.getElementById('form-src-type').value;
+      const api = document.getElementById('form-src-api').value.trim();
+      const enabled = document.getElementById('form-src-enabled').checked;
+      const collectHours = parseInt(document.getElementById('form-src-hours').value) || 0;
+      const pageLimit = parseInt(document.getElementById('form-src-limit').value) || 0;
+      const intervalMs = parseInt(document.getElementById('form-src-interval').value) || 200;
+      const timeoutSec = parseInt(document.getElementById('form-src-timeout').value) || 15;
+
+      const headers = parseHeadersInput(document.getElementById('form-src-headers').value);
+      const customParams = parseParamsInput(document.getElementById('form-src-params').value);
+
+      const players = document.getElementById('form-src-players').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const kw = document.getElementById('form-src-ignore-kw').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const cleanPrefixes = document.getElementById('form-src-clean-prefixes').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const requireUrls = document.getElementById('form-src-require-urls').checked;
+
+      const playerMappings = {};
+      const rawMappings = document.getElementById('form-src-player-mappings').value.trim();
+      if (rawMappings) {
+        rawMappings.split(',').forEach(item => {
+          const parts = item.split(':');
+          if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+            playerMappings[parts[0].trim()] = parts[1].trim();
+          }
+        });
+      }
+
+      const customMapping = {
+        list_path: document.getElementById('form-src-map-list').value.trim(),
+        name_path: document.getElementById('form-src-map-name').value.trim(),
+        play_url_path: document.getElementById('form-src-map-url').value.trim(),
+        pic_path: document.getElementById('form-src-map-pic').value.trim(),
+        type_path: document.getElementById('form-src-map-type').value.trim(),
+        remarks_path: document.getElementById('form-src-map-remarks').value.trim()
+      };
+
+      const payload = {
+        id: id || undefined,
+        name,
+        type,
+        api,
+        enabled,
+        collect_hours: collectHours,
+        page_limit: pageLimit,
+        interval_ms: intervalMs,
+        timeout_sec: timeoutSec,
+        retry_count: 3,
+        concurrency: 2,
+        headers,
+        custom_params: customParams,
+        custom_mapping: customMapping,
+        filter: {
+          allowed_players: players,
+          player_mappings: playerMappings,
+          ignore_name_keywords: kw,
+          name_clean_prefixes: cleanPrefixes,
+          require_play_urls: requireUrls
+        }
+      };
+
+      try {
+        const res = await fetch('/api/admin/sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.code === 1) {
+          closeSourceModal();
+          loadSources();
+          loadStats();
+          alert('采集源配置保存成功！');
+        } else {
+          alert('保存失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('网络请求异常: ' + err.message);
+      }
+    }
+
+    async function deleteSource(id) {
+      if (!confirm('确定删除该采集源吗？')) return;
+      try {
+        const res = await fetch('/api/admin/sources?id=' + encodeURIComponent(id), { method: 'DELETE' });
+        const d = await res.json();
+        if (d.code === 1) { loadSources(); loadStats(); }
+      } catch (err) { alert(err.message); }
+    }
+
+    function copyToClipboard(id) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => alert('已复制到剪贴板！'));
+    }
+  </script>
+</body>
+</html>
