@@ -17,6 +17,7 @@ import (
 )
 
 type PostgresStore struct {
+	*SQLContentStore
 	db        *sql.DB
 	upsertMu  sync.Mutex
 	catMu     sync.RWMutex
@@ -47,6 +48,11 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 	if err := s.initSchema(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("init postgres schema failed: %w", err)
+	}
+	s.SQLContentStore = &SQLContentStore{db: db}
+	if err := s.SQLContentStore.initSchema(true); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("init content schema failed: %w", err)
 	}
 
 	ctx := context.Background()
@@ -672,7 +678,6 @@ func (s *PostgresStore) matchCategorySmart(ctx context.Context, srcName string) 
 
 	return 0, srcName
 }
-
 
 // UpsertVideo 写入或更新视频数据（深度支持 PostgreSQL 原生 JSONB 与多采集节点独立聚合存储）
 func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *maccms.CleanedVod) (int, error) {
