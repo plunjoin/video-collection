@@ -172,3 +172,109 @@ export interface LogEntry {
   module: string
   message: string
 }
+
+// ========== 数据库管理 ==========
+
+// 数据库整体信息
+export interface DBInfo {
+  engine: 'postgres' | 'sqlite'
+  driver: string
+  version: string
+  host?: string
+  database?: string
+  file_path?: string
+  size_bytes: number
+  table_count: number
+  backups_dir: string
+  server_time: string
+}
+
+// 单表统计信息
+export interface DBTableInfo {
+  name: string
+  rows: number
+  approximate: boolean
+  size_bytes: number
+  column_count: number
+  index_count: number
+  comment?: string
+}
+
+// 表字段信息
+export interface TableColumn {
+  name: string
+  data_type: string
+}
+
+// 表数据浏览结果
+export interface TableBrowseResult {
+  columns: TableColumn[]
+  rows: Record<string, any>[]
+  total: number
+  page: number
+  page_size: number
+}
+
+// 备份创建结果
+export interface BackupResult {
+  filename: string
+  file_path: string
+  size_bytes: number
+  tables: number
+  rows: number
+  created_at: string
+}
+
+// 备份文件元信息
+export interface BackupMeta {
+  filename: string
+  size_bytes: number
+  created_at: string
+  engine: string
+  tables: number
+  rows: number
+}
+
+// 恢复预览中的单表
+export interface RestorePreviewTable {
+  name: string
+  rows: number
+  exists: boolean
+}
+
+// 恢复预览结果
+export interface RestorePreview {
+  file: string
+  mode: 'merge' | 'replace'
+  engine: string
+  created_at: string
+  tables: RestorePreviewTable[]
+}
+
+// 恢复执行结果
+export interface RestoreResult {
+  file: string
+  mode: string
+  tables: number
+  inserted: number
+  skipped: number
+  elapsed: string
+}
+
+// 清理动作结果
+export interface CleanupResult {
+  action: string
+  affected: number
+  error?: string
+}
+
+// SQL 执行结果
+export interface SQLExecResult {
+  type: 'select' | 'write' | 'ddl'
+  columns?: string[]
+  rows?: Record<string, any>[]
+  row_count?: number
+  truncated?: boolean
+  affected?: number
+  message?: string
+}
