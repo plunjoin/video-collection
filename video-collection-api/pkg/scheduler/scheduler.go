@@ -115,11 +115,12 @@ func (sc *Scheduler) startAutoCollectWorker() {
 			sc.mu.Lock()
 			sc.lastAutoRun = now
 			sc.nextAutoRun = now.Add(time.Duration(intervalH) * time.Hour)
+			nextRun = sc.nextAutoRun
 			sc.mu.Unlock()
 
-			sc.AddLog("system", "系统定时计划", "INFO", fmt.Sprintf("自动定时轮询触发：正在执行全网采集源 24h 增量采集 (下次执行: %s)",
-				sc.nextAutoRun.Format("15:04:05")))
-			_ = sc.TriggerCollectAll(24)
+			sc.AddLog("system", "系统定时计划", "INFO", fmt.Sprintf("自动定时轮询触发：正在执行全网采集源按各源配置采集 (下次执行: %s)",
+				nextRun.Format("15:04:05")))
+			_ = sc.TriggerCollectAll(-1)
 		}
 	}
 }
@@ -250,6 +251,8 @@ func (sc *Scheduler) TriggerCollect(sourceID string, customHours int) error {
 		if err := ingest.Validate(*src); err != nil {
 			return err
 		}
+	} else if err := config.ValidateCollectionSource(*src); err != nil {
+		return err
 	}
 
 	sc.mu.Lock()
@@ -286,29 +289,26 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		return
 	}
 	client := maccms.NewClient(src)
-	isAll := (customHours == 0)
+	isAll := customHours == 0 || (customHours < 0 && src.CollectHours == 0)
 	hours := src.CollectHours
 	if customHours >= 0 {
 		hours = customHours
 	}
 
-	modeDesc := fmt.Sprintf("近 %d 小时增量采集 (带 &h=%d 参数)", hours, hours)
+	modeDesc := fmt.Sprintf("近 %d 小时增量采集（按规则构造请求参数）", hours)
 	if isAll {
-		modeDesc = "全量历史采集 (不限制时间跨度，不带 &h 参数，翻页采集到底)"
+		modeDesc = "全量采集（省略增量参数，遵守页数上限）"
 	}
 	sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("开始执行采集任务: %s", modeDesc))
 
 	page := 1
 	maxPages := src.PageLimit
-	// 核心修复：如果是全量采集模式，或者未设置单次限制，则无限制翻页到底
-	if isAll || maxPages <= 0 {
+	// Legacy zero means no configured page limit; full runs respect positive limits.
+	if maxPages <= 0 {
 		maxPages = 999999
 	}
 
 	interval := time.Duration(src.IntervalMs) * time.Millisecond
-	if interval <= 0 {
-		interval = 200 * time.Millisecond
-	}
 
 	for page <= maxPages {
 		select {
@@ -325,14 +325,15 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 			IsAll:  isAll,
 		}
 
-		reqURL := client.BuildURL(qParams)
-		sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("正在拉取第 %d 页: %s", page, reqURL))
+		sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("正在拉取第 %d 页", page))
 
 		cleanedList, rawResp, err := client.CollectPage(ctx, qParams)
 		if err != nil {
+			sc.mu.Lock()
 			prog.LastError = err.Error()
+			sc.mu.Unlock()
 			sc.AddLog(src.ID, src.Name, "ERROR", fmt.Sprintf("拉取第 %d 页数据失败: %v", page, err))
-			break
+			return
 		}
 
 		totalPageCount := rawResp.PageCount.Int()
@@ -386,7 +387,15 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		}
 
 		page++
-		time.Sleep(interval)
+		if interval > 0 {
+			timer := time.NewTimer(interval)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
+		}
 	}
 
 	sc.AddLog(src.ID, src.Name, "SUCCESS", fmt.Sprintf("采集汇总: 总抓取 %d 条，有效入库 %d 条，过滤 %d 条，用时 %s",
