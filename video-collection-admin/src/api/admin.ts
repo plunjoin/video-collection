@@ -8,7 +8,16 @@ import type {
   ThemeInfo,
   PlayerInfo,
   AutoCollectStatus,
-  LogEntry
+  LogEntry,
+  DBInfo,
+  DBTableInfo,
+  TableBrowseResult,
+  BackupResult,
+  BackupMeta,
+  RestorePreview,
+  RestoreResult,
+  CleanupResult,
+  SQLExecResult
 } from '@/types'
 
 // 1. 系统仪表盘统计
@@ -152,5 +161,69 @@ export function saveSiteConfig(data: Record<string, string>) {
 export function getLogs(limit: number = 100) {
   return request.get<any, ApiResponse<LogEntry[]>>('/api/admin/logs', {
     params: { limit }
+  })
+}
+
+// 10. 数据库管理
+export function getDBInfo() {
+  return request.get<any, ApiResponse<DBInfo>>('/api/admin/db/info')
+}
+
+export function getDBTables() {
+  return request.get<any, ApiResponse<DBTableInfo[]>>('/api/admin/db/tables')
+}
+
+export function browseTable(params: {
+  table: string
+  page?: number
+  page_size?: number
+  order_by?: string
+  order_desc?: number
+  keyword?: string
+}) {
+  return request.get<any, ApiResponse<TableBrowseResult>>('/api/admin/db/table', { params })
+}
+
+export function createBackup(tables?: string[]) {
+  return request.post<any, ApiResponse<BackupResult>>('/api/admin/db/backup', { tables })
+}
+
+export function getBackups() {
+  return request.get<any, ApiResponse<BackupMeta[]>>('/api/admin/db/backups')
+}
+
+export function deleteBackup(filename: string) {
+  return request.delete<any, ApiResponse>(
+    `/api/admin/db/backups?file=${encodeURIComponent(filename)}&confirm=1`
+  )
+}
+
+export function previewRestore(file: string, mode: 'merge' | 'replace') {
+  return request.post<any, ApiResponse<RestorePreview>>('/api/admin/db/restore', {
+    file,
+    mode,
+    dry_run: true
+  })
+}
+
+export function restoreDatabase(file: string, mode: 'merge' | 'replace') {
+  return request.post<any, ApiResponse<RestoreResult>>('/api/admin/db/restore', {
+    file,
+    mode,
+    confirm: true
+  })
+}
+
+export function runCleanup(actions: string[]) {
+  return request.post<any, ApiResponse<CleanupResult[]>>('/api/admin/db/cleanup', {
+    actions,
+    confirm: true
+  })
+}
+
+export function execSQL(sql: string, confirm: boolean = false) {
+  return request.post<any, ApiResponse<SQLExecResult>>('/api/admin/db/sql', {
+    sql,
+    confirm
   })
 }
