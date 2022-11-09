@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: #1e293b;
+    background-color: #f8fafc;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* 隐藏横向滚动条但保持可滚动 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 玻璃拟态阴影与磨砂效果 */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* 渐变文本 */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 自定义柔和卡片浮动过渡 */
+.card-hover-effect {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-hover-effect:hover {
+  transform: translateY(-4px);
+  /* box-shadow: 0 14px 30px -4px rgba(37, 99, 235, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.04); */
+}
+
+/* 金银铜榜单角标渐变 */
+.badge-gold {
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+}
+.badge-silver {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+.badge-bronze {
+  background: linear-gradient(135deg, #fb923c 0%, #c2410c 100%);
+}
+.badge-normal {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
