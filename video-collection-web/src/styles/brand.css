@@ -24,6 +24,19 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .brand-navbar nav a { position: relative; white-space: nowrap; }
 .brand-navbar nav a[aria-current="page"]::after { content: ''; position: absolute; bottom: -11px; height: 3px; left: 25%; right: 25%; border-radius: 9px; background: var(--brand-gradient); }
 .brand-navbar input { background: #f7f9ff; border: 1px solid #e3e9fb; }
+.brand-navbar #nav-guest-btn { white-space: nowrap; flex-shrink: 0; }
+.brand-navbar a[aria-label="消息通知"] svg { width: 20px; height: 20px; }
+@media (min-width: 768px) and (max-width: 1199px) {
+  .brand-navbar > div { height: auto; flex-wrap: wrap; gap: 10px; padding-block: 12px; }
+  .brand-navbar > div > div:first-child { width: 100%; justify-content: space-between; gap: 20px; }
+  .brand-navbar nav { display: flex; gap: 18px; }
+  .brand-navbar > div > div:last-child { width: 100%; justify-content: flex-end; }
+}
+@media (max-width: 380px) {
+  .brand-navbar > div { padding-inline: 12px; }
+  .brand-navbar > div > div:last-child { gap: 4px; }
+  .brand-navbar #nav-guest-btn { padding-inline: 9px; font-size: 11px; }
+}
 .brand-section { margin: 30px auto 0; padding: 0 26px; max-width: 1360px; }
 .hero-section { margin-top: 12px; }
 .brand-hero { position: relative; isolation: isolate; height: clamp(280px, 27vw, 390px); border-radius: 16px; overflow: hidden; background: #b3c9f8; }
