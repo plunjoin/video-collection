@@ -1,0 +1,118 @@
+:root {
+  --brand-blue: #4b9fff;
+  --brand-purple: #9a83ff;
+  --brand-pink: #ff89c7;
+  --brand-ink: #353b58;
+  --brand-muted: #7d88aa;
+  --brand-line: #e9edfa;
+  --brand-gradient: linear-gradient(110deg, #4b9fff, #9a83ff 60%, #ff89c7);
+}
+.bllii-site { color: var(--brand-ink); background: radial-gradient(ellipse at 10% 15%, #e4efff 0, transparent 40%), radial-gradient(ellipse at 95% 70%, #f4eaff 0, transparent 40%), #f7faff; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--brand-purple); outline-offset: 4px; }
+[hidden] { display: none !important; }
+.brand-masthead { width: min(1320px, calc(100% - 64px)); margin: 22px auto 20px; display: flex; align-items: center; justify-content: space-between; }
+.brand-masthead img { width: 166px; height: 64px; object-fit: contain; }
+.brand-masthead p { text-align: right; color: #6470a6; font-size: 13px; letter-spacing: 5px; }
+.brand-masthead small { display: block; margin-top: 9px; font-size: 9px; letter-spacing: 3px; }
+.brand-masthead small::after { content: ''; display: inline-block; width: 52px; height: 3px; margin-left: 12px; vertical-align: middle; background: var(--brand-gradient); border-radius: 9px; }
+.brand-shell { width: min(1320px, calc(100% - 64px)); margin: 0 auto 40px; border: 1px solid white; border-radius: 26px; background: #ffffffed; box-shadow: 0 12px 70px #7499d914; }
+.brand-navbar { border-radius: 26px 26px 0 0; border-color: var(--brand-line); background: #ffffffed; }
+.brand-navbar > div { height: 78px; }
+.brand-logo { display: block; flex-shrink: 0; }
+.brand-logo img { width: 140px; height: 54px; object-fit: contain; }
+.brand-navbar nav a { position: relative; white-space: nowrap; }
+.brand-navbar nav a[aria-current="page"]::after { content: ''; position: absolute; bottom: -11px; height: 3px; left: 25%; right: 25%; border-radius: 9px; background: var(--brand-gradient); }
+.brand-navbar input { background: #f7f9ff; border: 1px solid #e3e9fb; }
+.brand-section { margin: 30px auto 0; padding: 0 26px; max-width: 1360px; }
+.hero-section { margin-top: 12px; }
+.brand-hero { position: relative; isolation: isolate; height: clamp(280px, 27vw, 390px); border-radius: 16px; overflow: hidden; background: #b3c9f8; }
+.brand-hero__slide { position: absolute; inset: 0; }
+.brand-hero__image { position: absolute; inset: 0 0 0 auto; width: 78%; height: 100%; object-fit: cover; object-position: center 30%; }
+.brand-hero__shade { position: absolute; inset: 0; background: linear-gradient(90deg, #809fdc 0%, #8d9edbe8 24%, #a6bce44d 55%, #acb7f01a 100%); }
+.brand-hero__copy { position: absolute; z-index: 1; left: 7%; top: 50%; transform: translateY(-50%); color: white; max-width: 75%; }
+.brand-eyebrow { font-size: 10px; letter-spacing: 3px; font-weight: 600; }
+.brand-hero h1 { margin: 18px 0 12px; font-family: 'STKaiti', 'KaiTi', 'Microsoft YaHei', serif; font-weight: 400; font-size: clamp(29px, 3vw, 44px); line-height: 1.5; letter-spacing: 4px; text-shadow: 0 2px 12px #5e72b24d; }
+.brand-hero__title { font-size: 13px; margin-bottom: 22px; max-width: 340px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.brand-button { display: inline-flex; align-items: center; justify-content: center; gap: 20px; padding: 11px 27px; border-radius: 99px; background: var(--brand-gradient); color: white; font-size: 14px; font-weight: 600; box-shadow: 0 5px 15px #a58eff25; transition: transform .2s, box-shadow .2s; }
+.brand-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px #a58eff45; }
+.brand-hero__note { position: absolute; right: 5%; bottom: 12%; color: white; font: italic 32px/1.5 'KaiTi', serif; transform: rotate(-7deg); text-shadow: 0 2px 8px #353b5866; }
+.hero-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; background: #353b5838; color: white; border-radius: 50%; font: 28px/1 serif; }
+.hero-arrow:hover { background: #353b5866; }
+.hero-arrow--prev { left: 12px; }.hero-arrow--next { right: 12px; }
+.hero-dots { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; }
+.hero-dots button { width: 22px; height: 24px; display: grid; place-items: center; }
+.hero-dots button::after { content: ''; width: 5px; height: 5px; background: #ffffff80; border-radius: 8px; }
+.hero-dots button[aria-pressed="true"]::after { width: 18px; background: white; }
+.quick-nav { margin-top: 15px; }
+.quick-nav a > div { box-shadow: none; border-radius: 18px; background-image: linear-gradient(140deg, #ffffff90, transparent); }
+.quick-nav a { gap: 9px; }
+.quick-nav a span { color: #515c80; font-size: 12px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 15px; }
+.section-heading h2 { font-size: 18px; font-weight: 750; color: #252d51; letter-spacing: .4px; white-space: nowrap; }
+.section-heading h2 span { color: #8794b8; margin-left: 4px; font-weight: 400; }
+.section-heading > a { font-size: 11px; color: var(--brand-muted); white-space: nowrap; }
+.section-heading > a:hover { color: #597bea; }
+.brand-chips { display: flex; gap: 8px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.brand-chips button { padding: 4px 13px; border: 1px solid transparent; border-radius: 99px; font-size: 11px; white-space: nowrap; color: #707b9f; background: #f8f9ff; }
+.brand-chips button[aria-pressed="true"] { color: #9264db; border-color: #d8bdff; background: #fcf7ff; }
+.video-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 18px; }
+.video-card { display: block; min-width: 0; }
+.video-card__cover { position: relative; aspect-ratio: 1.86; overflow: hidden; border-radius: 9px; background: #eef2fd; border: 1px solid #e7ecfa; }
+.video-card__cover img { width: 100%; height: 100%; object-fit: cover; object-position: center 28%; transition: transform .25s; }
+.video-card:hover img { transform: scale(1.045); }
+.video-card__badge { position: absolute; top: 7px; left: 7px; background: #ff86bf; color: white; padding: 1px 7px; border-radius: 5px; font-size: 10px; }
+.video-card__score { position: absolute; right: 4px; bottom: 4px; background: #252d51c9; color: white; font-size: 11px; line-height: 18px; border-radius: 5px; padding: 0 5px; }
+.video-card__play { opacity: 0; position: absolute; inset: 0; display: grid; place-items: center; background: #353b581f; color: white; font-size: 28px; transition: opacity .2s; }
+.video-card:hover .video-card__play, .video-card:focus-visible .video-card__play { opacity: 1; }
+.video-card h3 { color: #353b58; font-size: 13px; font-weight: 650; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-card p { color: var(--brand-muted); font-size: 11px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.video-card__meta { display: flex; gap: 18px; color: #8993b5; font-size: 10px; margin-top: 5px; }
+.brand-empty { padding: 28px 12px; text-align: center; color: var(--brand-muted); font-size: 13px; }
+.home-panels { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; }
+.home-panel { padding: 16px; border: 1px solid #eef1fb; border-radius: 13px; background: linear-gradient(135deg, #f7f9ff, white); min-width: 0; }
+.home-panel .section-heading h2 { font-size: 15px; }.home-panel .section-heading { gap: 8px; }
+.panel-subtitle { font-size: 11px; color: #6679cf; margin: 0 0 10px; }.panel-subtitle span { margin-left: 10px; color: #939bb9; font-size: 9px; }
+.schedule-row, .rank-row { display: flex; gap: 10px; align-items: center; font-size: 11px; padding: 7px 0; }
+.schedule-row strong, .rank-row strong { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.schedule-row > span:not(.schedule-dot), .rank-row small { font-size: 10px; color: var(--brand-muted); max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-dot { width: 5px; height: 5px; border-radius: 50%; background: #a28cff; flex-shrink: 0; }
+.schedule-row i { font-style: normal; border-radius: 99px; border: 1px solid #d8deff; padding: 0 7px; color: #8189e5; font-size: 10px; }
+.rank-row > span { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 5px; background: #e9edfc; color: #8290b5; font-size: 10px; }
+.rank-row:nth-of-type(1) > span { background: #ff86bf; color: white; }.rank-row:nth-of-type(2) > span { background: #ffba75; color: white; }.rank-row:nth-of-type(3) > span { background: #baa1ec; color: white; }
+.brand-promo { position: relative; overflow: hidden; border: 1px solid #f6eafb; padding: 22px; border-radius: 13px; background: linear-gradient(125deg, #fff0f9, #eee9ff 65%, #e4eeff); }
+.brand-promo > div { position: relative; z-index: 1; }.brand-promo .brand-eyebrow { font-size: 8px; color: #9390bd; letter-spacing: 1.5px; }
+.brand-promo h2 { font-size: 22px; font-weight: 750; color: #353b68; margin: 12px 0; }.brand-promo p { font-size: 11px; line-height: 1.9; color: #8186ad; }
+.brand-promo img { width: 135px; position: absolute; right: -20px; bottom: 12px; transform: rotate(-10deg); opacity: .75; }.brand-promo .brand-button { padding: 7px 17px; font-size: 11px; margin-top: 20px; }
+.brand-shell > main { padding-bottom: 28px; }.brand-shell > footer { border-radius: 0 0 26px 26px; margin-top: 30px; padding-top: 26px; background: transparent; border-color: var(--brand-line); }
+.brand-shell .shadow-xl, .brand-shell .shadow-2xl { box-shadow: 0 8px 28px #7487c11c; }
+.text-gradient { background-image: var(--brand-gradient); }
+.mobile-nav { display: none; }
+/* Detail: cinematic artwork above a bright, readable information panel. */
+.anime-hero { margin: 12px 26px 0; }
+.anime-hero__banner { height: 225px; border-radius: 12px; overflow: hidden; position: relative; background: #dfe9ff; }
+.anime-hero__banner > img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.anime-hero__banner::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #797baa35, #4a5a8020); }
+.anime-hero__banner p { position: absolute; z-index: 1; right: 5%; bottom: 25px; color: white; text-align: right; font: 25px/1.7 'KaiTi', serif; text-shadow: 0 2px 10px #353b58; }
+.anime-hero__info { display: grid; grid-template-columns: 190px minmax(0, 1fr) 210px; gap: 26px; padding: 22px 24px; align-items: start; }
+.anime-hero__poster { width: 190px; aspect-ratio: 3/4; object-fit: cover; border-radius: 12px; border: 4px solid white; margin-top: -80px; z-index: 1; box-shadow: 0 5px 18px #536d8f18; background: #f3f6ff; }
+.anime-hero__info h1 { font-size: 27px; font-weight: 750; color: #252d51; margin-bottom: 10px; }
+.anime-hero__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }.anime-hero__tags span { font-size: 10px; color: #698ae4; background: #eff5ff; border: 1px solid #dfebff; padding: 1px 7px; border-radius: 4px; }.anime-hero__tags span:first-child { background: linear-gradient(100deg, #ec94dc, #b092ff); color: white; border: 0; }
+.anime-hero__meta, .anime-hero__synopsis { font-size: 12px; color: #8792b2; line-height: 1.9; }.anime-hero__synopsis { margin-top: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.anime-hero__actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }.anime-hero__actions .brand-button { background: linear-gradient(100deg, #ff89c7, #b589fa, #80b6ff); }
+.brand-outline { padding: 10px 22px; border: 1px solid #dfe5fa; border-radius: 99px; color: #5b6397; font-size: 13px; }.brand-outline:hover { background: #f8f6ff; }
+.anime-rating { padding: 20px; border-radius: 12px; background: linear-gradient(#fff, #f4f7ff); border: 1px solid #edf1fc; }.anime-rating strong { font-size: 38px; font-weight: 450; color: #ff9a40; }.anime-rating span { color: #ffab4f; letter-spacing: 2px; display: block; }.anime-rating small { color: #909bbb; font-size: 10px; }.anime-rating blockquote { margin-top: 22px; padding-top: 18px; border-top: 1px solid #edf0fa; color: #9097bc; font: 16px/1.9 'KaiTi', serif; }
+.brand-shell #tab-角色 .grid > div { flex-direction: row; }.brand-shell #tab-角色 .grid > div > div:first-child { width: 40%; aspect-ratio: 3/4; flex-shrink: 0; }.brand-shell #tab-角色 .grid > div > div:last-child { align-self: center; padding: 10px; }
+.brand-tabs { top: 78px; border-color: var(--brand-line); }.brand-tabs a[aria-current] { color: #7b7cf2; }.brand-tabs a[aria-current]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 9px; background: var(--brand-gradient); }
+.brand-loading { display: block; width: 64px; height: 64px; margin: auto; }
+@media (min-width: 1600px) { .brand-shell { margin-top: 26px; } }
+@media (max-width: 1100px) { .home-panels { grid-template-columns: 1fr 1fr; }.brand-promo { grid-column: 1/-1; }.brand-promo img { right: 35px; width: 180px; }.anime-hero__info { grid-template-columns: 150px minmax(0, 1fr); }.anime-hero__poster { width: 150px; }.anime-rating { grid-column: 1/-1; display: flex; align-items: center; gap: 16px; }.anime-rating blockquote { border: 0; margin: 0 0 0 auto; padding: 0; } }
+@media (max-width: 767px) {
+  .brand-masthead { display: none; }.brand-shell { width: 100%; margin: 0; border-radius: 0; border: 0; box-shadow: none; }.brand-navbar { border-radius: 0; }.brand-navbar > div { height: 62px; gap: 10px; }.brand-logo img { width: 112px; height: 44px; }
+  .brand-section { padding: 0 16px; margin-top: 25px; }.hero-section { margin-top: 7px; }.brand-hero { height: 260px; border-radius: 13px; }.brand-hero__copy { left: 9%; max-width: 83%; }.brand-hero h1 { font-size: 29px; letter-spacing: 1px; margin: 10px 0; }.brand-hero .brand-eyebrow { font-size: 8px; letter-spacing: 2px; }.brand-hero__title { font-size: 11px; margin-bottom: 16px; }.brand-hero__note { display: none; }.brand-hero .brand-button { padding: 9px 20px; font-size: 12px; }.hero-arrow { width: 25px; height: 25px; }.hero-arrow--prev { left: 5px; }.hero-arrow--next { right: 5px; }
+  .quick-nav { margin-top: 9px; }.quick-nav a span { font-size: 10px; }.section-heading { gap: 10px; margin-bottom: 12px; }.section-heading h2 { font-size: 16px; }.section-heading--wrap { flex-wrap: wrap; }.brand-chips { order: 3; flex-basis: 100%; }.video-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }.video-card__cover { aspect-ratio: 1.7; }.video-card h3 { font-size: 12px; }.video-card__meta { font-size: 9px; gap: 10px; }
+  .home-panels { grid-template-columns: 1fr; }.brand-promo { grid-column: auto; }.home-panel { padding: 14px; }.brand-promo img { right: 4px; width: 145px; }.brand-shell > footer { padding-bottom: 100px; }
+  .mobile-nav { position: fixed; z-index: 60; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-around; padding: 7px 5px max(8px, env(safe-area-inset-bottom)); background: #fffffff2; backdrop-filter: blur(18px); border-top: 1px solid #edf0fb; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px #7d98d00a; }.mobile-nav a { display: flex; flex-direction: column; align-items: center; min-width: 48px; font-size: 10px; color: #8892b5; gap: 2px; }.mobile-nav a span { font-size: 24px; line-height: 26px; }.mobile-nav a[aria-current] { color: #608ff5; }.mobile-nav__brand img { width: 48px; height: 48px; padding: 4px; border-radius: 50%; background: white; box-shadow: 0 0 18px #a2b6ea2b; }
+  .anime-hero { margin: 0; }.anime-hero__banner { height: 235px; border-radius: 0; }.anime-hero__banner p { font-size: 20px; bottom: 45px; }.anime-hero__info { padding: 18px 16px; gap: 14px; grid-template-columns: 105px minmax(0, 1fr); }.anime-hero__poster { width: 105px; margin-top: -55px; border-width: 3px; }.anime-hero__info h1 { font-size: 21px; }.anime-hero__synopsis { -webkit-line-clamp: 2; }.anime-hero__actions { margin-left: -119px; margin-top: 22px; }.anime-hero__actions .brand-button { flex: 1; padding: 10px 17px; }.brand-outline { padding: 9px 16px; }.anime-rating { padding: 12px; }.anime-rating strong { font-size: 28px; }.anime-rating blockquote { font-size: 13px; }.brand-tabs { top: 62px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
