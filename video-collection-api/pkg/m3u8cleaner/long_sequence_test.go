@@ -34,7 +34,7 @@ func TestExtractTSSeq(t *testing.T) {
 	}
 }
 
-// Captured from vip1.lz-cdn8.com/20220825/23203_3aa28b03/1000k/hls/mixed.m3u8.
+// Synthetic regression fixture with long numeric segment names.
 // The seven ad segments interrupt movie segments 73 and 74 for 25.7 seconds.
 func TestHandler_LongSequencePlaylist(t *testing.T) {
 	raw, err := os.ReadFile("testdata/lz_long_sequence.m3u8")
