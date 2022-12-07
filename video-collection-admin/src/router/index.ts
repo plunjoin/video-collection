@@ -71,6 +71,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '系统配置', icon: 'Setting' }
       },
       {
+        path: 'database',
+        name: 'Database',
+        component: () => import('@/views/database/index.vue'),
+        meta: { title: '数据库管理', icon: 'Coin' }
+      },
+      {
         path: 'logs',
         name: 'Logs',
         component: () => import('@/views/logs/index.vue'),
