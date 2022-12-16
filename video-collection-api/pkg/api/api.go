@@ -42,6 +42,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 }
 
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
+	srv.registerContentRoutes(mux)
 	// 公开接口
 	mux.Handle("/api/m3u8/clean", srv.m3u8Cleaner)
 	mux.Handle("/api/m3u8", srv.m3u8Cleaner)
