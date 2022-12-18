@@ -76,6 +76,7 @@ venv/
 logs/
 tmp/
 temp/
+.temp/
 .cache/
 *.tmp
 *.swp
