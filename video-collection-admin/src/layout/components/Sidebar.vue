@@ -59,6 +59,7 @@ import {
   Brush,
   VideoPlay,
   Setting,
+  Coin,
   Document,
   Fold,
   Expand
@@ -81,6 +82,7 @@ const menuList = [
   { path: '/themes', title: '客户端主题', icon: Brush },
   { path: '/players', title: '播放器管理', icon: VideoPlay },
   { path: '/settings', title: '系统配置', icon: Setting },
+  { path: '/database', title: '数据库管理', icon: Coin },
   { path: '/logs', title: '运行审计日志', icon: Document }
 ]
 </script>
