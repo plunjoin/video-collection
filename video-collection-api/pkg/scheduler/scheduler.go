@@ -7,18 +7,19 @@ import (
 	"time"
 
 	"video-collection-api/config"
+	"video-collection-api/pkg/ingest"
 	"video-collection-api/pkg/maccms"
 	"video-collection-api/pkg/store"
 )
 
 // LogItem 采集运行实时日志
 type LogItem struct {
-	ID        int64     `json:"id"`
-	Time      time.Time `json:"time"`
-	SourceID  string    `json:"source_id"`
-	SourceName string   `json:"source_name"`
-	Level     string    `json:"level"` // INFO, WARN, SUCCESS, ERROR
-	Message   string    `json:"message"`
+	ID         int64     `json:"id"`
+	Time       time.Time `json:"time"`
+	SourceID   string    `json:"source_id"`
+	SourceName string    `json:"source_name"`
+	Level      string    `json:"level"` // INFO, WARN, SUCCESS, ERROR
+	Message    string    `json:"message"`
 }
 
 // TaskProgress 采集任务状态与进度
@@ -245,6 +246,11 @@ func (sc *Scheduler) TriggerCollect(sourceID string, customHours int) error {
 	if src == nil {
 		return fmt.Errorf("source id %s not found", sourceID)
 	}
+	if src.Type == "pipeline" {
+		if err := ingest.Validate(*src); err != nil {
+			return err
+		}
+	}
 
 	sc.mu.Lock()
 	prog, exists := sc.progress[sourceID]
@@ -275,6 +281,10 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		sc.mu.Unlock()
 	}()
 
+	if src.Type == "pipeline" {
+		sc.runPipeline(ctx, src, prog)
+		return
+	}
 	client := maccms.NewClient(src)
 	isAll := (customHours == 0)
 	hours := src.CollectHours
