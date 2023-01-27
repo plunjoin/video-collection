@@ -1,0 +1,2512 @@
+{
+  "tags": [
+    {
+      "name": "Growth",
+      "description": "日活、签到、成长任务与等级、装扮和同好心愿"
+    },
+    {
+      "name": "Reviews",
+      "description": "运营内容提交及管理员审核"
+    },
+    {
+      "name": "Audit",
+      "description": "后台操作记录"
+    }
+  ],
+  "paths": {
+    "/api/user/points": {
+      "get": {
+        "summary": "我的余额、签到状态、规则和最近100笔流水",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PointWallet"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      }
+    },
+    "/api/user/points/checkin": {
+      "post": {
+        "summary": "每日签到（重复调用 earned=0）",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "earned": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      }
+    },
+    "/api/user/shop": {
+      "get": {
+        "summary": "商店与本人库存及佩戴状态",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Cosmetic"
+                      }
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      }
+    },
+    "/api/user/shop/redeem": {
+      "post": {
+        "summary": "兑换装扮（已拥有不重复扣费）",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {},
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/shop/equip": {
+      "post": {
+        "summary": "佩戴已拥有装扮；id=0 按 slot 卸下",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {},
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "slot": {
+                    "type": "string",
+                    "enum": [
+                      "avatar",
+                      "frame",
+                      "badge",
+                      "nickname_color"
+                    ]
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/movie-requests": {
+      "get": {
+        "summary": "本人的积分求片记录",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MovieRequest"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "maximum": 100
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "提交求片，按服务端规则扣费",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MovieRequest"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "details": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/movie-requests": {
+      "get": {
+        "summary": "后台求片记录",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MovieRequest"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "maximum": 100
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "管理员处理求片；拒绝自动退还原积分",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {},
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "processing",
+                      "fulfilled",
+                      "rejected"
+                    ]
+                  },
+                  "reply": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "id",
+                  "status",
+                  "reply"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviews": {
+      "get": {
+        "summary": "审核队列，运营仅能查看本人提交",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Review"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "管理员/超管审批；拒绝必须 note；不能自审",
+        "tags": [
+          "Reviews"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {},
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "approve": {
+                    "type": "boolean"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "id",
+                  "approve"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/growth": {
+      "get": {
+        "summary": "最近30天北京时间 DAU、签到、发放/退款、消费",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DayActivity"
+                      }
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      }
+    },
+    "/api/admin/growth/rules": {
+      "get": {
+        "summary": "积分规则",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GrowthRules"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      },
+      "post": {
+        "summary": "管理员/超管修改之后的积分规则",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GrowthRules"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrowthRules"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/shop": {
+      "get": {
+        "summary": "后台商品列表（含下架）",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Cosmetic"
+                      }
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        }
+      },
+      "post": {
+        "summary": "管理员/超管新增或更新；已有商品不能改变 kind",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Cosmetic"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Cosmetic"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "summary": "后台写入操作记录（观察员可读）",
+        "tags": [
+          "Audit"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminOperation"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数、余额或状态无效"
+          },
+          "401": {
+            "description": "未登录或无后台权限"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "内容不存在"
+          },
+          "409": {
+            "description": "已处理或版本冲突"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "maximum": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/user/journey": {
+      "get": {
+        "summary": "我的成长等级、路线与任务进度",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Journey"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      }
+    },
+    "/api/user/missions/claim": {
+      "post": {
+        "summary": "领取已完成任务；重复领取 earned=0",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "earned": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": []
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      }
+    },
+    "/api/admin/missions": {
+      "get": {
+        "summary": "成长任务配置；观察员可读",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GrowthMission"
+                      }
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      },
+      "post": {
+        "summary": "管理员保存成长任务；类型与周期创建后不可修改",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrowthMission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GrowthMission"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      }
+    },
+    "/api/movie-request-wall": {
+      "get": {
+        "summary": "公开未完成心愿；按助力数排序；匿名可读",
+        "tags": [
+          "Growth"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicMovieRequest"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/user/movie-requests/share": {
+      "post": {
+        "summary": "本人公开或收回未完成心愿；运营及观察员不可用",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "shared": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "shared"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      }
+    },
+    "/api/user/movie-requests/support": {
+      "post": {
+        "summary": "免费助力其他同好的公开心愿；重复调用幂等",
+        "tags": [
+          "Growth"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "条件未达成或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "角色无权限"
+          },
+          "404": {
+            "description": "任务或心愿不存在"
+          },
+          "409": {
+            "description": "心愿已关闭或状态冲突"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GrowthRules": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checkin": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "streak_step": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "streak_cap": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_cost": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "active",
+          "checkin",
+          "streak_step",
+          "streak_cap",
+          "request_cost"
+        ]
+      },
+      "Cosmetic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "avatar",
+              "animated_avatar",
+              "frame",
+              "badge",
+              "nickname_color"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "description": "头像 HTTPS 图片或内置 /api/cosmetics/ URL；框与昵称 #RRGGBB；铭牌文本"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "owned": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "equipped": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "value",
+          "price",
+          "active"
+        ]
+      },
+      "Decorations": {
+        "type": "object",
+        "properties": {
+          "avatar": {
+            "type": "string"
+          },
+          "frame": {
+            "type": "string"
+          },
+          "badge": {
+            "type": "string"
+          },
+          "nickname_color": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "PointLedger": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "balance": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": []
+      },
+      "PointWallet": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "integer"
+          },
+          "day": {
+            "type": "string"
+          },
+          "checked_in": {
+            "type": "boolean"
+          },
+          "streak": {
+            "type": "integer"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/GrowthRules"
+          },
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointLedger"
+            }
+          }
+        },
+        "required": []
+      },
+      "MovieRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "fulfilled",
+              "rejected"
+            ]
+          },
+          "reply": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "support_count": {
+            "type": "integer"
+          },
+          "supported": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "video",
+              "news",
+              "post",
+              "comment"
+            ]
+          },
+          "target_id": {
+            "type": "integer"
+          },
+          "submitter_id": {
+            "type": "integer"
+          },
+          "submitter_name": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "reviewer_id": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "DayActivity": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "dau": {
+            "type": "integer"
+          },
+          "checkins": {
+            "type": "integer"
+          },
+          "earned": {
+            "type": "integer"
+          },
+          "spent": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "AdminOperation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "actor_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "系统管理员"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "https://api.dicebear.com/7.x/identicon/svg?seed=admin"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "admin",
+              "observer",
+              "operator",
+              "user"
+            ]
+          },
+          "decorations": {
+            "$ref": "#/components/schemas/Decorations"
+          },
+          "wallet": {
+            "type": "object",
+            "properties": {
+              "balance": {
+                "type": "integer"
+              }
+            },
+            "required": []
+          },
+          "backend_access": {
+            "type": "boolean"
+          },
+          "can_review": {
+            "type": "boolean"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "example": "user01"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "小明"
+          },
+          "avatar": {
+            "type": "string",
+            "example": ""
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "admin",
+              "observer",
+              "operator",
+              "user"
+            ]
+          },
+          "status": {
+            "type": "integer",
+            "description": "1 正常, 0 禁用",
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ContentRecord": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "news",
+                  "post"
+                ]
+              },
+              "author_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "author_name": {
+                "type": "string"
+              },
+              "author_avatar": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string",
+                "description": "纯文本正文；客户端必须转义显示，不能直接作为 HTML 插入"
+              },
+              "cover": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "published",
+                  "hidden"
+                ]
+              },
+              "pinned": {
+                "type": "boolean"
+              },
+              "like_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "comment_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "该内容所有未删除评论及回复数量"
+              },
+              "liked": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "author_id",
+              "author_name",
+              "author_avatar",
+              "title",
+              "summary",
+              "content",
+              "cover",
+              "category",
+              "status",
+              "pinned",
+              "like_count",
+              "comment_count",
+              "liked",
+              "created_at",
+              "updated_at"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "author_frame": {
+                "type": "string"
+              },
+              "author_badge": {
+                "type": "string"
+              },
+              "author_color": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        ]
+      },
+      "Comment": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "post_id": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "仅社区评论返回，兼容旧接口"
+              },
+              "user_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "author_name": {
+                "type": "string"
+              },
+              "author_avatar": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "target_type": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,49}$",
+                "description": "内置 video（影视）、news（资讯）、post（社区）；其他类型需服务端注册校验器"
+              },
+              "target_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "parent_id": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "直接回复的评论ID，顶层为0"
+              },
+              "root_id": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "所属顶层评论ID，顶层自身为0"
+              },
+              "is_deleted": {
+                "type": "boolean",
+                "description": "删除后保留占位，content为空，点赞清空；回复仍可读"
+              },
+              "reply_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "未删除的直接回复数"
+              },
+              "like_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "liked": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "user_id",
+              "author_name",
+              "author_avatar",
+              "content",
+              "created_at",
+              "target_type",
+              "target_id",
+              "parent_id",
+              "root_id",
+              "is_deleted",
+              "reply_count",
+              "like_count",
+              "liked"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "author_frame": {
+                "type": "string"
+              },
+              "author_badge": {
+                "type": "string"
+              },
+              "author_color": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        ]
+      },
+      "ContentResponse": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ContentRecord"
+              }
+            },
+            "required": [
+              "code",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean",
+                "description": "运营发布为 true，管理员审核后才公开"
+              },
+              "review_id": {
+                "type": "integer"
+              }
+            },
+            "required": []
+          }
+        ]
+      },
+      "CommentResponse": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/CommunityComment"
+              }
+            },
+            "required": [
+              "code",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean",
+                "description": "运营发布为 true，管理员审核后才公开"
+              },
+              "review_id": {
+                "type": "integer"
+              }
+            },
+            "required": []
+          }
+        ]
+      },
+      "GrowthMission": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "history",
+              "favorite",
+              "comment",
+              "checkin",
+              "support"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "once"
+            ]
+          },
+          "target": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "reward": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "progress": {
+            "type": "integer",
+            "readOnly": true
+          },
+          "claimed": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "href": {
+            "type": "string",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "period",
+          "target",
+          "reward",
+          "active"
+        ],
+        "description": "签到类型只能使用 once 周期；类型与周期创建后不可修改。"
+      },
+      "GrowthLevel": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "level",
+          "name",
+          "threshold"
+        ]
+      },
+      "Journey": {
+        "type": "object",
+        "properties": {
+          "experience": {
+            "type": "integer"
+          },
+          "level": {
+            "$ref": "#/components/schemas/GrowthLevel"
+          },
+          "next_level": {
+            "$ref": "#/components/schemas/GrowthLevel",
+            "nullable": true
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrowthLevel"
+            }
+          },
+          "missions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrowthMission"
+            }
+          }
+        },
+        "required": []
+      },
+      "PublicMovieRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string",
+            "description": "公开昵称或“同好”，不包含登录账号名"
+          },
+          "title": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing"
+            ]
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "support_count": {
+            "type": "integer"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": []
+      }
+    }
+  }
+}
