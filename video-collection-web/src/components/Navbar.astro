@@ -1,0 +1,243 @@
+---
+interface Props {
+  activeNav?: string;
+}
+
+const { activeNav = '首页' } = Astro.props;
+
+const navItems = [
+  { name: '首页', href: '/' },
+  { name: '番剧库', href: '/category' },
+  { name: '时间表', href: '/latest' },
+  { name: '排行榜', href: '/rank' },
+  { name: '追番', href: '/follow' },
+  { name: '资讯', href: '/news' },
+  { name: '社区', href: '/community' },
+];
+---
+
+<header class="brand-navbar sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-colors">
+  <div class="max-w-[1360px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    
+    <!-- 左侧 Logo 与 品牌名 (完全对齐参考图) -->
+    <div class="flex items-center gap-8">
+      <a href="/" class="brand-logo" aria-label="bllii 首页"><img src="/brand/bllii-horizontal.svg" alt="bllii" width="140" height="54" /></a>
+
+      <!-- 导航链接 -->
+      <nav class="hidden lg:flex items-center gap-5">
+        {navItems.map((item) => {
+          const isActive = item.name === activeNav || (activeNav === '番剧' && item.name === '番剧库') || (activeNav === '新番时间表' && item.name === '时间表');
+          return (
+            <a
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              class={`text-[13px] font-medium transition-colors ${
+                isActive 
+                  ? 'text-[#597bea] font-semibold' 
+                  : 'text-slate-700 hover:text-[#597bea]'
+              }`}
+            >
+              {item.name}
+            </a>
+          );
+        })}
+      </nav>
+    </div>
+
+    <!-- 右侧：搜索框与功能按钮 -->
+    <div class="flex items-center gap-3 sm:gap-4">
+      <!-- 搜索输入框 -->
+      <form action="/search" method="GET" class="relative hidden sm:block w-44 xl:w-64">
+        <input
+          type="text"
+          name="q"
+          placeholder="搜索番剧、视频、UP主…"
+          class="w-full h-9 pl-4 pr-9 rounded-full bg-slate-100/90 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white border border-transparent focus:border-blue-400 transition-all"
+        />
+        <button type="submit" aria-label="搜索" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#597bea] cursor-pointer">
+          <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+      </form>
+
+      <a href="/search" aria-label="搜索番剧" class="sm:hidden text-slate-500 p-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg></a>
+      <!-- 消息通知按钮 -->
+      <a 
+        href="/follow"
+        aria-label="消息通知"
+        class="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square rounded-full text-slate-500 hover:text-[#597bea] hover:bg-slate-100 flex items-center justify-center transition-colors relative shrink-0"
+      >
+        <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+      </a>
+
+      <!-- 未登录按钮 (默认) -->
+      <a
+        href="/login"
+        id="nav-guest-btn"
+        class="hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-[#597bea] text-xs font-semibold transition-all border border-blue-200/60 shadow-sm"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>登录 / 注册</span>
+      </a>
+
+      <!-- 已登录用户头像与下拉菜单 (支持无死区 Hover 桥接与点击固定) -->
+      <div id="nav-user-menu" class="relative group ml-1 hidden">
+        <!-- 头像按钮 (严格正圆形容器) -->
+        <button
+          type="button"
+          id="nav-avatar-btn"
+          class="relative w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-full flex items-center justify-center focus:outline-none cursor-pointer select-none shrink-0"
+          aria-expanded="false"
+          aria-haspopup="true"
+        >
+          <img
+            src="/assets/char_1_frieren.jpg"
+            alt="User Avatar"
+            class="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-full object-cover ring-2 ring-[#597bea]/60 group-hover:ring-[#597bea] transition-all shadow-sm shrink-0"
+          />
+          <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+        </button>
+
+        <!-- 下拉弹窗外层桥接容器 (无缝连接 top-full，无任何触发盲区) -->
+        <div 
+          id="nav-dropdown-menu"
+          class="nav-dropdown-container absolute right-0 top-full pt-1.5 w-56 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50"
+        >
+          <!-- 弹窗主体卡片 -->
+          <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100/90 py-2 overflow-hidden ring-1 ring-black/5">
+            <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+              <p id="nav-user-nickname" class="text-xs font-bold text-slate-800 truncate">未登录</p>
+              <p id="nav-user-role" class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span id="nav-user-role-text">普通用户</span>
+              </p>
+            </div>
+
+            <div class="py-1 text-xs text-slate-600">
+              <a href="/follow" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span>我的追番</span>
+              </a>
+              <a href="/follow?tab=history" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>观看历史</span>
+              </a>
+              <a href="/category" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                <span>发现番剧</span>
+              </a>
+            </div>
+
+            <div class="pt-1 border-t border-slate-100 px-2 mt-1">
+              <button
+                type="button"
+                id="nav-btn-logout"
+                class="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer font-medium"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>退出登录</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</header>
+
+<script>
+  import { getUser, checkMe, logout } from '../lib/auth';
+
+  const guestBtn = document.getElementById('nav-guest-btn');
+  const userMenu = document.getElementById('nav-user-menu');
+  const avatarBtn = document.getElementById('nav-avatar-btn');
+  const dropdownMenu = document.getElementById('nav-dropdown-menu');
+  const nicknameEl = document.getElementById('nav-user-nickname');
+  const roleTextEl = document.getElementById('nav-user-role-text');
+  const logoutBtn = document.getElementById('nav-btn-logout');
+
+  function updateAuthUI() {
+    const user = getUser();
+    if (user && user.username) {
+      guestBtn?.classList.add('hidden');
+      guestBtn?.classList.remove('flex');
+      userMenu?.classList.remove('hidden');
+      if (nicknameEl) nicknameEl.textContent = user.nickname || user.username;
+      if (roleTextEl) roleTextEl.textContent = user.role === 'admin' ? '超级管理员' : 'bllii 追番官';
+    } else {
+      userMenu?.classList.add('hidden');
+      guestBtn?.classList.remove('hidden');
+      guestBtn?.classList.add('flex');
+    }
+  }
+
+  // 初始加载检查本地与服务器状态
+  updateAuthUI();
+  checkMe().then(() => updateAuthUI());
+
+  // 监听登录变更
+  window.addEventListener('auth-changed', () => {
+    updateAuthUI();
+  });
+
+  // 支持点击头像常驻展开，并支持再次点击或点击外部关闭
+  let isMenuClickedOpen = false;
+
+  avatarBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    isMenuClickedOpen = !isMenuClickedOpen;
+    avatarBtn?.setAttribute('aria-expanded', String(isMenuClickedOpen));
+    if (isMenuClickedOpen) {
+      dropdownMenu?.classList.remove('opacity-0', 'pointer-events-none');
+      dropdownMenu?.classList.add('opacity-100', 'pointer-events-auto');
+    } else {
+      dropdownMenu?.classList.add('opacity-0', 'pointer-events-none');
+      dropdownMenu?.classList.remove('opacity-100', 'pointer-events-auto');
+    }
+  });
+
+  // 鼠标移入下拉区域保持展开
+  dropdownMenu?.addEventListener('mouseenter', () => {
+    dropdownMenu?.classList.remove('opacity-0', 'pointer-events-none');
+    dropdownMenu?.classList.add('opacity-100', 'pointer-events-auto');
+  });
+
+  dropdownMenu?.addEventListener('mouseleave', () => {
+    if (!isMenuClickedOpen) {
+      dropdownMenu?.classList.add('opacity-0', 'pointer-events-none');
+      dropdownMenu?.classList.remove('opacity-100', 'pointer-events-auto');
+    }
+  });
+
+  // 点击页面任意外部区域收起下拉菜单
+  document.addEventListener('click', (e) => {
+    if (isMenuClickedOpen && !userMenu?.contains(e.target as Node)) {
+      isMenuClickedOpen = false;
+      avatarBtn?.setAttribute('aria-expanded', 'false');
+      dropdownMenu?.classList.add('opacity-0', 'pointer-events-none');
+      dropdownMenu?.classList.remove('opacity-100', 'pointer-events-auto');
+    }
+  });
+
+  logoutBtn?.addEventListener('click', async () => {
+    await logout();
+    updateAuthUI();
+    window.location.reload();
+  });
+</script>
