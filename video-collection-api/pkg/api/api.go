@@ -102,6 +102,16 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	// 用户求片留言管理
 	mux.HandleFunc("/api/admin/feedbacks", adminAuth(srv.handleAdminFeedbacks))
 	mux.HandleFunc("/api/admin/feedbacks/reply", adminAuth(srv.handleAdminReplyFeedback))
+
+	// 数据库管理 (引擎信息、表统计与浏览、备份恢复、清理维护与 SQL 执行器)
+	mux.HandleFunc("/api/admin/db/info", adminAuth(srv.handleDBInfo))
+	mux.HandleFunc("/api/admin/db/tables", adminAuth(srv.handleDBTables))
+	mux.HandleFunc("/api/admin/db/table", adminAuth(srv.handleDBTable))
+	mux.HandleFunc("/api/admin/db/backup", adminAuth(srv.handleDBBackup))
+	mux.HandleFunc("/api/admin/db/backups", adminAuth(srv.handleDBBackups))
+	mux.HandleFunc("/api/admin/db/restore", adminAuth(srv.handleDBRestore))
+	mux.HandleFunc("/api/admin/db/cleanup", adminAuth(srv.handleDBCleanup))
+	mux.HandleFunc("/api/admin/db/sql", adminAuth(srv.handleDBSQL))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, data any) {
