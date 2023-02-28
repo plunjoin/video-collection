@@ -232,7 +232,7 @@ class BrandBottomNav extends StatelessWidget {
                                     : icons[index],
                                 size: 23,
                                 color: currentIndex == index
-                                    ? AppColors.primary500
+                                    ? Theme.of(context).colorScheme.primary
                                     : AppColors.lightTextSecondary,
                               ),
                               const SizedBox(height: 4),
@@ -241,7 +241,7 @@ class BrandBottomNav extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: currentIndex == index
-                                      ? AppColors.primary500
+                                      ? Theme.of(context).colorScheme.primary
                                       : AppColors.lightTextSecondary,
                                 ),
                               ),

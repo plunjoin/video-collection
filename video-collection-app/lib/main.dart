@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'providers/app_state_provider.dart';
-import 'screens/main_scaffold.dart';
+import 'screens/startup_screen.dart';
 import 'theme/app_theme.dart';
 import 'utils/responsive.dart';
 
@@ -62,10 +62,10 @@ class BlliiApp extends StatelessWidget {
         return MaterialApp(
           title: 'bllii · More Stories, Together',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: AppTheme.themed(Brightness.light, appState.accentColor),
+          darkTheme: AppTheme.themed(Brightness.dark, appState.accentColor),
           themeMode: appState.themeMode,
-          home: const MainScaffold(),
+          home: const StartupScreen(),
         );
       },
     );
