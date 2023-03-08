@@ -1,5 +1,6 @@
 <template>
   <div class="videos-page">
+    <el-button type="primary" style="margin-bottom:16px" @click="newVideo">新增视频资料</el-button>
     <el-card shadow="never" class="filter-card">
       <el-form :inline="true" :model="queryForm" class="filter-form">
         <el-form-item label="片名搜索">
@@ -213,7 +214,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="海报图片">
-          <el-input v-model="editForm.pic" placeholder="http://..." />
+          <el-input v-model="editForm.picture" placeholder="http://..." />
         </el-form-item>
         <el-form-item label="年份 / 地区">
           <el-row :gutter="10">
@@ -232,8 +233,9 @@
           <el-input v-model="editForm.director" />
         </el-form-item>
         <el-form-item label="简介">
-          <el-input v-model="editForm.blurb" type="textarea" :rows="3" />
+          <el-input v-model="editForm.content" type="textarea" :rows="3" />
         </el-form-item>
+        <el-form-item label="播放线路"><el-input v-model="routesJSON" type="textarea" :rows="5" placeholder='[{"player_code":"hls","server":"no","note":"","episodes":[{"name":"第1集","url":"https://..."}]}]' /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -322,6 +324,8 @@ const getRouteLabel = (route: any, idx: number): string => {
 const editDialogVisible = ref(false)
 const saving = ref(false)
 const editForm = reactive<Partial<VideoRecord>>({})
+const routesJSON = ref('[]')
+function newVideo(){for(const key of Object.keys(editForm))delete (editForm as any)[key];Object.assign(editForm,{id:0,name:'',type_id:0,picture:'',content:''});routesJSON.value='[]';editDialogVisible.value=true}
 
 const formatDate = (val?: string) => {
   if (!val) return '-'
@@ -388,16 +392,20 @@ const viewDetail = async (row: VideoRecord) => {
 }
 
 const editVideo = (row: VideoRecord) => {
+  for(const key of Object.keys(editForm))delete (editForm as any)[key]
   Object.assign(editForm, row)
+  routesJSON.value=JSON.stringify(row.play_groups || row.play_routes || [],null,2)
   editDialogVisible.value = true
 }
 
 const submitEditVideo = async () => {
   saving.value = true
   try {
-    const res = await saveVideo(editForm)
+    let routes:any;try{routes=JSON.parse(routesJSON.value);if(!Array.isArray(routes))throw new Error()}catch{ElMessage.error('播放线路必须为 JSON 数组');return}
+    const {id,name,sub_name,type_id,type_name,picture,actor,director,area,language,year,remarks,content,source_id}=editForm
+    const res = await saveVideo({id,name,sub_name,type_id,type_name,picture,actor,director,area,language,year,remarks,content,source_id,play_groups:routes})
     if (res.code === 1) {
-      ElMessage.success('视频资料已保存')
+      ElMessage.success(res.msg || '视频资料已保存')
       editDialogVisible.value = false
       loadData()
     }
