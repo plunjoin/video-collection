@@ -15,6 +15,9 @@ import (
 )
 
 func (srv *Server) registerContentRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/comments", srv.genericCommentsHandler(false))
+	mux.HandleFunc("/api/comments/likes", srv.handleCommentLike)
+	mux.HandleFunc("/api/admin/comments", auth.AdminRequired(srv.store, srv.genericCommentsHandler(true)))
 	mux.HandleFunc("/api/news", srv.contentHandler("news", false))
 	mux.HandleFunc("/api/community/posts", srv.contentHandler("post", false))
 	mux.HandleFunc("/api/community/comments", srv.commentsHandler(false))
@@ -41,6 +44,8 @@ func contentMethod(w http.ResponseWriter, r *http.Request, methods ...string) bo
 
 func contentError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, store.ErrInvalidComment):
+		errorResponse(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, store.ErrContentNotFound):
 		errorResponse(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, store.ErrContentForbidden):
