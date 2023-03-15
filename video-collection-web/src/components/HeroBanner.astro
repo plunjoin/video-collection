@@ -1,0 +1,43 @@
+---
+import type { VideoRecord } from '../lib/api';
+interface Props { featuredVideo?: VideoRecord; videos?: VideoRecord[]; }
+const { featuredVideo, videos = [] } = Astro.props;
+const slides = videos.length ? videos.slice(0, 5) : featuredVideo ? [featuredVideo] : [];
+---
+<section class="brand-section hero-section">
+  <div class="brand-hero" data-hero>
+    {(slides.length ? slides : [null]).map((video, i) => (
+      <div class="brand-hero__slide" data-slide hidden={i !== 0}>
+        <img class="brand-hero__image" src={video?.picture || '/assets/hero_banner.jpg'} alt={video?.name || '在更多的故事里，遇见更好的你'} loading={i === 0 ? 'eager' : 'lazy'} onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+        <div class="brand-hero__shade"></div>
+        <div class="brand-hero__copy">
+          <p class="brand-eyebrow">MORE STORIES, TOGETHER</p>
+          <h1>在更多的故事里<br />遇见更好的你</h1>
+          <p class="brand-hero__title">{video?.name || '好动画 · 更好的你'}</p>
+          <a class="brand-button" href={video ? `/play/${video.id}` : '/category'}>立即观看 <span aria-hidden="true">→</span></a>
+        </div>
+        <span class="brand-hero__note" aria-hidden="true">让热爱<br />发光</span>
+      </div>
+    ))}
+    {slides.length > 1 && <>
+      <button class="hero-arrow hero-arrow--prev" data-prev aria-label="上一张">‹</button>
+      <button class="hero-arrow hero-arrow--next" data-next aria-label="下一张">›</button>
+      <div class="hero-dots">{slides.map((_, i) => <button data-dot={i} aria-label={`第 ${i + 1} 张`} aria-pressed={i === 0}></button>)}</div>
+    </>}
+  </div>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-hero]').forEach(hero => {
+    const slides = [...hero.querySelectorAll<HTMLElement>('[data-slide]')];
+    const dots = [...hero.querySelectorAll<HTMLButtonElement>('[data-dot]')];
+    let current = 0;
+    const show = (index: number) => {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.hidden = i !== current);
+      dots.forEach((dot, i) => dot.setAttribute('aria-pressed', String(i === current)));
+    };
+    hero.querySelector('[data-prev]')?.addEventListener('click', () => show(current - 1));
+    hero.querySelector('[data-next]')?.addEventListener('click', () => show(current + 1));
+    dots.forEach((dot, i) => dot.addEventListener('click', () => show(i)));
+  });
+</script>
