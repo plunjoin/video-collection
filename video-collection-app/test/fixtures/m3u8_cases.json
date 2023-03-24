@@ -1,0 +1,16 @@
+[
+  {"name":"higher detour and long sequence", "before":["80713015000072","80713015000073"], "middle":["807130150673349","807130150673350"], "after":["80713015000074"], "remove":true},
+  {"name":"lower detour", "before":["15000072","15000073"], "middle":["15000050","15000051"], "after":["15000074"], "remove":true},
+  {"name":"small jump", "before":["15000072","15000073"], "middle":["15000090","15000091"], "after":["15000074"], "remove":true},
+  {"name":"beyond JS safe integers", "before":["9223372036854775000","9223372036854775001"], "middle":["9223372036854775100"], "after":["9223372036854775002"], "remove":true},
+  {"name":"ordinary continuation", "before":["15000072","15000073"], "middle":["15000074","15000075"], "after":["15000076"], "remove":false},
+  {"name":"no consecutive return", "before":["15000072","15000073"], "middle":["15000090"], "after":["15000080"], "remove":false},
+  {"name":"unknown middle sequence", "before":["15000072","15000073"], "middle":["15000090","unknown"], "after":["15000074"], "remove":false},
+  {"name":"middle overlaps boundary", "before":["15000072","15000073"], "middle":["15000073","15000090"], "after":["15000074"], "remove":false},
+  {"name":"middle crosses boundaries", "before":["15000072","15000073"], "middle":["15000050","15000090"], "after":["15000074"], "remove":false},
+  {"name":"actual boundary differs from extrema", "before":["15000073","15000072"], "middle":["15000090"], "after":["15000074"], "remove":false},
+  {"name":"over duration limit", "before":["15000072","15000073"], "middle":["15000090","15000091"], "after":["15000074"], "middleDuration":46, "remove":false},
+  {"name":"no discontinuity", "before":["15000072","15000073"], "middle":["15000090"], "after":["15000074"], "noBoundary":true, "remove":false},
+  {"name":"middle filter disabled", "before":["15000072","15000073"], "middle":["15000090"], "after":["15000074"], "filterMiddleAd":false, "remove":false},
+  {"name":"all filtering disabled", "before":["15000072","15000073"], "middle":["15000090"], "after":["15000074"], "enableFilter":false, "remove":false}
+]
