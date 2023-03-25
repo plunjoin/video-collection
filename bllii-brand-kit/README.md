@@ -21,6 +21,9 @@ App 的圆角版用于展示；fullbleed 方形版用于由平台施加圆角的
 原参考中的多套小字口号属于应用展示，本次沿用主口号 More Stories, Together 作为开场文案；口号为可编辑文本，字体使用 Arial / sans-serif。
 
 ## 网页接入
+功能图标新增 `svg/bllii-ui.svg`：42 个 24×24 图标，涵盖导航、搜索、收藏、社区和播放器。延续圆润外壳、速度短线与粉色点缀，主笔画继承 `currentColor`，推荐 16–28px 显示。通过 `<svg ...><use href="bllii-ui.svg#bllii-play" /></svg>` 使用；播放器内嵌同一套图标以兼容独立部署。
+图标总览：`ui-icons.html`。修改图标后，在 web 目录运行 `npm run brand:sync`，同步网页素材与 web/API 两份播放器。
+
 加载图可用 <img src="bllii-loading.svg" width="80" alt="正在加载">。SVG 内置 CSS；多数现代浏览器支持，部分设计软件只显示静态图。SVG 可导入 Figma / Illustrator 继续编辑，CSS 动画不等同于这些软件的原生时间线。
 开场 SVG 播放一次后停留；若要自动进入业务界面，在宿主应用处理完成事件或定时切换。预览按钮只用于演示。动画尊重 prefers-reduced-motion 设置；GIF / MP4 为固定媒体，请由宿主决定是否播放。
 本包不含 Lottie JSON、原生 .ai 文件或音效。
