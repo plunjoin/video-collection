@@ -1,0 +1,16 @@
+---
+import type { VideoRecord } from '../lib/api';
+interface Props { video: VideoRecord; badge?: string; }
+const { video, badge } = Astro.props;
+---
+<a class="video-card" href={`/anime/${video.id}`}>
+  <div class="video-card__cover">
+    <img src={video.picture || '/brand/bllii-app-light.svg'} alt={video.name} loading="lazy" onerror="this.onerror=null;this.src='/brand/bllii-app-light.svg'" />
+    {badge && <span class="video-card__badge">{badge}</span>}
+    {video.score && <span class="video-card__score">{video.score.toFixed(1)}</span>}
+    <span class="video-card__play" aria-hidden="true">▶</span>
+  </div>
+  <h3>{video.name}</h3>
+  <p>{video.remarks || video.type_name || '一起发现好故事'}</p>
+  <div class="video-card__meta"><span>▷ {video.hits?.toLocaleString('zh-CN') || '立即观看'}</span><span>♡ 追番</span></div>
+</a>
