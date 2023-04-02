@@ -138,12 +138,12 @@
             :rows="12"
             maxlength="50000"
             show-word-limit
-            placeholder="支持 HTML 富文本内容 (最多50000字)"
+            placeholder="纯文本内容，保留换行 (最多50000字)"
           />
         </el-form-item>
         <el-form-item label="发布状态">
           <el-radio-group v-model="form.status">
-            <el-radio value="published">立即发布</el-radio>
+            <el-radio value="published">{{ isOperator ? '审核后发布' : '立即发布' }}</el-radio>
             <el-radio value="draft">存为草稿</el-radio>
           </el-radio-group>
         </el-form-item>
@@ -153,20 +153,23 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">保存</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">{{ isOperator ? '提交审核' : '保存' }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useUserStore } from '@/store/user'
 import { getNewsList, saveNews, deleteNews } from '@/api/content'
 import type { ContentItem } from '@/types'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, RefreshRight } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+const userStore = useUserStore()
+const isOperator = computed(() => userStore.userInfo?.role === 'operator')
 const tableData = ref<ContentItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -260,7 +263,7 @@ const submitForm = async () => {
     try {
       const res = await saveNews({ ...form })
       if (res.code === 1) {
-        ElMessage.success(editingId.value ? '资讯更新成功' : '资讯发布成功')
+        ElMessage.success(res.msg || '保存成功')
         dialogVisible.value = false
         loadData()
       } else {
