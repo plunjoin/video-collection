@@ -1,0 +1,116 @@
+---
+import type { VideoRecord } from '../lib/api';
+interface Props { video: VideoRecord; }
+const { video } = Astro.props;
+const tags = video.tags?.length ? video.tags : [video.type_name || '番剧'];
+---
+<section class="anime-hero">
+  <div class="anime-hero__banner">
+    <img src={video.picture || '/assets/detail_hero_banner.jpg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+    <p>即使世界再遥远<br />也会遇见喜欢的故事</p>
+  </div>
+  <div class="anime-hero__info">
+    <img class="anime-hero__poster" src={video.picture || '/brand/bllii-app-light.svg'} alt={video.name} onerror="this.onerror=null;this.src='/brand/bllii-app-light.svg'" />
+    <div>
+      <h1>{video.name}</h1>
+      <div class="anime-hero__tags">{tags.slice(0, 5).map(tag => <span>{tag}</span>)}</div>
+      <p class="anime-hero__meta">{[video.year, video.area, video.language, video.remarks].filter(Boolean).join(' ｜ ')}</p>
+      <p class="anime-hero__synopsis">{video.content}</p>
+      <div class="anime-hero__actions">
+        <a id="btn-hero-play" class="brand-button" href={`/play/${video.id}`}><span aria-hidden="true">▶</span><span id="btn-hero-play-text">立即播放</span></a>
+        <button id="btn-follow" class="brand-outline" data-id={video.id} data-name={video.name} data-pic={video.picture}>♡ <span>追番</span></button>
+        <button id="btn-fav" class="brand-outline" aria-label="收藏" data-id={video.id} data-name={video.name} data-pic={video.picture}>☆</button>
+      </div>
+    </div>
+    <aside class="anime-rating" aria-label="作品评分">
+      <strong>{video.score ? video.score.toFixed(1) : '暂无'}</strong>
+      <div><span aria-hidden="true">★★★★★</span><small>{video.rating_count || '暂无评分数据'}</small></div>
+      <blockquote>“ 温柔而有力量，<br />照亮了平凡的生活。”</blockquote>
+    </aside>
+  </div>
+  <script>
+    import { getUser, addFavorite, getFavorites, removeFavorite } from '../lib/auth';
+
+    const btnFollow = document.getElementById('btn-follow');
+    const btnFav = document.getElementById('btn-fav');
+    const videoDataEl = document.querySelector('[data-video-id]');
+
+    async function initFollowBtn() {
+      const user = getUser();
+      if (!user || !btnFollow) return;
+
+      const vid = parseInt(btnFollow.getAttribute('data-id') || '0', 10);
+      if (!vid) return;
+
+      const favs = await getFavorites();
+      const isFav = favs.some(f => f.video_id === vid);
+
+      if (isFav) {
+        btnFollow.innerHTML = `
+          <svg class="w-4 h-4 fill-current text-emerald-400" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+          <span>已追番</span>
+        `;
+        btnFollow.classList.add('bg-emerald-600/40', 'border-emerald-400/50');
+      }
+    }
+
+    async function handleToggleFollow(e: Event) {
+      e.preventDefault();
+      const user = getUser();
+      const vid = parseInt(btnFollow?.getAttribute('data-id') || '0', 10);
+      const name = btnFollow?.getAttribute('data-name') || '';
+      const pic = btnFollow?.getAttribute('data-pic') || '';
+
+      if (!user) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+
+      if (!vid) return;
+
+      const favs = await getFavorites();
+      const existing = favs.find(f => f.video_id === vid);
+
+      if (existing) {
+        await removeFavorite(vid);
+        if (btnFollow) {
+          btnFollow.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <span>+ 追番</span>
+          `;
+          btnFollow.classList.remove('bg-emerald-600/40', 'border-emerald-400/50');
+        }
+      } else {
+        await addFavorite({ id: vid, name, picture: pic });
+        if (btnFollow) {
+          btnFollow.innerHTML = `
+            <svg class="w-4 h-4 fill-current text-emerald-400" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+            <span>已追番</span>
+          `;
+          btnFollow.classList.add('bg-emerald-600/40', 'border-emerald-400/50');
+        }
+      }
+    }
+
+    function initResumePlayBtn() {
+      const vid = parseInt(btnFollow?.getAttribute('data-id') || '0', 10);
+      if (!vid) return;
+      const historyKey = `vplayer_history_${vid}`;
+      try {
+        const saved = JSON.parse(localStorage.getItem(historyKey) || '{}');
+        if (typeof saved.episodeIndex === 'number' && saved.episodeIndex > 0) {
+          const heroPlayBtn = document.getElementById('btn-hero-play');
+          const playText = document.getElementById('btn-hero-play-text');
+          const label = saved.episodeName || `第${saved.episodeIndex + 1}话`;
+          if (heroPlayBtn) heroPlayBtn.setAttribute('href', `/play/${vid}?ep=${saved.episodeIndex}`);
+          if (playText) playText.textContent = `续看 ${label}`;
+        }
+      } catch {}
+    }
+
+    btnFollow?.addEventListener('click', handleToggleFollow);
+    btnFav?.addEventListener('click', handleToggleFollow);
+    initFollowBtn();
+    initResumePlayBtn();
+  </script>
+</section>
