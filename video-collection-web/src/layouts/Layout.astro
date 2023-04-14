@@ -7,6 +7,7 @@ import '../styles/brand.css';
 import '../styles/pages.css';
 import PageIntro from '../components/PageIntro.astro';
 import BrandIcon from '../components/BrandIcon.astro';
+import StoryPocket from '../components/StoryPocket.astro';
 import '../styles/delight.css';
 
 interface Props {
@@ -67,5 +68,6 @@ const intro = pageIntros[page];
       <a href="/latest" aria-current={activeNav === '新番时间表' ? 'page' : undefined}><BrandIcon name="calendar" size={24} />更新</a>
       <a href="/follow" aria-current={activeNav === '追番' ? 'page' : undefined}><BrandIcon name="bookmark" size={24} />我的</a>
     </nav>
+    <StoryPocket />
   </body>
 </html>
