@@ -103,14 +103,10 @@ func ClearAuthCookie(w http.ResponseWriter) {
 // GetCurrentUser 从请求 Cookie 或 Header 获取当前已认证的用户
 func GetCurrentUser(r *http.Request, s store.Store) *store.User {
 	var token string
-	if c, err := r.Cookie(CookieAuthToken); err == nil && c.Value != "" {
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		token = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	} else if c, err := r.Cookie(CookieAuthToken); err == nil && c.Value != "" {
 		token = c.Value
-	}
-	if token == "" {
-		authHeader := r.Header.Get("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			token = strings.TrimPrefix(authHeader, "Bearer ")
-		}
 	}
 	if token == "" {
 		return nil
@@ -125,14 +121,55 @@ func GetCurrentUser(r *http.Request, s store.Store) *store.User {
 	if err != nil || user == nil || user.Status != 1 {
 		return nil
 	}
+	_ = s.RecordActivity(r.Context(), user.ID, time.Now())
 	return user
 }
 
+// Backend authorization is evaluated against the current database role on every request.
+func BackendAllowed(role, method, path string) bool {
+	if !store.IsStaff(role) {
+		return false
+	}
+	read := method == http.MethodGet || method == http.MethodHead
+	if role == "observer" {
+		return read
+	}
+	if role == "operator" {
+		if read {
+			return path == "/api/admin/stats" || path == "/api/admin/reviews" || path == "/api/admin/news" || path == "/api/admin/community/posts" || path == "/api/admin/community/comments" || path == "/api/admin/comments"
+		}
+		return method == http.MethodPost && (path == "/api/admin/videos/save" || path == "/api/admin/news" || path == "/api/admin/community/posts")
+	}
+	if role == "admin" && !read {
+		for _, prefix := range []string{"/api/admin/db", "/api/admin/themes", "/api/admin/players", "/api/admin/site/config", "/api/admin/scheduler"} {
+			if strings.HasPrefix(path, prefix) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // AdminRequired 验证管理员权限的路由中间件
+type auditWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *auditWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+func (w *auditWriter) Write(p []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(200)
+	}
+	return w.ResponseWriter.Write(p)
+}
 func AdminRequired(s store.Store, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := GetCurrentUser(r, s)
-		if user == nil || user.Role != "admin" {
+		if user == nil || !store.IsStaff(user.Role) {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusUnauthorized)
@@ -143,6 +180,23 @@ func AdminRequired(s store.Store, next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			http.Redirect(w, r, "/admin/login", http.StatusFound)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			aw := &auditWriter{ResponseWriter: w}
+			w = aw
+			defer func() {
+				status := aw.status
+				if status == 0 {
+					status = 200
+				}
+				_ = s.RecordAdminOperation(context.WithoutCancel(r.Context()), user.ID, r.Method, r.URL.Path, status)
+			}()
+		}
+		if !BackendAllowed(user.Role, r.Method, r.URL.Path) {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "error": "当前角色无权执行此操作"})
 			return
 		}
 
