@@ -122,7 +122,7 @@
               </div>
               <div class="sys-item">
                 <span class="label">OpenAPI 规范：</span>
-                <el-link type="primary" href="http://localhost:80/openapi.json" target="_blank">
+                <el-link type="primary" href="/openapi.json" target="_blank">
                   v3.0.0 规范 JSON
                 </el-link>
               </div>
