@@ -42,6 +42,7 @@
     { "name": "Admin - Site", "description": "全局系统配置与自动计划任务" },
     { "name": "Admin - Feedbacks", "description": "求片留言工单处理" },
     { "name": "Admin - Logs", "description": "采集日志与操作审计" },
+    { "name": "Admin - Database", "description": "数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器" },
     { "name": "RSS", "description": "RSS 2.0 聚合订阅源" }
   ],
   "paths": {
@@ -4502,6 +4503,753 @@
         }
       }
     },
+    "/api/admin/db/info": {
+      "get": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "数据库整体信息",
+        "description": "返回当前存储引擎（PostgreSQL / SQLite）、数据库版本、连接目标、库体积、业务表数量、备份目录与服务器时间。生产以 PostgreSQL 为主，连接失败时自动降级 SQLite。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DBInfoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/db/tables": {
+      "get": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "数据表列表与统计",
+        "description": "列出全部业务表的行数（PG 未 ANALYZE 时自动回退精确计数）、体积、字段数、索引数与表注释，按表名排序。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DBTableListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/db/table": {
+      "get": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "浏览表数据",
+        "description": "分页浏览指定表数据，支持按任意已有字段排序（order_by 必须为该表字段）与全列模糊搜索（keyword，% 与 _ 按字面匹配）。page_size 默认 100，最大 500。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableBrowseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "description": "必填，目标数据表名，必须是当前库中存在的业务表",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "页码，默认 1",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "每页行数，默认 100，最大 500",
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "description": "排序字段，必须是该表已有字段，默认第一列（通常为 id）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_desc",
+            "in": "query",
+            "required": false,
+            "description": "1/true 或 order_dir=desc 时按降序",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "description": "全列模糊搜索关键字，% 与 _ 按字面匹配",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/db/backup": {
+      "post": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "创建数据库备份",
+        "description": "将全部（或指定）业务表导出为 JSON 备份文件，保存到备份目录（PG 为 data/backups，SQLite 为数据文件同目录 backups）。文件名含秒级时间与毫秒后缀，同秒多次备份不会相互覆盖。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DBBackupOptions"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/db/backups": {
+      "get": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "备份文件列表",
+        "description": "按文件名倒序列出备份目录中的 JSON 备份文件，含体积、创建时间、来源引擎与表/行数统计。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "删除备份文件",
+        "description": "删除指定备份文件，必须携带 confirm=1 确认，删除后不可恢复。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "file",
+            "in": "query",
+            "required": true,
+            "description": "必填，备份文件名（仅接受 .json，禁止路径穿越）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": true,
+            "description": "必须为 1，表示已确认执行不可恢复的删除操作",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/db/restore": {
+      "post": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "从备份恢复数据",
+        "description": "mode=merge 合并导入（主键冲突跳过）；mode=replace 清空目标表后整体导入（危险）。dry_run=true 仅返回预览不写库；正式执行必须携带 confirm=true。恢复写入显式主键后自动校正 PG 序列。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "dry_run 返回预览，confirm=true 返回恢复结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/RestorePreviewResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RestoreResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DBRestoreRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/db/cleanup": {
+      "post": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "数据清理维护",
+        "description": "支持动作：vacuum（PG 执行 VACUUM ANALYZE，SQLite 执行 VACUUM）、orphan_play_sources、dup_play_sources、orphan_comments、orphan_user_history、orphan_user_favorites、clear_user_history、clear_feedbacks。全部为写操作，必须携带 confirm=true，返回逐项影响行数。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DBCleanupRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/db/sql": {
+      "post": {
+        "tags": [
+          "Admin - Database"
+        ],
+        "summary": "执行管理 SQL",
+        "description": "仅接受单条语句（引号内的分号不计）。SELECT/WITH/SHOW/EXPLAIN/PRAGMA 等只读语句直接执行，最多返回 1000 行；INSERT/UPDATE/DELETE 与 DDL 必须携带 confirm=true。语句超时 30~60 秒。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SQLExecResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效或确认缺失",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DBSQLRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/rss.xml": {
       "get": {
         "tags": ["RSS"],
@@ -5638,6 +6386,541 @@
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }
+      },
+      "DBInfo": {
+        "type": "object",
+        "properties": {
+          "engine": {
+            "type": "string",
+            "description": "postgres / sqlite"
+          },
+          "driver": {
+            "type": "string",
+            "description": "底层驱动名"
+          },
+          "version": {
+            "type": "string",
+            "description": "数据库版本字符串"
+          },
+          "host": {
+            "type": "string",
+            "description": "PostgreSQL 主机:端口"
+          },
+          "database": {
+            "type": "string",
+            "description": "PostgreSQL 库名"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "SQLite 数据文件路径"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "description": "数据库整体占用字节数"
+          },
+          "table_count": {
+            "type": "integer",
+            "description": "业务表数量"
+          },
+          "backups_dir": {
+            "type": "string",
+            "description": "备份文件存储目录"
+          },
+          "server_time": {
+            "type": "string",
+            "description": "服务器当前时间 RFC3339"
+          }
+        }
+      },
+      "DBTableInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "表名"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "行数（PG 通常为估算值，新表回退精确计数）"
+          },
+          "approximate": {
+            "type": "boolean",
+            "description": "rows 是否为估算值"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "description": "表占用字节数（SQLite 下为 0）"
+          },
+          "column_count": {
+            "type": "integer",
+            "description": "字段数"
+          },
+          "index_count": {
+            "type": "integer",
+            "description": "索引数"
+          },
+          "comment": {
+            "type": "string",
+            "description": "PG 表注释"
+          }
+        }
+      },
+      "TableColumn": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "字段名"
+          },
+          "data_type": {
+            "type": "string",
+            "description": "字段类型"
+          }
+        }
+      },
+      "TableBrowseResult": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableColumn"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "每行为 字段名->值 的对象"
+          },
+          "total": {
+            "type": "integer",
+            "description": "命中总行数"
+          },
+          "page": {
+            "type": "integer",
+            "description": "当前页"
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "每页行数"
+          }
+        }
+      },
+      "BackupResult": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "备份文件名"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "备份文件完整路径"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "description": "备份体积"
+          },
+          "tables": {
+            "type": "integer",
+            "description": "覆盖表数量"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "导出总行数"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "创建时间 RFC3339"
+          }
+        }
+      },
+      "BackupMeta": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "备份文件名"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "description": "备份体积"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "创建时间 RFC3339"
+          },
+          "engine": {
+            "type": "string",
+            "description": "来源引擎"
+          },
+          "tables": {
+            "type": "integer",
+            "description": "表数量"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "行数"
+          }
+        }
+      },
+      "RestoreResult": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "备份文件名"
+          },
+          "mode": {
+            "type": "string",
+            "description": "merge / replace"
+          },
+          "tables": {
+            "type": "integer",
+            "description": "备份中的表数量"
+          },
+          "inserted": {
+            "type": "integer",
+            "description": "实际插入行数"
+          },
+          "skipped": {
+            "type": "integer",
+            "description": "冲突或失败跳过的行数"
+          },
+          "elapsed": {
+            "type": "string",
+            "description": "耗时"
+          }
+        }
+      },
+      "RestorePreviewTable": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "表名"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "备份中行数"
+          },
+          "exists": {
+            "type": "boolean",
+            "description": "目标表是否存在"
+          }
+        }
+      },
+      "RestorePreview": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "备份文件名"
+          },
+          "mode": {
+            "type": "string",
+            "description": "merge / replace"
+          },
+          "engine": {
+            "type": "string",
+            "description": "备份来源引擎"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "备份创建时间 RFC3339"
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestorePreviewTable"
+            }
+          }
+        }
+      },
+      "CleanupResult": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "动作名"
+          },
+          "affected": {
+            "type": "integer",
+            "description": "影响行数"
+          },
+          "error": {
+            "type": "string",
+            "description": "失败原因（表不存在或引擎不支持时给出说明）"
+          }
+        }
+      },
+      "SQLExecResult": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "select / write / ddl"
+          },
+          "columns": {
+            "type": "array",
+            "description": "查询列名（select）"
+          },
+          "rows": {
+            "type": "array",
+            "description": "查询结果行（select）"
+          },
+          "row_count": {
+            "type": "integer",
+            "description": "返回行数（select，超过 1000 截断）"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "结果是否被截断"
+          },
+          "affected": {
+            "type": "integer",
+            "description": "影响行数（write/ddl）"
+          },
+          "message": {
+            "type": "string",
+            "description": "执行说明"
+          }
+        }
+      },
+      "DBBackupOptions": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "可选，仅备份指定表；缺省备份全部业务表"
+          }
+        }
+      },
+      "DBRestoreRequest": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "必填，备份文件名"
+          },
+          "mode": {
+            "type": "string",
+            "description": "merge / replace，默认 merge"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "true 时仅预览不写库"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "正式执行必须为 true"
+          }
+        },
+        "required": [
+          "file"
+        ]
+      },
+      "DBCleanupRequest": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "要执行的清理动作列表"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "必须为 true"
+          }
+        },
+        "required": [
+          "actions"
+        ]
+      },
+      "DBSQLRequest": {
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string",
+            "description": "单条 SQL 语句"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "写语句与 DDL 必须为 true"
+          }
+        },
+        "required": [
+          "sql"
+        ]
+      },
+      "DBInfoResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DBInfo"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "DBTableListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DBTableInfo"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "TableBrowseResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TableBrowseResult"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "BackupResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
+          "data": {
+            "$ref": "#/components/schemas/BackupResult"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "BackupListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupMeta"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "RestoreResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RestoreResult"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "RestorePreviewResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RestorePreview"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "CleanupListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CleanupResult"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "SQLExecResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "1 表示成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SQLExecResult"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
       }
     }
   }
