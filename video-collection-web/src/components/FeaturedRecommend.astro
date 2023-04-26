@@ -1,0 +1,27 @@
+---
+import type { VideoRecord } from '../lib/api';
+import VideoCard from './VideoCard.astro';
+interface Props { animes?: VideoRecord[]; }
+const { animes = [] } = Astro.props;
+const genres = ['全部', '热血', '恋爱', '奇幻', '日常', '治愈'];
+---
+<section id="recommend" class="brand-section" data-recommend>
+  <div class="section-heading section-heading--wrap">
+    <h2>为你推荐</h2>
+    <div class="brand-chips" role="group" aria-label="推荐题材">{genres.map((genre, i) => <button data-genre={genre} aria-pressed={i === 0}>{genre}</button>)}</div>
+    <a href="/category">更多 →</a>
+  </div>
+  <div class="video-grid">{animes.map(video => <div data-tags={(video.tags || []).join(',')}><VideoCard video={video} /></div>)}</div>
+  <p class="brand-empty" data-empty hidden={animes.length > 0}>暂时没有这个题材的推荐，去番剧库发现更多故事吧。</p>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-recommend]').forEach(section => {
+    const buttons = [...section.querySelectorAll<HTMLButtonElement>('[data-genre]')];
+    const cards = [...section.querySelectorAll<HTMLElement>('[data-tags]')];
+    buttons.forEach(button => button.addEventListener('click', () => {
+      buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      cards.forEach(card => card.hidden = button.dataset.genre !== '全部' && !card.dataset.tags?.split(',').includes(button.dataset.genre!));
+      section.querySelector<HTMLElement>('[data-empty]')!.hidden = cards.some(card => !card.hidden);
+    }));
+  });
+</script>
