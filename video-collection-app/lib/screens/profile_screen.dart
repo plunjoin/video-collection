@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/brand_controls.dart';
+
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,6 +13,10 @@ import '../theme/app_colors.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/anime_poster_card.dart';
 import 'anime_detail_screen.dart';
+import 'settings_screen.dart';
+import 'account_screen.dart';
+import 'player_screen.dart';
+import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,118 +41,41 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  void _showApiSettingsDialog() {
-    final appState = Provider.of<AppStateProvider>(context, listen: false);
-    final controller = TextEditingController(text: appState.apiBaseUrl);
-    String testResult = '';
-    bool isTesting = false;
+  void _openSettings() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => BrandDialog(
-          title: const Row(
-            children: [
-              Icon(
-                Icons.settings_ethernet_rounded,
-                color: AppColors.primary500,
-              ),
-              SizedBox(width: 8),
-              Text('API 服务端设置', style: TextStyle(fontSize: 16)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '用于配置 video-collection-api 后端地址：\n'
-                'Android 模拟器请用 http://10.0.2.2:80\n'
-                '真机请用电脑局域网 IP（如 http://192.168.x.x）',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: '服务端地址',
-                  
-                  prefixIcon: Icon(Icons.link_rounded),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  OutlinedButton(
-                    onPressed: isTesting
-                        ? null
-                        : () async {
-                            setDialogState(() {
-                              isTesting = true;
-                              testResult = '正在检测连通性...';
-                            });
-                            final ok = await appState.updateApiBaseUrl(
-                              controller.text.trim(),
-                            );
-                            setDialogState(() {
-                              isTesting = false;
-                              testResult = ok
-                                  ? '✅ 接口连通正常！'
-                                  : '❌ 接口连接超时/不可达 (已开启自动降级模式)';
-                            });
-                          },
-                    child: const Text('测试连通'),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      testResult,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: testResult.contains('✅')
-                            ? AppColors.emerald
-                            : AppColors.rose,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('取消'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await appState.updateApiBaseUrl(controller.text.trim());
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('服务端配置已保存')));
-                }
-              },
-              child: const Text('保存'),
-            ),
-          ],
+  Future<void> _resumeHistory(PlayHistoryItem item) async {
+    final result = await ApiService().getVideoDetail(item.videoId);
+    if (!mounted) return;
+    final video = result['video'] as VideoRecord?;
+    if (video == null || video.playGroups.every((g) => g.episodes.isEmpty)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('暂时无法播放，请稍后重试')));
+      return;
+    }
+    var group = item.routeIndex.clamp(0, video.playGroups.length - 1);
+    if (video.playGroups[group].episodes.isEmpty) {
+      group = video.playGroups.indexWhere((g) => g.episodes.isNotEmpty);
+    }
+    final episodes = video.playGroups[group].episodes;
+    final matched = episodes.indexWhere((e) => e.name == item.episodeName);
+    final episode = matched >= 0
+        ? matched
+        : item.episodeIndex.clamp(0, episodes.length - 1);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlayerScreen(
+          video: video,
+          initialGroupIndex: group,
+          initialEpisodeIndex: episode,
+          initialPosition: matched >= 0
+              ? Duration(seconds: item.currentTime)
+              : Duration.zero,
         ),
       ),
     );
-  }
-
-  void _showThemeDialog() {
-    final appState = Provider.of<AppStateProvider>(context, listen: false);
-
-    showDialog(context: context, builder: (ctx) => BrandDialog(
-      title: const Text('选择你的观影心情'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        for (final option in [(ThemeMode.light, '轻盈浅色 · 如晴天一般'), (ThemeMode.dark, '静谧深色 · 沉浸好故事'), (ThemeMode.system, '随时间流转 · 跟随系统')])
-          Padding(padding: const EdgeInsets.only(bottom: 10), child: SizedBox(width: double.infinity,
-            child: BrandPill(label: Text(option.$2), selected: appState.themeMode == option.$1,
-              onPressed: () { appState.setThemeMode(option.$1); Navigator.of(ctx).pop(); }))),
-      ]),
-    ));
   }
 
   void _showDisclaimerDialog(SiteConfig config) {
@@ -193,15 +122,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
-                tooltip: 'API 设置',
-                onPressed: _showApiSettingsDialog,
-              ),
-              IconButton(
-                icon: Icon(
-                  isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                ),
-                tooltip: '外观模式',
-                onPressed: _showThemeDialog,
+                tooltip: '设置',
+                onPressed: _openSettings,
               ),
             ],
           ),
@@ -232,19 +154,48 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       width: 2,
                                     ),
                                   ),
-                                  child: const BrandLogo(
-                                    width: 48,
-                                    symbolOnly: true,
-                                  ),
+                                  child:
+                                      appState.user?['avatar']
+                                              ?.toString()
+                                              .isNotEmpty ==
+                                          true
+                                      ? ClipOval(
+                                          child: CachedNetworkImage(
+                                            imageUrl: appState.user!['avatar']
+                                                .toString(),
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, url, error) =>
+                                                const BrandLogo(
+                                                  width: 48,
+                                                  symbolOnly: true,
+                                                ),
+                                          ),
+                                        )
+                                      : const BrandLogo(
+                                          width: 48,
+                                          symbolOnly: true,
+                                        ),
                                 ),
                                 const SizedBox(width: 14),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '热爱故事的你',
+                                        appState.user?['nickname']
+                                                    ?.toString()
+                                                    .isNotEmpty ==
+                                                true
+                                            ? appState.user!['nickname']
+                                                  .toString()
+                                            : appState.user?['username']
+                                                      ?.toString() ??
+                                                  '热爱故事的你',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w700,
@@ -252,7 +203,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                       SizedBox(height: 5),
                                       Text(
-                                        'More Stories, Together',
+                                        appState.isLoggedIn
+                                            ? '收藏与播放记录已关联账号'
+                                            : '登录以同步收藏与播放记录',
                                         style: TextStyle(
                                           fontSize: 10,
                                           letterSpacing: 1,
@@ -264,6 +217,47 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 8,
+                              children: [
+                                if (!appState.isLoggedIn)
+                                  FilledButton(
+                                    onPressed: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AccountScreen(),
+                                      ),
+                                    ),
+                                    child: const Text('登录 / 注册'),
+                                  )
+                                else ...[
+                                  OutlinedButton.icon(
+                                    onPressed: appState.syncing
+                                        ? null
+                                        : appState.syncAccount,
+                                    icon: const Icon(Icons.sync_rounded),
+                                    label: Text(
+                                      appState.syncing ? '同步中…' : '同步账号数据',
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: appState.logout,
+                                    child: const Text('退出登录'),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (appState.accountError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  appState.accountError!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 16),
                             const Text(
                               '“ 喜欢动画，也喜欢生活。\n   在更多的故事里，遇见更好的自己。 ”',
@@ -395,7 +389,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           const SizedBox(width: 10),
                           Expanded(
                             child: InkWell(
-                              onTap: _showApiSettingsDialog,
+                              onTap: _openSettings,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -419,10 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       color: AppColors.emerald,
                                     ),
                                     SizedBox(height: 2),
-                                    Text(
-                                      'API配置',
-                                      style: TextStyle(fontSize: 11),
-                                    ),
+                                    Text('设置', style: TextStyle(fontSize: 11)),
                                   ],
                                 ),
                               ),
@@ -439,10 +430,13 @@ class _ProfileScreenState extends State<ProfileScreen>
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _SliverAppBarDelegate(
-                  BrandTabs(controller: _tabController,tabs: [
+                  BrandTabs(
+                    controller: _tabController,
+                    tabs: [
                       Tab(text: '我的追番 (${favorites.length})'),
                       Tab(text: '播放历史 (${history.length})'),
-                    ]),
+                    ],
+                  ),
                   isDark ? AppColors.darkBg : AppColors.lightBg,
                 ),
               ),
@@ -452,16 +446,21 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 // 1. 追番列表
                 favorites.isEmpty
-                    ? const BrandEmpty(title: '把喜欢的故事放在这里', subtitle: '在详情页点一下爱心，就能加入追番。')
+                    ? const BrandEmpty(
+                        title: '把喜欢的故事放在这里',
+                        subtitle: '在详情页点一下爱心，就能加入追番。',
+                      )
                     : GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              childAspectRatio: 0.58,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 12,
-                            ),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount:
+                              ((MediaQuery.sizeOf(context).width - 32) / 180)
+                                  .floor()
+                                  .clamp(3, 7),
+                          childAspectRatio: 0.58,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 12,
+                        ),
                         itemCount: favorites.length,
                         itemBuilder: (context, index) {
                           final video = favorites[index];
@@ -481,7 +480,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                 // 2. 播放历史
                 history.isEmpty
-                    ? const BrandEmpty(title: '故事，从第一集开始', subtitle: '看过的作品会留在这里，随时回来继续。')
+                    ? const BrandEmpty(
+                        title: '故事，从第一集开始',
+                        subtitle: '看过的作品会留在这里，随时回来继续。',
+                      )
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: history.length + 1,
@@ -572,15 +574,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     color: AppColors.primary500,
                                     size: 28,
                                   ),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => AnimeDetailScreen(
-                                          videoId: item.videoId,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: () => _resumeHistory(item),
                                 ),
                               ],
                             ),
@@ -603,34 +597,50 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const Text('·', style: TextStyle(color: Colors.grey)),
                 TextButton(
                   onPressed: () {
-                    showModalBottomSheet(
+                    showDialog(
                       context: context,
-                      builder: (ctx) => Container(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
+                      builder: (ctx) => BrandDialog(
+                        title: const Text('友情推荐'),
+                        content: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '友情推荐',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
+                            if (config.friendLinks.isEmpty)
+                              const Text('新的相遇正在路上，稍后再来看看。'),
                             ...config.friendLinks.map(
-                              (link) => ListTile(
-                                title: Text(link.name),
-                                subtitle: Text(link.description),
-                                trailing: const Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 16,
+                              (link) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.of(ctx).pop();
+                                    _launchUrl(link.url);
+                                  },
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(link.name),
+                                            if (link.description.isNotEmpty)
+                                              Text(
+                                                link.description,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Icon(
+                                        Icons.north_east_rounded,
+                                        size: 16,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                onTap: () {
-                                  Navigator.of(ctx).pop();
-                                  _launchUrl(link.url);
-                                },
                               ),
                             ),
                           ],
@@ -671,6 +681,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return oldDelegate.tabBar != tabBar || oldDelegate.backgroundColor != backgroundColor;
+    return oldDelegate.tabBar != tabBar ||
+        oldDelegate.backgroundColor != backgroundColor;
   }
 }

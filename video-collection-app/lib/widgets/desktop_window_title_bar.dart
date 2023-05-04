@@ -66,15 +66,19 @@ class DesktopWindowTitleBar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'bllii · More Stories, Together',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary,
-                            letterSpacing: 0.3,
+                        Expanded(
+                          child: Text(
+                            'bllii · More Stories, Together',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),

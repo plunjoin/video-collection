@@ -30,6 +30,46 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+  ApiService.withClient(http.Client client) : _client = client;
+
+  http.Client _client = http.Client();
+  String? token;
+
+  Future<Map<String, dynamic>> userRequest(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+    bool authenticated = true,
+  }) async {
+    final request = http.Request(method, Uri.parse('$_baseUrl$path'));
+    request.headers['Accept'] = 'application/json';
+    request.headers['Content-Type'] = 'application/json';
+    if (authenticated && token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+      // The existing logout endpoint invalidates the cookie session.
+      request.headers['Cookie'] = 'agg_auth_token=$token';
+    }
+    if (body != null) request.body = json.encode(body);
+    try {
+      final response = await _client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 10));
+      final data =
+          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      if (response.statusCode >= 400 || data['code'] != 1) {
+        throw ApiException(
+          data['msg']?.toString() ?? '请求失败，请稍后重试',
+          response.statusCode,
+        );
+      }
+      return data;
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('无法连接服务器，请检查网络和服务端地址');
+    }
+  }
 
   String _baseUrl = resolveDefaultApiBaseUrl();
 
@@ -302,4 +342,12 @@ class ApiService {
 
     return SiteConfig.defaultConfig();
   }
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  const ApiException(this.message, [this.statusCode]);
+  @override
+  String toString() => message;
 }
