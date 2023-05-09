@@ -41,6 +41,18 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '视频仓库', icon: 'Film' }
       },
       {
+        path: 'news',
+        name: 'News',
+        component: () => import('@/views/news/index.vue'),
+        meta: { title: '资讯管理', icon: 'Notification' }
+      },
+      {
+        path: 'community',
+        name: 'Community',
+        component: () => import('@/views/community/index.vue'),
+        meta: { title: '社区管理', icon: 'ChatDotRound' }
+      },
+      {
         path: 'scheduler',
         name: 'Scheduler',
         component: () => import('@/views/scheduler/index.vue'),
