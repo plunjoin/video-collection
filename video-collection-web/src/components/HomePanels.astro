@@ -1,0 +1,22 @@
+---
+import type { VideoRecord } from '../lib/api';
+interface Props { latest: VideoRecord[]; rankings: VideoRecord[]; }
+const { latest, rankings } = Astro.props;
+---
+<section class="brand-section home-panels">
+  <div class="home-panel">
+    <div class="section-heading"><h2>新番时间表</h2><a href="/latest">更多 →</a></div>
+    <div class="panel-subtitle">最新更新 <span>每一份期待，都值得被回应</span></div>
+    {latest.slice(0, 4).map(video => <a class="schedule-row" href={`/anime/${video.id}`}><span class="schedule-dot"></span><strong>{video.name}</strong><span>{video.remarks || '更新中'}</span><i>追番</i></a>)}
+    {!latest.length && <p class="brand-empty">暂无更新</p>}
+  </div>
+  <div class="home-panel">
+    <div class="section-heading"><h2>人气排行榜</h2><a href="/rank">完整榜单 →</a></div>
+    {rankings.slice(0, 5).map((video, index) => <a class="rank-row" href={`/anime/${video.id}`}><span>{index + 1}</span><strong>{video.name}</strong><small>{video.remarks}</small></a>)}
+    {!rankings.length && <p class="brand-empty">暂无排行</p>}
+  </div>
+  <a class="brand-promo" href="/follow">
+    <div><p class="brand-eyebrow">YOUR LITTLE HAPPY PLACE</p><h2>bllii · 我的追番</h2><p>收藏每一份心动<br />和喜欢的故事更近一步</p><span class="brand-button">开启追番之旅 →</span></div>
+    <img src="/brand/bllii-symbol.svg" alt="" />
+  </a>
+</section>
