@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,28 +43,22 @@ type ContentQuery struct {
 	Admin                              bool
 }
 
-type CommunityComment struct {
-	ID           int       `json:"id"`
-	PostID       int       `json:"post_id"`
-	UserID       int       `json:"user_id"`
-	AuthorName   string    `json:"author_name"`
-	AuthorAvatar string    `json:"author_avatar"`
-	Content      string    `json:"content"`
-	CreatedAt    time.Time `json:"created_at"`
-}
+type CommunityComment = Comment
 
 type Notification struct {
-	ID         int        `json:"id"`
-	UserID     int        `json:"user_id"`
-	ActorID    int        `json:"actor_id"`
-	Type       string     `json:"type"`
-	Title      string     `json:"title"`
-	Content    string     `json:"content"`
-	TargetType string     `json:"target_type"`
-	TargetID   int        `json:"target_id"`
-	IsRead     bool       `json:"is_read"`
-	ReadAt     *time.Time `json:"read_at"`
-	CreatedAt  time.Time  `json:"created_at"`
+	ID              int        `json:"id"`
+	UserID          int        `json:"user_id"`
+	ActorID         int        `json:"actor_id"`
+	Type            string     `json:"type"`
+	CommentID       int        `json:"comment_id"`
+	ParentCommentID int        `json:"parent_comment_id"`
+	Title           string     `json:"title"`
+	Content         string     `json:"content"`
+	TargetType      string     `json:"target_type"`
+	TargetID        int        `json:"target_id"`
+	IsRead          bool       `json:"is_read"`
+	ReadAt          *time.Time `json:"read_at"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 type NotificationQuery struct {
@@ -73,6 +68,7 @@ type NotificationQuery struct {
 }
 
 type ContentStore interface {
+	CommentStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
 	SaveContent(context.Context, *Content, int, bool) error
@@ -89,7 +85,11 @@ type ContentStore interface {
 }
 
 // Both supported drivers accept numbered $n placeholders and RETURNING.
-type SQLContentStore struct{ db *sql.DB }
+type SQLContentStore struct {
+	db               *sql.DB
+	commentTargetsMu sync.RWMutex
+	commentTargets   map[string]CommentTargetResolver
+}
 
 // Close releases the shared database connection pool.
 func (s *SQLContentStore) Close() error { return s.db.Close() }
@@ -135,6 +135,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if _, err = tx.Exec(schema); err != nil {
 		return err
 	}
+	if err = migrateComments(tx, postgres, id, timestamp); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -154,7 +157,7 @@ func contentPage(page, size int) (int, int) {
 const contentColumns = `e.id,e.kind,e.author_id,COALESCE(NULLIF(u.nickname,''),u.username,''),COALESCE(u.avatar,''),
  e.title,e.summary,e.content,e.cover,e.category,e.status,e.pinned,
  (SELECT COUNT(*) FROM community_likes l WHERE l.post_id=e.id),
- (SELECT COUNT(*) FROM community_comments c WHERE c.post_id=e.id),
+ (SELECT COUNT(*) FROM comments c WHERE c.target_type=e.kind AND c.target_id=e.id AND c.is_deleted=0),
  (SELECT COUNT(*) FROM community_likes l WHERE l.post_id=e.id AND l.user_id=$1),e.created_at,e.updated_at`
 
 type contentScanner interface{ Scan(...any) error }
@@ -298,6 +301,9 @@ func (s *SQLContentStore) DeleteContent(ctx context.Context, kind string, id, ac
 	if !admin && owner != actor {
 		return ErrContentForbidden
 	}
+	if err = DeleteTargetComments(ctx, tx, kind, id); err != nil {
+		return err
+	}
 	// Explicit cleanup also supports existing SQLite connections without FK enforcement.
 	for _, query := range []string{"DELETE FROM community_comments WHERE post_id=$1", "DELETE FROM community_likes WHERE post_id=$1", "DELETE FROM content_entries WHERE id=$1"} {
 		if _, err = tx.ExecContext(ctx, query, id); err != nil {
@@ -308,105 +314,22 @@ func (s *SQLContentStore) DeleteContent(ctx context.Context, kind string, id, ac
 }
 
 func (s *SQLContentStore) ListComments(ctx context.Context, postID, page, size int, admin bool) ([]CommunityComment, int, error) {
-	// Keep visibility checks and reads on one snapshot.
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
-	if err != nil {
-		return nil, 0, err
-	}
-	defer tx.Rollback()
-	var status string
-	err = tx.QueryRowContext(ctx, "SELECT status FROM content_entries WHERE id=$1 AND kind='post'", postID).Scan(&status)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && !admin && status != "published") {
-		return nil, 0, ErrContentNotFound
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	var total int
-	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM community_comments WHERE post_id=$1", postID).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	limit, offset := contentPage(page, size)
-	rows, err := tx.QueryContext(ctx, `SELECT c.id,c.post_id,c.user_id,COALESCE(NULLIF(u.nickname,''),u.username,''),COALESCE(u.avatar,''),c.content,c.created_at
- FROM community_comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.post_id=$1 ORDER BY c.id ASC LIMIT $2 OFFSET $3`, postID, limit, offset)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	items := make([]CommunityComment, 0)
-	for rows.Next() {
-		var c CommunityComment
-		if err = rows.Scan(&c.ID, &c.PostID, &c.UserID, &c.AuthorName, &c.AuthorAvatar, &c.Content, &c.CreatedAt); err != nil {
-			return nil, 0, err
-		}
-		items = append(items, c)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, 0, err
-	}
-	return items, total, tx.Commit()
+	return s.QueryComments(ctx, CommentQuery{TargetType: "post", TargetID: postID, Page: page, PageSize: size, Admin: admin, all: true})
 }
 
 func insertNotification(ctx context.Context, tx *sql.Tx, n *Notification) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO user_notifications(user_id,actor_id,type,title,content,target_type,target_id,created_at)
- SELECT id,$2,$3,$4,$5,$6,$7,$8 FROM users WHERE id=$1 AND status=1`, n.UserID, n.ActorID, n.Type, n.Title, n.Content, n.TargetType, n.TargetID, time.Now().UTC())
+	_, err := tx.ExecContext(ctx, `INSERT INTO user_notifications(user_id,actor_id,type,title,content,target_type,target_id,created_at,comment_id,parent_comment_id)
+ SELECT id,$2,$3,$4,$5,$6,$7,$8,$9,$10 FROM users WHERE id=$1 AND status=1`, n.UserID, n.ActorID, n.Type, n.Title, n.Content, n.TargetType, n.TargetID, time.Now().UTC(), n.CommentID, n.ParentCommentID)
 	return err
 }
 
 func (s *SQLContentStore) CreateComment(ctx context.Context, c *CommunityComment) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	owner, status, err := lockContent(ctx, tx, "post", c.PostID)
-	if err != nil {
-		return err
-	}
-	if status != "published" {
-		return ErrContentNotFound
-	}
-	c.CreatedAt = time.Now().UTC()
-	if err = tx.QueryRowContext(ctx, "INSERT INTO community_comments(post_id,user_id,content,created_at) VALUES($1,$2,$3,$4) RETURNING id", c.PostID, c.UserID, c.Content, c.CreatedAt).Scan(&c.ID); err != nil {
-		return err
-	}
-	if owner != c.UserID {
-		err = insertNotification(ctx, tx, &Notification{UserID: owner, ActorID: c.UserID, Type: "comment", Title: "你的帖子收到新评论", Content: c.Content, TargetType: "post", TargetID: c.PostID})
-		if err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
+	c.TargetType, c.TargetID = "post", c.PostID
+	return s.AddComment(ctx, c)
 }
 
 func (s *SQLContentStore) DeleteComment(ctx context.Context, id, actor int, admin bool) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var postID int
-	if err = tx.QueryRowContext(ctx, "SELECT post_id FROM community_comments WHERE id=$1", id).Scan(&postID); errors.Is(err, sql.ErrNoRows) {
-		return ErrContentNotFound
-	} else if err != nil {
-		return err
-	}
-	if _, _, err = lockContent(ctx, tx, "post", postID); err != nil {
-		return err
-	}
-	var owner int
-	if err = tx.QueryRowContext(ctx, "SELECT user_id FROM community_comments WHERE id=$1", id).Scan(&owner); errors.Is(err, sql.ErrNoRows) {
-		return ErrContentNotFound
-	} else if err != nil {
-		return err
-	}
-	if !admin && owner != actor {
-		return ErrContentForbidden
-	}
-	if _, err = tx.ExecContext(ctx, "DELETE FROM community_comments WHERE id=$1", id); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return s.removeComment(ctx, id, actor, admin, "post")
 }
 
 func (s *SQLContentStore) SetPostLike(ctx context.Context, postID, userID int, liked bool) (int, error) {
@@ -472,7 +395,7 @@ func (s *SQLContentStore) ListNotifications(ctx context.Context, q NotificationQ
 	}
 	limit, offset := contentPage(q.Page, q.PageSize)
 	args = append(args, limit, offset)
-	rows, err := s.db.QueryContext(ctx, "SELECT id,user_id,actor_id,type,title,content,target_type,target_id,is_read,read_at,created_at FROM user_notifications"+where+fmt.Sprintf(" ORDER BY id DESC LIMIT $%d OFFSET $%d", len(args)-1, len(args)), args...)
+	rows, err := s.db.QueryContext(ctx, "SELECT id,user_id,actor_id,type,title,content,target_type,target_id,is_read,read_at,created_at,comment_id,parent_comment_id FROM user_notifications"+where+fmt.Sprintf(" ORDER BY id DESC LIMIT $%d OFFSET $%d", len(args)-1, len(args)), args...)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -481,7 +404,7 @@ func (s *SQLContentStore) ListNotifications(ctx context.Context, q NotificationQ
 	for rows.Next() {
 		var n Notification
 		var read int
-		if err = rows.Scan(&n.ID, &n.UserID, &n.ActorID, &n.Type, &n.Title, &n.Content, &n.TargetType, &n.TargetID, &read, &n.ReadAt, &n.CreatedAt); err != nil {
+		if err = rows.Scan(&n.ID, &n.UserID, &n.ActorID, &n.Type, &n.Title, &n.Content, &n.TargetType, &n.TargetID, &read, &n.ReadAt, &n.CreatedAt, &n.CommentID, &n.ParentCommentID); err != nil {
 			return nil, 0, 0, err
 		}
 		n.IsRead = read != 0
