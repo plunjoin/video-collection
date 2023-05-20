@@ -13,6 +13,8 @@ export interface ApiResponse<T = any> {
   classes_total?: number
   samples?: string[]
   sample_count?: number
+  pending?: boolean
+  review_id?: number
 }
 
 // 用户信息
@@ -20,7 +22,8 @@ export interface UserInfo {
   id: number
   username: string
   nickname: string
-  role: 'admin' | 'user'
+  role: 'super_admin' | 'admin' | 'observer' | 'operator' | 'user'
+  decorations?: { avatar: string; frame: string; badge: string; nickname_color: string }
   avatar?: string
   status?: number
   created_at?: string
