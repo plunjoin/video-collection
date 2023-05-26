@@ -50,6 +50,9 @@ const data = videos.map(({ id, name, picture, tags, remarks }) => ({ id, name, p
       link.href = video ? `/anime/${video.id}` : '/category';
       section.querySelector('[data-mood-action]')!.textContent = video ? '就看这部' : '发现番剧';
       section.dataset.tone = ['mint', 'pink', 'blue', 'purple'][mood];
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) section.querySelector<HTMLElement>('.mood-result')?.animate([
+        { opacity: .35, clipPath: 'inset(0 0 0 12%)' }, { opacity: 1, clipPath: 'inset(0)' }
+      ], { duration: 360, easing: 'ease-out' });
       buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === mood)));
     };
     buttons.forEach((button, i) => button.addEventListener('click', () => {
