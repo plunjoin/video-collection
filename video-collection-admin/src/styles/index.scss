@@ -16,6 +16,19 @@ html, body {
   height: 100%;
 }
 
+// Element Plus dialogs and confirmation boxes share the same theme.
+.el-dialog, .el-message-box {
+  max-width: calc(100vw - 32px);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-shadow: 0 20px 64px #0f172a26;
+}
+.el-dialog__title, .el-message-box__title { color: var(--text-primary); font-weight: 600; }
+.el-message-box__content { color: var(--text-regular); }
+.el-dialog__footer, .el-message-box__btns { padding-top: 16px; border-top: 1px solid var(--border-color); }
+
 // 浅色模式全局变量
 :root {
   --bg-color: #f3f4f6;
