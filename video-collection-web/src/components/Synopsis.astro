@@ -1,0 +1,52 @@
+---
+interface Props {
+  content?: string;
+}
+
+const { 
+  content = `魔王被勇者打倒后，世界恢复了和平。身为长寿种族的魔法使芙莉莲独自启程。随着时间的流逝，曾经一同经历十年讨伐魔王之旅的伙伴们相继老去、离世。在勇者辛梅尔的葬礼上，芙莉莲为自己从未真正去了解过他而悔恨落泪。为了更好地了解人类，芙莉莲踏上了重走昔日旅程的全新冒险。一路上，她收留了孤儿魔法使菲伦，遇到了勇敢却笨拙的战士修塔尔克，并在重温昔日足迹的过程中，逐渐体会到了辛梅尔隐藏在每个微笑与雕像背后的深情与人类心灵的温存。` 
+} = Astro.props;
+---
+
+<section id="tab-详情" class="max-w-[1360px] mx-auto px-4 sm:px-6 mt-8">
+  <div class="space-y-3">
+    <h2 class="text-lg font-bold text-slate-800 tracking-tight">剧情简介</h2>
+    <div class="relative">
+      <p id="synopsis-text" class="text-sm text-slate-600 leading-relaxed line-clamp-3 transition-all duration-300">
+        {content}
+      </p>
+      <button 
+        id="btn-toggle-synopsis"
+        class="mt-1 text-xs font-medium text-slate-400 hover:text-primary-600 inline-flex items-center gap-0.5 transition-colors"
+      >
+        <span id="synopsis-toggle-text">展开</span>
+        <svg id="synopsis-toggle-icon" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script>
+  const toggleBtn = document.getElementById('btn-toggle-synopsis');
+  const textEl = document.getElementById('synopsis-text');
+  const toggleText = document.getElementById('synopsis-toggle-text');
+  const toggleIcon = document.getElementById('synopsis-toggle-icon');
+
+  if (toggleBtn && textEl && toggleText && toggleIcon) {
+    let expanded = false;
+    toggleBtn.addEventListener('click', () => {
+      expanded = !expanded;
+      if (expanded) {
+        textEl.classList.remove('line-clamp-3');
+        toggleText.textContent = '收起';
+        toggleIcon.classList.add('rotate-180');
+      } else {
+        textEl.classList.add('line-clamp-3');
+        toggleText.textContent = '展开';
+        toggleIcon.classList.remove('rotate-180');
+      }
+    });
+  }
+</script>
