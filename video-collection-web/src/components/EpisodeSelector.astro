@@ -1,0 +1,129 @@
+---
+import type { Episode, PlayGroup } from '../lib/api';
+
+interface Props {
+  videoId?: number;
+  playGroups?: PlayGroup[];
+}
+
+const { videoId = 187, playGroups = [] } = Astro.props;
+---
+
+<section id="tab-选集" class="max-w-[1360px] mx-auto px-4 sm:px-6 mt-8">
+  <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div class="flex items-center gap-3">
+      <h2 class="text-lg font-bold text-slate-800 tracking-tight">选集</h2>
+      <span class="text-xs text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md font-medium" id="selector-meta-count">
+        共 {playGroups.length} 条节点线路
+      </span>
+    </div>
+    {playGroups.length > 0 && (
+      <a href={`/play/${videoId}?route=0&ep=0`} class="text-xs sm:text-sm text-slate-400 hover:text-primary-600 flex items-center gap-1 transition-colors">
+        <span>进入全屏播放器</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    )}
+  </div>
+
+  {playGroups.length > 1 && (
+    <div class="mb-4 flex items-center gap-2 flex-wrap">
+      <span class="text-xs font-semibold text-slate-400 mr-1">节点：</span>
+      {playGroups.map((pg, rIdx) => {
+        let routeTitle = pg.source_name || (pg.server && pg.server !== 'no' ? pg.server : `线路 ${rIdx + 1}`);
+        // 若存在同名采集节点，拼接播放器编码以示区分
+        const hasDuplicateName = playGroups.filter(p => (p.source_name || p.server) === (pg.source_name || pg.server)).length > 1;
+        if (hasDuplicateName && pg.player_code) {
+          routeTitle = `${routeTitle} (${pg.player_code})`;
+        }
+        return (
+          <button
+            type="button"
+            data-route-btn={rIdx}
+            class={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all selector-route-tab ${
+              rIdx === 0
+                ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/30'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {routeTitle} ({pg.episodes?.length || 0}话)
+          </button>
+        );
+      })}
+    </div>
+  )}
+
+  {playGroups.length > 0 ? (
+    <div>
+      {playGroups.map((pg, rIdx) => {
+        const eps = pg.episodes || [];
+        const displayEpisodes = eps.slice(0, 36);
+        return (
+          <div
+            id={`route-episodes-panel-${rIdx}`}
+            class={`route-ep-panel ${rIdx === 0 ? '' : 'hidden'}`}
+          >
+            {eps.length > 0 ? (
+              <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2.5 sm:gap-3">
+                {displayEpisodes.map((ep, idx) => {
+                  const epNum = String(idx + 1).padStart(2, '0');
+                  const isFirst = idx === 0 && rIdx === 0;
+
+                  return (
+                    <a
+                      href={`/play/${videoId}?route=${rIdx}&ep=${idx}`}
+                      title={`${ep.name} - ${pg.source_name || pg.server}`}
+                      class={`h-11 rounded-xl text-sm font-semibold transition-all flex items-center justify-center ${
+                        isFirst
+                          ? 'bg-[#597bea] text-white shadow-md shadow-blue-500/30'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200/90 hover:text-[#597bea]'
+                      }`}
+                    >
+                      {epNum}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div class="py-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400">
+                该节点暂无可播集数
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div class="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+      <p class="text-sm text-slate-400">暂无选集列表，请直接点击顶部「立即播放」</p>
+    </div>
+  )}
+</section>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const routeBtns = document.querySelectorAll('[data-route-btn]');
+    const epPanels = document.querySelectorAll('.route-ep-panel');
+
+    routeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetRoute = btn.getAttribute('data-route-btn');
+        routeBtns.forEach((b) => {
+          b.classList.remove('bg-[#597bea]', 'text-white', 'shadow-sm', 'shadow-blue-500/30');
+          b.classList.add('bg-slate-100', 'text-slate-600');
+        });
+        btn.classList.remove('bg-slate-100', 'text-slate-600');
+        btn.classList.add('bg-[#597bea]', 'text-white', 'shadow-sm', 'shadow-blue-500/30');
+
+        epPanels.forEach((panel) => {
+          panel.classList.add('hidden');
+        });
+        const activePanel = document.getElementById(`route-episodes-panel-${targetRoute}`);
+        if (activePanel) {
+          activePanel.classList.remove('hidden');
+        }
+      });
+    });
+  });
+</script>

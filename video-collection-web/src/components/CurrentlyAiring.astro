@@ -1,0 +1,11 @@
+---
+import type { VideoRecord } from '../lib/api';
+import VideoCard from './VideoCard.astro';
+interface Props { animes: VideoRecord[]; }
+const { animes = [] } = Astro.props;
+---
+<section id="hot" class="brand-section">
+  <div class="section-heading"><h2>正在热播 <span>›</span></h2><a href="/category">查看更多 →</a></div>
+  <div class="video-grid">{animes.slice(0, 4).map((video, i) => <VideoCard video={video} badge={i === 0 ? '热播' : undefined} />)}</div>
+  {animes.length === 0 && <p class="brand-empty">故事正在路上，稍后再来看看吧。</p>}
+</section>
