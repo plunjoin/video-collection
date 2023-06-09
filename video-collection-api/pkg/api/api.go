@@ -14,6 +14,7 @@ import (
 
 	"video-collection-api/config"
 	"video-collection-api/pkg/auth"
+	"video-collection-api/pkg/ingest"
 	"video-collection-api/pkg/m3u8cleaner"
 	"video-collection-api/pkg/maccms"
 	"video-collection-api/pkg/player"
@@ -43,6 +44,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
+	srv.registerCollectionRoutes(mux)
 	// 公开接口
 	mux.Handle("/api/m3u8/clean", srv.m3u8Cleaner)
 	mux.Handle("/api/m3u8", srv.m3u8Cleaner)
@@ -222,7 +224,7 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": sources})
 
 	case http.MethodPost:
-		bodyBytes, err := io.ReadAll(r.Body)
+		bodyBytes, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1024*1024))
 		if err != nil {
 			errorResponse(w, http.StatusBadRequest, "读取请求体失败")
 			return
@@ -244,12 +246,21 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 		if src.ID == "" {
 			src.ID = "src_" + strconv.FormatInt(time.Now().Unix(), 10)
 		}
-		if src.Name == "" || src.API == "" {
+		if src.Type == "pipeline" {
+			if err := ingest.Validate(src); err != nil {
+				errorResponse(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+		if src.Name == "" || (src.API == "" && src.Type != "pipeline") {
 			errorResponse(w, http.StatusBadRequest, "采集源名称和API地址不能为空")
 			return
 		}
 		if src.Type == "" {
 			src.Type = "json"
+		}
+		if src.Type == "custom" {
+			src.Type = "custom_json"
 		}
 		if src.CollectHours <= 0 {
 			src.CollectHours = 24
