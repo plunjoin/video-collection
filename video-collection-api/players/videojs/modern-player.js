@@ -1001,6 +1001,172 @@
     document.head.appendChild(style);
   }
 
+  // 只在客户端处理 VOD；直播保留原始地址，以便播放器持续刷新列表。
+  const AD_KEYWORDS = ['guanggao', 'ad.', '/ad/', '/ads/', 'advert', 'union', 'adwords', 'open.ad', 'tg.mp4', 'tg.ts', 'banner'];
+
+  function isMasterPlaylist(content) {
+    return /^#EXT-X-(?:STREAM-INF|I-FRAME-STREAM-INF):/m.test(content);
+  }
+
+  function rewritePlaylistLine(line, originURL) {
+    if (!line || line.startsWith('#')) {
+      return line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${new URL(uri, originURL).href}"`);
+    }
+    return new URL(line, originURL).href;
+  }
+
+  function segmentSequence(uri) {
+    const name = new URL(uri).pathname.split('/').pop();
+    const match = name.match(/(?:^|[^0-9])([0-9]+)\.(?:ts|image|jpeg|jpg|png|webp|m4s|mp4)(?:$|[^a-z])/i);
+    return match ? BigInt(match[1]) : null;
+  }
+
+  function cleanPlaylist(content, originURL, options = {}) {
+    const opts = { enableFilter: true, filterHeadAd: true, filterMiddleAd: true, maxHeadAdDuration: 60, maxMiddleAdDuration: 90, blacklistKeywords: AD_KEYWORDS, ...options };
+    const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    if (lines[0] !== '#EXTM3U') throw new Error('Invalid M3U8 playlist');
+    if (isMasterPlaylist(content) || !lines.includes('#EXT-X-ENDLIST') || lines.some(line => /^#EXT-X-(?:PART|SKIP|PRELOAD-HINT):/.test(line))) {
+      return lines.map(line => rewritePlaylistLine(line, originURL)).join('\n');
+    }
+    const header = [], footer = [], groups = [];
+    let group = { items: [], boundary: false, duration: 0 };
+    let tags = [], duration = 0, key = '', map = '', sequence = 0n, rangeEnd = 0, rangeURI = '';
+    const mediaSequence = lines.find(line => line.startsWith('#EXT-X-MEDIA-SEQUENCE:'));
+    if (mediaSequence) sequence = BigInt(mediaSequence.split(':')[1].trim());
+    let segmentIndex = 0n;
+    for (const rawLine of lines) {
+      const line = rewritePlaylistLine(rawLine, originURL);
+      if (line === '#EXT-X-DISCONTINUITY') {
+        if (group.items.length) groups.push(group);
+        group = { items: [], boundary: true, duration: 0 };
+      } else if (line === '#EXT-X-ENDLIST') {
+        footer.push(line);
+      } else if (line.startsWith('#EXT-X-KEY:')) {
+        key = line;
+      } else if (line.startsWith('#EXT-X-MAP:')) {
+        map = line;
+      } else if (line.startsWith('#EXTINF:')) {
+        duration = Number.parseFloat(line.slice(8));
+        if (!Number.isFinite(duration)) throw new Error('Invalid segment duration');
+        tags.push(line);
+      } else if (line.startsWith('#')) {
+        if (!groups.length && !group.items.length && !tags.length && !line.startsWith('#EXT-X-BYTERANGE:')) header.push(line);
+        else tags.push(line);
+      } else {
+        // 显式保存原始加密 IV 和字节偏移，删片后仍能解密和定位后续切片。
+        let segmentKey = key;
+        if (key.includes('METHOD=AES-128') && !/(?:[:,])IV=/.test(key)) {
+          segmentKey += `,IV=0x${(sequence + segmentIndex).toString(16).padStart(32, '0')}`;
+        }
+        tags = tags.map(tag => {
+          if (!tag.startsWith('#EXT-X-BYTERANGE:')) return tag;
+          const [length, offset] = tag.slice(17).split('@').map(Number);
+          if (!Number.isFinite(length)) throw new Error('Invalid byte range');
+          const start = offset ?? (rangeURI === line ? rangeEnd : 0);
+          rangeEnd = start + length;
+          rangeURI = line;
+          return `#EXT-X-BYTERANGE:${length}@${start}`;
+        });
+        group.items.push({ uri: line, tags, key: segmentKey, map, duration, seq: segmentSequence(line), ad: opts.enableFilter && opts.blacklistKeywords.some(word => word && line.toLowerCase().includes(word.toLowerCase())) });
+        group.duration += duration;
+        tags = []; duration = 0; segmentIndex++;
+      }
+    }
+    if (group.items.length) groups.push(group);
+    for (const item of groups) {
+      const seqs = item.items.map(segment => segment.seq).filter(seq => seq !== null);
+      item.hasSeq = seqs.length > 0 && seqs.length >= item.items.length / 2;
+      if (item.hasSeq) {
+        item.min = seqs.reduce((a, b) => a < b ? a : b);
+        item.max = seqs.reduce((a, b) => a > b ? a : b);
+      }
+    }
+    const ads = groups.map(() => false);
+    if (opts.enableFilter) {
+      if (opts.filterMiddleAd) {
+        for (let i = 1; i < groups.length - 1; i++) {
+          const prev = groups[i - 1], curr = groups[i], next = groups[i + 1];
+          if (!curr.boundary || !next.boundary || curr.duration > opts.maxMiddleAdDuration) continue;
+          const before = prev.items.at(-1).seq, after = next.items[0].seq;
+          const detour = before !== null && after !== null && after - before === 1n &&
+            (curr.items.every(item => item.seq !== null && item.seq > after) || curr.items.every(item => item.seq !== null && item.seq < before));
+          const outlier = prev.hasSeq && curr.hasSeq && next.hasSeq &&
+            ((curr.min - prev.max > 50n && curr.max - next.min > 50n && next.min - prev.max >= 0n && next.min - prev.max <= 15n) || (curr.min >= 10000n && prev.max < 2000n && next.min < 2000n));
+          ads[i] = detour || outlier || (curr.duration <= 20 && curr.items.length <= 6 && prev.items.length >= 8 && next.items.length >= 8);
+        }
+      }
+      if (opts.filterHeadAd && groups.length >= 2 && !ads[1]) {
+        const head = groups[0], next = groups[1];
+        ads[0] = head.duration <= opts.maxHeadAdDuration && head.hasSeq && next.hasSeq &&
+          ((head.min > 1000n && next.min <= 5n) || (next.boundary && head.max >= next.min));
+      }
+      if (opts.filterMiddleAd && groups.length >= 2) {
+        const last = groups.at(-1), prev = groups.at(-2);
+        ads[groups.length - 1] = !ads[groups.length - 2] && last.boundary && last.duration <= opts.maxMiddleAdDuration && last.hasSeq && prev.hasSeq && last.min - prev.max > 100n;
+      }
+    }
+    const out = [...header];
+    let emittedKey = '', emittedMap = '', previous = null, previousIndex = -1, kept = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const curr = groups[i];
+      if (ads[i]) continue;
+      const items = curr.items.filter(item => !item.ad);
+      if (!items.length) continue;
+      const removedBetween = i > previousIndex + 1;
+      const difference = previous?.seq !== null && previous?.seq !== undefined && items[0].seq !== null ? items[0].seq - previous.seq : null;
+      if (curr.boundary && previous && !(removedBetween && difference !== null && difference >= 0n && difference <= 2n)) out.push('#EXT-X-DISCONTINUITY');
+      for (const item of items) {
+        if (item.key && item.key !== emittedKey) { out.push(item.key); emittedKey = item.key; }
+        if (item.map && item.map !== emittedMap) { out.push(item.map); emittedMap = item.map; }
+        out.push(...item.tags, item.uri); kept++;
+      }
+      previous = items.at(-1); previousIndex = i;
+    }
+    // 不输出空列表；规则过度命中时继续使用完整正片列表。
+    if (!kept && segmentIndex > 0n) return cleanPlaylist(content, originURL, { ...opts, enableFilter: false });
+    return [...out, ...footer].join('\n');
+  }
+
+  async function prepareClientPlaylist(url, { signal, options = {}, createURL = text => URL.createObjectURL(new Blob([text], { type: 'application/vnd.apple.mpegurl' })), revokeURL = url => URL.revokeObjectURL(url), fetchPlaylist = fetch } = {}) {
+    const urls = [], cache = new Map();
+    const dispose = () => urls.splice(0).forEach(revokeURL);
+    async function visit(target, parents = []) {
+      if (parents.includes(target) || parents.length > 8) throw new Error('Playlist nesting limit');
+      if (cache.has(target)) return cache.get(target);
+      if (cache.size >= 64) throw new Error('Playlist count limit');
+      const task = (async () => {
+        const requestSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(10000)]);
+        const response = await fetchPlaylist(target, { signal: requestSignal });
+        if (!response.ok) throw new Error(`Playlist HTTP ${response.status}`);
+        const content = await response.text();
+        const origin = response.url || target;
+        let cleaned = cleanPlaylist(content, origin, options);
+        if (isMasterPlaylist(content)) {
+          const result = [];
+          for (const line of cleaned.split('\n')) {
+            if (!line.startsWith('#')) result.push(await visit(line, [...parents, target]));
+            else if (/^#EXT-X-(?:MEDIA|I-FRAME-STREAM-INF):/.test(line) && /URI="/.test(line)) {
+              const child = line.match(/URI="([^"]+)"/)[1];
+              result.push(line.replace(/URI="[^"]+"/, `URI="${await visit(child, [...parents, target])}"`));
+            } else result.push(line);
+          }
+          cleaned = result.join('\n');
+        } else if (!content.includes('#EXT-X-ENDLIST')) {
+          // 静态 Blob 无法刷新直播；整个主列表回退到远程地址。
+          throw new Error('Live playlist requires remote refresh');
+        }
+        signal?.throwIfAborted();
+        const local = createURL(cleaned);
+        urls.push(local);
+        return local;
+      })();
+      cache.set(target, task);
+      return task;
+    }
+    try { return { url: await visit(url), dispose }; }
+    catch (error) { dispose(); throw error; }
+  }
+
   // 播放器类
   class ModernVideoPlayer {
     constructor(elementId, options = {}) {
@@ -1017,10 +1183,13 @@
         onTimeUpdate: null,
         initialTime: 0,
         cleanM3U8: true, // 默认开启智能切片广告过滤
-        cleanProxyUrl: '/api/m3u8/clean', // 后端清洗代理地址
+        cleanOptions: {}, // 客户端切片过滤规则
       }, options);
 
       this.player = null;
+      this.playlistResource = null;
+      this.playlistAbort = null;
+      this.sourceGeneration = 0;
       this.currentVideo = null;
       this.currentRouteIndex = 0;
       this.currentEpisodeIndex = 0;
@@ -1934,7 +2103,7 @@
     }
 
     // 播放指定线路与集数 (支持传入 initialTime 恢复进度，customToast 自定义提示)
-    playEpisode(routeIdx, epIdx, initialTime = 0, customToast = '') {
+    async playEpisode(routeIdx, epIdx, initialTime = 0, customToast = '') {
       if (!this.routes[routeIdx]) return;
       this.currentRouteIndex = routeIdx;
       this.episodes = this.routes[routeIdx].episodes || [];
@@ -1957,17 +2126,32 @@
       this.clearCountdown();
       this.closeEpisodesDrawer();
 
-      // 更新播放地址
+      // 直连源站，在本机生成过滤后的列表；快速切集时取消旧请求。
+      const generation = ++this.sourceGeneration;
+      this.playlistAbort?.abort();
+      this.playlistAbort = new AbortController();
+      this.player.pause();
       let url = targetEp.url;
       let type = 'video/mp4';
-      if (url.includes('.m3u8')) {
+      const oldResource = this.playlistResource;
+      let resource = null;
+      if (/\.m3u8(?:[?#]|$)/i.test(url) || (!/\.(?:mp4|webm|mkv|mov|avi)(?:[?#]|$)/i.test(url) && /hls|m3u8/i.test(this.routes[routeIdx].player_code || ''))) {
         type = 'application/x-mpegURL';
-        if (this.options.cleanM3U8 && this.options.cleanProxyUrl && !url.includes(this.options.cleanProxyUrl)) {
-          url = `${this.options.cleanProxyUrl}?url=${encodeURIComponent(url)}`;
+        if (this.options.cleanM3U8) {
+          try {
+            resource = await prepareClientPlaylist(url, { signal: this.playlistAbort.signal, options: this.options.cleanOptions });
+            url = resource.url;
+          } catch (error) {
+            if (generation !== this.sourceGeneration || !this.player) return;
+            console.warn('客户端 M3U8 过滤失败，使用原始播放地址', error);
+          }
         }
       }
-
+      if (generation !== this.sourceGeneration || !this.player) { resource?.dispose(); return; }
+      this.resetPreview();
+      this.playlistResource = resource;
       this.player.src({ src: url, type: type });
+      oldResource?.dispose();
       this.player.play().catch(e => {
         console.log('Autoplay handled:', e);
       });
@@ -2453,6 +2637,10 @@
     }
 
     disposeBrowserFeatures() {
+      ++this.sourceGeneration;
+      this.playlistAbort?.abort();
+      this.playlistResource?.dispose();
+      this.playlistResource = null;
       this.resetPreview();
       this.settingsDialog?.close();
       this.settingsDialog?.remove();
@@ -2492,6 +2680,8 @@
   };
 
   // 挂载全局
+  ModernVideoPlayer.cleanPlaylist = cleanPlaylist;
+  ModernVideoPlayer.prepareClientPlaylist = prepareClientPlaylist;
   window.ModernVideoPlayer = ModernVideoPlayer;
 
 })(window);
