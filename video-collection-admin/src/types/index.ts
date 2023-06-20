@@ -278,3 +278,43 @@ export interface SQLExecResult {
   affected?: number
   message?: string
 }
+
+// 资讯/社区帖子内容 (kind: news=资讯, post=社区帖子)
+export interface ContentItem {
+  id: number
+  kind: 'news' | 'post'
+  author_id: number
+  author_name: string
+  author_avatar: string
+  title: string
+  summary: string
+  content: string
+  cover: string
+  category: string
+  status: 'published' | 'draft' | 'hidden'
+  pinned: boolean
+  like_count: number
+  comment_count: number
+  liked: boolean
+  created_at: string
+  updated_at: string
+}
+
+// 社区帖子评论
+export interface CommunityCommentItem {
+  id: number
+  target_type: string
+  target_id: number
+  post_id: number
+  parent_id: number
+  root_id: number
+  user_id: number
+  author_name: string
+  author_avatar: string
+  content: string
+  is_deleted: boolean
+  like_count: number
+  reply_count: number
+  liked: boolean
+  created_at: string
+}
