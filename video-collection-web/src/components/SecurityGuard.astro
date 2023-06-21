@@ -1,0 +1,145 @@
+---
+// 生产环境安全防护组件
+// 仅在生产模式 (import.meta.env.PROD) 或显示配置 PUBLIC_ENABLE_DEVTOOLS_PROTECTION 为 true 时加载
+const isProd = import.meta.env.PROD;
+const enableProtection = isProd || import.meta.env.PUBLIC_ENABLE_DEVTOOLS_PROTECTION === 'true';
+---
+
+{enableProtection && (
+  <script is:inline>
+    (function () {
+      'use strict';
+
+      // 强行关闭/销毁当前标签页
+      function terminatePage() {
+        try {
+          window.close();
+        } catch (_) {}
+
+        // 若浏览器安全策略拦截了非 window.open 开启页面的 window.close()，使用置空跳转与清空 DOM 达到销毁目的
+        try {
+          window.location.replace('about:blank');
+        } catch (_) {}
+
+        try {
+          if (document.documentElement) {
+            document.documentElement.innerHTML = '';
+          }
+        } catch (_) {}
+      }
+
+      // 1. 禁用常用按键组合与快捷键 (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S 等)
+      window.addEventListener('keydown', function (e) {
+        // F12 (keyCode 123)
+        if (e.key === 'F12' || e.keyCode === 123) {
+          e.preventDefault();
+          e.stopPropagation();
+          terminatePage();
+          return false;
+        }
+
+        const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+
+        // Ctrl+Shift+I (开发者工具), Ctrl+Shift+J (控制台), Ctrl+Shift+C (元素审查)
+        if (isCtrlOrMeta && e.shiftKey) {
+          const keyUpper = (e.key || '').toUpperCase();
+          if (keyUpper === 'I' || keyUpper === 'J' || keyUpper === 'C') {
+            e.preventDefault();
+            e.stopPropagation();
+            terminatePage();
+            return false;
+          }
+        }
+
+        // Ctrl+U (查看网页源码), Ctrl+S (保存网页)
+        if (isCtrlOrMeta) {
+          const keyUpper = (e.key || '').toUpperCase();
+          if (keyUpper === 'U' || keyUpper === 'S') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+      }, true);
+
+      // 2. 禁用鼠标右键菜单 (防止右键检查元素)
+      window.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }, true);
+
+      // 3. 动态 debugger 混淆反调试
+      function triggerDebugger() {
+        try {
+          const start = performance.now();
+          // 使用 Function 动态调用规避部分静态移除
+          (function() {}).constructor('debugger')();
+          const duration = performance.now() - start;
+          // 若开启调试器停留超过 100ms，判定审查工具正在捕获断点
+          if (duration > 100) {
+            terminatePage();
+          }
+        } catch (_) {}
+      }
+
+      // 4. 控制台对象渲染嗅探 (Console getter 探测)
+      function detectByConsole() {
+        try {
+          let detected = false;
+          const detector = new Image();
+          Object.defineProperty(detector, 'id', {
+            get: function () {
+              detected = true;
+              terminatePage();
+              return '';
+            }
+          });
+
+          // 正则 toString 嗅探
+          const reg = /./;
+          reg.toString = function () {
+            detected = true;
+            terminatePage();
+            return '';
+          };
+
+          // 仅触发嗅探探测
+          console.log('%c', detector);
+          console.log('%c', reg);
+
+          if (detected) {
+            terminatePage();
+          }
+        } catch (_) {}
+      }
+
+      // 5. 窗口内外边距尺寸差探测 (DevTools 停靠侧边或底部)
+      function detectByWindowSize() {
+        try {
+          const threshold = 160;
+          const widthDiff = window.outerWidth - window.innerWidth > threshold;
+          const heightDiff = window.outerHeight - window.innerHeight > threshold;
+          if (widthDiff || heightDiff) {
+            terminatePage();
+          }
+        } catch (_) {}
+      }
+
+      // 周期性巡检与反调试循环
+      setInterval(function () {
+        triggerDebugger();
+        detectByConsole();
+        detectByWindowSize();
+      }, 500);
+
+      // 页面尺寸变化时检测
+      window.addEventListener('resize', detectByWindowSize, true);
+
+      // 初始化立即执行一次
+      triggerDebugger();
+      detectByConsole();
+      detectByWindowSize();
+    })();
+  </script>
+)}
