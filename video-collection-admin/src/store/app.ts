@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useAppStore = defineStore('app', () => {
-  const sidebarCollapse = ref<boolean>(localStorage.getItem('sidebar_collapse') === '1')
+  const sidebarCollapse = ref<boolean>(localStorage.getItem('sidebar_collapse') === '1' || window.innerWidth < 768)
   const isDark = ref<boolean>(localStorage.getItem('theme_dark') === '1')
 
   const toggleSidebar = () => {
