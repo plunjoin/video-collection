@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import { useUserStore } from '@/store/user'
+import { canVisit } from '@/utils/permissions'
 
 NProgress.configure({ showSpinner: false })
 
@@ -16,6 +18,9 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/layout/index.vue'),
     redirect: '/dashboard',
     children: [
+      { path: 'reviews', name: 'Reviews', component: () => import('@/views/reviews/index.vue'), meta: { title: '内容审核中心' } },
+      { path: 'growth', name: 'Growth', component: () => import('@/views/growth/index.vue'), meta: { title: '日活与积分运营' } },
+      { path: 'notifications', name: 'Notifications', component: () => import('@/views/notifications/index.vue'), meta: { title: '消息通知' } },
       {
         path: 'dashboard',
         name: 'Dashboard',
@@ -117,7 +122,7 @@ const router = createRouter({
 // 白名单路由
 const whiteList = ['/login']
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   NProgress.start()
   const token = localStorage.getItem('admin_token')
 
@@ -126,6 +131,15 @@ router.beforeEach((to, _from, next) => {
   }
 
   if (token) {
+    const store = useUserStore()
+    const user = await store.fetchUserInfo()
+    if (!user || user.role === 'user') {
+      store.setToken(''); store.setUserInfo(null)
+      if (to.path === '/login') next(); else next('/login'); NProgress.done(); return
+    }
+    if (to.path !== '/login' && !canVisit(user.role, to.path)) {
+      next('/dashboard'); NProgress.done(); return
+    }
     if (to.path === '/login') {
       next({ path: '/' })
       NProgress.done()
