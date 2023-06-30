@@ -1,6 +1,8 @@
 // 真实数据交互客户端：深度直连 video-collection-api
 // 100% 遵循接口返回的数据结构，无缝驱动前端页面
 
+import { getInternalApiUrl } from './api-server';
+
 export interface Episode {
   name: string;
   url: string;
@@ -49,7 +51,7 @@ export interface Category {
 }
 
 const rawBase = typeof window === 'undefined'
-  ? (process.env.INTERNAL_API_URL || (process.env.PUBLIC_API_URL?.startsWith('http') ? process.env.PUBLIC_API_URL : 'http://localhost:80'))
+  ? getInternalApiUrl()
   : (import.meta.env.PUBLIC_API_URL || '');
 
 export const API_BASE_URL = rawBase;
@@ -183,10 +185,10 @@ export async function getVideos(params: { page?: number; pageSize?: number; type
 // 获取全部动漫视频 (并行提取全量优质动漫作品，供给静态路由及前台推荐)
 export async function getAllVideos(limit = 600): Promise<VideoRecord[]> {
   try {
-    const pageCount = Math.ceil(limit / 100);
+    const pageCount = Math.ceil(limit / 20);
     const promises = [];
     for (let p = 1; p <= pageCount; p++) {
-      promises.push(getVideos({ page: p, pageSize: 100, typeId: 4 }));
+      promises.push(getVideos({ page: p, pageSize: 20, typeId: 4 }));
     }
     const results = await Promise.all(promises);
     const combined = results.flatMap(r => r.list).filter(isAnimeRecord);
@@ -237,7 +239,7 @@ export async function getVideoDetail(id: number | string) {
 // 3. 获取排行榜数据 (直接请求 /api/rankings，严格保证为动漫专属榜单)
 export async function getRankings() {
   const res = await apiFetch<{ code: number; top: VideoRecord[]; movies: VideoRecord[]; tv: VideoRecord[]; variety: VideoRecord[]; anime: VideoRecord[] }>('/api/rankings?limit=10');
-  
+
   // Bllii 是专业番剧门户，排行榜优先呈现动漫专属热度榜 (res.anime)
   if (res && res.code === 1 && res.anime && res.anime.length > 0) {
     const animeTop = res.anime.filter(isAnimeRecord).map(formatVideo);
