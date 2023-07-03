@@ -1,13 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../widgets/brand_controls.dart';
+
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
+import '../services/fullscreen_service.dart';
+import '../widgets/brand_intro.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -25,12 +29,14 @@ class PlayerScreen extends StatefulWidget {
   final VideoRecord video;
   final int initialGroupIndex;
   final int initialEpisodeIndex;
+  final Duration initialPosition;
 
   const PlayerScreen({
     super.key,
     required this.video,
     this.initialGroupIndex = 0,
     this.initialEpisodeIndex = 0,
+    this.initialPosition = Duration.zero,
   });
 
   @override
@@ -40,6 +46,8 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late int _currentGroupIndex;
   late int _currentEpisodeIndex;
+  late final AppStateProvider _appState;
+  Duration? _resumePosition;
 
   // MediaKit 流媒体底层播放器
   late final Player _player;
@@ -58,6 +66,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showControls = true;
   Timer? _hideControlsTimer;
   bool _isFullscreen = false;
+  bool _changingFullscreen = false;
+  final _fullscreen = FullscreenService();
+  Timer? _historyTimer;
   bool _isAutoPlayingNext = false;
   int _nextCountdownSeconds = 3;
   Timer? _nextCountdownTimer;
@@ -119,6 +130,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _appState = context.read<AppStateProvider>();
+    _resumePosition = widget.initialPosition;
     _currentGroupIndex = widget.initialGroupIndex;
     _currentEpisodeIndex = widget.initialEpisodeIndex;
 
@@ -130,12 +143,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     _videoController = VideoController(_player);
 
+    _historyTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_isPlaying && !_hasError) _recordHistory(countHit: false);
+    });
     _listenPlayerStreams();
     _loadAndPlayCurrentEpisode();
   }
 
   @override
   void dispose() {
+    if (!_hasError && _duration > Duration.zero) {
+      _recordHistory(countHit: false);
+    }
+    _historyTimer?.cancel();
     _hideControlsTimer?.cancel();
     _hideHudTimer?.cancel();
     _quickSeekTipTimer?.cancel();
@@ -146,10 +166,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _player.dispose();
 
-    if (_isFullscreen) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    }
+    unawaited(_fullscreen.setEnabled(false).catchError((Object _) {}));
     super.dispose();
   }
 
@@ -166,6 +183,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() {
           _duration = dur;
         });
+        if (_resumePosition != null && dur > Duration.zero) {
+          final resume = _resumePosition!;
+          _resumePosition = null;
+          if (resume > Duration.zero && resume < dur) _player.seek(resume);
+        }
       }),
       _player.stream.playing.listen((playing) {
         if (!mounted) return;
@@ -249,7 +271,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _recordHistory() {
+  void _recordHistory({bool countHit = true}) {
     if (widget.video.playGroups.isEmpty ||
         _currentGroupIndex >= widget.video.playGroups.length) {
       return;
@@ -258,11 +280,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_currentEpisodeIndex >= group.episodes.length) return;
     final ep = group.episodes[_currentEpisodeIndex];
 
-    Provider.of<AppStateProvider>(context, listen: false).addPlayHistory(
-      video: widget.video,
-      episodeName: ep.name,
-      playerCode: group.playerCode,
-      playUrl: ep.url,
+    final position = _resumePosition ?? _position;
+    final duration = _duration;
+    final routeIndex = _currentGroupIndex;
+    final episodeIndex = _currentEpisodeIndex;
+    Future.microtask(
+      () => _appState.addPlayHistory(
+        video: widget.video,
+        episodeName: ep.name,
+        playerCode: group.playerCode,
+        playUrl: ep.url,
+        routeIndex: routeIndex,
+        episodeIndex: episodeIndex,
+        currentTime: position.inSeconds,
+        duration: duration.inSeconds,
+        countHit: countHit,
+      ),
     );
   }
 
@@ -346,6 +379,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() {
+    if (_isPlaying) _recordHistory(countHit: false);
     _player.playOrPause();
     _resetHideControlsTimer();
   }
@@ -374,7 +408,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _switchEpisode(int groupIndex, int episodeIndex) {
+    if (!_hasError && _duration > Duration.zero) {
+      _recordHistory(countHit: false);
+    }
+    _resumePosition = null;
     setState(() {
+      _position = Duration.zero;
+      _duration = Duration.zero;
       _currentGroupIndex = groupIndex;
       _currentEpisodeIndex = episodeIndex;
       _showFullscreenDrawer = false;
@@ -382,22 +422,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _loadAndPlayCurrentEpisode();
   }
 
-  void _toggleFullscreen() {
-    setState(() {
-      _isFullscreen = !_isFullscreen;
-      _showFullscreenDrawer = false;
-    });
-    if (_isFullscreen) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  Future<void> _toggleFullscreen() async {
+    if (_changingFullscreen) return;
+    _changingFullscreen = true;
+    final next = !_isFullscreen;
+    try {
+      await _fullscreen.setEnabled(next);
+      if (!mounted) {
+        await _fullscreen.setEnabled(false);
+        return;
+      }
+      setState(() {
+        _isFullscreen = next;
+        _showFullscreenDrawer = false;
+      });
+      _resetHideControlsTimer();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('无法切换全屏，请重试')));
+      }
+    } finally {
+      _changingFullscreen = false;
     }
-    _resetHideControlsTimer();
   }
 
   void _setSpeed(double speed) {
@@ -444,7 +491,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // 键盘快捷键监听
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (event.logicalKey == LogicalKeyboardKey.escape && _isFullscreen) {
+        _toggleFullscreen();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.space) {
         _togglePlayPause();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
@@ -658,40 +708,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
-              // 缓冲加载中指示
               if (_isBuffering && !_hasError)
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 38,
-                        height: 38,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '极光内核流媒体切片加载中...',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const Center(child: BrandIntro(width: 300, onDark: true)),
 
               // 错误浮层
               if (_hasError)
@@ -832,9 +850,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
 
     if (_isFullscreen) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: playerCore),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _toggleFullscreen();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: playerCore),
+        ),
       );
     }
 
@@ -1095,23 +1119,59 @@ class _PlayerScreenState extends State<PlayerScreen> {
     bool isDark,
   ) {
     return Container(
-      margin: const EdgeInsets.all(12), padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? AppColors.darkCard : Colors.white,
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.video.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 5),
-        Text([widget.video.year, currentEp?.name ?? '待播放'].where((s) => s.isNotEmpty).join(' · '), maxLines: 1,
-          overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary)),
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 4, children: [
-          BrandPill(label: const Text('‹ 上一集'), onPressed: _currentEpisodeIndex > 0 ? _playPrevEpisode : null),
-          BrandPill(label: const Text('下一集 ›'), selected: true,
-            onPressed: currentGroup != null && _currentEpisodeIndex + 1 < currentGroup.episodes.length ? _playNextEpisode : null),
-        ]),
-      ]),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.video.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            [
+              widget.video.year,
+              currentEp?.name ?? '待播放',
+            ].where((s) => s.isNotEmpty).join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.lightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              BrandPill(
+                label: const Text('‹ 上一集'),
+                onPressed: _currentEpisodeIndex > 0 ? _playPrevEpisode : null,
+              ),
+              BrandPill(
+                label: const Text('下一集 ›'),
+                selected: true,
+                onPressed:
+                    currentGroup != null &&
+                        _currentEpisodeIndex + 1 < currentGroup.episodes.length
+                    ? _playNextEpisode
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1146,7 +1206,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  [widget.video.area, widget.video.year].where((s) => s.isNotEmpty).join(' · '),
+                  [
+                    widget.video.area,
+                    widget.video.year,
+                  ].where((s) => s.isNotEmpty).join(' · '),
                   style: TextStyle(
                     color: isDark
                         ? AppColors.darkTextSecondary
@@ -1518,12 +1581,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     // 倍速菜单按钮
                     TextButton(
                       onPressed: () async {
-                        final speed = await showBrandOptions<double>(context, title: '播放速度', selected: _currentSpeed,
-                          options: _speedList.map((speed) => (speed, '${speed}x')).toList());
+                        final speed = await showBrandOptions<double>(
+                          context,
+                          title: '播放速度',
+                          selected: _currentSpeed,
+                          options: _speedList
+                              .map((speed) => (speed, '${speed}x'))
+                              .toList(),
+                        );
                         if (speed != null && mounted) _setSpeed(speed);
                       },
-                      style: TextButton.styleFrom(foregroundColor: Colors.white, minimumSize: const Size(44, 36)),
-                      child: Text('${_currentSpeed}x', style: const TextStyle(fontSize: 11)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(44, 36),
+                      ),
+                      child: Text(
+                        '${_currentSpeed}x',
+                        style: const TextStyle(fontSize: 11),
+                      ),
                     ),
 
                     // 全屏选集抽屉按钮 (仅在全屏下显示)
@@ -1618,11 +1693,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   final isSel = _currentGroupIndex == index;
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
-                    child: BrandPill(label: Text(groups[index].server),selected: isSel,onSelected: (selected) {
+                    child: BrandPill(
+                      label: Text(groups[index].server),
+                      selected: isSel,
+                      onSelected: (selected) {
                         if (selected) {
                           _switchEpisode(index, _currentEpisodeIndex);
                         }
-                      },onDark: true),
+                      },
+                      onDark: true,
+                    ),
                   );
                 }),
               ),
