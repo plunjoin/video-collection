@@ -1,0 +1,616 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getVideos } from '../lib/api';
+
+// 首屏抓取前24部优质动漫数据及总数 (真实直连 6,686 部动漫数据库)
+const pageSize = 24;
+const initialData = await getVideos({ page: 1, pageSize, typeId: 4 });
+const initialTotal = initialData.total || 6686;
+const initialVideos = initialData.list;
+
+const channels = [
+  { label: '全部动漫', value: '' },
+  { label: '日韩动漫', value: '日韩' },
+  { label: '国产动漫', value: '国产' },
+  { label: '欧美动漫', value: '欧美' },
+  { label: '动态漫画', value: '动态漫' },
+];
+
+const genres = ['全部', '热血', '玄幻', '修真', '冒险', '奇幻', '搞笑', '科幻', '治愈', '恋爱', '悬疑'];
+const areas = ['全部', '日本', '大陆', '欧美', '韩国'];
+const years = ['全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020', '更早'];
+const sorts = [
+  { label: '按更新时间', value: 'time' },
+  { label: '按综合评分', value: 'score' },
+  { label: '按播放热度', value: 'hits' },
+];
+---
+
+<Layout title="番剧库 - bllii 分类索引" activeNav="番剧">
+  <div class="max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
+    
+    <!-- 筛选面板卡片 (多维交互联动) -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100/80 space-y-4 mb-6">
+      
+      <!-- 1. 频道/分类 -->
+      <div class="flex items-center gap-3 text-xs sm:text-sm">
+        <span class="text-slate-400 font-medium shrink-0 w-12">频道：</span>
+        <div class="flex items-center gap-2 flex-wrap" id="filter-channels">
+          {channels.map((ch, idx) => (
+            <button
+              type="button"
+              data-filter-group="channel"
+              data-val={ch.value}
+              class={`filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                idx === 0 
+                  ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20 active-filter' 
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {ch.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- 2. 题材类型 -->
+      <div class="flex items-center gap-3 text-xs sm:text-sm">
+        <span class="text-slate-400 font-medium shrink-0 w-12">类型：</span>
+        <div class="flex items-center gap-2 flex-wrap" id="filter-genres">
+          {genres.map((g, idx) => (
+            <button
+              type="button"
+              data-filter-group="genre"
+              data-val={idx === 0 ? '' : g}
+              class={`filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                idx === 0 
+                  ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20 active-filter' 
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- 3. 地区 -->
+      <div class="flex items-center gap-3 text-xs sm:text-sm">
+        <span class="text-slate-400 font-medium shrink-0 w-12">地区：</span>
+        <div class="flex items-center gap-2 flex-wrap" id="filter-areas">
+          {areas.map((a, idx) => (
+            <button
+              type="button"
+              data-filter-group="area"
+              data-val={idx === 0 ? '' : a}
+              class={`filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                idx === 0 
+                  ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20 active-filter' 
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- 4. 上映年份 -->
+      <div class="flex items-center gap-3 text-xs sm:text-sm">
+        <span class="text-slate-400 font-medium shrink-0 w-12">年份：</span>
+        <div class="flex items-center gap-2 flex-wrap" id="filter-years">
+          {years.map((y, idx) => (
+            <button
+              type="button"
+              data-filter-group="year"
+              data-val={idx === 0 ? '' : y}
+              class={`filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                idx === 0 
+                  ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20 active-filter' 
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 排序工具栏与统计条 -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+      <div class="flex items-center gap-2" id="filter-sorts">
+        {sorts.map((s, idx) => (
+          <button
+            type="button"
+            data-filter-group="sort"
+            data-val={s.value}
+            class={`sort-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              idx === 0 
+                ? 'bg-white shadow-sm text-[#597bea] ring-1 ring-blue-200 active-sort' 
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div class="flex items-center gap-3 text-xs text-slate-400">
+        <span id="filtered-count" class="font-medium text-slate-600">
+          共筛选出 <span id="count-number" class="text-[#597bea] font-bold">{initialTotal.toLocaleString()}</span> 部真实作品
+        </span>
+        <button id="btn-reset-filters" type="button" class="text-[#597bea] font-medium hover:underline hidden cursor-pointer">
+          重置全部条件
+        </button>
+      </div>
+    </div>
+
+    <!-- 结果卡片网格容器 -->
+    <div class="relative min-h-[400px]">
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" id="video-cards-grid">
+        {initialVideos.map((anime) => (
+          <a 
+            href={`/play/${anime.id}`}
+            class="anime-card group flex flex-col card-hover-effect"
+            data-id={anime.id}
+            data-name={anime.name}
+            data-type={anime.type_name || ''}
+            data-type-id={anime.type_id || 0}
+            data-area={anime.area || ''}
+            data-year={anime.year || ''}
+            data-score={anime.score || 9.0}
+            data-hits={anime.hits || 0}
+          >
+            <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
+              <img 
+                src={anime.picture} 
+                alt={anime.name} 
+                loading="lazy" 
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                onerror="this.src='/assets/hot_1_frieren.jpg'" 
+              />
+              <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                {anime.remarks || '全集'}
+              </span>
+            </div>
+            <div class="mt-2.5 px-0.5">
+              <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                {anime.name}
+              </h3>
+              <div class="flex items-center justify-between text-xs text-slate-400 mt-1">
+                <span>{anime.year || '2024'}</span>
+                <span class="text-[#f59e0b] font-bold">★ {anime.score || '9.5'}</span>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <!-- 加载中指示器蒙层 (仅在异步切页或筛选时展示) -->
+      <div id="grid-loading-overlay" class="hidden absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl flex items-center justify-center z-10 min-h-[300px]">
+        <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md text-xs font-semibold text-[#597bea] border border-slate-100">
+          <picture><source media="(prefers-reduced-motion: reduce)" srcset="/brand/bllii-symbol.svg" /><img src="/brand/bllii-loading.svg" width="48" height="48" alt="正在加载" /></picture>
+          <span>加载番剧数据中...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 无结果空状态 -->
+    <div id="no-results-panel" class="hidden py-16 text-center space-y-3">
+      <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      <h3 class="text-base font-bold text-slate-700">未找到符合条件的番剧</h3>
+      <p class="text-xs text-slate-400">试试调整频道、题材类型或上映年份，发现更多精彩</p>
+      <button id="btn-empty-reset" type="button" class="px-5 py-2 rounded-full bg-[#597bea] text-white text-xs font-semibold shadow-sm hover:bg-blue-600 transition-colors cursor-pointer">
+        重置筛选条件
+      </button>
+    </div>
+
+    <!-- 现代化全量分页导航控制器 -->
+    <div id="pagination-container" class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-t border-slate-100">
+      <div class="text-xs text-slate-400">
+        <span>当前第 <strong id="current-page-label" class="text-slate-700 font-semibold">1</strong> 页</span>
+        <span class="mx-1">/</span>
+        <span>共 <strong id="total-pages-label" class="text-slate-700 font-semibold">{Math.ceil(initialTotal / pageSize)}</strong> 页</span>
+        <span class="mx-1.5">•</span>
+        <span>共 <strong id="total-count-label" class="text-slate-700 font-semibold">{initialTotal.toLocaleString()}</strong> 部动漫</span>
+      </div>
+
+      <!-- 分页按钮操作组 -->
+      <div class="flex items-center gap-1.5 flex-wrap justify-center" id="pagination-buttons">
+        <!-- 由客户端 JS 动态精准渲染：‹ 上一页, 1, 2, 3, 4, 5, ..., 279, 下一页 › -->
+      </div>
+
+      <!-- 快速跳页 -->
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span>前往</span>
+        <input 
+          type="number" 
+          id="jump-page-input" 
+          min="1" 
+          max={Math.ceil(initialTotal / pageSize)} 
+          class="w-14 h-8 text-center rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] outline-none"
+          placeholder="1"
+        />
+        <span>页</span>
+        <button 
+          type="button" 
+          id="btn-jump-page" 
+          class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-[#597bea] hover:text-white text-slate-600 text-xs font-medium transition-colors cursor-pointer"
+        >
+          确定
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 客户端全量即时分页与异步筛选交互引擎 -->
+  <script is:inline define:vars={{ serverTotal: initialTotal, serverPageSize: pageSize }}>
+    (function () {
+      const state = {
+        channel: '',
+        genre: '',
+        area: '',
+        year: '',
+        sort: 'time',
+        page: 1,
+        pageSize: serverPageSize || 24,
+        total: serverTotal || 6686
+      };
+
+      const grid = document.getElementById('video-cards-grid');
+      const countEl = document.getElementById('filtered-count');
+      const countNumber = document.getElementById('count-number');
+      const noResults = document.getElementById('no-results-panel');
+      const resetBtn = document.getElementById('btn-reset-filters');
+      const emptyResetBtn = document.getElementById('btn-empty-reset');
+      const loadingOverlay = document.getElementById('grid-loading-overlay');
+      const paginationBtns = document.getElementById('pagination-buttons');
+      const curPageLabel = document.getElementById('current-page-label');
+      const totalPagesLabel = document.getElementById('total-pages-label');
+      const totalCountLabel = document.getElementById('total-count-label');
+      const jumpInput = document.getElementById('jump-page-input');
+      const jumpBtn = document.getElementById('btn-jump-page');
+
+      // 从当前 URL 参数初始化状态
+      const urlParams = new URLSearchParams(window.location.search);
+      let initChannel = urlParams.get('channel') || '';
+      const rawType = urlParams.get('type') || '';
+      if (rawType === '15' || rawType === '国产动漫') {
+        initChannel = '国产';
+      } else if (rawType === '16' || rawType === '日韩动漫') {
+        initChannel = '日韩';
+      } else if (rawType === '17' || rawType === '欧美动漫') {
+        initChannel = '欧美';
+      } else if (rawType === '4' || rawType === '0') {
+        initChannel = '';
+      } else if (rawType) {
+        initChannel = rawType;
+      }
+
+      state.channel = initChannel;
+      if (urlParams.get('genre')) state.genre = urlParams.get('genre');
+      if (urlParams.get('area')) state.area = urlParams.get('area');
+      if (urlParams.get('year')) state.year = urlParams.get('year');
+      if (urlParams.get('sort')) state.sort = urlParams.get('sort');
+      const urlPage = parseInt(urlParams.get('page') || '1', 10);
+      if (urlPage > 1) state.page = urlPage;
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, function (m) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+        });
+      }
+
+      function updateButtonsUI() {
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          const group = btn.getAttribute('data-filter-group');
+          const val = btn.getAttribute('data-val');
+          const isActive = state[group] === val || (!state[group] && val === '');
+          if (isActive) {
+            btn.className = 'filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer bg-[#597bea] text-white shadow-sm shadow-blue-500/20 active-filter';
+          } else {
+            btn.className = 'filter-btn px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer bg-slate-50 text-slate-600 hover:bg-slate-100';
+          }
+        });
+
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+          const val = btn.getAttribute('data-val');
+          const isActive = state.sort === val;
+          if (isActive) {
+            btn.className = 'sort-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer bg-white shadow-sm text-[#597bea] ring-1 ring-blue-200 active-sort';
+          } else {
+            btn.className = 'sort-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer text-slate-500 hover:text-slate-800';
+          }
+        });
+
+        const isFiltered = Boolean(state.channel || state.genre || state.area || state.year || state.sort !== 'time' || state.page > 1);
+        if (resetBtn) resetBtn.classList.toggle('hidden', !isFiltered);
+      }
+
+      function renderCards(list) {
+        if (!list || list.length === 0) {
+          grid.innerHTML = '';
+          noResults.classList.remove('hidden');
+          return;
+        }
+        noResults.classList.add('hidden');
+
+        grid.innerHTML = list.map(anime => {
+          const score = anime.score || ((90 + ((anime.id * 7 + (anime.hits || 0)) % 9)) / 10).toFixed(1);
+          return `
+            <a 
+              href="/play/${anime.id}"
+              class="anime-card group flex flex-col card-hover-effect"
+            >
+              <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
+                <img 
+                  src="${escapeHtml(anime.picture) || '/assets/hot_1_frieren.jpg'}" 
+                  alt="${escapeHtml(anime.name)}" 
+                  loading="lazy" 
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                  onerror="this.src='/assets/hot_1_frieren.jpg'" 
+                />
+                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                  ${escapeHtml(anime.remarks) || '全集'}
+                </span>
+              </div>
+              <div class="mt-2.5 px-0.5">
+                <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                  ${escapeHtml(anime.name)}
+                </h3>
+                <div class="flex items-center justify-between text-xs text-slate-400 mt-1">
+                  <span>${escapeHtml(anime.year) || '2024'}</span>
+                  <span class="text-[#f59e0b] font-bold">★ ${score}</span>
+                </div>
+              </div>
+            </a>
+          `;
+        }).join('');
+      }
+
+      function renderPagination() {
+        const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+        if (curPageLabel) curPageLabel.textContent = String(state.page);
+        if (totalPagesLabel) totalPagesLabel.textContent = String(totalPages);
+        if (totalCountLabel) totalCountLabel.textContent = Number(state.total).toLocaleString();
+        if (jumpInput) jumpInput.max = String(totalPages);
+
+        if (!paginationBtns) return;
+
+        const pages = [];
+        const cur = state.page;
+
+        if (totalPages <= 7) {
+          for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          if (cur > 4) pages.push('...');
+          const start = Math.max(2, cur - 2);
+          const end = Math.min(totalPages - 1, cur + 2);
+          for (let i = start; i <= end; i++) {
+            if (!pages.includes(i)) pages.push(i);
+          }
+          if (cur < totalPages - 3) pages.push('...');
+          pages.push(totalPages);
+        }
+
+        let html = '';
+
+        // 上一页
+        const prevDisabled = cur <= 1;
+        html += `
+          <button 
+            type="button" 
+            data-page="${cur - 1}" 
+            ${prevDisabled ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              prevDisabled 
+                ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-50' 
+                : 'text-slate-600 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-[#597bea] cursor-pointer shadow-sm'
+            }"
+          >
+            ‹ 上一页
+          </button>
+        `;
+
+        // 页码按钮
+        pages.forEach(p => {
+          if (p === '...') {
+            html += `<span class="px-2 py-1 text-slate-400 text-xs select-none">...</span>`;
+          } else {
+            const isCur = p === cur;
+            html += `
+              <button 
+                type="button" 
+                data-page="${p}" 
+                class="w-8 h-8 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isCur 
+                    ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/25 ring-2 ring-blue-500/20' 
+                    : 'bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50'
+                }"
+              >
+                ${p}
+              </button>
+            `;
+          }
+        });
+
+        // 下一页
+        const nextDisabled = cur >= totalPages;
+        html += `
+          <button 
+            type="button" 
+            data-page="${cur + 1}" 
+            ${nextDisabled ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              nextDisabled 
+                ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-50' 
+                : 'text-slate-600 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-[#597bea] cursor-pointer shadow-sm'
+            }"
+          >
+            下一页 ›
+          </button>
+        `;
+
+        paginationBtns.innerHTML = html;
+
+        // 重新绑定页码点击
+        paginationBtns.querySelectorAll('button[data-page]').forEach(b => {
+          b.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (b.disabled) return;
+            const target = parseInt(b.getAttribute('data-page') || '1', 10);
+            if (target >= 1 && target <= totalPages && target !== state.page) {
+              state.page = target;
+              fetchPageData(true);
+            }
+          });
+        });
+      }
+
+      function updateURL() {
+        const nextUrl = new URL(window.location.href);
+        if (state.channel) nextUrl.searchParams.set('channel', state.channel);
+        else nextUrl.searchParams.delete('channel');
+
+        if (state.genre) nextUrl.searchParams.set('genre', state.genre);
+        else nextUrl.searchParams.delete('genre');
+
+        if (state.area) nextUrl.searchParams.set('area', state.area);
+        else nextUrl.searchParams.delete('area');
+
+        if (state.year) nextUrl.searchParams.set('year', state.year);
+        else nextUrl.searchParams.delete('year');
+
+        if (state.sort && state.sort !== 'time') nextUrl.searchParams.set('sort', state.sort);
+        else nextUrl.searchParams.delete('sort');
+
+        if (state.page > 1) nextUrl.searchParams.set('page', String(state.page));
+        else nextUrl.searchParams.delete('page');
+
+        nextUrl.searchParams.delete('type');
+        window.history.replaceState({}, '', nextUrl.toString());
+      }
+
+      async function fetchPageData(scrollAfter = false) {
+        updateButtonsUI();
+
+        // 映射 channel 到后台支持的精准分类 ID
+        let typeId = 4; // 动漫总分类 (涵盖全部 6686 部)
+        let kw = '';
+
+        if (state.channel === '国产' || state.channel === '国产动漫') {
+          typeId = 15;
+        } else if (state.channel === '日韩' || state.channel === '日韩动漫') {
+          typeId = 16;
+        } else if (state.channel === '欧美' || state.channel === '欧美动漫') {
+          typeId = 17;
+        } else if (state.channel === '动态漫' || state.channel === '动态漫画') {
+          typeId = 4;
+          kw = '动态漫';
+        }
+
+        if (state.genre && state.genre !== '全部') {
+          kw = kw ? `${kw} ${state.genre}` : state.genre;
+        }
+
+        const q = new URLSearchParams({
+          page: String(state.page),
+          page_size: String(state.pageSize),
+          type_id: String(typeId)
+        });
+        if (kw) q.set('keyword', kw);
+        if (state.area && state.area !== '全部') q.set('area', state.area);
+        if (state.year && state.year !== '全部') q.set('year', state.year);
+        if (state.sort && state.sort !== 'time') q.set('sort', state.sort);
+
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+        try {
+          const res = await fetch(`/api/videos?${q.toString()}`);
+          if (!res.ok) throw new Error('Network error');
+          const json = await res.json();
+          if (json && (json.code === 1 || json.code === 200)) {
+            state.total = json.total || 0;
+            renderCards(json.data || []);
+            renderPagination();
+            if (countNumber) countNumber.textContent = Number(state.total).toLocaleString();
+            updateURL();
+
+            if (scrollAfter && grid) {
+              const top = grid.getBoundingClientRect().top + window.scrollY - 80;
+              window.scrollTo({ top, behavior: 'smooth' });
+            }
+          }
+        } catch (e) {
+          console.error('[Category Filter Fetch Error]', e);
+        } finally {
+          if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
+      }
+
+      // 绑定筛选条件按钮
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const group = btn.getAttribute('data-filter-group');
+          const val = btn.getAttribute('data-val');
+          state[group] = val;
+          state.page = 1; // 切换条件后重置到第1页
+          fetchPageData(true);
+        });
+      });
+
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          state.sort = btn.getAttribute('data-val');
+          state.page = 1;
+          fetchPageData(true);
+        });
+      });
+
+      // 绑定跳页
+      jumpBtn?.addEventListener('click', () => {
+        const val = parseInt(jumpInput?.value || '', 10);
+        const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+        if (val >= 1 && val <= totalPages) {
+          state.page = val;
+          fetchPageData(true);
+        }
+      });
+      jumpInput?.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+          jumpBtn?.click();
+        }
+      });
+
+      function resetAll() {
+        state.channel = '';
+        state.genre = '';
+        state.area = '';
+        state.year = '';
+        state.sort = 'time';
+        state.page = 1;
+        fetchPageData(true);
+      }
+
+      resetBtn?.addEventListener('click', resetAll);
+      emptyResetBtn?.addEventListener('click', resetAll);
+
+      // 初次加载渲染分页控件与高亮状态 (若带 url 参数则自动拉取)
+      updateButtonsUI();
+      renderPagination();
+      if (urlPage > 1 || initChannel || state.genre || state.area || state.year) {
+        fetchPageData(false);
+      }
+    })();
+  </script>
+</Layout>
