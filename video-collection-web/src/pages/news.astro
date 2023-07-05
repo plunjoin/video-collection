@@ -1,0 +1,21 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const newsItems = [
+  { id: 1, title: '《葬送的芙莉莲》第二季官方确认制作决定！特报PV与贺图公开', date: '2024-09-28', tag: '重大重磅', img: '/assets/detail_hero_banner.jpg' },
+  { id: 2, title: '《迷宫饭》第二期制作进行中，最新原画展于东京开幕', date: '2024-09-26', tag: '制作快讯', img: '/assets/hot_2_dungeon.jpg' },
+  { id: 3, title: '2024年10月秋季新番导视全览，数十部热门续作集结', date: '2024-09-25', tag: '新番前瞻', img: '/assets/rec_1_summer.jpg' },
+];
+---
+
+
+<Layout title="动漫资讯 — bllii" activeNav="资讯">
+  <div class="page-content">
+    <div class="page-toolbar"><span class="page-pill" aria-pressed="true">编辑精选</span><span class="text-xs text-slate-400">资讯栏目预览</span></div>
+    <div class="editorial-grid">{newsItems.map(news => <article class="editorial-card">
+      <img src={news.img} alt="" loading="lazy" />
+      <div><span class="editorial-label">{news.tag}</span><time>{news.date}</time><h2>{news.title}</h2><p>历史精选内容 · 完整报道待更新</p></div>
+    </article>)}</div>
+    <p class="editorial-note">新鲜情报正在整理中。在此之前，去发现一部新的心头好吧。 <a href="/category" class="text-primary-600">发现番剧 →</a></p>
+  </div>
+</Layout>
