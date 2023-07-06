@@ -46,10 +46,6 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
         <span id="breadcrumb-ep" class="text-primary-600 font-semibold">第01话</span>
       </div>
       <div class="flex items-center gap-3 text-xs">
-        <span class="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span data-enhance-status>画质增强</span>
-        </span>
         <a href="#section-archive" class="text-slate-500 hover:text-primary-600 transition-colors flex items-center gap-1">
           <span>作品档案与评分</span>
           <BrandIcon name="chevron-down" size={16} class="w-3.5 h-3.5" />
@@ -89,6 +85,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 
           <!-- 交互操作按钮 -->
           <div class="flex items-center gap-2 shrink-0 flex-wrap">
+            <button class="icon-command" data-pocket-id={video.id} data-pocket-name={video.name} data-pocket-picture={video.picture} aria-pressed="false" aria-label="放进故事口袋" title="放进故事口袋"><BrandIcon name="bookmark" size={18} /></button>
             <button 
               id="btn-prev-ep"
               class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -283,7 +280,6 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
       // 实例化现代化播放器内核
       const modernPlayer = new window.ModernVideoPlayer('vplayer-element', {
         autoplay: true,
-        enhanceDefault: true,
         autoplayNextDefault: true,
         nextCountdownSec: 3,
         initialTime: savedTime,
@@ -377,10 +373,8 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
       // 载入视频全量播放线路与选集数据并起播精准集数
       modernPlayer.loadVideoData(videoData, initialRouteIndex, initialEpIndex, savedTime);
 
-      const enhanceStatus = document.querySelector('[data-enhance-status]');
       const autoplayStatus = document.querySelector('[data-autoplay-status]');
       const syncStatus = () => {
-        if (enhanceStatus) enhanceStatus.textContent = modernPlayer.isEnhanced ? '画质增强已开启' : '原始画质';
         if (autoplayStatus) autoplayStatus.textContent = modernPlayer.isAutoplayNext ? '自动连播已开启' : '自动连播已关闭';
       };
       syncStatus();
