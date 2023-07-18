@@ -173,4 +173,6 @@ func TestPostgresContentStore(t *testing.T) {
 	if err = s.DeleteContent(ctx, "post", post.ID, 1, false); err != nil {
 		t.Fatal(err)
 	}
+	exerciseGenericCommentStorage(t, s)
+	exerciseCommentMigration(t, s, true)
 }
