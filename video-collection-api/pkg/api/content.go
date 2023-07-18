@@ -182,6 +182,9 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodDelete {
+			if !staffPublicationDelete(w, u) {
+				return
+			}
 			id, ok := contentID(w, r.URL.Query().Get("id"))
 			if !ok {
 				return
@@ -232,6 +235,9 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 				return
 			}
 		}
+		if srv.queuePublication(w, r, u, kind, c.ID, c) {
+			return
+		}
 		if err := srv.store.SaveContent(r.Context(), &c, u.ID, admin); err != nil {
 			contentError(w, err)
 			return
@@ -276,6 +282,9 @@ func (srv *Server) commentsHandler(admin bool) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodDelete {
+			if !staffPublicationDelete(w, u) {
+				return
+			}
 			id, ok := contentID(w, r.URL.Query().Get("id"))
 			if !ok {
 				return
@@ -302,6 +311,10 @@ func (srv *Server) commentsHandler(admin bool) http.HandlerFunc {
 		c := store.CommunityComment{PostID: req.PostID, UserID: u.ID, Content: req.Content, AuthorName: u.Nickname, AuthorAvatar: u.Avatar}
 		if c.AuthorName == "" {
 			c.AuthorName = u.Username
+		}
+		c.TargetType, c.TargetID = "post", c.PostID
+		if srv.queuePublication(w, r, u, "comment", 0, c) {
+			return
 		}
 		if err := srv.store.CreateComment(r.Context(), &c); err != nil {
 			contentError(w, err)
