@@ -1,0 +1,541 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import DetailTabs from '../../components/DetailTabs.astro';
+import Synopsis from '../../components/Synopsis.astro';
+import CharacterIntro from '../../components/CharacterIntro.astro';
+import RelatedAnime from '../../components/RelatedAnime.astro';
+import QuoteFooter from '../../components/QuoteFooter.astro';
+import { getVideoDetail } from '../../lib/api';
+
+const { id } = Astro.params;
+const { video, related } = await getVideoDetail(id || 1);
+const playGroups = video.play_groups || [];
+const currentGroup = playGroups[0] || { server: '线路1-极速蓝光', episodes: [] };
+const episodes = currentGroup.episodes || [];
+
+const score = video.score || 9.8;
+const ratingCount = video.rating_count || '245.6万人评分';
+const posterImg = video.picture || '/assets/detail_frieren_poster.jpg';
+const tags = video.tags && video.tags.length > 0 ? video.tags : [video.type_name || '番剧', '高评分', '超清'];
+const metaStr = `${video.year || '2024年'} | ${video.remarks || '全集'} | ${video.area || '动漫'} / ${video.language || '国语'}`;
+---
+
+<Layout title={`正在播放：${video.name} - bllii 极光超清播放`} activeNav="番剧">
+  <!-- 引入 Video.js 样式与核心脚本 -->
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+  <script is:inline src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+  <script is:inline src="/players/videojs/modern-player.js"></script>
+
+  <div class="max-w-[1360px] mx-auto px-4 sm:px-6 pt-4 pb-12">
+    <!-- 面包屑导航与当前播放标题 -->
+    <div class="flex items-center justify-between text-xs sm:text-sm text-slate-500 mb-3 flex-wrap gap-2">
+      <div class="flex items-center gap-1.5">
+        <a href="/" class="hover:text-primary-600 transition-colors">首页</a>
+        <span>/</span>
+        <a href="/category" class="hover:text-primary-600 transition-colors">{video.type_name || '番剧'}</a>
+        <span>/</span>
+        <span class="font-medium text-slate-800">{video.name}</span>
+        <span>/</span>
+        <span id="breadcrumb-ep" class="text-primary-600 font-semibold">第01话</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          极光增强引擎生效中
+        </span>
+        <a href="#section-archive" class="text-slate-500 hover:text-primary-600 transition-colors flex items-center gap-1">
+          <span>作品档案与评分</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- 首屏核心播放大厅：左侧 16:9 播放器 + 右侧线路选集与评分 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- 左侧：现代化极光播放器容器 (16:9) + 控制条 -->
+      <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
+        <div class="relative w-full aspect-[16/9] bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-900/10">
+          <video-js
+            id="vplayer-element"
+            class="video-js vjs-big-play-centered vjs-fill"
+          ></video-js>
+        </div>
+
+        <!-- 播放器下方：影片核心信息与操作条 -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 id="player-view-title" class="text-xl sm:text-2xl font-bold text-slate-800">
+                {video.name}
+              </h1>
+              <span id="player-view-ep" class="text-base sm:text-lg font-semibold text-primary-600">
+                第01话
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+              <span>{video.year || '2024'}</span>
+              <span>•</span>
+              <span>{video.area || '日本'}</span>
+              <span>•</span>
+              <span class="text-amber-500 font-semibold">★ {score}分</span>
+              <span>•</span>
+              <span>{video.remarks || '全集'}</span>
+              <span>•</span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-600">
+                {video.type_name || '番剧'}
+              </span>
+            </p>
+          </div>
+
+          <!-- 交互操作按钮 -->
+          <div class="flex items-center gap-2 shrink-0 flex-wrap">
+            <button 
+              id="btn-prev-ep"
+              class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="上一集 (快捷键: [ )"
+            >
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+              <span>上一集</span>
+            </button>
+            <button 
+              id="btn-next-ep"
+              class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="下一集 (快捷键: ] )"
+            >
+              <span>下一集</span>
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+            <button 
+              id="btn-follow"
+              data-id={video.id}
+              data-name={video.name}
+              data-pic={video.picture}
+              class="px-3.5 py-2 rounded-xl bg-primary-50 hover:bg-primary-100 text-primary-600 text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <svg id="btn-follow-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span id="btn-follow-text">+ 追番</span>
+            </button>
+            <a 
+              href="#section-archive"
+              class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-colors flex items-center gap-1"
+            >
+              <span>作品百科</span>
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：线路与选集控制面板 + 评分展台 -->
+      <div class="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
+        <!-- 线路选择 -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/80">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+            播放节点切换
+          </h3>
+          <div class="flex items-center gap-2 flex-wrap" id="route-buttons-container">
+            {playGroups.map((pg, rIdx) => {
+              let routeLabel = pg.source_name ? `${pg.source_name}` : (pg.server && pg.server !== 'no' ? pg.server : `节点 ${rIdx + 1}`);
+              const hasDuplicate = playGroups.filter(p => (p.source_name || p.server) === (pg.source_name || pg.server)).length > 1;
+              if (hasDuplicate && pg.player_code) {
+                routeLabel = `${routeLabel} (${pg.player_code})`;
+              }
+              return (
+                <button
+                  data-route={rIdx}
+                  class={`route-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    rIdx === 0
+                      ? 'bg-primary-600 text-white shadow-sm shadow-primary-500/30'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {routeLabel}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <!-- 选集列表 -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/80 flex-1 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-800">
+              选集列表 <span class="text-xs font-normal text-slate-400">({episodes.length}话)</span>
+            </h3>
+            <span class="text-xs text-primary-600 font-medium">自动连播已开启</span>
+          </div>
+
+          <!-- 集数方块网格 -->
+          <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 gap-2 overflow-y-auto max-h-[300px] p-1 no-scrollbar" id="episodes-container">
+            {episodes.map((ep, eIdx) => {
+              const epNum = String(eIdx + 1).padStart(2, '0');
+              const isFirst = eIdx === 0;
+              return (
+                <button
+                  data-ep={eIdx}
+                  class={`play-ep-btn h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                    isFirst
+                      ? 'bg-primary-600 text-white shadow-sm shadow-primary-500/30'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-primary-600'
+                  }`}
+                  title={ep.name}
+                >
+                  {epNum}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <!-- 侧边栏：作品评分展台 (还原 bllii 高质感评分分布) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/80 text-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">站内综合评分</span>
+            <span class="text-[11px] text-slate-400">{ratingCount}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+              {score}
+            </span>
+            <div>
+              <div class="flex items-center text-[#f59e0b]">
+                {Array.from({ length: 5 }).map(() => (
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                ))}
+              </div>
+              <p class="text-[10px] text-emerald-600 font-medium mt-0.5">超过 98% 的同题材动画</p>
+            </div>
+          </div>
+
+          <div class="mt-3 space-y-1.5 text-[10px] text-slate-500 font-medium">
+            <div class="flex items-center gap-2">
+              <span class="w-5 shrink-0 text-slate-400 text-right">5星</span>
+              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 78%;"></div>
+              </div>
+              <span class="w-6 shrink-0 text-right text-slate-400">78%</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-5 shrink-0 text-slate-400 text-right">4星</span>
+              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 18%;"></div>
+              </div>
+              <span class="w-6 shrink-0 text-right text-slate-400">18%</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-5 shrink-0 text-slate-400 text-right">3星</span>
+              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 3%;"></div>
+              </div>
+              <span class="w-6 shrink-0 text-right text-slate-400">3%</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-5 shrink-0 text-slate-400 text-right">2星</span>
+              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 1%;"></div>
+              </div>
+              <span class="w-6 shrink-0 text-right text-slate-400">1%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下半部分：作品全景百科与深度扩展展台 -->
+    <div id="section-archive" class="mt-12 pt-6 border-t border-slate-100 scroll-mt-20">
+      <!-- 二级导航 Tab -->
+      <DetailTabs activeTab="详情" />
+
+      <!-- 深度档案卡片：封面立绘 + 完整剧情简介 + 元数据 -->
+      <div id="tab-详情" class="mt-6 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100/80 flex flex-col md:flex-row items-start gap-6 sm:gap-8">
+        <div class="w-36 sm:w-44 shrink-0 aspect-[3/4.2] rounded-2xl overflow-hidden shadow-xl ring-2 ring-slate-100 bg-slate-100">
+          <img
+            src={posterImg}
+            alt={video.name}
+            class="w-full h-full object-cover"
+          />
+        </div>
+
+        <div class="flex-1 space-y-3.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            {tags.map((t, idx) => (
+              <span class={`px-2.5 py-0.5 rounded-full text-xs font-medium ${idx === 0 ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {t}
+              </span>
+            ))}
+          </div>
+
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">
+              {video.name}
+            </h2>
+            {video.sub_name && (
+              <p class="text-xs text-slate-400 mt-0.5">{video.sub_name}</p>
+            )}
+          </div>
+
+          <p class="text-xs sm:text-sm text-slate-500 font-medium">
+            {metaStr}
+          </p>
+
+          <!-- 剧情简介 (可展开收起) -->
+          <Synopsis content={video.content} />
+        </div>
+      </div>
+
+      <!-- 角色介绍 -->
+      <CharacterIntro />
+
+      <!-- 相关推荐 (同系列/同题材智能推荐) -->
+      <RelatedAnime items={related} currentVideo={video} />
+
+      <!-- 经典名台词底栏 -->
+      <QuoteFooter source={video.name} />
+    </div>
+  </div>
+
+  <!-- 客户端播放器实例化脚本 -->
+  <script is:inline define:vars={{ videoData: video }}>
+    window.addEventListener('DOMContentLoaded', () => {
+      // 提取 URL 中的 query 传参 (如 ?ep=23) 与 本地历史记录
+      const urlParams = new URLSearchParams(window.location.search);
+      const historyKey = `vplayer_history_${videoData.id}`;
+      const savedHistory = JSON.parse(localStorage.getItem(historyKey) || '{}');
+
+      // 智能决策播放集数：
+      // 1. 若 URL 中指定了 ?ep=xx，优先采用 URL 的集数
+      // 2. 若 URL 未传，但本地记录了上次观看的 episodeIndex，自动续播该集数
+      // 3. 兜底从第 0 集 (第 1 话) 开始
+      let initialEpIndex = 0;
+      if (urlParams.has('ep')) {
+        initialEpIndex = parseInt(urlParams.get('ep') || '0', 10);
+      } else if (typeof savedHistory.episodeIndex === 'number' && savedHistory.episodeIndex >= 0) {
+        initialEpIndex = savedHistory.episodeIndex;
+      }
+
+      let initialRouteIndex = 0;
+      if (urlParams.has('route')) {
+        initialRouteIndex = parseInt(urlParams.get('route') || '0', 10);
+      } else if (typeof savedHistory.routeIndex === 'number') {
+        initialRouteIndex = savedHistory.routeIndex;
+      }
+      const savedTime = (savedHistory.episodeIndex === initialEpIndex && savedHistory.currentTime) ? savedHistory.currentTime : 0;
+
+      // 实例化现代化播放器内核
+      const modernPlayer = new window.ModernVideoPlayer('vplayer-element', {
+        autoplay: true,
+        enhanceDefault: true,
+        autoplayNextDefault: true,
+        nextCountdownSec: 3,
+        initialTime: savedTime,
+        onEpisodeChange: (rIdx, epIdx, ep) => {
+          // 同步标题与界面集数指示
+          const epNum = String(epIdx + 1).padStart(2, '0');
+          const epLabel = ep?.name || `第${epNum}话`;
+          const breadcrumb = document.getElementById('breadcrumb-ep');
+          const viewEp = document.getElementById('player-view-ep');
+          if (breadcrumb) breadcrumb.textContent = epLabel;
+          if (viewEp) viewEp.textContent = epLabel;
+
+          // 更新右侧选集按钮高亮
+          const epBtns = document.querySelectorAll('.play-ep-btn');
+          epBtns.forEach(btn => {
+            const bIdx = parseInt(btn.getAttribute('data-ep'));
+            if (bIdx === epIdx) {
+              btn.classList.add('bg-primary-600', 'text-white', 'shadow-sm', 'shadow-primary-500/30');
+              btn.classList.remove('bg-slate-100', 'text-slate-700');
+            } else {
+              btn.classList.remove('bg-primary-600', 'text-white', 'shadow-sm', 'shadow-primary-500/30');
+              btn.classList.add('bg-slate-100', 'text-slate-700');
+            }
+          });
+
+          // 更新上一集 / 下一集按钮状态
+          const prevEpBtn = document.getElementById('btn-prev-ep');
+          const nextEpBtn = document.getElementById('btn-next-ep');
+          if (prevEpBtn) {
+            prevEpBtn.disabled = epIdx <= 0;
+          }
+          if (nextEpBtn) {
+            const totalEps = (modernPlayer && modernPlayer.episodes && modernPlayer.episodes.length) || 0;
+            nextEpBtn.disabled = totalEps > 0 ? epIdx >= totalEps - 1 : false;
+          }
+
+          // 同步更新 URL 参数不刷新页面
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('ep', epIdx);
+          window.history.replaceState({}, '', newUrl.toString());
+
+          // 保存完整集数索引至本地持久化存储
+          const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '{}');
+          localStorage.setItem(historyKey, JSON.stringify({
+            ...existingHistory,
+            routeIndex: rIdx,
+            episodeIndex: epIdx,
+            episodeName: ep ? ep.name : `第${epIdx + 1}话`,
+            currentTime: 0,
+            updatedAt: Date.now()
+          }));
+
+          // 若已登录，实时同步至云端历史接口
+          const token = localStorage.getItem('Bllii_token');
+          if (token) {
+            fetch('/api/user/history', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                video_id: videoData.id,
+                video_name: videoData.name,
+                picture: videoData.picture,
+                episode_name: ep ? ep.name : `第${epIdx + 1}话`,
+                route_index: rIdx,
+                episode_index: epIdx,
+                current_time: 0,
+                duration: 0,
+                progress: 0
+              })
+            }).catch(() => {});
+          }
+        },
+        onTimeUpdate: (cur, dur, pct) => {
+          const existing = JSON.parse(localStorage.getItem(historyKey) || '{}');
+          localStorage.setItem(historyKey, JSON.stringify({
+            ...existing,
+            routeIndex: modernPlayer.currentRouteIndex,
+            episodeIndex: modernPlayer.currentEpisodeIndex,
+            currentTime: cur,
+            duration: dur,
+            progress: pct,
+            updatedAt: Date.now()
+          }));
+        }
+      });
+
+      // 载入视频全量播放线路与选集数据并起播精准集数
+      modernPlayer.loadVideoData(videoData, initialRouteIndex, initialEpIndex, savedTime);
+
+      // 绑定上一集与下一集快捷按钮点击事件
+      const prevEpBtn = document.getElementById('btn-prev-ep');
+      if (prevEpBtn) {
+        prevEpBtn.addEventListener('click', () => {
+          modernPlayer.playPrevEpisode();
+        });
+      }
+
+      const nextEpBtn = document.getElementById('btn-next-ep');
+      if (nextEpBtn) {
+        nextEpBtn.addEventListener('click', () => {
+          modernPlayer.playNextEpisode();
+        });
+      }
+
+      // 绑定右侧侧边栏集数按钮点击事件
+      const epBtns = document.querySelectorAll('.play-ep-btn');
+      epBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const epIdx = parseInt(btn.getAttribute('data-ep'));
+          modernPlayer.playEpisode(modernPlayer.currentRouteIndex, epIdx);
+        });
+      });
+
+      // 绑定右侧线路切换按钮
+      const routeBtns = document.querySelectorAll('.route-tab-btn');
+      routeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const rIdx = parseInt(btn.getAttribute('data-route'));
+          routeBtns.forEach(b => {
+            b.classList.remove('bg-primary-600', 'text-white', 'shadow-sm', 'shadow-primary-500/30');
+            b.classList.add('bg-slate-100', 'text-slate-600');
+          });
+          btn.classList.add('bg-primary-600', 'text-white', 'shadow-sm', 'shadow-primary-500/30');
+          btn.classList.remove('bg-slate-100', 'text-slate-600');
+          modernPlayer.switchRoute(rIdx);
+        });
+      });
+    });
+  </script>
+
+  <!-- 追番与用户收藏交互 -->
+  <script>
+    import { getUser, addFavorite, getFavorites, removeFavorite } from '../../lib/auth';
+
+    const btnFollow = document.getElementById('btn-follow');
+    const btnFollowText = document.getElementById('btn-follow-text');
+    const btnFollowIcon = document.getElementById('btn-follow-icon');
+
+    async function initFollow() {
+      const user = getUser();
+      if (!user || !btnFollow) return;
+
+      const vid = parseInt(btnFollow.getAttribute('data-id') || '0', 10);
+      if (!vid) return;
+
+      const favs = await getFavorites();
+      const isFav = favs.some(f => f.video_id === vid);
+
+      if (isFav) {
+        updateFollowBtnState(true);
+      }
+    }
+
+    function updateFollowBtnState(isFav: boolean) {
+      if (!btnFollow || !btnFollowText || !btnFollowIcon) return;
+      if (isFav) {
+        btnFollowText.textContent = '已追番';
+        btnFollow.classList.remove('bg-primary-50', 'text-primary-600', 'hover:bg-primary-100');
+        btnFollow.classList.add('bg-emerald-50', 'text-emerald-600', 'hover:bg-emerald-100');
+        btnFollowIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />';
+      } else {
+        btnFollowText.textContent = '+ 追番';
+        btnFollow.classList.remove('bg-emerald-50', 'text-emerald-600', 'hover:bg-emerald-100');
+        btnFollow.classList.add('bg-primary-50', 'text-primary-600', 'hover:bg-primary-100');
+        btnFollowIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />';
+      }
+    }
+
+    btnFollow?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const user = getUser();
+      const vid = parseInt(btnFollow.getAttribute('data-id') || '0', 10);
+      const name = btnFollow.getAttribute('data-name') || '';
+      const pic = btnFollow.getAttribute('data-pic') || '';
+
+      if (!user) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        return;
+      }
+
+      if (!vid) return;
+
+      const favs = await getFavorites();
+      const existing = favs.find(f => f.video_id === vid);
+
+      if (existing) {
+        await removeFavorite(vid);
+        updateFollowBtnState(false);
+      } else {
+        await addFavorite({ id: vid, name, picture: pic });
+        updateFollowBtnState(true);
+      }
+    });
+
+    initFollow();
+  </script>
+</Layout>
