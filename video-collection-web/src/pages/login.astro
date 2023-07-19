@@ -1,0 +1,272 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="用户登录 / 注册 - bllii" activeNav="追番">
+  <div class="account-layout">
+    <aside class="account-story"><img src="/brand/bllii-symbol.svg" alt="" /><h1>更多的故事里，<br />遇见更好的你。</h1><p>MORE STORIES, TOGETHER</p></aside>
+    <div class="account-card relative overflow-hidden">
+      
+      <!-- 顶部 Logo 标识 -->
+      <div class="text-center mb-6">
+        <a href="/" class="inline-flex mb-3"><img src="/brand/bllii-horizontal.svg" alt="bllii" width="170" height="66" /></a>
+        <p class="text-xs text-slate-400">在更多的故事里，遇见更好的你 · 账户中心</p>
+      </div>
+
+      <!-- 模式切换 Tab (登录 / 注册) -->
+      <div class="flex items-center bg-slate-100/80 p-1 rounded-2xl mb-6">
+        <button
+          type="button"
+          id="tab-login"
+          class="flex-1 py-2 text-xs font-bold rounded-xl transition-all bg-white text-[#597bea] shadow-sm cursor-pointer"
+        >
+          账号登录
+        </button>
+        <button
+          type="button"
+          id="tab-register"
+          class="flex-1 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer"
+        >
+          免费注册
+        </button>
+      </div>
+
+      <!-- 提示反馈区域 -->
+      <div id="auth-alert" class="hidden mb-4 p-3 rounded-xl text-xs font-medium border transition-all"></div>
+
+      <!-- 1. 登录表单 -->
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">用户名 / 账号</label>
+          <div class="relative">
+            <input
+              type="text"
+              name="username"
+              id="login-username"
+              placeholder="请输入用户名 (如 admin)"
+              required
+              class="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+            />
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">登录密码</label>
+          <div class="relative">
+            <input
+              type="password"
+              name="password"
+              id="login-password"
+              placeholder="请输入密码 (如 admin123)"
+              required
+              class="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+            />
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快速测试填充按钮 -->
+        <div class="flex items-center justify-between text-xs pt-1">
+          <span class="text-slate-400">快捷填充测试账号：</span>
+          <button
+            type="button"
+            id="btn-fill-admin"
+            class="text-[#597bea] hover:underline font-semibold cursor-pointer"
+          >
+            admin / admin123
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          id="btn-login-submit"
+          class="w-full h-11 rounded-xl bg-[#597bea] hover:bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+        >
+          <span>立即登录</span>
+        </button>
+      </form>
+
+      <!-- 2. 注册表单 (默认隐藏) -->
+      <form id="form-register" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">用户名 / 账号</label>
+          <input
+            type="text"
+            name="reg-username"
+            id="reg-username"
+            placeholder="3-20 位字母或数字"
+            required
+            class="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">个性昵称</label>
+          <input
+            type="text"
+            name="reg-nickname"
+            id="reg-nickname"
+            placeholder="将在追番社区与个人页展示"
+            class="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">设置密码</label>
+          <input
+            type="password"
+            name="reg-password"
+            id="reg-password"
+            placeholder="不少于 6 位密码"
+            required
+            class="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+          />
+        </div>
+
+        <button
+          type="submit"
+          id="btn-register-submit"
+          class="w-full h-11 rounded-xl bg-[#597bea] hover:bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+        >
+          <span>创建并登录账号</span>
+        </button>
+      </form>
+
+      <!-- 底部版权声明 -->
+      <div class="mt-6 pt-5 border-t border-slate-100 text-center text-[11px] text-slate-400">
+        登录即代表您同意 bllii 
+        <a href="#" class="text-[#597bea] hover:underline">用户使用协议</a> 与 
+        <a href="#" class="text-[#597bea] hover:underline">隐私保护规范</a>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    import { login, register } from '../lib/auth';
+
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const formLogin = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+    const alertBox = document.getElementById('auth-alert');
+    const btnFillAdmin = document.getElementById('btn-fill-admin');
+
+    function showAlert(msg: string, isError = true) {
+      if (!alertBox) return;
+      alertBox.textContent = msg;
+      alertBox.className = isError
+        ? 'mb-4 p-3 rounded-xl text-xs font-medium border bg-rose-50 text-rose-600 border-rose-200'
+        : 'mb-4 p-3 rounded-xl text-xs font-medium border bg-emerald-50 text-emerald-600 border-emerald-200';
+      alertBox.classList.remove('hidden');
+    }
+
+    function hideAlert() {
+      alertBox?.classList.add('hidden');
+    }
+
+    tabLogin?.addEventListener('click', () => {
+      tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all bg-white text-[#597bea] shadow-sm cursor-pointer';
+      tabRegister!.className = 'flex-1 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer';
+      formLogin?.classList.remove('hidden');
+      formRegister?.classList.add('hidden');
+      hideAlert();
+    });
+
+    tabRegister?.addEventListener('click', () => {
+      tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all bg-white text-[#597bea] shadow-sm cursor-pointer';
+      tabLogin!.className = 'flex-1 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer';
+      formRegister?.classList.remove('hidden');
+      formLogin?.classList.add('hidden');
+      hideAlert();
+    });
+
+    btnFillAdmin?.addEventListener('click', () => {
+      const u = document.getElementById('login-username') as HTMLInputElement;
+      const p = document.getElementById('login-password') as HTMLInputElement;
+      if (u) u.value = 'admin';
+      if (p) p.value = 'admin123';
+      hideAlert();
+    });
+
+    formLogin?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+      const u = (document.getElementById('login-username') as HTMLInputElement)?.value.trim();
+      const p = (document.getElementById('login-password') as HTMLInputElement)?.value;
+      if (!u || !p) {
+        showAlert('请填写完整的用户名和密码');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-login-submit') as HTMLButtonElement;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = '正在验证登录...';
+      }
+
+      const res = await login(u, p);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = '立即登录';
+      }
+
+      if (res.code === 1) {
+        showAlert(`登录成功，欢迎回来 ${res.user?.nickname || res.user?.username}！`, false);
+        setTimeout(() => {
+          const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+          window.location.href = redirect;
+        }, 600);
+      } else {
+        showAlert(res.error || res.msg || '登录失败，请检查用户名或密码');
+      }
+    });
+
+    formRegister?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+      const u = (document.getElementById('reg-username') as HTMLInputElement)?.value.trim();
+      const nickname = (document.getElementById('reg-nickname') as HTMLInputElement)?.value.trim();
+      const p = (document.getElementById('reg-password') as HTMLInputElement)?.value;
+      if (!u || !p) {
+        showAlert('请填写用户名与密码');
+        return;
+      }
+      if (p.length < 6) {
+        showAlert('密码长度不能少于 6 位');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-register-submit') as HTMLButtonElement;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = '正在提交注册...';
+      }
+
+      const res = await register(u, p, nickname);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = '创建并登录账号';
+      }
+
+      if (res.code === 1) {
+        showAlert('注册成功！已为您自动登录', false);
+        setTimeout(() => {
+          const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+          window.location.href = redirect;
+        }, 600);
+      } else {
+        showAlert(res.error || res.msg || '注册失败，请更换用户名重试');
+      }
+    });
+  </script>
+</Layout>
