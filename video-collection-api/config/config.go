@@ -68,6 +68,7 @@ type CategoryMapping struct {
 
 // FilterRule 采集过滤与数据清洗规则
 type FilterRule struct {
+	Pipeline               *PipelineRule     `yaml:"pipeline,omitempty" json:"pipeline,omitempty"`
 	IgnoreNameKeywords     []string          `yaml:"ignore_name_keywords" json:"ignore_name_keywords"`         // 片名包含此关键字时直接忽略(如: 预告, 抢先版)
 	IgnoreTypeIDs          []int             `yaml:"ignore_type_ids" json:"ignore_type_ids"`                   // 忽略的采集源分类ID列表
 	AllowedPlayers         []string          `yaml:"allowed_players" json:"allowed_players"`                   // 仅允许的播放器标识(如: m3u8), 为空则保留全部
@@ -115,6 +116,11 @@ func LoadConfig(filePath string) (*AppConfig, error) {
 		s := &cfg.Sources[i]
 		if s.Type == "" {
 			s.Type = "json"
+		}
+		// Pipeline limits are explicit and validated by the engine; zero retries
+		// and zero delay are meaningful settings, not missing legacy defaults.
+		if s.Type == "pipeline" {
+			continue
 		}
 		if s.CollectHours <= 0 {
 			s.CollectHours = 24 // 默认24小时增量采集
