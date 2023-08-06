@@ -17,7 +17,7 @@
     <div class="right-panel">
       <!-- 前台门户链接 -->
       <el-tooltip content="在新窗口打开客户端影视门户" placement="bottom">
-        <el-link :underline="false" href="http://localhost:80/" target="_blank" class="nav-tool-btn portal-btn">
+        <el-link underline="never" :href="portalUrl" target="_blank" class="nav-tool-btn portal-btn">
           <el-icon :size="16"><Link /></el-icon>
           <span class="btn-text">客户端门户</span>
         </el-link>
@@ -25,7 +25,7 @@
 
       <!-- Swagger 文档 -->
       <el-tooltip content="查看 OpenAPI 3.0 交互式接口文档" placement="bottom">
-        <el-link :underline="false" href="http://localhost:80/docs" target="_blank" class="nav-tool-btn">
+        <el-link underline="never" href="/docs" target="_blank" class="nav-tool-btn">
           <el-icon :size="16"><Reading /></el-icon>
           <span class="btn-text">API文档</span>
         </el-link>
@@ -48,18 +48,19 @@
         </div>
       </el-tooltip>
 
+      <el-badge :value="unread" :hidden="!unread"><el-button text @click="router.push('/notifications')">消息</el-button></el-badge>
       <!-- 用户下拉 -->
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-profile">
           <el-avatar
             :size="32"
             class="user-avatar"
-            src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
+            :src="userStore.userInfo?.avatar"
           />
           <div class="user-meta">
             <span class="username">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '管理员' }}</span>
             <el-tag size="small" type="primary" effect="dark" class="role-tag">
-              {{ userStore.userInfo?.role === 'admin' ? '超管' : '用户' }}
+              {{ roleLabels[userStore.userInfo?.role || 'user'] }}
             </el-tag>
           </div>
           <el-icon class="arrow-icon"><CaretBottom /></el-icon>
@@ -83,7 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import request from '@/utils/request'
+import { roleLabels } from '@/utils/permissions'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/store/app'
 import { useUserStore } from '@/store/user'
@@ -106,6 +109,12 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
+const portalUrl = import.meta.env.VITE_PORTAL_URL || '/'
+const unread = ref(0)
+let inboxTimer: ReturnType<typeof setInterval>
+async function refreshInbox(){ try {const r:any = await request.get('/api/user/notifications/unread-count'); unread.value = r.data.unread_count} catch {} }
+onMounted(()=>{refreshInbox(); inboxTimer=setInterval(refreshInbox,30000); window.addEventListener('inbox-updated',refreshInbox)})
+onUnmounted(()=>{clearInterval(inboxTimer);window.removeEventListener('inbox-updated',refreshInbox)})
 
 const currentTitle = computed(() => {
   return (route.meta?.title as string) || ''
@@ -133,9 +142,9 @@ const handleCommand = async (command: string) => {
       router.push('/login')
     }).catch(() => {})
   } else if (command === 'profile') {
-    router.push('/users')
+    router.push('/notifications')
   } else if (command === 'docs') {
-    window.open('http://localhost:80/docs', '_blank')
+    window.open('/docs', '_blank')
   }
 }
 </script>
