@@ -44,18 +44,22 @@ type SourceConfig struct {
 
 // CustomMapping 自定义 JSON API 提取字段映射
 type CustomMapping struct {
-	ListPath     string `yaml:"list_path" json:"list_path"`         // 列表对象路径 (如 "data", "items", "results")
-	IDPath       string `yaml:"id_path" json:"id_path"`             // 唯一ID字段名
-	NamePath     string `yaml:"name_path" json:"name_path"`         // 片名字段名 (如 "title", "name")
-	TypePath     string `yaml:"type_path" json:"type_path"`         // 分类名字段名 (如 "category", "type")
-	PicPath      string `yaml:"pic_path" json:"pic_path"`           // 封面图字段名 (如 "cover", "pic")
-	PlayURLPath  string `yaml:"play_url_path" json:"play_url_path"` // 播放链接字段名 (如 "play_url", "m3u8")
-	RemarksPath  string `yaml:"remarks_path" json:"remarks_path"`   // 连载更新状态字段名 (如 "remarks", "note")
-	ActorPath    string `yaml:"actor_path" json:"actor_path"`       // 主演字段名
-	DirectorPath string `yaml:"director_path" json:"director_path"` // 导演字段名
-	AreaPath     string `yaml:"area_path" json:"area_path"`         // 地区字段名
-	YearPath     string `yaml:"year_path" json:"year_path"`         // 年份字段名
-	ContentPath  string `yaml:"content_path" json:"content_path"`   // 剧情简介字段名
+	PagePath      string `yaml:"page_path" json:"page_path"`
+	PageCountPath string `yaml:"page_count_path" json:"page_count_path"`
+	TotalPath     string `yaml:"total_path" json:"total_path"`
+	PlayFromPath  string `yaml:"play_from_path" json:"play_from_path"`
+	ListPath      string `yaml:"list_path" json:"list_path"`         // 列表对象路径 (如 "data", "items", "results")
+	IDPath        string `yaml:"id_path" json:"id_path"`             // 唯一ID字段名
+	NamePath      string `yaml:"name_path" json:"name_path"`         // 片名字段名 (如 "title", "name")
+	TypePath      string `yaml:"type_path" json:"type_path"`         // 分类名字段名 (如 "category", "type")
+	PicPath       string `yaml:"pic_path" json:"pic_path"`           // 封面图字段名 (如 "cover", "pic")
+	PlayURLPath   string `yaml:"play_url_path" json:"play_url_path"` // 播放链接字段名 (如 "play_url", "m3u8")
+	RemarksPath   string `yaml:"remarks_path" json:"remarks_path"`   // 连载更新状态字段名 (如 "remarks", "note")
+	ActorPath     string `yaml:"actor_path" json:"actor_path"`       // 主演字段名
+	DirectorPath  string `yaml:"director_path" json:"director_path"` // 导演字段名
+	AreaPath      string `yaml:"area_path" json:"area_path"`         // 地区字段名
+	YearPath      string `yaml:"year_path" json:"year_path"`         // 年份字段名
+	ContentPath   string `yaml:"content_path" json:"content_path"`   // 剧情简介字段名
 }
 
 // CategoryMapping 分类绑定映射 (将采集源分类映射为本地系统的分类)
@@ -68,6 +72,7 @@ type CategoryMapping struct {
 
 // FilterRule 采集过滤与数据清洗规则
 type FilterRule struct {
+	Collector              *CollectionRule   `yaml:"collector,omitempty" json:"collector,omitempty"`
 	Pipeline               *PipelineRule     `yaml:"pipeline,omitempty" json:"pipeline,omitempty"`
 	IgnoreNameKeywords     []string          `yaml:"ignore_name_keywords" json:"ignore_name_keywords"`         // 片名包含此关键字时直接忽略(如: 预告, 抢先版)
 	IgnoreTypeIDs          []int             `yaml:"ignore_type_ids" json:"ignore_type_ids"`                   // 忽略的采集源分类ID列表
@@ -103,6 +108,10 @@ func LoadConfig(filePath string) (*AppConfig, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal yaml failed: %w", err)
 	}
+	var presence struct {
+		Sources []map[string]any `yaml:"sources"`
+	}
+	_ = yaml.Unmarshal(data, &presence)
 
 	// 填补默认值
 	if cfg.Database.Driver == "" {
@@ -122,14 +131,12 @@ func LoadConfig(filePath string) (*AppConfig, error) {
 		if s.Type == "pipeline" {
 			continue
 		}
-		if s.CollectHours <= 0 {
+		_, hoursSet := presence.Sources[i]["collect_hours"]
+		if !hoursSet || s.CollectHours < 0 {
 			s.CollectHours = 24 // 默认24小时增量采集
 		}
 		if s.TimeoutSec <= 0 {
 			s.TimeoutSec = 15
-		}
-		if s.RetryCount <= 0 {
-			s.RetryCount = 3
 		}
 		if s.Concurrency <= 0 {
 			s.Concurrency = 3
