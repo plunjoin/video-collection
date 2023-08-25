@@ -7,6 +7,7 @@ import 'package:video_collection_app/models/video_model.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/theme/app_theme.dart';
 import 'package:video_collection_app/widgets/brand_widgets.dart';
+import 'package:video_collection_app/widgets/brand_controls.dart';
 import 'package:video_collection_app/widgets/episode_selector.dart';
 import 'package:video_collection_app/widgets/hero_banner.dart';
 import 'package:video_collection_app/widgets/search_bar_widget.dart';
@@ -26,7 +27,7 @@ void main() {
           theme: AppTheme.lightTheme,
           home: StatefulBuilder(
             builder: (context, setState) => Scaffold(
-              appBar: AppBar(
+              appBar: BrandAppBar(
                 title: Row(
                   children: [
                     const BrandLogo(width: 104),
@@ -141,6 +142,8 @@ void main() {
         child: const BlliiApp(),
       ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2500));
     await tester.pump();
     await tester.tap(find.text('我的').last);
     await tester.pump(const Duration(milliseconds: 300));
