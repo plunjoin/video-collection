@@ -22,7 +22,7 @@ import (
 
 func main() {
 	fmt.Println("==================================================================")
-	fmt.Println("   MacCMS v10 智能采集聚合平台 - RESTful 纯后端 API 服务 (Go版)   ")
+	fmt.Println("   Bllii 可配置采集聚合平台 - RESTful 纯后端 API 服务 (Go版)   ")
 	fmt.Println("==================================================================")
 
 	// 1. 加载 .env 与主配置文件（优先级：环境变量 > .env > YAML > 默认值）
@@ -57,6 +57,9 @@ func main() {
 	dsnSource := config.ApplyEnvOverrides(cfg)
 	fmt.Printf("[*] 数据库配置来源: %s\n", dsnSource)
 
+	if cfg.Database.Driver != "postgres" && cfg.Database.Driver != "sqlite" {
+		log.Fatalf("[FATAL] 不支持的数据库驱动: %s", cfg.Database.Driver)
+	}
 	// 2. 初始化持久化存储 (优先连接 PostgreSQL，失败则平滑降级至 SQLite 保证系统高可用)
 	var dbStore store.Store
 	if strings.ToLower(cfg.Database.Driver) == "postgres" {
@@ -66,6 +69,9 @@ func main() {
 			dbStore = pgStore
 			fmt.Println("[OK] PostgreSQL 数据库连接成功！已开启原生 JSONB 与高并发支持。")
 		} else {
+			if os.Getenv("DB_REQUIRE_PRIMARY") == "true" {
+				log.Fatalf("[FATAL] PostgreSQL 不可用，已禁止降级: %v", pgErr)
+			}
 			log.Printf("[WARN] 连接 PostgreSQL 失败 (%v)，正在平滑降级至本地 SQLite 模式...", pgErr)
 		}
 	}
@@ -99,6 +105,16 @@ func main() {
 
 	// 5. 构建 HTTP 路由中心
 	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if _, err := dbStore.GetSetting(ctx, "health_check", ""); err != nil {
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{\"status\":\"ok\"}"))
+	})
 
 	// (A) OpenAPI 3.0 & Swagger UI / Redoc 交互式接口文档中心
 	openapi.RegisterRoutes(mux)
