@@ -15,7 +15,6 @@ import (
 	"video-collection-api/config"
 	"video-collection-api/pkg/auth"
 	"video-collection-api/pkg/ingest"
-	"video-collection-api/pkg/m3u8cleaner"
 	"video-collection-api/pkg/maccms"
 	"video-collection-api/pkg/player"
 	"video-collection-api/pkg/scheduler"
@@ -28,17 +27,14 @@ type Server struct {
 	scheduler     *scheduler.Scheduler
 	themeManager  *theme.Manager
 	playerManager *player.Manager
-	m3u8Cleaner   *m3u8cleaner.Handler
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager) *Server {
-	cleanerHandler := m3u8cleaner.NewHandler(m3u8cleaner.DefaultOptions())
 	return &Server{
 		store:         s,
 		scheduler:     sc,
 		themeManager:  tm,
 		playerManager: pm,
-		m3u8Cleaner:   cleanerHandler,
 	}
 }
 
@@ -46,8 +42,6 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
 	// 公开接口
-	mux.Handle("/api/m3u8/clean", srv.m3u8Cleaner)
-	mux.Handle("/api/m3u8", srv.m3u8Cleaner)
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)
 	mux.HandleFunc("/api/logout", srv.handleLogout)
@@ -74,6 +68,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/admin/stats", adminAuth(srv.handleAdminStats))
 	mux.HandleFunc("/api/admin/sources", adminAuth(srv.handleAdminSources))
+	mux.HandleFunc("/api/admin/sources/templates", adminAuth(srv.handleCollectionTemplates))
 	mux.HandleFunc("/api/admin/sources/test", adminAuth(srv.handleTestRemoteSource))
 	mux.HandleFunc("/api/admin/sources/collect", adminAuth(srv.handleTriggerCollect))
 	mux.HandleFunc("/api/admin/sources/collect-all", adminAuth(srv.handleAdminCollectAll))
@@ -244,7 +239,7 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 			src.Enabled = true
 		}
 		if src.ID == "" {
-			src.ID = "src_" + strconv.FormatInt(time.Now().Unix(), 10)
+			src.ID = "src_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 		}
 		if src.Type == "pipeline" {
 			if err := ingest.Validate(src); err != nil {
@@ -262,8 +257,14 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 		if src.Type == "custom" {
 			src.Type = "custom_json"
 		}
-		if src.CollectHours <= 0 {
-			src.CollectHours = 24
+		if src.Type != "pipeline" {
+			if _, exists := rawMap["collect_hours"]; !exists {
+				src.CollectHours = 24
+			}
+			if err := config.ValidateCollectionSource(src); err != nil {
+				errorResponse(w, 400, err.Error())
+				return
+			}
 		}
 		if err := srv.store.SaveSource(ctx, src); err != nil {
 			errorResponse(w, http.StatusInternalServerError, err.Error())
@@ -298,7 +299,10 @@ func (srv *Server) handleTriggerCollect(w http.ResponseWriter, r *http.Request) 
 		SourceID string `json:"source_id"`
 		Hours    int    `json:"hours"` // 0 为全量，24 为过去24小时
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Hours < -1 {
+		errorResponse(w, http.StatusBadRequest, "采集参数无效，hours 须为 -1、0 或正整数")
+		return
+	}
 	if req.SourceID == "" {
 		errorResponse(w, http.StatusBadRequest, "缺少 source_id")
 		return
@@ -310,6 +314,9 @@ func (srv *Server) handleTriggerCollect(w http.ResponseWriter, r *http.Request) 
 	}
 
 	modeStr := "全量采集"
+	if req.Hours == -1 {
+		modeStr = "按源配置采集"
+	}
 	if req.Hours > 0 {
 		modeStr = strconv.Itoa(req.Hours) + "小时增量采集"
 	}
@@ -325,43 +332,35 @@ func (srv *Server) handleTestRemoteSource(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req struct {
-		API           string               `json:"api"`
-		Type          string               `json:"type"`
-		Headers       map[string]string    `json:"headers"`
-		CustomParams  map[string]string    `json:"custom_params"`
-		CustomMapping config.CustomMapping `json:"custom_mapping"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, http.StatusBadRequest, "参数解析错误: "+err.Error())
+	var src config.SourceConfig
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024*1024)).Decode(&src); err != nil {
+		errorResponse(w, 400, "参数解析错误")
 		return
 	}
-	if req.API == "" {
-		errorResponse(w, http.StatusBadRequest, "API 接口地址不能为空")
+	if src.Type == "" {
+		src.Type = "json"
+	}
+	if err := config.ValidateCollectionSource(src); err != nil {
+		errorResponse(w, 400, err.Error())
 		return
 	}
-	if req.Type == "" {
-		req.Type = "json"
+	if src.TimeoutSec <= 0 {
+		src.TimeoutSec = 12
 	}
-
-	client := maccms.NewClient(config.SourceConfig{
-		API:           req.API,
-		Type:          req.Type,
-		Headers:       req.Headers,
-		CustomParams:  req.CustomParams,
-		CustomMapping: req.CustomMapping,
-		TimeoutSec:    12,
-		RetryCount:    2,
-	})
+	client := maccms.NewClient(src)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
-	classes, _ := client.GetClassList(ctx)
+	var classes []maccms.ClassItem
+	rule, _ := config.ResolveCollectionRule(src)
+	if rule.Format == "maccms_json" || rule.Format == "maccms_xml" {
+		classes, _ = client.GetClassList(ctx)
+	}
 
 	// 同时尝试探测抓取第一页数据验证视频解析
 	cleaned, rawResp, err := client.CollectPage(ctx, maccms.QueryParams{Action: "detail", Page: 1, Hours: 24})
-	if err != nil && len(classes) == 0 {
+	if err != nil {
 		errorResponse(w, http.StatusBadRequest, "连接或探测失败: "+err.Error())
 		return
 	}
@@ -1290,7 +1289,10 @@ func (srv *Server) handleAdminCollectAll(w http.ResponseWriter, r *http.Request)
 	var req struct {
 		Hours int `json:"hours"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Hours < -1 {
+		errorResponse(w, 400, "采集参数无效")
+		return
+	}
 	if err := srv.scheduler.TriggerCollectAll(req.Hours); err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 		return
