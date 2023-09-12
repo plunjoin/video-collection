@@ -350,3 +350,176 @@ export async function getSiteConfig(): Promise<SiteConfig> {
   return DEFAULT_SITE_CONFIG;
 }
 
+// ==================== 资讯 & 社区接口 ====================
+
+export interface ContentItem {
+  id: number;
+  kind: string;
+  author_id: number;
+  author_name: string;
+  author_avatar: string;
+  title: string;
+  summary: string;
+  content: string;
+  cover: string;
+  category: string;
+  status: string;
+  pinned: boolean;
+  like_count: number;
+  comment_count: number;
+  liked: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentList {
+  code: number;
+  data: ContentItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CommunityCommentItem {
+  id: number;
+  target_type: string;
+  target_id: number;
+  post_id: number;
+  parent_id: number;
+  root_id: number;
+  user_id: number;
+  author_name: string;
+  author_avatar: string;
+  content: string;
+  is_deleted: boolean;
+  like_count: number;
+  reply_count: number;
+  liked: boolean;
+  created_at: string;
+}
+
+// 8. 获取资讯列表
+export async function getNewsList(params: { page?: number; pageSize?: number; keyword?: string; category?: string } = {}): Promise<ContentList> {
+  const { page = 1, pageSize = 12, keyword, category } = params;
+  const q = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (keyword) q.set('keyword', keyword);
+  if (category) q.set('category', category);
+  const res = await apiFetch<ContentList>(`/api/news?${q.toString()}`);
+  if (res && res.code === 1) return res;
+  return { code: 0, data: [], total: 0, page, page_size: pageSize };
+}
+
+// 9. 获取资讯详情
+export async function getNewsDetail(id: number): Promise<ContentItem | null> {
+  const res = await apiFetch<{ code: number; data: ContentItem }>(`/api/news?id=${id}`);
+  if (res && res.code === 1 && res.data) return res.data;
+  return null;
+}
+
+// 10. 获取社区帖子列表
+export async function getCommunityPosts(params: { page?: number; pageSize?: number; keyword?: string; category?: string } = {}): Promise<ContentList> {
+  const { page = 1, pageSize = 10, keyword, category } = params;
+  const q = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (keyword) q.set('keyword', keyword);
+  if (category) q.set('category', category);
+  const res = await apiFetch<ContentList>(`/api/community/posts?${q.toString()}`);
+  if (res && res.code === 1) return res;
+  return { code: 0, data: [], total: 0, page, page_size: pageSize };
+}
+
+// 11. 获取社区帖子详情
+export async function getCommunityPostDetail(id: number): Promise<ContentItem | null> {
+  const res = await apiFetch<{ code: number; data: ContentItem }>(`/api/community/posts?id=${id}`);
+  if (res && res.code === 1 && res.data) return res.data;
+  return null;
+}
+
+// 12. 获取社区帖子评论列表
+export async function getCommunityComments(postId: number, page = 1, pageSize = 20): Promise<{ data: CommunityCommentItem[]; total: number; page: number; page_size: number }> {
+  const q = new URLSearchParams({ target_type: 'post', target_id: String(postId), page: String(page), page_size: String(pageSize) });
+  const res = await apiFetch<{ code: number; data: CommunityCommentItem[]; total: number; page: number; page_size: number }>(`/api/comments?${q.toString()}`);
+  if (res && res.code === 1) return res;
+  return { data: [], total: 0, page, page_size: pageSize };
+}
+
+// --- 以下为需要登录鉴权的客户端操作 ---
+
+function authHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('Bllii_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+// 13. 发布社区帖子
+export async function createCommunityPost(data: { title: string; summary?: string; content: string; cover?: string; category?: string }): Promise<{ ok: boolean; msg: string; data?: ContentItem }> {
+  try {
+    const res = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/api/community/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ ...data, status: 'published' }),
+    });
+    const json = await res.json();
+    return { ok: json.code === 1, msg: json.msg || json.error || '发布失败', data: json.data };
+  } catch (e: any) {
+    return { ok: false, msg: e.message || '网络错误' };
+  }
+}
+
+// 14. 删除社区帖子
+export async function deleteCommunityPost(id: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/api/community/posts?id=${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const json = await res.json();
+    return json.code === 1;
+  } catch {
+    return false;
+  }
+}
+
+// 15. 发表社区评论
+export async function createCommunityComment(postId: number, content: string): Promise<{ ok: boolean; msg: string; data?: CommunityCommentItem }> {
+  try {
+    const res = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ target_type: 'post', target_id: postId, content }),
+    });
+    const json = await res.json();
+    return { ok: json.code === 1, msg: json.msg || json.error || '评论失败', data: json.data };
+  } catch (e: any) {
+    return { ok: false, msg: e.message || '网络错误' };
+  }
+}
+
+// 16. 删除社区评论
+export async function deleteCommunityComment(id: number): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/comments?id=${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const json = await res.json();
+    return json.code === 1;
+  } catch {
+    return false;
+  }
+}
+
+// 17. 点赞/取消点赞帖子
+export async function togglePostLike(postId: number, liked: boolean): Promise<{ ok: boolean; like_count?: number }> {
+  try {
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const res = liked
+      ? await fetch(`${base}/api/community/likes`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ post_id: postId }) })
+      : await fetch(`${base}/api/community/likes?post_id=${postId}`, { method: 'DELETE', headers: authHeaders() });
+    const json = await res.json();
+    if (json.code === 1 && json.data) return { ok: true, like_count: json.data.like_count };
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
