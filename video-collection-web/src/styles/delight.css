@@ -44,13 +44,6 @@
 .story-tool { position: relative; display: grid; place-items: center; width: 40px; height: 40px; background: #ffffffed; border: 1px solid #dce8f8; border-radius: 6px; color: #438ff0; box-shadow: 0 2px 12px #353b580a; }
 .story-tool:hover { background: #eaf4ff; }
 .story-tool > span { position: absolute; right: -4px; top: -5px; display: grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; background: #ff89c7; color: #fff; border-radius: 4px; font-size: 9px; font-variant-numeric: tabular-nums; }
-.pocket-dialog { position: fixed; inset: 0; margin: auto; width: 560px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 48px); overflow: auto; border: 1px solid #dce8f8; border-radius: 8px; background: #fff; color: #353b58; box-shadow: 0 20px 80px #353b5830; padding: 0; }
-.pocket-dialog::backdrop { background: #15191e45; }
-.pocket-dialog[open] { animation: pocketDevelop .25s ease-out; }
-@keyframes pocketDevelop { from { opacity: 0; clip-path: inset(5% 0 5% 0); } to { opacity: 1; clip-path: inset(0); } }
-.pocket-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 22px; border-bottom: 1px solid #e6edf5; }
-.pocket-dialog h2 { font-size: 20px; font-weight: 700; margin-top: 4px; }
-.pocket-dialog h2 small { margin-left: 8px; font-size: 12px; color: #8da1bc; font-weight: 400; }
 .pocket-list { padding-inline: 22px; }
 .pocket-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #edf2f8; }
 .pocket-row img { width: 68px; height: 48px; object-fit: cover; border-radius: 4px; }
@@ -60,8 +53,7 @@
 .pocket-empty img { display: block; width: 72px; height: 72px; margin: 0 auto 16px; }
 .pocket-empty h3 { font-size: 16px; margin-bottom: 16px; }
 .pocket-empty a { display: inline-flex; gap: 8px; align-items: center; font-size: 12px; color: #438ff0; }
-.pocket-dialog > footer { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: #8a98ab; padding: 16px 22px; background: #f8fbff; }
-.story-notice { position: fixed; top: 88px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: #fff; color: #527194; border: 1px solid #cfe1f7; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 90; box-shadow: 0 6px 25px #353b5814; animation: pocketDevelop .2s ease-out; }
+.story-notice { position: fixed; top: 88px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: #fff; color: #527194; border: 1px solid #cfe1f7; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 90; box-shadow: 0 6px 25px #353b5814; animation: dialogAppear .2s ease-out; }
 .brand-chips button[aria-pressed="true"] { animation: chipInk .3s ease-out; }
 @keyframes chipInk { from { box-shadow: inset 0 -2px #ff89c700; } to { box-shadow: inset 0 -2px #ff89c760; } }
 @media (hover: none) { .video-card__pocket { opacity: 1; } }
@@ -71,7 +63,7 @@
   .pocket-row img { width: 48px; height: 44px; }.pocket-row__title { font-size: 12px; }
   .video-card__pocket { width: 25px; height: 25px; }
 }
-@media (prefers-reduced-motion: reduce) { .pocket-dialog[open], .story-notice, .brand-chips button[aria-pressed="true"] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .story-notice, .brand-chips button[aria-pressed="true"] { animation: none; } }
 .video-card__meta span { display: inline-flex; align-items: center; gap: 4px; }
 .tiny-label { font-size: 10px; color: #7d899b; font-weight: 600; }
 .mood-toolbar { display: flex; align-items: center; gap: 22px; padding-top: 20px; border-top: 1px dashed #dce5ef; }
