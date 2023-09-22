@@ -3985,6 +3985,7 @@
         }
       }
     },
+    "/api/admin/sources/templates": {"get":{"tags":["Admin - Sources"],"summary":"获取可配置采集规则模板","security":[{"CookieAuth":[]},{"BearerAuth":[]}],"responses":{"200":{"description":"规则模板目录","content":{"application/json":{"schema":{"type":"object","properties":{"code":{"type":"integer"},"data":{"type":"array","items":{"$ref":"#/components/schemas/CollectionTemplate"}}}}}}},"401":{"description":"需要管理员权限"},"500":{"description":"模板文件读取或校验失败"}}}},
     "/api/admin/sources": {
       "get": {
         "tags": ["Admin - Sources"],
@@ -4044,14 +4045,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["api"],
-                "properties": {
-                  "api": { "type": "string", "example": "https://api.example.com/api.php/provide/vod" },
-                  "type": { "type": "string", "enum": ["json", "xml"], "default": "json" }
-                }
-              }
+              "schema": { "$ref": "#/components/schemas/SourceConfig" }
             }
           }
         },
@@ -4064,8 +4058,10 @@
                   "type": "object",
                   "properties": {
                     "code": { "type": "integer", "example": 1 },
-                    "duration_ms": { "type": "integer", "example": 235 },
-                    "status": { "type": "string", "example": "ok" }
+                    "msg": { "type": "string" },
+                    "samples": { "type": "array", "items": { "type": "string" } },
+                    "sample_count": { "type": "integer" },
+                    "classes_total": { "type": "integer" }
                   }
                 }
               }
@@ -4088,7 +4084,7 @@
                 "required": ["source_id"],
                 "properties": {
                   "source_id": { "type": "string", "example": "zy_main" },
-                  "hours": { "type": "integer", "description": "采集小时范围，0 为全量，24 为过去24小时", "default": 24 }
+                  "hours": { "type": "integer", "description": "采集小时范围，0 为全量，-1 按源配置，正数为增量小时数", "default": 0 }
                 }
               }
             }
@@ -6345,6 +6341,8 @@
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
+      "CollectionRule": {"type":"object","required":["version","format","method"],"properties":{"version":{"type":"integer","enum":[1]},"format":{"type":"string","enum":["maccms_json","maccms_xml","rss","custom_json"]},"method":{"type":"string","enum":["GET","POST"]},"body":{"type":"string","description":"静态请求体"},"query":{"type":"object","additionalProperties":{"type":"string"},"description":"参数值可使用 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}"},"mapping":{"type":"object","additionalProperties":{"type":"string"},"description":"list_path、page_path、page_count_path、total_path 及视频字段 *_path，支持嵌套路径和数组下标"}}},
+      "CollectionTemplate": {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"},"aliases":{"type":"array","items":{"type":"string"}},"rule":{"$ref":"#/components/schemas/CollectionRule"}}},
       "SourceConfig": {
         "type": "object",
         "required": ["name"],
@@ -6352,7 +6350,7 @@
           "id": { "type": "string", "example": "src_maccms" },
           "name": { "type": "string", "example": "示例数据源" },
           "api": { "type": "string", "description": "HTTP来源必填；数据库及文件来源可为空", "example": "https://api.example.com/api.php/provide/vod" },
-          "type": { "type": "string", "enum": ["json", "xml", "rss", "custom_json", "pipeline"], "default": "json" },
+          "type": { "type": "string", "enum": ["rule", "json", "xml", "rss", "custom_json", "pipeline"], "default": "json" },
           "collect_hours": { "type": "integer", "default": 24 },
           "active": { "type": "boolean", "description": "兼容enabled，提交时优先使用active" },
           "enabled": { "type": "boolean" },
@@ -6362,7 +6360,7 @@
           "interval_ms": { "type": "integer", "description": "pipeline须为0–10000" },
           "headers": { "type": "object", "additionalProperties": {"type": "string"} },
           "custom_params": { "type": "object", "additionalProperties": {"type": "string"} },
-          "filter": { "type": "object", "properties": { "pipeline": {"$ref": "#/components/schemas/PipelineRule"} } }
+          "filter": { "type": "object", "properties": { "collector": {"$ref": "#/components/schemas/CollectionRule"}, "pipeline": {"$ref": "#/components/schemas/PipelineRule"} } }
         }
       },
       "PipelineRule": {
