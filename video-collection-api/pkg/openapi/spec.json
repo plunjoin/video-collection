@@ -19,6 +19,8 @@
     }
   ],
   "tags": [
+    {"name": "Comments", "description": "可扩展的通用评论、回复和评论点赞"},
+    {"name": "Admin - Comments", "description": "通用评论查询和删除管理"},
     {"name": "News", "description": "公开资讯"},
     {"name": "Community", "description": "社区帖子、评论与点赞"},
     {"name": "Notifications", "description": "用户站内通知"},
@@ -43,6 +45,850 @@
     { "name": "RSS", "description": "RSS 2.0 聚合订阅源" }
   ],
   "paths": {
+    "/api/comments": {
+      "get": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "通用评论列表 / 详情",
+        "description": "id指定时返回详情，否则需target_type和target_id。默认只返回顶层评论；parent_id查询直接回复，root_id查询讨论串全部后代（不含根），两者正整数不能同时传入。ID正序，含已删除空占位，total包含占位。公开端点只接受存在且已发布的目标；管理员端点可读隐藏/草稿。传会话返回本人liked状态。",
+        "security": [
+          {},
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CommentResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CommentListResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "指定时返回详情，不应用其他查询条件"
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,49}$",
+              "description": "内置 video（影视）、news（资讯）、post（社区）；其他类型需服务端注册校验器"
+            },
+            "description": "列表查询必填"
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "列表查询必填"
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "父评论必须属于相同目标；可查询已删除父评论的现有回复"
+          },
+          {
+            "name": "root_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "必须为同目标顶层评论的ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            },
+            "description": ""
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": ""
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "删除评论或回复",
+        "description": "只能删除自己的评论；内容隐藏后作者仍可删除。清空正文、点赞及关联通知的正文摘录，保留is_deleted占位及现有回复；再次删除返回404。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "发表评论 / 回复",
+        "description": "parent_id省略或0表示顶层评论；正数表示回复同一目标下未删除的评论。支持多级回复。仅允许评论已发布/存在的目标，作者由会话决定，正文最多2000字。事务内通知内容作者与直接被回复者，排除自身并按接收者去重。影视无内容作者，仅回复时通知被回复者。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "请求体超过1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericCommentCreateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/comments": {
+      "get": {
+        "tags": [
+          "Admin - Comments"
+        ],
+        "summary": "通用评论列表 / 详情",
+        "description": "id指定时返回详情，否则需target_type和target_id。默认只返回顶层评论；parent_id查询直接回复，root_id查询讨论串全部后代（不含根），两者正整数不能同时传入。ID正序，含已删除空占位，total包含占位。公开端点只接受存在且已发布的目标；管理员端点可读隐藏/草稿。传会话返回本人liked状态。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CommentResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CommentListResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "指定时返回详情，不应用其他查询条件"
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,49}$",
+              "description": "内置 video（影视）、news（资讯）、post（社区）；其他类型需服务端注册校验器"
+            },
+            "description": "列表查询必填"
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "列表查询必填"
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "父评论必须属于相同目标；可查询已删除父评论的现有回复"
+          },
+          {
+            "name": "root_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "必须为同目标顶层评论的ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            },
+            "description": ""
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": ""
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin - Comments"
+        ],
+        "summary": "删除评论或回复",
+        "description": "管理员可删除任意评论。清空正文、点赞及关联通知的正文摘录，保留is_deleted占位及现有回复；再次删除返回404。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/comments/likes": {
+      "post": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "点赞评论 / 回复",
+        "description": "支持评论和回复。目标必须存在且公开，评论不能已删除；按当前用户幂等操作，重复点赞不新增数量或通知。点赞通知评论作者，排除自身。取消后重新点赞会产生新通知。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostLikeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "请求体超过1 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentLikeRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Comments"
+        ],
+        "summary": "取消评论 / 回复点赞",
+        "description": "支持评论和回复。目标必须存在且公开，评论不能已删除；按当前用户幂等操作，重复点赞不新增数量或通知。点赞通知评论作者，排除自身。取消后重新点赞会产生新通知。",
+        "security": [
+          {
+            "CookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostLikeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "内容不存在或不可访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "请求方法不支持",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器操作失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、账号已禁用或管理员鉴权失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无权操作他人内容或设置管理字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": ""
+          }
+        ]
+      }
+    },
     "/api/news": {
       "get": {
         "tags": [
@@ -1303,7 +2149,7 @@
           "Community"
         ],
         "summary": "帖子评论列表",
-        "description": "按评论ID正序。仅能查看已发布帖的评论。",
+        "description": "按评论ID正序。仅能查看已发布帖的评论。 兼容旧社区评论接口，共享通用评论ID。列表返回全部未删除评论和回复的扁平分页；创建仅支持顶层评论，删除保留空占位。新接入请使用 /api/comments 和 /api/admin/comments。",
         "security": [
           {},
           {
@@ -1400,14 +2246,15 @@
               "default": 20
             }
           }
-        ]
+        ],
+        "deprecated": true
       },
       "delete": {
         "tags": [
           "Community"
         ],
         "summary": "删除评论",
-        "description": "只允许删除自己的评论。",
+        "description": "只允许删除自己的评论。 兼容旧社区评论接口，共享通用评论ID。列表返回全部未删除评论和回复的扁平分页；创建仅支持顶层评论，删除保留空占位。新接入请使用 /api/comments 和 /api/admin/comments。",
         "security": [
           {
             "CookieAuth": []
@@ -1499,14 +2346,15 @@
               "minimum": 1
             }
           }
-        ]
+        ],
+        "deprecated": true
       },
       "post": {
         "tags": [
           "Community"
         ],
         "summary": "发表评论",
-        "description": "只接受已发布帖子。给他人帖子评论会在同一事务中创建站内通知，自评不通知。",
+        "description": "只接受已发布帖子。给他人帖子评论会在同一事务中创建站内通知，自评不通知。 兼容旧社区评论接口，共享通用评论ID。列表返回全部未删除评论和回复的扁平分页；创建仅支持顶层评论，删除保留空占位。新接入请使用 /api/comments 和 /api/admin/comments。",
         "security": [
           {
             "CookieAuth": []
@@ -1606,7 +2454,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/api/admin/community/comments": {
@@ -1615,7 +2464,7 @@
           "Admin - Community"
         ],
         "summary": "帖子评论列表",
-        "description": "按评论ID正序。可查看隐藏帖评论。",
+        "description": "按评论ID正序。可查看隐藏帖评论。 兼容旧社区评论接口，共享通用评论ID。列表返回全部未删除评论和回复的扁平分页；创建仅支持顶层评论，删除保留空占位。新接入请使用 /api/comments 和 /api/admin/comments。",
         "security": [
           {
             "CookieAuth": []
@@ -1731,14 +2580,15 @@
               "default": 20
             }
           }
-        ]
+        ],
+        "deprecated": true
       },
       "delete": {
         "tags": [
           "Admin - Community"
         ],
         "summary": "删除评论",
-        "description": "管理员可删除任意评论。",
+        "description": "管理员可删除任意评论。 兼容旧社区评论接口，共享通用评论ID。列表返回全部未删除评论和回复的扁平分页；创建仅支持顶层评论，删除保留空占位。新接入请使用 /api/comments 和 /api/admin/comments。",
         "security": [
           {
             "CookieAuth": []
@@ -1830,7 +2680,8 @@
               "minimum": 1
             }
           }
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/api/community/likes": {
@@ -3703,6 +4554,132 @@
       }
     },
     "schemas": {
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "post_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "仅社区评论返回，兼容旧接口"
+          },
+          "user_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_avatar": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target_type": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "内置 video（影视）、news（资讯）、post（社区）；其他类型需服务端注册校验器"
+          },
+          "target_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "parent_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "直接回复的评论ID，顶层为0"
+          },
+          "root_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "所属顶层评论ID，顶层自身为0"
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "description": "删除后保留占位，content为空，点赞清空；回复仍可读"
+          },
+          "reply_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "未删除的直接回复数"
+          },
+          "like_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "liked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "author_name",
+          "author_avatar",
+          "content",
+          "created_at",
+          "target_type",
+          "target_id",
+          "parent_id",
+          "root_id",
+          "is_deleted",
+          "reply_count",
+          "like_count",
+          "liked"
+        ]
+      },
+      "GenericCommentCreateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_type",
+          "target_id",
+          "content"
+        ],
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "内置 video（影视）、news（资讯）、post（社区）；其他类型需服务端注册校验器"
+          },
+          "target_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "parent_id": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "纯文本，去除首尾空白；客户端应转义显示"
+          }
+        }
+      },
+      "CommentLikeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "comment_id"
+        ],
+        "properties": {
+          "comment_id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
       "ContentRecord": {
         "type": "object",
         "properties": {
@@ -3760,7 +4737,8 @@
           },
           "comment_count": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "该内容所有未删除评论及回复数量"
           },
           "liked": {
             "type": "boolean"
@@ -3795,43 +4773,7 @@
         ]
       },
       "CommunityComment": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "post_id": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "user_id": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "author_name": {
-            "type": "string"
-          },
-          "author_avatar": {
-            "type": "string"
-          },
-          "content": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "post_id",
-          "user_id",
-          "author_name",
-          "author_avatar",
-          "content",
-          "created_at"
-        ]
+        "$ref": "#/components/schemas/Comment"
       },
       "Notification": {
         "type": "object",
@@ -3864,10 +4806,7 @@
           },
           "target_type": {
             "type": "string",
-            "enum": [
-              "",
-              "post"
-            ]
+            "description": "通知关联的内容类型，内置 video/news/post；系统通知为空，可扩展"
           },
           "target_id": {
             "type": "integer",
@@ -3884,6 +4823,16 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "comment_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "评论/回复/评论点赞对应的评论ID；系统通知、帖子点赞和历史通知为0"
+          },
+          "parent_comment_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "该评论直接回复的父评论ID，顶层为0"
           }
         },
         "required": [
@@ -3897,7 +4846,9 @@
           "target_id",
           "is_read",
           "read_at",
-          "created_at"
+          "created_at",
+          "comment_id",
+          "parent_comment_id"
         ]
       },
       "CommunityPostSaveRequest": {
