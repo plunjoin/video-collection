@@ -37,6 +37,9 @@ const slides = videos.length ? videos.slice(0, 5) : featuredVideo ? [featuredVid
     const show = (index: number) => {
       current = (index + slides.length) % slides.length;
       slides.forEach((slide, i) => slide.hidden = i !== current);
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) slides[current].animate([
+        { clipPath: 'inset(0 48% 0 48%)', opacity: .45 }, { clipPath: 'inset(0)', opacity: 1 }
+      ], { duration: 420, easing: 'cubic-bezier(.2,.7,.2,1)' });
       dots.forEach((dot, i) => dot.setAttribute('aria-pressed', String(i === current)));
     };
     hero.querySelector('[data-prev]')?.addEventListener('click', () => show(current - 1));
