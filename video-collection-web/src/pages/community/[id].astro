@@ -2,6 +2,7 @@
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import BrandIcon from '../../components/BrandIcon.astro';
+import MemberIdentity from '../../components/MemberIdentity.astro';
 import Comments from '../../components/Comments.astro';
 import { getCommunityPostDetail } from '../../lib/api';
 
@@ -16,16 +17,12 @@ if (!post) return Astro.redirect('/community');
     <a href="/community" class="news-back">‹ 返回社区</a>
     <article class="community-post community-post-detail">
       <div class="community-author">
-        <img src={post.author_avatar || '/brand/bllii-symbol.svg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-symbol.svg'" />
-        <div>
-          <strong>{post.author_name || '匿名用户'}</strong>
-          <small>{new Date(post.created_at).toLocaleString('zh-CN')}{post.category ? ` · ${post.category}` : ''}</small>
-        </div>
+        <MemberIdentity name={post.author_name || '匿名用户'} avatar={post.author_avatar} frame={post.author_frame} badge={post.author_badge} color={post.author_color} metadata={`${new Date(post.created_at).toLocaleString('zh-CN')}${post.category ? ` · ${post.category}` : ''}`} />
         {post.pinned && <span class="community-pin-badge">置顶</span>}
       </div>
       <h1>{post.title}</h1>
       {post.summary && <p class="community-post-summary">{post.summary}</p>}
-      <div class="community-post-content" set:html={post.content}></div>
+      <div class="community-post-content" style="white-space:pre-wrap">{post.content}</div>
       <footer>
         <button class="community-like-btn" id="like-btn" data-post-id={post.id} data-liked={post.liked} aria-label={post.liked ? '取消点赞帖子' : '点赞帖子'}>
           <span class="like-icon"><BrandIcon name="heart" size={16} /></span>
