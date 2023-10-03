@@ -2,6 +2,7 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 import BrandIcon from '../components/BrandIcon.astro';
+import MemberIdentity from '../components/MemberIdentity.astro';
 import { getCommunityPosts, type ContentItem } from '../lib/api';
 
 const url = Astro.url;
@@ -43,7 +44,7 @@ function fmtDate(d: string): string {
           <div class="community-post-form__header">
             <img id="current-avatar" src="/brand/bllii-symbol.svg" alt="" class="community-post-form__avatar" />
             <div class="community-post-form__intro">
-              <strong id="current-username">游客</strong>
+              <div id="current-username">游客</div>
               <small id="login-hint">登录后即可发布帖子，分享你的想法</small>
             </div>
             <a href="/login?redirect=/community" class="community-login-btn" id="login-link">去登录</a>
@@ -64,11 +65,7 @@ function fmtDate(d: string): string {
           {items.length > 0 ? items.map((post) => (
             <article class="community-post" data-post-id={post.id} data-liked={post.liked}>
               <div class="community-author">
-                <img src={post.author_avatar || '/brand/bllii-symbol.svg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-symbol.svg'" />
-                <div>
-                  <strong>{post.author_name || '匿名用户'}</strong>
-                  <small>{fmtDate(post.created_at)}{post.category ? ` · ${post.category}` : ''}</small>
-                </div>
+                <MemberIdentity name={post.author_name || '匿名用户'} avatar={post.author_avatar} frame={post.author_frame} badge={post.author_badge} color={post.author_color} metadata={`${fmtDate(post.created_at)}${post.category ? ` · ${post.category}` : ''}`} />
                 {post.pinned && <span class="community-pin-badge">置顶</span>}
               </div>
               <h2><a href={`/community/${post.id}`}>{post.title}</a></h2>
@@ -119,23 +116,29 @@ function fmtDate(d: string): string {
 <script>
   import { getUser, getToken } from '../lib/auth';
   import { createCommunityPost, togglePostLike } from '../lib/api';
+  import { applyMemberAvatar, createMemberName } from '../lib/members';
 
   // --- 初始化用户状态 ---
-  const user = getUser();
-  const token = getToken();
   const loginLink = document.getElementById('login-link');
   const loginHint = document.getElementById('login-hint');
   const currentUsername = document.getElementById('current-username');
-  const currentAvatar = document.getElementById('current-avatar');
+  const currentAvatar = document.getElementById('current-avatar') as HTMLImageElement | null;
   const postInputArea = document.getElementById('post-input-area');
 
-  if (user && token) {
-    if (loginLink) loginLink.style.display = 'none';
-    if (loginHint) loginHint.textContent = '登录了就可以发帖啦';
-    if (currentUsername) currentUsername.textContent = user.nickname || user.username;
-    if (currentAvatar && user.avatar) currentAvatar.src = user.avatar;
-    if (postInputArea) postInputArea.style.display = 'block';
+  function updateIdentity() {
+    const user = getUser(), signedIn = Boolean(user && getToken());
+    const member = signedIn ? {name:user!.nickname || user!.username,avatar:user!.avatar,frame:user!.decorations?.frame,badge:user!.decorations?.badge,color:user!.decorations?.nickname_color} : {};
+    if (loginLink) loginLink.hidden = signedIn;
+    if (loginHint) loginHint.textContent = signedIn ? (user!.role === 'operator' ? '发布内容需经管理员审核' : '分享你喜欢的故事吧') : '登录后即可发布帖子，分享你的想法';
+    if (currentUsername) {
+      if (signedIn) currentUsername.replaceChildren(createMemberName(member));
+      else currentUsername.textContent = '游客';
+    }
+    if (currentAvatar) applyMemberAvatar(currentAvatar, member);
+    if (postInputArea) postInputArea.style.display = signedIn ? 'block' : 'none';
   }
+  updateIdentity();
+  window.addEventListener('auth-changed', updateIdentity);
 
   // --- 发帖 ---
   const postSubmit = document.getElementById('post-submit');
@@ -159,7 +162,11 @@ function fmtDate(d: string): string {
       category: postCategory?.value.trim() || '',
     });
     if (result.ok) {
-      window.location.reload();
+      if (result.pending) {
+        if (postAlert) { postAlert.textContent = result.msg; postAlert.style.color = '#059669'; }
+        postTitle.value = ''; postContent.value = '';
+        if (postSubmit) { (postSubmit as HTMLButtonElement).disabled = false; postSubmit.textContent = '提交审核'; }
+      } else window.location.reload();
     } else {
       if (postAlert) { postAlert.textContent = result.msg; postAlert.style.color = '#e88080'; }
       if (postSubmit) { (postSubmit as HTMLButtonElement).disabled = false; (postSubmit as HTMLButtonElement).textContent = '发布帖子'; }
