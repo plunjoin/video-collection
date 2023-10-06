@@ -21,6 +21,7 @@ const tags = video.tags?.length ? video.tags : [video.type_name || '番剧'];
         <a id="btn-hero-play" class="brand-button" href={`/play/${video.id}`}><BrandIcon name="play" /><span id="btn-hero-play-text">立即播放</span></a>
         <button id="btn-follow" class="brand-outline" data-id={video.id} data-name={video.name} data-pic={video.picture}><BrandIcon name="heart" /><span>追番</span></button>
         <button id="btn-fav" class="brand-outline" aria-label="收藏" title="收藏" data-id={video.id} data-name={video.name} data-pic={video.picture}><BrandIcon name="star" /></button>
+        <button class="brand-outline" data-pocket-id={video.id} data-pocket-name={video.name} data-pocket-picture={video.picture} aria-pressed="false" aria-label="放进故事口袋" title="放进故事口袋"><BrandIcon name="bookmark" /></button>
       </div>
     </div>
   </div>
