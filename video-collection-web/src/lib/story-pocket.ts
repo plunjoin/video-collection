@@ -1,11 +1,12 @@
 import { iconMarkup } from './brand-icons';
+import { openDialog } from './dialogs';
 
 interface PocketStory { id: number; name: string; picture: string; }
 const key = 'bllii_story_pocket';
 const limit = 24;
 
 export function initStoryPocket() {
-  const dialog = document.querySelector<HTMLDialogElement>('[data-pocket-dialog]');
+  const dialog = document.querySelector<HTMLDialogElement>('#story-pocket');
   if (!dialog) return;
   const list = dialog.querySelector<HTMLElement>('[data-pocket-list]')!;
   const read = (): PocketStory[] => {
@@ -72,9 +73,7 @@ export function initStoryPocket() {
       button.querySelector('svg')?.animate([{ clipPath: 'inset(100% 0 0)' }, { clipPath: 'inset(0)' }], { duration: 320, easing: 'ease-out' });
     }
   });
-  document.querySelector('[data-open-pocket]')?.addEventListener('click', () => { render(); dialog.showModal(); });
-  dialog.querySelector('[data-pocket-close]')?.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  document.querySelector('[data-open-pocket]')?.addEventListener('click', () => { render(); openDialog(dialog); });
   window.addEventListener('storage', event => { if (event.key === key) { stories = read(); render(); } });
   render();
 
