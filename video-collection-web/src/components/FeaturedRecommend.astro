@@ -21,6 +21,9 @@ const genres = ['全部', '热血', '恋爱', '奇幻', '日常', '治愈'];
     buttons.forEach(button => button.addEventListener('click', () => {
       buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
       cards.forEach(card => card.hidden = button.dataset.genre !== '全部' && !card.dataset.tags?.split(',').includes(button.dataset.genre!));
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) cards.filter(card => !card.hidden).forEach((card, i) => card.animate([
+        { opacity: 0, clipPath: 'inset(0 0 8% 0)' }, { opacity: 1, clipPath: 'inset(0)' }
+      ], { duration: 260, delay: i * 30, fill: 'backwards', easing: 'ease-out' }));
       section.querySelector<HTMLElement>('[data-empty]')!.hidden = cards.some(card => !card.hidden);
     }));
   });
