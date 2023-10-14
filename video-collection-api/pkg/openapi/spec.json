@@ -3948,6 +3948,43 @@
         }
       }
     },
+    "/api/admin/collection/preview": {
+      "post": {
+        "tags": ["Admin - Sources"], "summary": "通用采集规则样本预览（最多10条，不入库）",
+        "security": [{"CookieAuth": []}, {"BearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SourceConfig"}}}},
+        "responses": {
+          "200": {"description": "提取和清洗结果", "content": {"application/json": {"schema": {"type": "object", "properties": {"code": {"type": "integer"}, "data": {"type": "array", "items": {"$ref": "#/components/schemas/CollectionSample"}}}}}}},
+          "400": {"description": "规则错误、来源读取失败或25秒预览超时"}, "401": {"description": "需要管理员认证"}
+        }
+      }
+    },
+    "/api/admin/collection/upload": {
+      "post": {
+        "tags": ["Admin - Sources"], "summary": "上传 Excel .xlsx 或 UTF-8 CSV（20MB以内）",
+        "security": [{"CookieAuth": []}, {"BearerAuth": []}],
+        "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}}}}},
+        "responses": {
+          "200": {"description": "上传成功，token用于规则file.token", "content": {"application/json": {"schema": {"type": "object", "properties": {"code": {"type": "integer"}, "data": {"type": "object", "properties": {"token": {"type": "string"}, "name": {"type": "string"}}}}}}}},
+          "400": {"description": "文件格式或大小不合法"}, "401": {"description": "需要管理员认证"}
+        }
+      }
+    },
+    "/api/admin/collection/records": {
+      "get": {
+        "tags": ["Admin - Sources"], "summary": "分页查看已采集记录",
+        "security": [{"CookieAuth": []}, {"BearerAuth": []}],
+        "parameters": [
+          {"name": "source_id", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}}
+        ],
+        "responses": {
+          "200": {"description": "采集结果", "content": {"application/json": {"schema": {"type": "object", "properties": {"code": {"type": "integer"}, "total": {"type": "integer"}, "data": {"type": "array", "items": {"$ref": "#/components/schemas/CollectionRecord"}}}}}}},
+          "400": {"description": "缺少source_id"}, "401": {"description": "需要管理员认证"}
+        }
+      }
+    },
     "/api/admin/sources": {
       "get": {
         "tags": ["Admin - Sources"],
@@ -6310,14 +6347,71 @@
       },
       "SourceConfig": {
         "type": "object",
-        "required": ["name", "api"],
+        "required": ["name"],
         "properties": {
           "id": { "type": "string", "example": "src_maccms" },
           "name": { "type": "string", "example": "示例数据源" },
-          "api": { "type": "string", "example": "https://api.example.com/api.php/provide/vod" },
-          "type": { "type": "string", "enum": ["json", "xml"], "default": "json" },
+          "api": { "type": "string", "description": "HTTP来源必填；数据库及文件来源可为空", "example": "https://api.example.com/api.php/provide/vod" },
+          "type": { "type": "string", "enum": ["json", "xml", "rss", "custom_json", "pipeline"], "default": "json" },
           "collect_hours": { "type": "integer", "default": 24 },
-          "is_active": { "type": "boolean", "default": true }
+          "active": { "type": "boolean", "description": "兼容enabled，提交时优先使用active" },
+          "enabled": { "type": "boolean" },
+          "page_limit": { "type": "integer", "description": "pipeline须为1–100" },
+          "timeout_sec": { "type": "integer", "description": "pipeline须为1–60" },
+          "retry_count": { "type": "integer", "description": "pipeline须为0–3" },
+          "interval_ms": { "type": "integer", "description": "pipeline须为0–10000" },
+          "headers": { "type": "object", "additionalProperties": {"type": "string"} },
+          "custom_params": { "type": "object", "additionalProperties": {"type": "string"} },
+          "filter": { "type": "object", "properties": { "pipeline": {"$ref": "#/components/schemas/PipelineRule"} } }
+        }
+      },
+      "PipelineRule": {
+        "type": "object", "required": ["version", "input", "target", "key_field", "duplicate", "max_records", "fields"],
+        "properties": {
+          "version": {"type": "integer", "enum": [1]},
+          "input": {"type": "string", "enum": ["api", "html", "database", "file"]},
+          "target": {"type": "string", "enum": ["record", "article", "video"]},
+          "key_field": {"type": "string", "description": "用于去重的已映射目标字段"},
+          "duplicate": {"type": "string", "enum": ["update", "skip"]},
+          "max_records": {"type": "integer", "minimum": 1, "maximum": 10000},
+          "request": {"type": "object", "properties": {
+            "method": {"type": "string", "enum": ["GET", "POST"]}, "body": {"type": "string"},
+            "list_path": {"type": "string", "example": "data.items"}, "page_param": {"type": "string"}, "start_page": {"type": "integer", "minimum": 1}
+          }},
+          "html": {"type": "object", "properties": {
+            "item_selector": {"type": "string"}, "detail_selector": {"type": "string"}, "next_selector": {"type": "string"}
+          }},
+          "database": {"type": "object", "properties": {
+            "driver": {"type": "string", "enum": ["postgres", "mysql", "sqlite", "sqlserver"]},
+            "dsn_env": {"type": "string", "example": "IMPORT_DATABASE_DSN"}, "query": {"type": "string", "description": "单条SELECT，不带分号或注释"}
+          }},
+          "file": {"type": "object", "properties": {
+            "token": {"type": "string"}, "name": {"type": "string"}, "sheet": {"type": "string"}, "header_row": {"type": "integer", "minimum": 1, "maximum": 100}
+          }},
+          "fields": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/components/schemas/CollectionField"}}
+        }
+      },
+      "CollectionField": {
+        "type": "object", "required": ["target"], "properties": {
+          "target": {"type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,63}$"},
+          "selector": {"type": "string", "description": "JSON点分路径、CSS选择器或来源列名；网页$url表示页面URL"},
+          "attribute": {"type": "string", "description": "网页text/html/href/src等属性"},
+          "default": {"type": "string"}, "required": {"type": "boolean"}, "trim": {"type": "boolean"}, "strip_html": {"type": "boolean"},
+          "pattern": {"type": "string", "description": "Go RE2正则替换"}, "replacement": {"type": "string"}
+        }
+      },
+      "CollectionSample": {
+        "type": "object", "properties": {
+          "raw": {"type": "object", "additionalProperties": {"type": "string"}},
+          "values": {"type": "object", "additionalProperties": {"type": "string"}},
+          "errors": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "CollectionRecord": {
+        "type": "object", "properties": {
+          "source_id": {"type": "string"}, "target": {"type": "string"}, "key": {"type": "string"},
+          "values": {"type": "object", "additionalProperties": {"type": "string"}},
+          "content_id": {"type": "integer"}, "updated_at": {"type": "string", "format": "date-time"}
         }
       },
       "AdminStats": {
