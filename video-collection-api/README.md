@@ -1,3 +1,14 @@
+---
+AIGC:
+  ContentProducer: '001191110102MAD55U9H0F10002'
+  ContentPropagator: '001191110102MAD55U9H0F10002'
+  Label: '1'
+  ProduceID: '46d7b792-d969-49ba-a734-f94fe0fed7ff'
+  PropagateID: '46d7b792-d969-49ba-a734-f94fe0fed7ff'
+  ReservedCode1: 'b060db96-fc20-4425-81e5-687ccf3996a5'
+  ReservedCode2: 'b060db96-fc20-4425-81e5-687ccf3996a5'
+---
+
 # 视频智能采集聚合平台 - RESTful 纯后端 API 服务 (Go版)
 
 基于 Go 语言构建的高性能影视数据智能采集清洗、多协议聚合检索与用户服务纯后端 API 系统。
@@ -194,6 +205,8 @@ services:
 
 影视、资讯和社区共用[通用评论接口](docs/comments-api.md)，支持多级回复、评论点赞及站内通知；旧社区评论数据自动迁移且保留原ID。新内容类型可通过服务端注册接入。
 
+管理员可通过[数据库管理接口](docs/database-api.md)查看引擎信息与表统计、分页浏览表数据、执行 JSON 备份与恢复、清理维护及运行单条管理 SQL；删除备份、恢复、清理与写 SQL 均需携带二次确认参数。
+
 | 模块 | 核心端点 | 描述 |
 | :--- | :--- | :--- |
 | **Auth** | `POST /api/login`<br>`POST /api/register`<br>`POST /api/logout`<br>`GET /api/me` | 用户登录、注册、注销与当前用户查询 |
@@ -209,3 +222,6 @@ services:
 | **Admin - Videos** | `DELETE /api/admin/videos`<br>`POST /api/admin/videos/save`<br>`POST /api/admin/videos/batch-delete` | 视频编辑、单条删除与批量清理 |
 | **Admin - Users** | `GET/POST/DELETE /api/admin/users` | 用户账号分页列表、权限分配与状态修改 |
 | **Admin - Stats & Logs** | `GET /api/admin/stats`<br>`GET /api/admin/logs` | 系统仪表盘统计指标与操作审计日志流水 |
+| **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
+
+> AI生成
