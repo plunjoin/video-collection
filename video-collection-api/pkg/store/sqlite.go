@@ -20,11 +20,11 @@ import (
 type SQLiteStore struct {
 	*SQLContentStore
 	*dbAdminHelper
-	db       *sql.DB
-	dbPath   string
-	upsertMu sync.Mutex
-	catMu    sync.RWMutex
-	catCache []Category
+	db        *sql.DB
+	dbPath    string
+	upsertMu  sync.Mutex
+	catMu     sync.RWMutex
+	catCache  []Category
 	lastCatAt time.Time
 }
 
@@ -215,7 +215,7 @@ func (s *SQLiteStore) InitDefaultAdmin(ctx context.Context) error {
 		return nil
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(initialAdminPassword()), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
@@ -504,9 +504,7 @@ func (s *SQLiteStore) SaveSource(ctx context.Context, src config.SourceConfig) e
 	if src.CustomParams != nil {
 		src.Filter.CustomParams = src.CustomParams
 	}
-	if src.CustomMapping.ListPath != "" || src.CustomMapping.NamePath != "" {
-		src.Filter.CustomMapping = &src.CustomMapping
-	}
+	src.Filter.CustomMapping = &src.CustomMapping
 
 	mappingsBytes, _ := json.Marshal(src.CategoryMappings)
 	filterBytes, _ := json.Marshal(src.Filter)
