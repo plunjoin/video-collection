@@ -68,6 +68,7 @@ type NotificationQuery struct {
 }
 
 type ContentStore interface {
+	CollectionStore
 	CommentStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
@@ -136,6 +137,13 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		return err
 	}
 	if err = migrateComments(tx, postgres, id, timestamp); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`CREATE TABLE IF NOT EXISTS collection_records (
+ source_id TEXT NOT NULL, target TEXT NOT NULL, record_key TEXT NOT NULL,
+ payload TEXT NOT NULL, content_id INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+ PRIMARY KEY(source_id,target,record_key)
+);`); err != nil {
 		return err
 	}
 	return tx.Commit()
