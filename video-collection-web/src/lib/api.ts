@@ -360,6 +360,9 @@ export interface ContentItem {
   author_id: number;
   author_name: string;
   author_avatar: string;
+  author_frame?: string;
+  author_badge?: string;
+  author_color?: string;
   title: string;
   summary: string;
   content: string;
@@ -392,6 +395,9 @@ export interface CommunityCommentItem {
   user_id: number;
   author_name: string;
   author_avatar: string;
+  author_frame?: string;
+  author_badge?: string;
+  author_color?: string;
   content: string;
   is_deleted: boolean;
   like_count: number;
@@ -453,15 +459,15 @@ function authHeaders(): Record<string, string> {
 }
 
 // 13. 发布社区帖子
-export async function createCommunityPost(data: { title: string; summary?: string; content: string; cover?: string; category?: string }): Promise<{ ok: boolean; msg: string; data?: ContentItem }> {
+export async function createCommunityPost(data: { title: string; summary?: string; content: string; cover?: string; category?: string }): Promise<{ ok: boolean; msg: string; data?: ContentItem; pending?: boolean }> {
   try {
     const res = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/api/community/posts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ ...data, status: 'published' }),
+      body: JSON.stringify(data),
     });
     const json = await res.json();
-    return { ok: json.code === 1, msg: json.msg || json.error || '发布失败', data: json.data };
+    return { ok: json.code === 1, msg: json.msg || json.error || '发布失败', data: json.data, pending: json.pending };
   } catch (e: any) {
     return { ok: false, msg: e.message || '网络错误' };
   }
