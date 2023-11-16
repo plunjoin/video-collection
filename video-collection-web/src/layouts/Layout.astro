@@ -8,6 +8,9 @@ import '../styles/pages.css';
 import PageIntro from '../components/PageIntro.astro';
 import BrandIcon from '../components/BrandIcon.astro';
 import StoryPocket from '../components/StoryPocket.astro';
+import ConfirmDialog from '../components/ConfirmDialog.astro';
+import '../styles/dialogs.css';
+import '../styles/members.css';
 import '../styles/delight.css';
 
 interface Props {
@@ -30,6 +33,7 @@ const pageIntros: Record<string, { title: string; description: string; eyebrow: 
   follow: { title: '我的故事收藏夹', description: '每一次心动，每一段陪伴，都替你好好珍藏。', eyebrow: 'YOUR LITTLE HAPPY PLACE' },
   news: { title: '故事之外，也很精彩', description: '新番情报、制作动态与编辑精选。', eyebrow: 'MORE BEHIND THE STORIES' },
   community: { title: '和同好，一起热爱', description: '分享喜欢的瞬间，让故事成为相遇的开始。', eyebrow: 'FOR FANS, TOGETHER' },
+  points: { title: '让每一份热爱，都有回响', description: '收藏故事、遇见同好，把小小的日常变成值得珍藏的光。', eyebrow: 'YOUR STORY, YOUR LITTLE SPARK' },
 };
 const intro = pageIntros[page];
 ---
@@ -69,5 +73,6 @@ const intro = pageIntros[page];
       <a href="/follow" aria-current={activeNav === '追番' ? 'page' : undefined}><BrandIcon name="bookmark" size={24} />我的</a>
     </nav>
     <StoryPocket />
+    <ConfirmDialog />
   </body>
 </html>
