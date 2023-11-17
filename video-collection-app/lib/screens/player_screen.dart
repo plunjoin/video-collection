@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
 import '../services/fullscreen_service.dart';
+import '../services/client_playlist_service.dart';
 import '../widgets/brand_intro.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
@@ -48,6 +49,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late int _currentEpisodeIndex;
   late final AppStateProvider _appState;
   Duration? _resumePosition;
+  ClientPlaylistService? _pendingPlaylist;
+  ClientPlaylistService? _activePlaylist;
+  Future<void> _openQueue = Future.value();
+  int _sourceGeneration = 0;
 
   // MediaKit 流媒体底层播放器
   late final Player _player;
@@ -152,6 +157,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    ++_sourceGeneration;
+    unawaited(_pendingPlaylist?.dispose());
     if (!_hasError && _duration > Duration.zero) {
       _recordHistory(countHit: false);
     }
@@ -164,7 +171,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final s in _subscriptions) {
       s.cancel();
     }
-    _player.dispose();
+    unawaited(
+      _openQueue.whenComplete(() async {
+        await _player.dispose();
+        await _activePlaylist?.dispose();
+      }),
+    );
 
     unawaited(_fullscreen.setEnabled(false).catchError((Object _) {}));
     super.dispose();
@@ -228,6 +240,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _loadAndPlayCurrentEpisode() async {
+    final generation = ++_sourceGeneration;
+    await _pendingPlaylist?.dispose();
+    if (!mounted || generation != _sourceGeneration) return;
+    _pendingPlaylist = null;
     _nextCountdownTimer?.cancel();
     setState(() {
       _hasError = false;
@@ -255,15 +271,68 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
+    ClientPlaylistService? resource;
     try {
-      final cleanUrl = currentEp.url.trim();
-      await _player.open(Media(cleanUrl), play: true);
-      await _player.setRate(_currentSpeed);
-      await _player.setVolume(_volume);
-
-      _recordHistory();
-      _resetHideControlsTimer();
+      await _openQueue;
+      if (!mounted || generation != _sourceGeneration) return;
+      await _player.pause();
+      if (!mounted || generation != _sourceGeneration) return;
+      var playUrl = currentEp.url.trim();
+      if (RegExp(r'\.m3u8(?:[?#]|$)', caseSensitive: false).hasMatch(playUrl) ||
+          (!RegExp(
+                r'\.(?:mp4|webm|mkv|mov|avi)(?:[?#]|$)',
+                caseSensitive: false,
+              ).hasMatch(playUrl) &&
+              RegExp(
+                r'hls|m3u8',
+                caseSensitive: false,
+              ).hasMatch(currentGroup!.playerCode))) {
+        resource = ClientPlaylistService();
+        _pendingPlaylist = resource;
+        try {
+          playUrl = await resource.prepare(playUrl);
+        } catch (error) {
+          await resource.dispose();
+          resource = null;
+          debugPrint('客户端 M3U8 过滤失败，使用原始播放地址: $error');
+        }
+      }
+      if (!mounted || generation != _sourceGeneration) {
+        await resource?.dispose();
+        return;
+      }
+      _pendingPlaylist = null;
+      final nextResource = resource;
+      _openQueue = _openQueue
+          .then((_) async {
+            if (!mounted || generation != _sourceGeneration) {
+              await nextResource?.dispose();
+              return;
+            }
+            final oldResource = _activePlaylist;
+            _activePlaylist = nextResource;
+            try {
+              await _player.open(Media(playUrl), play: true);
+            } finally {
+              await oldResource?.dispose();
+            }
+            if (!mounted || generation != _sourceGeneration) return;
+            await _player.setRate(_currentSpeed);
+            await _player.setVolume(_volume);
+            _recordHistory();
+            _resetHideControlsTimer();
+          })
+          .catchError((Object error) {
+            if (!mounted || generation != _sourceGeneration) return;
+            setState(() {
+              _hasError = true;
+              _errorMessage = '视频源解析失败: $error';
+            });
+          });
+      await _openQueue;
     } catch (e) {
+      await resource?.dispose();
+      if (!mounted || generation != _sourceGeneration) return;
       setState(() {
         _hasError = true;
         _errorMessage = '视频源解析失败: $e';
