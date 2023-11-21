@@ -23,6 +23,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '系统仪表盘', icon: 'Odometer' }
       },
       {
+        path: 'collection-rules',
+        name: 'CollectionRules',
+        component: () => import('@/views/collection/index.vue'),
+        meta: { title: '采集规则工作台', icon: 'SetUp' }
+      },
+      {
         path: 'sources',
         name: 'Sources',
         component: () => import('@/views/sources/index.vue'),
