@@ -23,6 +23,9 @@ type Content struct {
 	AuthorID     int       `json:"author_id"`
 	AuthorName   string    `json:"author_name"`
 	AuthorAvatar string    `json:"author_avatar"`
+	AuthorFrame  string    `json:"author_frame"`
+	AuthorBadge  string    `json:"author_badge"`
+	AuthorColor  string    `json:"author_color"`
 	Title        string    `json:"title"`
 	Summary      string    `json:"summary"`
 	Content      string    `json:"content"`
@@ -68,6 +71,8 @@ type NotificationQuery struct {
 }
 
 type ContentStore interface {
+	GovernanceStore
+	GrowthStore
 	CollectionStore
 	CommentStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
@@ -88,6 +93,7 @@ type ContentStore interface {
 // Both supported drivers accept numbered $n placeholders and RETURNING.
 type SQLContentStore struct {
 	db               *sql.DB
+	postgres         bool
 	commentTargetsMu sync.RWMutex
 	commentTargets   map[string]CommentTargetResolver
 }
@@ -96,6 +102,7 @@ type SQLContentStore struct {
 func (s *SQLContentStore) Close() error { return s.db.Close() }
 
 func (s *SQLContentStore) initSchema(postgres bool) error {
+	s.postgres = postgres
 	id, timestamp := "INTEGER PRIMARY KEY AUTOINCREMENT", "DATETIME"
 	if postgres {
 		id, timestamp = "SERIAL PRIMARY KEY", "TIMESTAMPTZ"
@@ -146,6 +153,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 );`); err != nil {
 		return err
 	}
+	if err = migrateGrowth(tx, id); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -162,7 +172,11 @@ func contentPage(page, size int) (int, int) {
 	return size, (page - 1) * size
 }
 
-const contentColumns = `e.id,e.kind,e.author_id,COALESCE(NULLIF(u.nickname,''),u.username,''),COALESCE(u.avatar,''),
+const identityColumns = `COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='avatar'),u.avatar,''),
+ COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='frame'),''),
+ COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='badge'),''),
+ COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='nickname_color'),'')`
+const contentColumns = `e.id,e.kind,e.author_id,COALESCE(NULLIF(u.nickname,''),u.username,''),` + identityColumns + `,
  e.title,e.summary,e.content,e.cover,e.category,e.status,e.pinned,
  (SELECT COUNT(*) FROM community_likes l WHERE l.post_id=e.id),
  (SELECT COUNT(*) FROM comments c WHERE c.target_type=e.kind AND c.target_id=e.id AND c.is_deleted=0),
@@ -173,7 +187,7 @@ type contentScanner interface{ Scan(...any) error }
 func scanContent(row contentScanner) (*Content, error) {
 	var c Content
 	var pinned, liked int
-	err := row.Scan(&c.ID, &c.Kind, &c.AuthorID, &c.AuthorName, &c.AuthorAvatar, &c.Title, &c.Summary, &c.Content, &c.Cover, &c.Category, &c.Status, &pinned, &c.LikeCount, &c.CommentCount, &liked, &c.CreatedAt, &c.UpdatedAt)
+	err := row.Scan(&c.ID, &c.Kind, &c.AuthorID, &c.AuthorName, &c.AuthorAvatar, &c.AuthorFrame, &c.AuthorBadge, &c.AuthorColor, &c.Title, &c.Summary, &c.Content, &c.Cover, &c.Category, &c.Status, &pinned, &c.LikeCount, &c.CommentCount, &liked, &c.CreatedAt, &c.UpdatedAt)
 	c.Pinned, c.Liked = pinned != 0, liked != 0
 	return &c, err
 }
@@ -257,6 +271,14 @@ func (s *SQLContentStore) SaveContent(ctx context.Context, c *Content, actor int
 		return err
 	}
 	defer tx.Rollback()
+	if err = saveContentTx(ctx, tx, c, actor, admin); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func saveContentTx(ctx context.Context, tx *sql.Tx, c *Content, actor int, admin bool) error {
+	var err error
 	now := time.Now().UTC()
 	if c.ID == 0 {
 		c.AuthorID = actor
@@ -290,7 +312,7 @@ func (s *SQLContentStore) SaveContent(ctx context.Context, c *Content, actor int
 		return err
 	}
 	c.UpdatedAt = now
-	return tx.Commit()
+	return nil
 }
 
 func (s *SQLContentStore) DeleteContent(ctx context.Context, kind string, id, actor int, admin bool) error {
