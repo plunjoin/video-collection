@@ -93,6 +93,9 @@ func TestContentAPIContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	for path, methods := range map[string][]string{
+		"/api/comments":                        {"get", "post", "delete"},
+		"/api/admin/comments":                  {"get", "delete"},
+		"/api/comments/likes":                  {"post", "delete"},
 		"/api/news":                            {"get"},
 		"/api/admin/news":                      {"get", "post", "delete"},
 		"/api/community/posts":                 {"get", "post", "delete"},
@@ -126,7 +129,7 @@ func TestContentAPIContract(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{"ContentRecord", "CommunityComment", "Notification", "NewsSaveRequest", "CommunityPostSaveRequest", "NotificationSendRequest", "NotificationReadRequest"} {
+	for _, name := range []string{"Comment", "GenericCommentCreateRequest", "CommentLikeRequest", "ContentRecord", "CommunityComment", "Notification", "NewsSaveRequest", "CommunityPostSaveRequest", "NotificationSendRequest", "NotificationReadRequest"} {
 		if len(spec.Components.Schemas[name]) == 0 {
 			t.Errorf("missing schema %s", name)
 		}
