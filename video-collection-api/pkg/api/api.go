@@ -41,6 +41,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	srv.registerGrowthRoutes(mux)
 	// 公开接口
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)
@@ -160,17 +161,17 @@ func (srv *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		"code":  1,
 		"msg":   "登录成功",
 		"token": token,
-		"user": map[string]any{
-			"id":       user.ID,
-			"username": user.Username,
-			"nickname": user.Nickname,
-			"role":     user.Role,
-		},
+		"user":  srv.userProfile(r, user),
 	})
 }
 
 func (srv *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if c, err := r.Cookie(auth.CookieAuthToken); err == nil {
+	if !contentMethod(w, r, http.MethodPost) {
+		return
+	}
+	if token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") && token != "" {
+		auth.DefaultSessionManager.DeleteSession(token)
+	} else if c, err := r.Cookie(auth.CookieAuthToken); err == nil {
 		auth.DefaultSessionManager.DeleteSession(c.Value)
 	}
 	auth.ClearAuthCookie(w)
@@ -185,13 +186,7 @@ func (srv *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code": 1,
-		"data": map[string]any{
-			"id":       u.ID,
-			"username": u.Username,
-			"nickname": u.Nickname,
-			"avatar":   u.Avatar,
-			"role":     u.Role,
-		},
+		"data": srv.userProfile(r, u),
 	})
 }
 
@@ -415,6 +410,7 @@ func (srv *Server) handleAdminDeleteVideo(w http.ResponseWriter, r *http.Request
 // 用户管理 API
 func (srv *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	actor := auth.GetCurrentUser(r, srv.store)
 	switch r.Method {
 	case http.MethodGet:
 		users, err := srv.store.ListUsers(ctx)
@@ -458,8 +454,8 @@ func (srv *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 				}
 				u.PasswordHash = hash
 			}
-			if err := srv.store.UpdateUser(ctx, u); err != nil {
-				errorResponse(w, http.StatusInternalServerError, err.Error())
+			if err := srv.store.ManageUser(ctx, actor.ID, u, false); err != nil {
+				growthError(w, err)
 				return
 			}
 			jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "用户修改成功"})
@@ -484,8 +480,8 @@ func (srv *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 				Role:         req.Role,
 				Status:       req.Status,
 			}
-			if err := srv.store.CreateUser(ctx, newUser); err != nil {
-				errorResponse(w, http.StatusBadRequest, "创建用户失败(用户名可能已存在): "+err.Error())
+			if err := srv.store.ManageUser(ctx, actor.ID, newUser, false); err != nil {
+				growthError(w, err)
 				return
 			}
 			jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "创建用户成功", "id": newUser.ID})
@@ -497,12 +493,13 @@ func (srv *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 			errorResponse(w, http.StatusBadRequest, "缺少有效 id 参数")
 			return
 		}
-		if id == 1 {
-			errorResponse(w, http.StatusBadRequest, "不能删除默认超级管理员")
+		u, err := srv.store.GetUserByID(ctx, id)
+		if err != nil || u == nil {
+			errorResponse(w, 404, "用户不存在")
 			return
 		}
-		if err := srv.store.DeleteUser(ctx, id); err != nil {
-			errorResponse(w, http.StatusInternalServerError, err.Error())
+		if err := srv.store.ManageUser(ctx, actor.ID, u, true); err != nil {
+			growthError(w, err)
 			return
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "删除用户成功"})
@@ -962,12 +959,7 @@ func (srv *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"code":  1,
 		"msg":   "注册成功并已登录",
 		"token": token,
-		"user": map[string]any{
-			"id":       newUser.ID,
-			"username": newUser.Username,
-			"nickname": newUser.Nickname,
-			"role":     newUser.Role,
-		},
+		"user":  srv.userProfile(r, newUser),
 	})
 }
 
@@ -1102,6 +1094,12 @@ func (srv *Server) handleVideoHit(w http.ResponseWriter, r *http.Request) {
 
 // 用户留言与求片报错 (公开提交与查询)
 func (srv *Server) handleFeedback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		if u := auth.GetCurrentUser(r, srv.store); u != nil && (u.Role == "observer" || u.Role == "operator") {
+			errorResponse(w, 403, "当前角色请使用内容提交工作台")
+			return
+		}
+	}
 	ctx := r.Context()
 	switch r.Method {
 	case http.MethodGet:
@@ -1177,15 +1175,18 @@ func (srv *Server) handleAdminSaveVideo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var rec store.VideoRecord
-	if err := json.NewDecoder(r.Body).Decode(&rec); err != nil {
-		errorResponse(w, http.StatusBadRequest, "参数解析失败: "+err.Error())
+	if !contentBody(w, r, &rec) {
 		return
 	}
 	if rec.Name == "" {
 		errorResponse(w, http.StatusBadRequest, "视频名称不能为空")
 		return
 	}
-	id, err := srv.store.SaveVideoManual(r.Context(), &rec)
+	u := auth.GetCurrentUser(r, srv.store)
+	if srv.queuePublication(w, r, u, "video", rec.ID, rec) {
+		return
+	}
+	id, err := srv.store.SaveVideoAtomic(r.Context(), &rec)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "保存视频失败: "+err.Error())
 		return
