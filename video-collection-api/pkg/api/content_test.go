@@ -6,17 +6,23 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"video-collection-api/pkg/auth"
 	"video-collection-api/pkg/store"
 )
 
 type contentFixture struct {
-	t                           *testing.T
-	s                           *store.SQLiteStore
+	t *testing.T
+	s interface {
+		store.Store
+		Close() error
+	}
 	mux                         *http.ServeMux
 	admin, alice, bob, disabled *store.User
 	tokens                      map[int]string
@@ -24,7 +30,21 @@ type contentFixture struct {
 
 func newContentFixture(t *testing.T) *contentFixture {
 	t.Helper()
-	s, err := store.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	var s interface {
+		store.Store
+		Close() error
+	}
+	var err error
+	if dsn := os.Getenv("TEST_GROWTH_POSTGRES_DSN"); dsn != "" {
+		u, e := url.Parse(dsn)
+		if e != nil {
+			t.Fatal(e)
+		}
+		u.Path = fmt.Sprintf("/growth_%d", time.Now().UnixNano())
+		s, err = store.NewPostgresStore(u.String())
+	} else {
+		s, err = store.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
