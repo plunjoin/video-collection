@@ -1,0 +1,64 @@
+---
+import BrandIcon from './BrandIcon.astro';
+import type { VideoRecord } from '../lib/api';
+interface Props { videos: VideoRecord[]; }
+const { videos } = Astro.props;
+const moods = [
+  { name: '放松一下', icon: 'smile', tags: ['日常', '治愈', '搞笑'], tone: 'mint' },
+  { name: '想要心动', icon: 'heart', tags: ['恋爱', '青春'], tone: 'pink' },
+  { name: '去冒险吧', icon: 'compass', tags: ['冒险', '奇幻', '热血'], tone: 'blue' },
+  { name: '随缘遇见', icon: 'sparkles', tags: [], tone: 'purple' },
+];
+const data = videos.map(({ id, name, picture, tags, remarks }) => ({ id, name, picture, tags, remarks }));
+---
+<section class="brand-section story-mood" data-story-mood>
+  <div class="mood-toolbar">
+    <div class="mood-heading"><span class="tiny-label">STORY RADIO</span><h2>今天，是什么心情？</h2></div>
+    <div class="mood-options" role="group" aria-label="选番心情">
+      {moods.map((mood, i) => <button class={`mood-option mood-option--${mood.tone}`} data-mood={i} data-tags={mood.tags.join(',')} aria-pressed={i === 0}><BrandIcon name={mood.icon} /><span>{mood.name}</span></button>)}
+    </div>
+    <button class="icon-command" data-shuffle title="再遇见一部" aria-label="再遇见一部"><BrandIcon name="shuffle" /></button>
+  </div>
+  <div class="mood-result" aria-live="polite" aria-atomic="true">
+    <img data-mood-poster src="/assets/hero_banner.jpg" alt="" hidden />
+    <div><span class="tiny-label" data-mood-caption>给今天的一份小小推荐</span><h3 data-mood-title>好故事，等你来发现</h3><p data-mood-meta>从喜欢的心情开始</p></div>
+    <a data-mood-link href="/category" class="mood-result__link"><span data-mood-action>发现番剧</span><BrandIcon name="arrow-right" /></a>
+  </div>
+  <script type="application/json" data-mood-data set:html={JSON.stringify(data).replace(/</g, '\u003c')} />
+</section>
+<script>
+  import type { VideoRecord } from '../lib/api';
+  const section = document.querySelector<HTMLElement>('[data-story-mood]');
+  if (section) {
+    const videos: Pick<VideoRecord, 'id' | 'name' | 'picture' | 'tags' | 'remarks'>[] = JSON.parse(section.querySelector('[data-mood-data]')!.textContent || '[]');
+    const buttons = [...section.querySelectorAll<HTMLButtonElement>('[data-mood]')];
+    let mood = 0;
+    let previousId: number | undefined;
+    const choose = () => {
+      const tags = buttons[mood].dataset.tags?.split(',').filter(Boolean) || [];
+      const matches = videos.filter(video => !tags.length || video.tags?.some(tag => tags.includes(tag)));
+      const choices = matches.length > 1 ? matches.filter(video => video.id !== previousId) : matches;
+      const video = choices[Math.floor(Math.random() * choices.length)];
+      previousId = video?.id;
+      const poster = section.querySelector<HTMLImageElement>('[data-mood-poster]')!;
+      poster.hidden = !video;
+      poster.src = video?.picture || '/brand/bllii-app-light.svg';
+      poster.onerror = () => { poster.onerror = null; poster.src = '/brand/bllii-app-light.svg'; };
+      section.querySelector('[data-mood-title]')!.textContent = video?.name || '这份心情，去番剧库找找吧';
+      section.querySelector('[data-mood-meta]')!.textContent = video ? [video.remarks, ...(video.tags || []).slice(0, 3)].filter(Boolean).join(' · ') : '更多故事正在路上';
+      const link = section.querySelector<HTMLAnchorElement>('[data-mood-link]')!;
+      link.href = video ? `/anime/${video.id}` : '/category';
+      section.querySelector('[data-mood-action]')!.textContent = video ? '就看这部' : '发现番剧';
+      section.dataset.tone = ['mint', 'pink', 'blue', 'purple'][mood];
+      buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === mood)));
+    };
+    buttons.forEach((button, i) => button.addEventListener('click', () => {
+      mood = i;
+      choose();
+      try { localStorage.setItem('bllii_story_mood', String(i)); } catch {}
+    }));
+    section.querySelector('[data-shuffle]')?.addEventListener('click', choose);
+    try { const saved = Number(localStorage.getItem('bllii_story_mood')); if (Number.isInteger(saved) && saved >= 0 && saved < buttons.length) mood = saved; } catch {}
+    choose();
+  }
+</script>
