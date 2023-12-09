@@ -2,7 +2,7 @@
  * 极光现代化 Video.js 流媒体播放器内核 (Aurora Modern Video.js Player Engine)
  * 特性：
  * 1. 深度适配 m3u8 (HLS) / mp4 多流媒体切片
- * 2. 画质超清增强引擎 (卷积锐化矩阵 + 动态对比色彩算法，支持热开关与状态持久化)
+ * 2. 浏览器端滤镜、音效设置与悬停画面预览
  * 3. 画面尺寸与比例完美适配引擎：
  *    - 彻底修复 16:9 / 4:3 / 21:9 比例引起的高度不一致与 ControlBar 悬空/下沉问题
  *    - 强制锁定播放器外壳尺寸，采用容器 100% 填充 + 画面正中央绝对居中渲染 (Contain/Center)
@@ -19,7 +19,7 @@
 (function (window) {
   'use strict';
 
-  const BRAND_ICON_SPRITE = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n  <symbol id=\"bllii-home\" viewBox=\"0 0 24 24\"><path d=\"m3 11 7-7q2-2 4 0l7 7M5 10v9q0 2 2 2h10q2 0 2-2v-9M10 21v-7h4v7\"/><path d=\"M17 4h3v3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-search\" viewBox=\"0 0 24 24\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m15.5 15.5 5 5M7.5 9q1-2 3-2\"/><path d=\"M19 4h2M20 3v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-calendar\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"16\" rx=\"4\"/><path d=\"M8 3v4m8-4v4M4 10h16M8 14h2m-2 3h2m4-3h2\"/><path d=\"m14 17 1 1 3-3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-rank\" viewBox=\"0 0 24 24\"><path d=\"M4 20h16M5 17v-5h4v5m1 0V8h4v9m1 0v-6h4v6\"/><path d=\"m10 4 2-2 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-library\" viewBox=\"0 0 24 24\"><path d=\"M7 3h10M5 6h14\"/><rect x=\"3\" y=\"9\" width=\"18\" height=\"12\" rx=\"4\"/><path d=\"m10 12 5 3-5 3z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bookmark\" viewBox=\"0 0 24 24\"><path d=\"M6 5q0-2 2-2h8q2 0 2 2v16l-6-4-6 4z\"/><path d=\"M10 7h4m-4 3h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-heart\" viewBox=\"0 0 24 24\"><path d=\"M12 20S3 15 3 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z\"/><path d=\"M16 6q2 0 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-star\" viewBox=\"0 0 24 24\"><path d=\"m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1Z\"/><path d=\"m19 3 1-1m1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bell\" viewBox=\"0 0 24 24\"><path d=\"M8 18h8M9 21h6M5 17c2-2 1-4 1-7a6 6 0 0 1 12 0c0 3-1 5 1 7Z\"/><path d=\"m19 3 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-user\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-2c0-7 16-7 16 0v2M10 8h.1m3.9 0h.1\"/><path d=\"M19 6h2m-1-1v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-history\" viewBox=\"0 0 24 24\"><path d=\"M4 8a9 9 0 1 1-1 7M3 3v5h5M12 7v5l3 2\"/><path d=\"M4 18h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-logout\" viewBox=\"0 0 24 24\"><path d=\"M10 3H6q-2 0-2 2v14q0 2 2 2h4M10 12h11m-4-4 4 4-4 4\"/><path d=\"M8 7h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-play\" viewBox=\"0 0 24 24\"><path d=\"M8 4q-2-1-2 2v12q0 3 2 2l12-7q2-1 0-2Z\"/><path d=\"M2 8h1m-2 4h2m-1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-pause\" viewBox=\"0 0 24 24\"><rect x=\"5\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><rect x=\"15\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><path d=\"M11 12h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-prev\" viewBox=\"0 0 24 24\"><path d=\"m18 5-9 7 9 7ZM5 5v14\"/><path d=\"M3 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-next\" viewBox=\"0 0 24 24\"><path d=\"m6 5 9 7-9 7ZM19 5v14\"/><path d=\"M21 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-left\" viewBox=\"0 0 24 24\"><path d=\"M20 12H4m6-6-6 6 6 6\"/><path d=\"M17 8h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-right\" viewBox=\"0 0 24 24\"><path d=\"M4 12h16m-6-6 6 6-6 6\"/><path d=\"M4 16h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-chevron-down\" viewBox=\"0 0 24 24\"><path d=\"m5 9 7 7 7-7\"/><path d=\"M11 5h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-check\" viewBox=\"0 0 24 24\"><path d=\"m5 12 5 5L20 6\"/><path d=\"M3 17h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-plus\" viewBox=\"0 0 24 24\"><path d=\"M12 5v14M5 12h14\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-close\" viewBox=\"0 0 24 24\"><path d=\"m6 6 12 12M6 18 18 6\"/><path d=\"M20 3h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-shuffle\" viewBox=\"0 0 24 24\"><path d=\"M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 3M3 18h3c1 0 3-2 4-4m4-4c1-2 3-4 4-4h3m-4-3 4 3-4 4\"/><path d=\"M3 11h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-sparkles\" viewBox=\"0 0 24 24\"><path d=\"m10 4 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z\"/><path d=\"m19 2 1 3 3 1-3 1-1 3-1-3-3-1 3-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-smile\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"7\"/><path d=\"M8 10v1m8-1v1m-8 4q4 4 8 0\"/><path d=\"M18 3h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-compass\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m16 8-2 6-6 2 2-6Z\"/><path d=\"M12 2v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-moon\" viewBox=\"0 0 24 24\"><path d=\"M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11Z\"/><path d=\"m18 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-ratio\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 9h4m-4 0v4m10 2h-4m4 0v-4\"/><path d=\"M11 2h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-routes\" viewBox=\"0 0 24 24\"><path d=\"M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4\"/><path d=\"M3 3h2m14 18h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-episodes\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"14\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"15\" width=\"7\" height=\"6\" rx=\"2\"/><path d=\"M14 16h7m-7 4h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-repeat\" viewBox=\"0 0 24 24\"><path d=\"M4 10V8q0-3 3-3h13m-3-3 3 3-3 3M20 14v2q0 3-3 3H4m3-3-3 3 3 3\"/><path d=\"m10 10 5 2-5 2Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-volume\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 8q4 4 0 8\"/><path d=\"M19 5q7 7 0 14\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-muted\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 9l6 6m-6 0 6-6\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-fullscreen\" viewBox=\"0 0 24 24\"><path d=\"M8 3H5q-2 0-2 2v3m13-5h3q2 0 2 2v3M3 16v3q0 2 2 2h3m8 0h3q2 0 2-2v-3\"/><path d=\"M10 12h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-message\" viewBox=\"0 0 24 24\"><path d=\"M7 4h10q4 0 4 4v6q0 4-4 4h-6l-6 3v-4q-2-1-2-3V8q0-4 4-4Z\"/><path d=\"M7 9h10M7 13h5\"/><path d=\"M15 13h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-mail\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"4\"/><path d=\"m4 7 8 6 8-6\"/><path d=\"M17 21h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-link\" viewBox=\"0 0 24 24\"><path d=\"m10 8 3-3a4 4 0 0 1 6 6l-3 3m-2 2-3 3a4 4 0 0 1-6-6l3-3m1 5 6-6\"/><path d=\"M3 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-lock\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"10\" width=\"16\" height=\"11\" rx=\"4\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3M12 14v3\"/><path d=\"M18 3h2\" stroke=\"#ff89c7\"/></symbol>\n</svg>\n"; // brand-sprite
+  const BRAND_ICON_SPRITE = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n  <symbol id=\"bllii-home\" viewBox=\"0 0 24 24\"><path d=\"m3 11 7-7q2-2 4 0l7 7M5 10v9q0 2 2 2h10q2 0 2-2v-9M10 21v-7h4v7\"/><path d=\"M17 4h3v3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-search\" viewBox=\"0 0 24 24\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m15.5 15.5 5 5M7.5 9q1-2 3-2\"/><path d=\"M19 4h2M20 3v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-calendar\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"16\" rx=\"4\"/><path d=\"M8 3v4m8-4v4M4 10h16M8 14h2m-2 3h2m4-3h2\"/><path d=\"m14 17 1 1 3-3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-rank\" viewBox=\"0 0 24 24\"><path d=\"M4 20h16M5 17v-5h4v5m1 0V8h4v9m1 0v-6h4v6\"/><path d=\"m10 4 2-2 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-library\" viewBox=\"0 0 24 24\"><path d=\"M7 3h10M5 6h14\"/><rect x=\"3\" y=\"9\" width=\"18\" height=\"12\" rx=\"4\"/><path d=\"m10 12 5 3-5 3z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bookmark\" viewBox=\"0 0 24 24\"><path d=\"M6 5q0-2 2-2h8q2 0 2 2v16l-6-4-6 4z\"/><path d=\"M10 7h4m-4 3h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-heart\" viewBox=\"0 0 24 24\"><path d=\"M12 20S3 15 3 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z\"/><path d=\"M16 6q2 0 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-star\" viewBox=\"0 0 24 24\"><path d=\"m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1Z\"/><path d=\"m19 3 1-1m1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bell\" viewBox=\"0 0 24 24\"><path d=\"M8 18h8M9 21h6M5 17c2-2 1-4 1-7a6 6 0 0 1 12 0c0 3-1 5 1 7Z\"/><path d=\"m19 3 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-user\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-2c0-7 16-7 16 0v2M10 8h.1m3.9 0h.1\"/><path d=\"M19 6h2m-1-1v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-history\" viewBox=\"0 0 24 24\"><path d=\"M4 8a9 9 0 1 1-1 7M3 3v5h5M12 7v5l3 2\"/><path d=\"M4 18h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-logout\" viewBox=\"0 0 24 24\"><path d=\"M10 3H6q-2 0-2 2v14q0 2 2 2h4M10 12h11m-4-4 4 4-4 4\"/><path d=\"M8 7h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-play\" viewBox=\"0 0 24 24\"><path d=\"M8 4q-2-1-2 2v12q0 3 2 2l12-7q2-1 0-2Z\"/><path d=\"M2 8h1m-2 4h2m-1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-pause\" viewBox=\"0 0 24 24\"><rect x=\"5\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><rect x=\"15\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><path d=\"M11 12h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-prev\" viewBox=\"0 0 24 24\"><path d=\"m18 5-9 7 9 7ZM5 5v14\"/><path d=\"M3 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-next\" viewBox=\"0 0 24 24\"><path d=\"m6 5 9 7-9 7ZM19 5v14\"/><path d=\"M21 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-left\" viewBox=\"0 0 24 24\"><path d=\"M20 12H4m6-6-6 6 6 6\"/><path d=\"M17 8h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-right\" viewBox=\"0 0 24 24\"><path d=\"M4 12h16m-6-6 6 6-6 6\"/><path d=\"M4 16h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-chevron-down\" viewBox=\"0 0 24 24\"><path d=\"m5 9 7 7 7-7\"/><path d=\"M11 5h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-check\" viewBox=\"0 0 24 24\"><path d=\"m5 12 5 5L20 6\"/><path d=\"M3 17h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-plus\" viewBox=\"0 0 24 24\"><path d=\"M12 5v14M5 12h14\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-close\" viewBox=\"0 0 24 24\"><path d=\"m6 6 12 12M6 18 18 6\"/><path d=\"M20 3h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-shuffle\" viewBox=\"0 0 24 24\"><path d=\"M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 3M3 18h3c1 0 3-2 4-4m4-4c1-2 3-4 4-4h3m-4-3 4 3-4 4\"/><path d=\"M3 11h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-sparkles\" viewBox=\"0 0 24 24\"><path d=\"m10 4 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z\"/><path d=\"m19 2 1 3 3 1-3 1-1 3-1-3-3-1 3-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-smile\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"7\"/><path d=\"M8 10v1m8-1v1m-8 4q4 4 8 0\"/><path d=\"M18 3h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-compass\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m16 8-2 6-6 2 2-6Z\"/><path d=\"M12 2v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-moon\" viewBox=\"0 0 24 24\"><path d=\"M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11Z\"/><path d=\"m18 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-ratio\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 9h4m-4 0v4m10 2h-4m4 0v-4\"/><path d=\"M11 2h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-routes\" viewBox=\"0 0 24 24\"><path d=\"M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4\"/><path d=\"M3 3h2m14 18h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-episodes\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"14\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"15\" width=\"7\" height=\"6\" rx=\"2\"/><path d=\"M14 16h7m-7 4h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-repeat\" viewBox=\"0 0 24 24\"><path d=\"M4 10V8q0-3 3-3h13m-3-3 3 3-3 3M20 14v2q0 3-3 3H4m3-3-3 3 3 3\"/><path d=\"m10 10 5 2-5 2Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-volume\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 8q4 4 0 8\"/><path d=\"M19 5q7 7 0 14\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-muted\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 9l6 6m-6 0 6-6\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-fullscreen\" viewBox=\"0 0 24 24\"><path d=\"M8 3H5q-2 0-2 2v3m13-5h3q2 0 2 2v3M3 16v3q0 2 2 2h3m8 0h3q2 0 2-2v-3\"/><path d=\"M10 12h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-message\" viewBox=\"0 0 24 24\"><path d=\"M7 4h10q4 0 4 4v6q0 4-4 4h-6l-6 3v-4q-2-1-2-3V8q0-4 4-4Z\"/><path d=\"M7 9h10M7 13h5\"/><path d=\"M15 13h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-mail\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"4\"/><path d=\"m4 7 8 6 8-6\"/><path d=\"M17 21h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-link\" viewBox=\"0 0 24 24\"><path d=\"m10 8 3-3a4 4 0 0 1 6 6l-3 3m-2 2-3 3a4 4 0 0 1-6-6l3-3m1 5 6-6\"/><path d=\"M3 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-lock\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"10\" width=\"16\" height=\"11\" rx=\"4\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3M12 14v3\"/><path d=\"M18 3h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-settings\" viewBox=\"0 0 24 24\"><path d=\"M4 7h16M4 17h16\"/><rect x=\"7\" y=\"4\" width=\"4\" height=\"6\" rx=\"2\"/><rect x=\"14\" y=\"14\" width=\"4\" height=\"6\" rx=\"2\"/><path d=\"M19 3h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-speed\" viewBox=\"0 0 24 24\"><path d=\"M4 18a9 9 0 1 1 16 0M7 9l1 1m4-5v2m5 2-1 1M6 17h12m-6-3 4-3\"/><path d=\"M2 12h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-scrubber\" viewBox=\"0 0 24 24\"><path d=\"M7 4q-3-1-3 2v12q0 3 3 2l13-7q2-1 0-2Z\" fill=\"#f6faff\" stroke=\"#4b9fff\"/><path d=\"M8 10v2m5-1v2m-5 3q2 2 4 0\" stroke=\"#9a83ff\"/><path d=\"M1 8h1m-1 4h1m-1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-up\" viewBox=\"0 0 24 24\"><path d=\"M12 20V4m-6 6 6-6 6 6\"/><path d=\"M4 18v2\" stroke=\"#ff89c7\"/></symbol>\n</svg>\n"; // brand-sprite
   function brandIcon(name, className = '') {
     return `<svg class="bllii-player-icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#bllii-${name}" /></svg>`;
   }
@@ -31,25 +31,6 @@
     { key: '4:3', name: '4:3 经典', label: '比例: 4:3', short: '4:3' },
     { key: 'fill', name: '画面铺满', label: '比例: 铺满', short: '铺满' },
   ];
-
-  // 注入全站 SVG 锐化卷积滤镜 (提升视频边缘细节与微高频纹理)
-  function ensureSvgFilter() {
-    if (document.getElementById('vplayer-svg-filters')) return;
-    const svgWrap = document.createElement('div');
-    svgWrap.id = 'vplayer-svg-filters';
-    svgWrap.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;';
-    svgWrap.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg">
-        <filter id="vplayer-sharpen-filter">
-          <feConvolveMatrix order="3" preserveAlpha="true" kernelMatrix="
-             0   -0.45    0
-           -0.45  2.8   -0.45
-             0   -0.45    0"/>
-        </filter>
-      </svg>
-    `;
-    document.body.appendChild(svgWrap);
-  }
 
   // 注入播放器控制条高质感现代样式、比例居中与手势样式
   function ensurePlayerStyles() {
@@ -113,11 +94,6 @@
         left: 50% !important;
         transform: translate(-50%, -50%) !important;
         margin: 0 !important;
-      }
-
-      /* 画质超清增强启用状态样式 */
-      .vjs-modern-skin.vjs-enhanced .vjs-tech {
-        filter: contrast(1.08) saturate(1.15) brightness(1.02) url(#vplayer-sharpen-filter) !important;
       }
 
       /* 比例模式 1：16:9 宽屏居中 (自适应容纳) */
@@ -329,12 +305,6 @@
       }
 
       /* 按钮激活状态 */
-      .vjs-btn-enhance.active {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.85), rgba(168, 85, 247, 0.85)) !important;
-        border-color: #818cf8 !important;
-        color: #fff !important;
-        box-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
-      }
       .vjs-btn-ratio.active {
         background: rgba(99, 102, 241, 0.25) !important;
         border-color: #818cf8 !important;
@@ -525,12 +495,18 @@
         z-index: 35;
         display: flex;
         flex-direction: column;
-        transform: translateX(100%);
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        clip-path: inset(0 0 0 100%);
+        transition: clip-path .25s ease-out, opacity .2s ease-out;
         box-shadow: -10px 0 25px rgba(0,0,0,0.6);
       }
       .vjs-episodes-drawer.open {
-        transform: translateX(0);
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        clip-path: inset(0);
       }
       .vjs-drawer-header {
         padding: 12px 16px;
@@ -951,6 +927,80 @@
     document.head.appendChild(style);
   }
 
+  function ensureBrowserFeatureStyles() {
+    if (document.getElementById('bllii-browser-feature-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'bllii-browser-feature-styles';
+    style.textContent = `
+      .vjs-modern-skin .vjs-control.vjs-button .vjs-icon-placeholder::before,
+      .vjs-modern-skin .vjs-control.vjs-button .vjs-icon-placeholder::after,
+      .vjs-modern-skin .vjs-big-play-button .vjs-icon-placeholder::before { content: none !important; display: none !important; }
+      .vjs-modern-skin .vjs-icon-placeholder { display: inline-flex; align-items: center; justify-content: center; }
+      .vjs-modern-skin .vjs-control-bar > .vjs-playback-rate {
+        position: relative; width: 34px !important; min-width: 34px !important; height: 32px !important;
+        padding: 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-radius: 6px !important;
+      }
+      .vjs-modern-skin .vjs-playback-rate > button.vjs-playback-rate {
+        position: absolute; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important;
+        padding: 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-radius: 6px !important;
+      }
+      .vjs-modern-skin .vjs-playback-rate .vjs-playback-rate-value {
+        position: absolute; inset: 0; height: 32px !important; line-height: 32px !important; pointer-events: none;
+        color: #eef5ff !important; font-size: 11px !important; font-weight: 600;
+      }
+      .vjs-modern-skin .vjs-playback-rate .vjs-menu { bottom: 42px; margin-bottom: 0; width: 64px; left: 50%; margin-left: -32px; }
+      .vjs-modern-skin .vjs-playback-rate .vjs-menu-content { padding: 5px; width: 100% !important; left: 0 !important; max-height: min(220px, 50vh) !important; }
+      .vjs-modern-skin .vjs-playback-rate .vjs-menu-item { font: 12px/2.5 system-ui,sans-serif; border-radius: 4px; color: #596e89; }
+      .vjs-modern-skin .vjs-custom-btn:hover { transform: none; }
+      .vjs-modern-skin .vjs-play-progress::before { content: none !important; display: none !important; }
+      .bllii-seek-mascot { position: absolute; right: -10px; top: -9px; width: 23px; height: 23px; pointer-events: none; z-index: 3; }
+      .bllii-seek-mascot .bllii-player-icon { width: 23px; height: 23px; }
+      .vjs-modern-skin .vjs-tech { filter: var(--bllii-picture-filter, none) !important; }
+      .vjs-modern-skin .vjs-progress-control .vjs-mouse-display { display: none !important; }
+      .bllii-frame-preview { position: absolute; bottom: 80px; width: 184px; max-width: calc(100% - 16px); border: 2px solid #ffffff; border-radius: 6px; background: #15191e; box-shadow: 0 6px 24px #00000030; z-index: 40; overflow: hidden; pointer-events: none; }
+      .bllii-frame-preview[hidden] { display: none !important; }
+      .bllii-frame-preview__media { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+      .bllii-frame-preview__media > .video-js { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .bllii-frame-preview .vjs-control-bar, .bllii-frame-preview .vjs-big-play-button, .bllii-frame-preview .vjs-loading-spinner, .bllii-frame-preview .vjs-error-display { display: none !important; }
+      .bllii-frame-preview .video-js { opacity: 0; transition: opacity .15s; }
+      .bllii-frame-preview.is-ready .video-js { opacity: 1; }
+      .bllii-frame-preview__state { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 8px; color: #a7cfff; font: 11px system-ui,sans-serif; }
+      .bllii-frame-preview.is-ready .bllii-frame-preview__state { display: none; }
+      .bllii-frame-preview__time { display: block; padding: 6px; text-align: center; font: 11px ui-monospace,monospace; color: #eef5ff; background: #252b32; }
+      .bllii-settings-panel {
+        position: fixed; margin: auto; inset: 0; width: 330px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); overflow: auto;
+        padding: 0; background: #f9fbff; color: #353b58; border: 1px solid #dce8f8; border-radius: 8px;
+        box-shadow: 0 18px 60px #15191e40; font: 13px/1.5 system-ui,sans-serif; user-select: auto;
+      }
+      .bllii-settings-panel::backdrop { background: #15191e35; }
+      .bllii-settings-panel[open] { animation: blliiIris .2s ease-out; }
+      @keyframes blliiIris { from { clip-path: inset(0 0 100% 0); opacity: .5; } to { clip-path: inset(0); opacity: 1; } }
+      .bllii-settings-panel header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #e4ebf5; }
+      .bllii-settings-panel header strong { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+      .bllii-settings-panel header .bllii-player-icon { color: #438ff0; }
+      .bllii-settings-panel button { cursor: pointer; font: inherit; }
+      .bllii-settings-panel .bllii-panel-close { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 4px; color: #7d899b; }
+      .bllii-settings-tabs { display: flex; padding: 12px 16px 0; gap: 18px; }
+      .bllii-settings-tabs button { padding: 6px 0; border-bottom: 2px solid transparent; color: #7d899b; }
+      .bllii-settings-tabs button[aria-selected="true"] { color: #438ff0; border-color: #ff89c7; }
+      .bllii-settings-body { padding: 16px; }
+      .bllii-settings-panel [hidden] { display: none !important; }
+      .bllii-setting-row { display: block; margin-bottom: 16px; }
+      .bllii-setting-row > span { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+      .bllii-setting-row output { color: #438ff0; font-variant-numeric: tabular-nums; }
+      .bllii-setting-row input[type="range"] { display: block; width: 100%; accent-color: #4b9fff; height: 18px; }
+      .bllii-setting-row select { width: 100%; padding: 8px 10px; background: white; color: #353b58; border: 1px solid #dce8f8; border-radius: 4px; font: inherit; }
+      .bllii-setting-row select:disabled { opacity: .5; }
+      .bllii-sound-state { color: #8290a4; margin: 12px 0; font-size: 12px; }
+      .bllii-settings-panel footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid #e4ebf5; }
+      .bllii-settings-panel footer button { display: inline-flex; align-items: center; gap: 6px; color: #5c7da5; }
+      .bllii-settings-panel footer small { color: #99a4b3; font-size: 10px; }
+      @media (max-width: 520px) { .vjs-modern-skin .vjs-control-bar > .vjs-playback-rate { width: 30px !important; min-width: 30px !important; } }
+      @media (prefers-reduced-motion: reduce) { .bllii-settings-panel[open] { animation: none; } }
+    `;
+    document.head.appendChild(style);
+  }
+
   // 播放器类
   class ModernVideoPlayer {
     constructor(elementId, options = {}) {
@@ -960,7 +1010,6 @@
         controls: true,
         preload: 'auto',
         playbackRates: [0.75, 1, 1.25, 1.5, 2],
-        enhanceDefault: true,
         autoplayNextDefault: true,
         nextCountdownSec: 3,
         onEpisodeChange: null,
@@ -981,9 +1030,6 @@
       this.lastTimeUpdateReport = 0;
       
       // 读取本地持久化设置
-      const savedEnhance = localStorage.getItem('vplayer_enhance_enabled');
-      this.isEnhanced = savedEnhance !== null ? savedEnhance === 'true' : this.options.enhanceDefault;
-
       const savedAutoplay = localStorage.getItem('vplayer_autoplay_next');
       this.isAutoplayNext = savedAutoplay !== null ? savedAutoplay === 'true' : this.options.autoplayNextDefault;
 
@@ -993,7 +1039,6 @@
       this.countdownTimer = null;
       this.countdownLeft = 0;
 
-      ensureSvgFilter();
       ensurePlayerStyles();
       this.initPlayer();
     }
@@ -1046,9 +1091,6 @@
       this.player.ready(() => {
         const playerEl = this.player.el();
         playerEl.classList.add('vjs-modern-skin');
-        if (this.isEnhanced) {
-          playerEl.classList.add('vjs-enhanced');
-        }
 
         // 应用比例模式 (16:9, 4:3 或 默认居中)
         this.applyAspectRatio(this.aspectRatio, false);
@@ -1058,8 +1100,8 @@
           const placeholder = playerEl.querySelector(selector + ' .vjs-icon-placeholder');
           if (placeholder) placeholder.innerHTML = markup;
         };
-        nativeIcon('.vjs-play-control', `<span class="vjs-playing-icon">${brandIcon('play')}</span><span class="vjs-paused-icon">${brandIcon('pause')}</span>`);
-        nativeIcon('.vjs-mute-control', `<span class="vjs-audible-icon">${brandIcon('volume')}</span><span class="vjs-muted-icon">${brandIcon('muted')}</span>`);
+        nativeIcon('.vjs-play-control', brandIcon('play'));
+        nativeIcon('.vjs-mute-control', brandIcon('volume'));
         nativeIcon('.vjs-fullscreen-control', brandIcon('fullscreen'));
         nativeIcon('.vjs-big-play-button', brandIcon('play'));
         const spinner = playerEl.querySelector('.vjs-loading-spinner');
@@ -1068,27 +1110,24 @@
         this.setupGestureSystem();
         this.setupResponsiveObserver();
         this.bindEvents();
+        this.setupBrowserFeatures();
       });
     }
 
-    // 在 ControlBar 注入画面比例、画质、线路、选集、自动连播
+    // 在 ControlBar 注入设置、画面比例、线路、选集、自动连播
     injectCustomControls() {
       const controlBar = this.player.getChild('controlBar');
       if (!controlBar) return;
       const cbEl = controlBar.el();
 
-      // 1. 画质增强按钮
-      this.btnEnhance = document.createElement('button');
-      this.btnEnhance.type = 'button';
-      this.btnEnhance.className = `vjs-custom-btn vjs-btn-enhance ${this.isEnhanced ? 'active' : ''}`;
-      this.btnEnhance.title = '超清画质增强 (对比度/锐化/高动态色彩优化)';
-      this.btnEnhance.innerHTML = `
-        ${brandIcon('sparkles')}
-        <span class="enhance-text">画质增强: 开</span>
-      `;
-      this.btnEnhance.onclick = (e) => {
+      this.btnSettings = document.createElement('button');
+      this.btnSettings.type = 'button';
+      this.btnSettings.className = 'vjs-custom-btn vjs-btn-settings';
+      this.btnSettings.title = '放映设置';
+      this.btnSettings.innerHTML = brandIcon('settings');
+      this.btnSettings.onclick = (e) => {
         e.stopPropagation();
-        this.toggleEnhance();
+        this.openSettings();
       };
 
       // 2. 画面比例切换按钮 (居中自适应 / 16:9 / 4:3 / 铺满)
@@ -1155,20 +1194,20 @@
       const targetAnchor = playbackBtn ? playbackBtn.el() : (volumeBtn ? volumeBtn.el() : (fullscreenBtn ? fullscreenBtn.el() : null));
 
       if (targetAnchor) {
-        cbEl.insertBefore(this.btnEnhance, targetAnchor);
+        cbEl.insertBefore(this.btnSettings, targetAnchor);
         cbEl.insertBefore(this.btnRatio, targetAnchor);
         cbEl.insertBefore(this.btnRoutes, targetAnchor);
         cbEl.insertBefore(this.btnEpisodes, targetAnchor);
         cbEl.insertBefore(this.btnAutoplay, targetAnchor);
       } else {
-        cbEl.appendChild(this.btnEnhance);
+        cbEl.appendChild(this.btnSettings);
         cbEl.appendChild(this.btnRatio);
         cbEl.appendChild(this.btnRoutes);
         cbEl.appendChild(this.btnEpisodes);
         cbEl.appendChild(this.btnAutoplay);
       }
 
-      [this.btnEnhance, this.btnRatio, this.btnRoutes, this.btnEpisodes, this.btnAutoplay].forEach(button => {
+      [this.btnSettings, this.btnRatio, this.btnRoutes, this.btnEpisodes, this.btnAutoplay].forEach(button => {
         button.setAttribute('aria-label', button.title);
       });
       this.updateBtnLabels();
@@ -1602,18 +1641,6 @@
       const width = playerEl ? playerEl.clientWidth : window.innerWidth;
       const isCompact = width < 680;
 
-      // 画质增强
-      if (this.btnEnhance) {
-        this.btnEnhance.setAttribute('aria-pressed', String(this.isEnhanced));
-        this.btnEnhance.setAttribute('aria-label', this.isEnhanced ? '画质增强：已开启' : '画质增强：已关闭');
-        const textSpan = this.btnEnhance.querySelector('.enhance-text');
-        if (textSpan) {
-          textSpan.innerText = isCompact
-            ? (this.isEnhanced ? '超清' : '原画')
-            : (this.isEnhanced ? '画质增强: 开' : '画质增强: 关');
-        }
-      }
-
       // 画面比例 (居中 / 16:9 / 4:3 / 铺满)
       if (this.btnRatio) {
         this.btnRatio.setAttribute('aria-label', `画面比例：${(ASPECT_MODES.find(m => m.key === this.aspectRatio) || ASPECT_MODES[0]).name}`);
@@ -1713,6 +1740,7 @@
 
     // 键盘全局快捷键分发处理
     handleKeyDown(e) {
+      if (this.settingsDialog?.open) return;
       // 忽略处于输入表单或富文本中的按键
       const activeEl = document.activeElement;
       const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
@@ -2035,25 +2063,6 @@
       }
     }
 
-    // 画质超清增强开关
-    toggleEnhance(forceVal) {
-      this.isEnhanced = typeof forceVal === 'boolean' ? forceVal : !this.isEnhanced;
-      const playerEl = this.player.el();
-
-      if (this.isEnhanced) {
-        playerEl.classList.add('vjs-enhanced');
-        this.btnEnhance.classList.add('active');
-        this.showToast('✨ 超清画质增强已开启 (边缘锐化与动态色彩强化)');
-      } else {
-        playerEl.classList.remove('vjs-enhanced');
-        this.btnEnhance.classList.remove('active');
-        this.showToast('画质增强已关闭 (原画渲染)');
-      }
-
-      this.updateBtnLabels();
-      localStorage.setItem('vplayer_enhance_enabled', this.isEnhanced ? 'true' : 'false');
-    }
-
     // 自动播放下一集开关
     toggleAutoplayNext(forceVal) {
       this.isAutoplayNext = typeof forceVal === 'boolean' ? forceVal : !this.isAutoplayNext;
@@ -2175,6 +2184,281 @@
       if (this.player && typeof seconds === 'number') {
         this.player.currentTime(seconds);
       }
+    }
+
+    setupBrowserFeatures() {
+      ensureBrowserFeatureStyles();
+      const root = this.player.el();
+      const syncIcons = () => {
+        root.querySelector('.vjs-play-control .bllii-player-icon use')?.setAttribute('href', `#bllii-${this.player.paused() ? 'play' : 'pause'}`);
+        root.querySelector('.vjs-mute-control .bllii-player-icon use')?.setAttribute('href', `#bllii-${this.player.muted() || !this.player.volume() ? 'muted' : 'volume'}`);
+        root.querySelector('.vjs-playback-rate > button')?.setAttribute('aria-label', `播放速度：${this.player.playbackRate()} 倍`);
+      };
+      this.player.on(['play', 'pause', 'volumechange', 'ratechange'], syncIcons);
+      syncIcons();
+      const playProgress = root.querySelector('.vjs-play-progress');
+      playProgress?.insertAdjacentHTML('beforeend', `<span class="bllii-seek-mascot">${brandIcon('scrubber')}</span>`);
+      this.pictureSettings = { brightness: 100, contrast: 100, saturation: 100, gray: 0 };
+      try {
+        const saved = JSON.parse(localStorage.getItem('bllii_picture_settings') || 'null');
+        if (saved) Object.keys(this.pictureSettings).forEach(key => {
+          const [min, max] = { brightness: [50, 150], contrast: [50, 150], saturation: [0, 200], gray: [0, 1] }[key];
+          if (Number.isFinite(saved[key])) this.pictureSettings[key] = Math.max(min, Math.min(max, saved[key]));
+        });
+      } catch {}
+      this.soundMode = 'original';
+      this.applyPictureSettings();
+      this.createSettingsPanel();
+      root.addEventListener('contextmenu', event => {
+        if (event.target.closest('input, select, textarea, .bllii-settings-panel')) return;
+        event.preventDefault();
+        this.openSettings(event);
+      });
+      this.setupFramePreview();
+      this.player.on('dispose', () => this.disposeBrowserFeatures());
+    }
+
+    applyPictureSettings() {
+      const settings = this.pictureSettings;
+      const isOriginal = settings.brightness === 100 && settings.contrast === 100 && settings.saturation === 100 && !settings.gray;
+      this.player.el().style.setProperty('--bllii-picture-filter', isOriginal ? 'none' : `brightness(${settings.brightness / 100}) contrast(${settings.contrast / 100}) saturate(${settings.saturation / 100}) grayscale(${settings.gray})`);
+      try { localStorage.setItem('bllii_picture_settings', JSON.stringify(settings)); } catch {}
+    }
+
+    createSettingsPanel() {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'bllii-settings-panel';
+      dialog.setAttribute('aria-label', '放映设置');
+      dialog.innerHTML = `
+        <header><strong>${brandIcon('settings')} 放映设置</strong><button class="bllii-panel-close" aria-label="关闭设置">${brandIcon('close')}</button></header>
+        <div class="bllii-settings-tabs" role="tablist" aria-label="设置类型">
+          <button type="button" role="tab" data-settings-tab="picture" aria-selected="true">画面</button>
+          <button type="button" role="tab" data-settings-tab="sound" aria-selected="false">声音</button>
+        </div>
+        <div class="bllii-settings-body" data-settings-pane="picture" role="tabpanel">
+          <label class="bllii-setting-row"><span>滤镜</span><select data-picture-preset><option value="original">原始画面</option><option value="soft">柔和</option><option value="bright">明亮</option><option value="mono">黑白</option><option value="custom">自定义</option></select></label>
+          ${[['brightness', '亮度', 50, 150], ['contrast', '对比度', 50, 150], ['saturation', '饱和度', 0, 200]].map(([key, label, min, max]) => `<label class="bllii-setting-row"><span>${label}<output data-picture-value="${key}">100%</output></span><input type="range" data-picture-slider="${key}" min="${min}" max="${max}" value="100" aria-label="${label}"></label>`).join('')}
+        </div>
+        <div class="bllii-settings-body" data-settings-pane="sound" role="tabpanel" hidden>
+          <label class="bllii-setting-row"><span>音效</span><select data-sound-mode><option value="original">原声</option><option value="dialogue">对白清晰</option><option value="bass">低音</option><option value="night">夜间</option></select></label>
+          <p class="bllii-sound-state" data-sound-state aria-live="polite"></p>
+        </div>
+        <footer><button type="button" data-settings-reset>${brandIcon('history')} 恢复默认</button><small>bllii / YOUR SCREEN</small></footer>
+      `;
+      this.settingsDialog = dialog;
+      this.player.el().appendChild(dialog);
+      dialog.querySelector('.bllii-panel-close').onclick = () => dialog.close();
+      dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+      const tabs = [...dialog.querySelectorAll('[data-settings-tab]')];
+      const selectTab = tab => {
+        tabs.forEach(button => {
+          const active = button === tab;
+          button.setAttribute('aria-selected', String(active));
+          button.tabIndex = active ? 0 : -1;
+        });
+        dialog.querySelectorAll('[data-settings-pane]').forEach(pane => pane.hidden = pane.dataset.settingsPane !== tab.dataset.settingsTab);
+      };
+      tabs.forEach((tab, i) => {
+        tab.tabIndex = i ? -1 : 0;
+        tab.onclick = () => selectTab(tab);
+        tab.onkeydown = event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (i + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+          selectTab(next); next.focus();
+        };
+      });
+      dialog.querySelectorAll('[data-picture-slider]').forEach(slider => slider.oninput = () => {
+        this.pictureSettings[slider.dataset.pictureSlider] = Number(slider.value);
+        dialog.querySelector('[data-picture-preset]').value = 'custom';
+        this.applyPictureSettings(); this.syncPicturePanel();
+      });
+      dialog.querySelector('[data-picture-preset]').onchange = event => {
+        const presets = {
+          original: { brightness: 100, contrast: 100, saturation: 100, gray: 0 },
+          soft: { brightness: 102, contrast: 92, saturation: 90, gray: 0 },
+          bright: { brightness: 112, contrast: 105, saturation: 108, gray: 0 },
+          mono: { brightness: 100, contrast: 105, saturation: 100, gray: 1 },
+        };
+        if (presets[event.target.value]) this.pictureSettings = { ...presets[event.target.value] };
+        this.applyPictureSettings(); this.syncPicturePanel();
+      };
+      dialog.querySelector('[data-sound-mode]').onchange = event => this.setSoundMode(event.target.value);
+      dialog.querySelector('[data-settings-reset]').onclick = () => {
+        this.pictureSettings = { brightness: 100, contrast: 100, saturation: 100, gray: 0 };
+        dialog.querySelector('[data-picture-preset]').value = 'original';
+        this.applyPictureSettings(); this.syncPicturePanel(); this.setSoundMode('original');
+      };
+      const original = Object.entries(this.pictureSettings).every(([key, value]) => value === (key === 'gray' ? 0 : 100));
+      dialog.querySelector('[data-picture-preset]').value = original ? 'original' : 'custom';
+      this.syncPicturePanel();
+    }
+
+    syncPicturePanel() {
+      this.settingsDialog.querySelectorAll('[data-picture-slider]').forEach(slider => {
+        slider.value = this.pictureSettings[slider.dataset.pictureSlider];
+        this.settingsDialog.querySelector(`[data-picture-value="${slider.dataset.pictureSlider}"]`).textContent = `${slider.value}%`;
+      });
+    }
+
+    openSettings(event) {
+      if (!this.settingsDialog || this.settingsDialog.open) return;
+      this.closeEpisodesDrawer(); this.closeRoutesMenu();
+      const selector = this.settingsDialog.querySelector('[data-sound-mode]');
+      const supported = this.canProcessAudio();
+      selector.disabled = !supported;
+      this.settingsDialog.querySelector('[data-sound-state]').textContent = supported ? (this.soundMode === 'original' ? '原声' : selector.selectedOptions[0].textContent) : '当前线路不支持音效，保留原声';
+      this.btnSettings?.focus({ preventScroll: true });
+      this.settingsDialog.showModal();
+      if (event && window.innerWidth > 600) {
+        const bounds = this.settingsDialog.getBoundingClientRect();
+        this.settingsDialog.style.margin = '0';
+        this.settingsDialog.style.inset = 'auto';
+        this.settingsDialog.style.left = `${Math.max(12, Math.min(event.clientX, innerWidth - bounds.width - 12))}px`;
+        this.settingsDialog.style.top = `${Math.max(12, Math.min(event.clientY, innerHeight - bounds.height - 12))}px`;
+      } else {
+        this.settingsDialog.style.margin = 'auto'; this.settingsDialog.style.inset = '0';
+      }
+    }
+
+    canProcessAudio() {
+      if (!(window.AudioContext || window.webkitAudioContext)) return false;
+      const video = this.player.el().querySelector('video.vjs-tech');
+      if (!video?.currentSrc || video.readyState < 1) return false;
+      const local = url => { try { return /^(blob:|data:)/.test(url) || new URL(url, location.href).origin === location.origin; } catch { return false; } };
+      // A MediaElementAudioSource cannot be detached. Keep every episode/route safe for future switches.
+      const sources = this.routes.flatMap(route => route.episodes || []);
+      return (local(video.currentSrc) || !!video.crossOrigin) && sources.every(episode => local(episode.url) || /\.m3u8(?:\?|$)/i.test(episode.url) && /^blob:/.test(video.currentSrc));
+    }
+
+    async setSoundMode(mode) {
+      if (!['original', 'dialogue', 'bass', 'night'].includes(mode)) return;
+      const state = this.settingsDialog.querySelector('[data-sound-state]');
+      const selector = this.settingsDialog.querySelector('[data-sound-mode]');
+      try {
+        if (mode !== 'original' && !this.canProcessAudio()) throw new Error('当前线路不支持音效，保留原声');
+        if (mode !== 'original' && !this.audioContext) {
+          const Context = window.AudioContext || window.webkitAudioContext;
+          const context = new Context();
+          await context.resume();
+          let source;
+          try { source = context.createMediaElementSource(this.player.el().querySelector('video.vjs-tech')); }
+          catch (error) { await context.close(); throw error; }
+          const low = context.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 180;
+          const voice = context.createBiquadFilter(); voice.type = 'peaking'; voice.frequency.value = 2400; voice.Q.value = .8;
+          const compressor = context.createDynamicsCompressor();
+          const output = context.createGain();
+          source.connect(low); low.connect(voice); voice.connect(compressor); compressor.connect(output); output.connect(context.destination);
+          this.audioContext = context; this.audioNodes = { source, low, voice, compressor, output };
+          this.player.on('play', () => this.audioContext?.resume().catch(() => {}));
+        }
+        if (this.audioContext) {
+          await this.audioContext.resume();
+          const { low, voice, compressor, output } = this.audioNodes;
+          const time = this.audioContext.currentTime;
+          low.gain.setTargetAtTime(mode === 'bass' ? 6 : mode === 'dialogue' ? -3 : 0, time, .05);
+          voice.gain.setTargetAtTime(mode === 'dialogue' ? 4 : 0, time, .05);
+          compressor.threshold.setTargetAtTime(mode === 'night' ? -32 : 0, time, .05);
+          compressor.ratio.setTargetAtTime(mode === 'night' ? 8 : 1, time, .05);
+          compressor.knee.setTargetAtTime(mode === 'night' ? 24 : 0, time, .05);
+          output.gain.setTargetAtTime(mode === 'night' ? 1.25 : 1, time, .05);
+        }
+        this.soundMode = mode; selector.value = mode;
+        state.textContent = selector.selectedOptions[0].textContent;
+      } catch (error) {
+        selector.value = this.soundMode;
+        state.textContent = error.message || '音效暂不可用，保留原声';
+      }
+    }
+
+    setupFramePreview() {
+      const root = this.player.el();
+      const progress = root.querySelector('.vjs-progress-control');
+      if (!progress) return;
+      const popup = document.createElement('div');
+      popup.className = 'bllii-frame-preview'; popup.hidden = true;
+      popup.innerHTML = `<div class="bllii-frame-preview__media"><div class="bllii-frame-preview__state">${brandIcon('scrubber')}<span data-preview-state>正在取帧</span></div></div><time class="bllii-frame-preview__time"></time>`;
+      this.previewPopup = popup;
+      root.appendChild(popup);
+      progress.addEventListener('pointermove', event => {
+        const duration = this.player.duration();
+        if (event.pointerType === 'touch' || !Number.isFinite(duration) || duration <= 0 || this.settingsDialog?.open) return;
+        const track = root.querySelector('.vjs-progress-holder').getBoundingClientRect();
+        const fraction = Math.max(0, Math.min(1, (event.clientX - track.left) / track.width));
+        this.previewTarget = Math.min(duration - .05, duration * fraction);
+        popup.hidden = false;
+        popup.style.left = `${Math.max(8, Math.min(event.clientX - root.getBoundingClientRect().left - popup.offsetWidth / 2, root.clientWidth - popup.offsetWidth - 8))}px`;
+        popup.querySelector('time').textContent = this.formatTime(this.previewTarget);
+        popup.classList.remove('is-ready');
+        clearTimeout(this.previewDebounce);
+        this.previewDebounce = setTimeout(() => this.seekPreviewFrame(), 180);
+      });
+      progress.addEventListener('pointerleave', () => { popup.hidden = true; clearTimeout(this.previewDebounce); });
+      this.player.on('loadstart', () => this.resetPreview());
+    }
+
+    seekPreviewFrame() {
+      const source = this.player.currentSource();
+      if (!source?.src || this.previewPopup.hidden || this.previewFailed) return;
+      if (!this.previewPlayer) {
+        const video = document.createElement('video');
+        video.className = 'video-js bllii-frame-player'; video.muted = true;
+        video.setAttribute('playsinline', ''); video.tabIndex = -1; video.setAttribute('aria-hidden', 'true');
+        this.previewPopup.querySelector('.bllii-frame-preview__media').prepend(video);
+        const player = videojs(video, { controls: false, autoplay: false, preload: 'auto', muted: true, fluid: false, html5: { vhs: { overrideNative: true } } });
+        this.previewPlayer = player;
+        player.on('loadedmetadata', () => this.seekPreviewFrame());
+        const show = () => {
+          if (this.previewPlayer !== player || player.readyState() < 2) return;
+          if (Math.abs(player.currentTime() - this.previewTarget) > .3) { this.seekPreviewFrame(); return; }
+          clearTimeout(this.previewWatchdog);
+          this.previewPopup.classList.add('is-ready');
+        };
+        player.on(['seeked', 'loadeddata'], show);
+        player.on('error', () => this.failPreview());
+        player.src(source);
+      }
+      if (this.previewPlayer.readyState() >= 1) {
+        const duration = this.previewPlayer.duration();
+        const target = Number.isFinite(duration) ? Math.min(this.previewTarget, Math.max(0, duration - .05)) : this.previewTarget;
+        if (Math.abs(this.previewPlayer.currentTime() - target) < .15 && this.previewPlayer.readyState() >= 2) {
+          clearTimeout(this.previewWatchdog);
+          this.previewPopup.classList.add('is-ready');
+          return;
+        }
+        this.previewPlayer.currentTime(target);
+      }
+      clearTimeout(this.previewWatchdog);
+      this.previewWatchdog = setTimeout(() => this.failPreview(), 6000);
+    }
+
+    failPreview() {
+      this.previewFailed = true;
+      this.previewPopup?.classList.remove('is-ready');
+      const state = this.previewPopup?.querySelector('[data-preview-state]');
+      if (state) state.textContent = '预览暂不可用';
+      if (this.previewPlayer) { this.previewPlayer.dispose(); this.previewPlayer = null; }
+      clearTimeout(this.previewWatchdog);
+    }
+
+    resetPreview() {
+      clearTimeout(this.previewDebounce); clearTimeout(this.previewWatchdog);
+      if (this.previewPlayer) { this.previewPlayer.dispose(); this.previewPlayer = null; }
+      this.previewFailed = false;
+      if (this.previewPopup) {
+        this.previewPopup.hidden = true;
+        this.previewPopup.classList.remove('is-ready');
+        this.previewPopup.querySelector('[data-preview-state]').textContent = '正在取帧';
+      }
+    }
+
+    disposeBrowserFeatures() {
+      this.resetPreview();
+      this.settingsDialog?.close();
+      this.settingsDialog?.remove();
+      if (this.audioNodes) Object.values(this.audioNodes).forEach(node => node.disconnect());
+      this.audioContext?.close().catch(() => {});
+      this.audioContext = null;
     }
 
     destroy() {
