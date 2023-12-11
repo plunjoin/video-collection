@@ -1,10 +1,101 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import { getNewsList, type ContentItem } from '../lib/api';
+
+const url = Astro.url;
+const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+const keyword = url.searchParams.get('keyword') || '';
+const category = url.searchParams.get('category') || '';
+
+const newsList = await getNewsList({ page, pageSize: 12, keyword, category });
+const items: ContentItem[] = newsList.data || [];
+const total = newsList.total || 0;
+const totalPages = Math.max(1, Math.ceil(total / 12));
+
+// 提取已用分类（从当前页数据中提取，作为快捷筛选入口）
+const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+
+function fmtDate(d: string): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
 ---
 
 <Layout title="动漫资讯 — bllii" activeNav="资讯">
   <div class="page-content">
-    <div class="page-toolbar"><span class="page-pill" aria-pressed="true">编辑精选</span></div>
-    <div class="page-empty"><img src="/brand/bllii-symbol.svg" alt="" /><h2>暂无资讯</h2><p>新鲜情报正在整理中，去发现一部新的心头好吧。</p><a href="/category" class="brand-button mt-6">发现番剧 →</a></div>
+    <!-- 搜索栏 -->
+    <div class="news-search-bar">
+      <form method="GET" action="/news" class="news-search-form">
+        {category && <input type="hidden" name="category" value={category} />}
+        <input type="text" name="keyword" value={keyword} placeholder="搜索资讯标题或摘要…" class="news-search-input" />
+        <button type="submit" class="news-search-btn">搜索</button>
+        {keyword && <a href={`/news${category ? `?category=${encodeURIComponent(category)}` : ''}`} class="news-search-clear">清除</a>}
+      </form>
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="page-toolbar">
+      <a href="/news" class="page-pill" aria-pressed={!category}>全部</a>
+      {categories.map(cat => (
+        <a href={`/news?category=${encodeURIComponent(cat)}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`} class="page-pill" aria-pressed={category === cat}>{cat}</a>
+      ))}
+    </div>
+
+    <!-- 资讯列表 -->
+    {items.length > 0 ? (
+      <div class="editorial-grid">
+        {items.map((item, i) => (
+          <a href={`/news/${item.id}`} class="editorial-card">
+            {item.cover ? (
+              <img src={item.cover} alt={item.title} loading="lazy" onerror="this.onerror=null;this.style.display='none'" />
+            ) : (
+              <div class="editorial-card__placeholder"><img src="/brand/bllii-symbol.svg" alt="" /></div>
+            )}
+            <div>
+              <time>{fmtDate(item.created_at)}</time>
+              {item.category && <span class="editorial-label">{item.category}</span>}
+              <h2>{item.title}</h2>
+              <p>{item.summary || '点击查看详情'}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="page-empty">
+        <img src="/brand/bllii-symbol.svg" alt="" />
+        <h2>{keyword || category ? '没有找到匹配的资讯' : '暂无资讯'}</h2>
+        <p>{keyword || category ? '换个关键词或分类试试吧。' : '新鲜情报正在整理中，去发现一部新的心头好吧。'}</p>
+        <a href="/category" class="brand-button mt-6">发现番剧 →</a>
+      </div>
+    )}
+
+    <!-- 分页 -->
+    {totalPages > 1 && (
+      <div class="news-pagination">
+        {page > 1 && <a href={`/news?page=${page - 1}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`} class="news-page-btn">‹ 上一页</a>}
+        <span class="news-page-info">{page} / {totalPages}</span>
+        {page < totalPages && <a href={`/news?page=${page + 1}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`} class="news-page-btn">下一页 ›</a>}
+      </div>
+    )}
   </div>
 </Layout>
+
+<style>
+.news-search-bar { margin-bottom: 20px; }
+.news-search-form { display: flex; gap: 10px; align-items: center; }
+.news-search-input { flex: 1; max-width: 400px; height: 44px; border: 1px solid #e2e7f8; border-radius: 14px; background: #f8faff; padding: 0 18px; font-size: 13px; outline: none; transition: border-color .2s; }
+.news-search-input:focus { border-color: #b8a8f0; }
+.news-search-btn { height: 44px; padding: 0 24px; border-radius: 99px; background: var(--brand-gradient); color: #fff; font-size: 13px; font-weight: 600; border: none; cursor: pointer; white-space: nowrap; }
+.news-search-clear { font-size: 12px; color: #9893c3; }
+.editorial-card { transition: transform .2s; }
+.editorial-card:hover { transform: translateY(-3px); }
+.editorial-card__placeholder { width: 100%; height: 190px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f4f2ff, #fff3fa); }
+.editorial-card__placeholder img { width: 60px; opacity: .5; }
+.news-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 32px; }
+.news-page-btn { padding: 9px 20px; border: 1px solid #e7eafa; border-radius: 99px; font-size: 12px; color: #7e89ab; background: #f8faff; transition: all .2s; }
+.news-page-btn:hover { border-color: #c4c9f1; color: #9271d9; }
+.news-page-info { font-size: 13px; font-weight: 600; color: #6b7390; }
+</style>
