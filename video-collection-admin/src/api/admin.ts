@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   AdminStats,
   SourceConfig,
+  CollectionTemplate,
   UserInfo,
   FeedbackItem,
   ThemeInfo,
@@ -38,14 +39,12 @@ export function deleteSource(id: string) {
   return request.delete<any, ApiResponse>(`/api/admin/sources?id=${encodeURIComponent(id)}`)
 }
 
+export function getCollectionTemplates() {
+  return request.get<any, ApiResponse<CollectionTemplate[]>>('/api/admin/sources/templates')
+}
+
 // 连通性探测测试
-export function testSource(data: {
-  api: string
-  type: string
-  headers?: Record<string, string>
-  custom_params?: Record<string, string>
-  custom_mapping?: any
-}) {
+export function testSource(data: Partial<SourceConfig>) {
   return request.post<any, ApiResponse<any>>('/api/admin/sources/test', data)
 }
 
