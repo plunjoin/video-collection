@@ -31,6 +31,8 @@ const { targetType, targetId } = Astro.props;
   import { iconMarkup } from '../lib/brand-icons';
   import { createComment, deleteComment, getComment, listComments, setCommentLike, type CommentItem, type CommentTarget } from '../lib/comments';
   import { getToken, getUser } from '../lib/auth';
+  import { confirmAction } from '../lib/dialogs';
+  import { applyMemberAvatar, createMemberName } from '../lib/members';
 
   const section = document.querySelector<HTMLElement>('[data-comment-target]');
   if (section) {
@@ -80,8 +82,10 @@ const { targetType, targetId } = Astro.props;
     function updateIdentity() {
       const user = getUser();
       const signedIn = Boolean(getToken() && user);
-      identity.textContent = signedIn ? `${user!.nickname || user!.username}，来说点什么吧` : '登录后即可评论';
-      avatar.src = signedIn && user!.avatar ? user!.avatar : '/brand/bllii-symbol.svg';
+      const member = signedIn ? {name:user!.nickname || user!.username, avatar:user!.avatar, frame:user!.decorations?.frame, badge:user!.decorations?.badge, color:user!.decorations?.nickname_color} : {};
+      if (signedIn) identity.replaceChildren(createMemberName(member), el('small','','，来说点什么吧'));
+      else identity.textContent = '登录后即可评论';
+      applyMemberAvatar(avatar, member);
       login.href = `/login?redirect=${encodeURIComponent(location.pathname + location.search + '#comments')}`;
       login.hidden = signedIn;
       fields.hidden = !signedIn;
@@ -108,12 +112,12 @@ const { targetType, targetId } = Astro.props;
       card.dataset.commentId = String(comment.id);
       card.dataset.parentId = String(comment.parent_id);
       const avatar = el('img', 'discussion__avatar');
-      avatar.src = comment.author_avatar || '/brand/bllii-symbol.svg';
-      avatar.alt = '';
-      avatar.onerror = () => { avatar.onerror = null; avatar.src = '/brand/bllii-symbol.svg'; };
+      const member = {name:comment.author_name, avatar:comment.author_avatar, frame:comment.author_frame, badge:comment.author_badge, color:comment.author_color};
+      applyMemberAvatar(avatar, member);
       const body = el('div', 'discussion__body');
       const head = el('div', 'discussion__item-head');
-      head.append(el('strong', '', comment.author_name || '匿名用户'), el('time', '', dateLabel(comment.created_at)));
+      head.append(createMemberName(member));
+      head.append(el('time','',dateLabel(comment.created_at)));
       const text = el('p', comment.is_deleted ? 'discussion__deleted' : 'discussion__text', comment.is_deleted ? '评论已删除' : comment.content);
       const actions = el('div', 'discussion__actions');
       if (!comment.is_deleted) {
@@ -211,6 +215,7 @@ const { targetType, targetId } = Astro.props;
         try {
           const created = await createComment(targetType, targetId, content, parentId);
           form.remove();
+          if(created.pending){setMessage('已提交管理员审核，通过后才会展示');return}
           announceChange(1);
           const rootCard = section.querySelector<HTMLElement>(`[data-comment-id="${rootId}"]`);
           if (rootCard) {
@@ -297,6 +302,7 @@ const { targetType, targetId } = Astro.props;
       try {
         const created = await createComment(targetType, targetId, content);
         input.value = '';
+        if(created.pending){setMessage('已提交管理员审核，通过后才会展示');return}
         announceChange(1);
         spotlight.hidden = true;
         spotlight.replaceChildren();
@@ -325,7 +331,11 @@ const { targetType, targetId } = Astro.props;
       if (button.dataset.action === 'thread') { await showThread(card, rootId); return; }
       if (!requireLogin()) return;
       if (button.dataset.action === 'reply') { showReplyForm(card, id, rootId); return; }
-      if (button.dataset.action === 'delete' && !window.confirm('删除这条评论？')) return;
+      if (button.disabled) return;
+      if (button.dataset.action === 'delete') {
+        button.disabled = true;
+        if (!await confirmAction('删除评论', '删除后这条评论将不再展示，已有回复会保留。确认删除吗？', {acceptLabel:'删除评论',danger:true})) { button.disabled = false; return; }
+      }
       button.disabled = true;
       try {
         if (button.dataset.action === 'like') {
