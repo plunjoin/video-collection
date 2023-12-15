@@ -28,6 +28,7 @@ const { targetType, targetId } = Astro.props;
 </section>
 
 <script>
+  import { iconMarkup } from '../lib/brand-icons';
   import { createComment, deleteComment, getComment, listComments, setCommentLike, type CommentItem, type CommentTarget } from '../lib/comments';
   import { getToken, getUser } from '../lib/auth';
 
@@ -116,7 +117,8 @@ const { targetType, targetId } = Astro.props;
       const text = el('p', comment.is_deleted ? 'discussion__deleted' : 'discussion__text', comment.is_deleted ? '评论已删除' : comment.content);
       const actions = el('div', 'discussion__actions');
       if (!comment.is_deleted) {
-        const like = action('like', `♥ ${comment.like_count}`, comment);
+        const like = action('like', '', comment);
+        like.innerHTML = `${iconMarkup('heart', 14)} <span>${comment.like_count}</span>`;
         like.dataset.liked = String(comment.liked);
         like.setAttribute('aria-label', comment.liked ? '取消点赞' : '点赞');
         actions.append(like, action('reply', '回复', comment));
@@ -330,7 +332,7 @@ const { targetType, targetId } = Astro.props;
           const result = await setCommentLike(id, button.dataset.liked !== 'true');
           section.querySelectorAll<HTMLButtonElement>(`[data-action="like"][data-id="${id}"]`).forEach(like => {
             like.dataset.liked = String(result.liked);
-            like.textContent = `♥ ${result.like_count}`;
+            like.innerHTML = `${iconMarkup('heart', 14)} <span>${result.like_count}</span>`;
             like.setAttribute('aria-label', result.liked ? '取消点赞' : '点赞');
           });
         } else if (button.dataset.action === 'delete') {
