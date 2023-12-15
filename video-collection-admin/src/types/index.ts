@@ -43,19 +43,19 @@ export interface SourceConfig {
   id: string
   name: string
   api: string
-  type: 'json' | 'xml' | 'rss' | 'custom' | 'custom_json' | 'pipeline'
+  type: 'json' | 'xml' | 'rss' | 'custom' | 'custom_json' | 'pipeline' | 'rule'
   active: boolean
   collect_hours: number
   headers?: Record<string, string>
   custom_params?: Record<string, string>
-  custom_mapping?: {
-    list_path?: string
-    id_field?: string
-    name_field?: string
-    type_field?: string
-    pic_field?: string
-    play_url_field?: string
-  }
+  enabled?: boolean
+  page_limit?: number
+  timeout_sec?: number
+  retry_count?: number
+  interval_ms?: number
+  filter?: Record<string, any> & { collector?: CollectionRule }
+  category_mappings?: Record<string, any>[]
+  custom_mapping?: Record<string, string>
   category_filter?: string[]
 }
 
@@ -317,4 +317,20 @@ export interface CommunityCommentItem {
   reply_count: number
   liked: boolean
   created_at: string
+}
+
+export interface CollectionRule {
+  version: number
+  format: string
+  method: 'GET' | 'POST'
+  body?: string
+  query: Record<string, string>
+  mapping?: Record<string, string>
+}
+export interface CollectionTemplate {
+  id: string
+  name: string
+  description: string
+  aliases: string[]
+  rule: CollectionRule
 }
