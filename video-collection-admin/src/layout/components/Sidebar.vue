@@ -52,6 +52,7 @@ import {
   VideoCameraFilled,
   Odometer,
   Connection,
+  SetUp,
   Film,
   Clock,
   ChatLineRound,
@@ -75,6 +76,7 @@ const activeMenu = computed(() => {
 const menuList = [
   { path: '/dashboard', title: '系统仪表盘', icon: Odometer },
   { path: '/sources', title: '采集节点管理', icon: Connection },
+  { path: '/collection-rules', title: '采集规则工作台', icon: SetUp },
   { path: '/videos', title: '视频仓库', icon: Film },
   { path: '/scheduler', title: '定时采集调度', icon: Clock },
   { path: '/feedbacks', title: '求片与反馈', icon: ChatLineRound },
