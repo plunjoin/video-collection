@@ -21,6 +21,17 @@ for name in ['bllii-horizontal', 'bllii-horizontal-white', 'bllii-symbol', 'blli
     source.save(app_brand / f'{name}.png', optimize=True)
 shutil.copy2(kit / 'animation/bllii-loading.gif', app_brand / 'bllii-loading.gif')
 
+# Native intro follows animation/bllii-intro.svg timing. Split its original
+# wordmark into transparent letters so Flutter can stagger them independently.
+wordmark = Image.open(kit / 'png/bllii-wordmark.png').convert('RGBA')
+scale_x, scale_y = wordmark.width / 449, wordmark.height / 257
+for index, (left, right) in enumerate([(0, 160), (173, 223), (236, 286), (302, 352), (367, 417)]):
+    letter = wordmark.crop((round((left + 16) * scale_x), round(16 * scale_y),
+                            round((right + 16) * scale_x), round(241 * scale_y)))
+    letter.thumbnail((320, 450), Image.Resampling.LANCZOS)
+    letter.save(app_brand / f'bllii-intro-letter-{index}.png', optimize=True)
+
+
 icon = Image.open(kit / 'png/bllii-app-light-fullbleed.png').convert('RGB')
 def save_icon(path, size):
     path.parent.mkdir(parents=True, exist_ok=True)
