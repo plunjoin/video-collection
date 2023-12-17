@@ -1,0 +1,59 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import Comments from '../../components/Comments.astro';
+import { getNewsDetail } from '../../lib/api';
+
+const id = parseInt(Astro.params.id || '0', 10);
+if (!id) return Astro.redirect('/news');
+
+const item = await getNewsDetail(id);
+if (!item) return Astro.redirect('/news');
+
+function fmtDate(d: string): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+}
+---
+
+<Layout title={`${item.title} — bllii`} activeNav="资讯">
+  <div class="page-content">
+    <a href="/news" class="news-back">‹ 返回资讯列表</a>
+
+    <article class="news-article">
+      {item.category && <span class="editorial-label">{item.category}</span>}
+      <h1>{item.title}</h1>
+      <div class="news-meta">
+        {item.author_name && <span>编辑：{item.author_name}</span>}
+        <time>{fmtDate(item.created_at)}</time>
+        {item.like_count > 0 && <span>♥ {item.like_count}</span>}
+      </div>
+
+      {item.cover && <img src={item.cover} alt={item.title} class="news-cover" onerror="this.onerror=null;this.style.display='none'" />}
+
+      {item.summary && <p class="news-summary">{item.summary}</p>}
+
+      <div class="news-body" set:html={item.content}></div>
+    </article>
+    <Comments targetType="news" targetId={item.id} />
+  </div>
+</Layout>
+
+<style>
+.news-back { display: inline-block; margin-bottom: 20px; font-size: 12px; color: #9893c3; }
+.news-back:hover { color: #9271d9; }
+.news-article { max-width: 820px; }
+.news-article h1 { font-size: 26px; font-weight: 700; line-height: 1.5; color: #30375b; margin: 16px 0 12px; }
+.news-meta { display: flex; gap: 18px; font-size: 12px; color: #99a2be; margin-bottom: 24px; }
+.news-cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: 18px; margin-bottom: 28px; }
+.news-summary { font-size: 14px; line-height: 1.9; color: #6b7390; padding: 16px 20px; background: #f8f9ff; border-radius: 14px; border-left: 4px solid #b8a8f0; margin-bottom: 28px; }
+.news-body { font-size: 14px; line-height: 2; color: #4a5273; }
+.news-body :global(p) { margin-bottom: 16px; }
+.news-body :global(h2) { font-size: 18px; font-weight: 700; margin: 28px 0 14px; color: #30375b; }
+.news-body :global(h3) { font-size: 16px; font-weight: 600; margin: 22px 0 10px; color: #30375b; }
+.news-body :global(img) { max-width: 100%; border-radius: 12px; margin: 16px 0; }
+.news-body :global(blockquote) { border-left: 4px solid #d9c8fc; padding: 12px 18px; background: #f6f3ff; border-radius: 0 12px 12px 0; margin: 16px 0; color: #7e6db0; }
+.news-body :global(a) { color: #7b6cd5; text-decoration: underline; }
+</style>
