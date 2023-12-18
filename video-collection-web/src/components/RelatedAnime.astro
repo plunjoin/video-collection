@@ -1,4 +1,5 @@
 ---
+import BrandIcon from './BrandIcon.astro';
 import type { VideoRecord } from '../lib/api';
 
 interface Props {
@@ -34,9 +35,7 @@ const currentRoot = currentVideo ? getSeriesRoot(currentVideo.name) : '';
     </div>
     <a href="/category" class="text-xs sm:text-sm text-slate-400 hover:text-primary-600 flex items-center gap-1 transition-colors">
       <span>查看更多</span>
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
+      <BrandIcon name="arrow-right" size={16} class="w-3.5 h-3.5" />
     </a>
   </div>
 
