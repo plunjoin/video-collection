@@ -7,7 +7,7 @@
           <el-icon :size="28" color="#fff"><VideoCameraFilled /></el-icon>
         </div>
         <h2 class="title">聚合采集管理控制台</h2>
-        <p class="subtitle">MacCMS 多源采集 • 智能清洗聚合 • 纯后端 API 架构</p>
+        <p class="subtitle">可配置多源采集 • 智能清洗聚合 • 纯后端 API 架构</p>
       </div>
 
       <!-- 登录表单 -->
@@ -39,7 +39,7 @@
           />
         </el-form-item>
 
-        <div class="quick-fill">
+        <div v-if="isDevelopment" class="quick-fill">
           <span class="hint-text">默认账号：<code>admin</code> / <code>admin123</code></span>
           <el-button link type="primary" size="small" @click="quickFill">一键填入</el-button>
         </div>
@@ -75,10 +75,11 @@ const userStore = useUserStore()
 
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
+const isDevelopment = import.meta.env.DEV
 
 const form = reactive({
   username: 'admin',
-  password: 'admin123'
+  password: ''
 })
 
 const rules = reactive<FormRules>({
