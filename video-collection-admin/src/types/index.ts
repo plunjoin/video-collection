@@ -43,7 +43,7 @@ export interface SourceConfig {
   id: string
   name: string
   api: string
-  type: 'json' | 'xml' | 'rss' | 'custom'
+  type: 'json' | 'xml' | 'rss' | 'custom' | 'custom_json' | 'pipeline'
   active: boolean
   collect_hours: number
   headers?: Record<string, string>
