@@ -6,6 +6,8 @@ import '../styles/global.css';
 import '../styles/brand.css';
 import '../styles/pages.css';
 import PageIntro from '../components/PageIntro.astro';
+import BrandIcon from '../components/BrandIcon.astro';
+import '../styles/delight.css';
 
 interface Props {
   title?: string;
@@ -59,11 +61,11 @@ const intro = pageIntros[page];
     <Footer />
     </div>
     <nav class="mobile-nav" aria-label="移动端导航">
-      <a href="/" aria-current={activeNav === '首页' ? 'page' : undefined}><span>⌂</span>首页</a>
-      <a href="/category" aria-current={['番剧', '番剧库'].includes(activeNav) ? 'page' : undefined}><span>⊙</span>发现</a>
+      <a href="/" aria-current={activeNav === '首页' ? 'page' : undefined}><BrandIcon name="home" size={24} />首页</a>
+      <a href="/category" aria-current={['番剧', '番剧库'].includes(activeNav) ? 'page' : undefined}><BrandIcon name="compass" size={24} />发现</a>
       <a href="/rank" class="mobile-nav__brand" aria-label="人气排行榜"><img src="/brand/bllii-symbol.svg" alt="" /></a>
-      <a href="/latest" aria-current={activeNav === '新番时间表' ? 'page' : undefined}><span>▤</span>更新</a>
-      <a href="/follow" aria-current={activeNav === '追番' ? 'page' : undefined}><span>♡</span>我的</a>
+      <a href="/latest" aria-current={activeNav === '新番时间表' ? 'page' : undefined}><BrandIcon name="calendar" size={24} />更新</a>
+      <a href="/follow" aria-current={activeNav === '追番' ? 'page' : undefined}><BrandIcon name="bookmark" size={24} />我的</a>
     </nav>
   </body>
 </html>
