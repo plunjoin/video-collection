@@ -1,13 +1,224 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import { getCommunityPosts, type ContentItem } from '../lib/api';
+
+const url = Astro.url;
+const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+const keyword = url.searchParams.get('keyword') || '';
+
+const postsList = await getCommunityPosts({ page, pageSize: 10, keyword });
+const items: ContentItem[] = postsList.data || [];
+const total = postsList.total || 0;
+const totalPages = Math.max(1, Math.ceil(total / 10));
+
+function fmtDate(d: string): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - dt.getTime()) / 1000);
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
 ---
 
 <Layout title="同好社区 — bllii" activeNav="社区">
   <div class="page-content">
-    <div class="page-toolbar"><span class="page-pill" aria-pressed="true">同好广场</span><span class="text-xs text-slate-400">发布与评论即将开放</span></div>
+    <div class="page-toolbar">
+      <span class="page-pill" aria-pressed="true">同好广场</span>
+      <span class="text-xs text-slate-400">分享你喜欢的番剧，遇见同好</span>
+    </div>
+
     <div class="community-layout">
-      <div class="page-empty"><img src="/brand/bllii-symbol.svg" alt="" /><h2>暂无讨论</h2><p>社区内容还在筹备中，敬请期待。</p></div>
-      <aside class="community-aside"><h2>从共同的喜欢开始</h2><a href="/category?genre=治愈"># 今天也需要一点治愈</a><a href="/rank"># 大家都在追什么</a><img src="/brand/bllii-symbol.svg" alt="" /><p class="text-xs text-slate-400 leading-loose">MORE STORIES,<br />TOGETHER.</p></aside>
+      <!-- 左侧：帖子列表 + 发帖框 -->
+      <div>
+        <!-- 发帖框 -->
+        <div class="community-post-form" id="post-form-container">
+          <div class="community-post-form__header">
+            <img id="current-avatar" src="/brand/bllii-symbol.svg" alt="" class="community-post-form__avatar" />
+            <div class="community-post-form__intro">
+              <strong id="current-username">游客</strong>
+              <small id="login-hint">登录后即可发布帖子，分享你的想法</small>
+            </div>
+            <a href="/login?redirect=/community" class="community-login-btn" id="login-link">去登录</a>
+          </div>
+          <div class="community-post-form__body" id="post-input-area" style="display:none">
+            <input type="text" id="post-title" placeholder="标题（必填）" class="community-input" maxlength="200" />
+            <textarea id="post-content" placeholder="说点什么吧…" class="community-textarea" maxlength="50000" rows="4"></textarea>
+            <input type="text" id="post-category" placeholder="分类（可选，如：推荐/吐槽/求助）" class="community-input" maxlength="50" />
+            <div class="community-post-form__actions">
+              <button id="post-submit" class="brand-button">发布帖子</button>
+              <span id="post-alert" class="community-alert"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 帖子列表 -->
+        <div id="posts-container">
+          {items.length > 0 ? items.map((post) => (
+            <article class="community-post" data-post-id={post.id} data-liked={post.liked}>
+              <div class="community-author">
+                <img src={post.author_avatar || '/brand/bllii-symbol.svg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-symbol.svg'" />
+                <div>
+                  <strong>{post.author_name || '匿名用户'}</strong>
+                  <small>{fmtDate(post.created_at)}{post.category ? ` · ${post.category}` : ''}</small>
+                </div>
+                {post.pinned && <span class="community-pin-badge">置顶</span>}
+              </div>
+              <h2><a href={`/community/${post.id}`}>{post.title}</a></h2>
+              {post.summary && <p class="community-post-summary">{post.summary}</p>}
+              <footer>
+                <button class="community-like-btn" data-post-id={post.id} data-liked={post.liked}>
+                  <span class="like-icon">{post.liked ? '♥' : '♡'}</span>
+                  <span class="like-count">{post.like_count}</span>
+                </button>
+                <a href={`/community/${post.id}`} class="community-comment-link">
+                  <span>💬</span> <span>{post.comment_count}</span> 评论
+                </a>
+                <a href={`/community/${post.id}`} class="community-read-more">查看详情 →</a>
+              </footer>
+            </article>
+          )) : (
+            <div class="page-empty">
+              <img src="/brand/bllii-symbol.svg" alt="" />
+              <h2>{keyword ? '没有找到匹配的帖子' : '暂无讨论'}</h2>
+              <p>{keyword ? '换个关键词试试吧。' : '成为第一个发帖的人吧！'}</p>
+            </div>
+          )}
+        </div>
+
+        <!-- 分页 -->
+        {totalPages > 1 && (
+          <div class="news-pagination">
+            {page > 1 && <a href={`/community?page=${page - 1}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`} class="news-page-btn">‹ 上一页</a>}
+            <span class="news-page-info">{page} / {totalPages}</span>
+            {page < totalPages && <a href={`/community?page=${page + 1}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`} class="news-page-btn">下一页 ›</a>}
+          </div>
+        )}
+      </div>
+
+      <!-- 右侧：侧边栏 -->
+      <aside class="community-aside">
+        <h2>从共同的喜欢开始</h2>
+        <a href="/category?genre=治愈"># 今天也需要一点治愈</a>
+        <a href="/rank"># 大家都在追什么</a>
+        <a href="/latest"># 最新更新速报</a>
+        <img src="/brand/bllii-symbol.svg" alt="" />
+        <p class="text-xs text-slate-400 leading-loose">MORE STORIES,<br />TOGETHER.</p>
+      </aside>
     </div>
   </div>
 </Layout>
+
+<script>
+  import { getUser, getToken } from '../lib/auth';
+  import { createCommunityPost, togglePostLike } from '../lib/api';
+
+  // --- 初始化用户状态 ---
+  const user = getUser();
+  const token = getToken();
+  const loginLink = document.getElementById('login-link');
+  const loginHint = document.getElementById('login-hint');
+  const currentUsername = document.getElementById('current-username');
+  const currentAvatar = document.getElementById('current-avatar');
+  const postInputArea = document.getElementById('post-input-area');
+
+  if (user && token) {
+    if (loginLink) loginLink.style.display = 'none';
+    if (loginHint) loginHint.textContent = '登录了就可以发帖啦';
+    if (currentUsername) currentUsername.textContent = user.nickname || user.username;
+    if (currentAvatar && user.avatar) currentAvatar.src = user.avatar;
+    if (postInputArea) postInputArea.style.display = 'block';
+  }
+
+  // --- 发帖 ---
+  const postSubmit = document.getElementById('post-submit');
+  const postAlert = document.getElementById('post-alert');
+  const postTitle = document.getElementById('post-title');
+  const postContent = document.getElementById('post-content');
+  const postCategory = document.getElementById('post-category');
+
+  postSubmit?.addEventListener('click', async () => {
+    if (!postTitle || !postContent) return;
+    const title = postTitle.value.trim();
+    const content = postContent.value.trim();
+    if (!title || !content) {
+      if (postAlert) { postAlert.textContent = '标题和正文不能为空'; postAlert.style.color = '#e88080'; }
+      return;
+    }
+    if (postSubmit) { (postSubmit as HTMLButtonElement).disabled = true; (postSubmit as HTMLButtonElement).textContent = '发布中…'; }
+    const result = await createCommunityPost({
+      title,
+      content,
+      category: postCategory?.value.trim() || '',
+    });
+    if (result.ok) {
+      window.location.reload();
+    } else {
+      if (postAlert) { postAlert.textContent = result.msg; postAlert.style.color = '#e88080'; }
+      if (postSubmit) { (postSubmit as HTMLButtonElement).disabled = false; (postSubmit as HTMLButtonElement).textContent = '发布帖子'; }
+    }
+  });
+
+  // --- 点赞 ---
+  document.querySelectorAll('.community-like-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!getToken()) {
+        window.location.href = '/login?redirect=/community';
+        return;
+      }
+      const postId = parseInt(btn.dataset.postId || '0', 10);
+      const liked = btn.dataset.liked === 'true';
+      // 乐观更新
+      const countEl = btn.querySelector('.like-count');
+      const iconEl = btn.querySelector('.like-icon');
+      const currentCount = parseInt(countEl?.textContent || '0', 10);
+      if (countEl) countEl.textContent = String(liked ? currentCount - 1 : currentCount + 1);
+      if (iconEl) iconEl.textContent = liked ? '♡' : '♥';
+      btn.dataset.liked = String(!liked);
+
+      const result = await togglePostLike(postId, !liked);
+      if (!result.ok) {
+        // 回滚
+        if (countEl) countEl.textContent = String(currentCount);
+        if (iconEl) iconEl.textContent = liked ? '♥' : '♡';
+        btn.dataset.liked = String(liked);
+      } else if (countEl && typeof result.like_count === 'number') {
+        countEl.textContent = String(result.like_count);
+      }
+    });
+  });
+</script>
+
+<style>
+.community-post-form { border: 1px solid #eceffa; border-radius: 18px; background: #fff; padding: 22px; margin-bottom: 20px; }
+.community-post-form__header { display: flex; align-items: center; gap: 12px; }
+.community-post-form__avatar { width: 42px; height: 42px; border-radius: 50%; border: 3px solid #f5eafb; object-fit: cover; }
+.community-post-form__intro { flex: 1; }
+.community-post-form__intro strong { font-size: 13px; font-weight: 600; }
+.community-post-form__intro small { display: block; margin-top: 3px; font-size: 11px; color: #99a2be; }
+.community-login-btn { padding: 8px 18px; border-radius: 99px; background: var(--brand-gradient); color: #fff; font-size: 12px; font-weight: 600; }
+.community-post-form__body { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f1fa; }
+.community-input { width: 100%; height: 42px; border: 1px solid #e2e7f8; border-radius: 12px; background: #f8faff; padding: 0 14px; font-size: 13px; outline: none; margin-bottom: 10px; }
+.community-textarea { width: 100%; border: 1px solid #e2e7f8; border-radius: 12px; background: #f8faff; padding: 12px 14px; font-size: 13px; outline: none; resize: vertical; margin-bottom: 10px; line-height: 1.7; }
+.community-input:focus, .community-textarea:focus { border-color: #b8a8f0; }
+.community-post-form__actions { display: flex; align-items: center; gap: 14px; }
+.community-alert { font-size: 12px; }
+.community-post-summary { font-size: 12px; color: #8b94b1; line-height: 1.8; margin-bottom: 14px; }
+.community-like-btn { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 12px; color: #9ba5c1; padding: 0; transition: color .2s; }
+.community-like-btn:hover { color: #e88080; }
+.community-like-btn[data-liked="true"] { color: #e88080; }
+.community-comment-link { font-size: 12px; color: #9ba5c1; }
+.community-pin-badge { margin-left: auto; font-size: 10px; background: #fff3e0; color: #e8a040; padding: 3px 10px; border-radius: 99px; }
+.community-read-more { margin-left: auto; font-size: 12px; color: #8e81b7; }
+.community-read-more:hover { color: #9271d9; }
+.news-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 32px; }
+.news-page-btn { padding: 9px 20px; border: 1px solid #e7eafa; border-radius: 99px; font-size: 12px; color: #7e89ab; background: #f8faff; transition: all .2s; }
+.news-page-btn:hover { border-color: #c4c9f1; color: #9271d9; }
+.news-page-info { font-size: 13px; font-weight: 600; color: #6b7390; }
+</style>
