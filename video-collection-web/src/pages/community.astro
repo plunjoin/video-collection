@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
+import BrandIcon from '../components/BrandIcon.astro';
 import { getCommunityPosts, type ContentItem } from '../lib/api';
 
 const url = Astro.url;
@@ -74,11 +75,11 @@ function fmtDate(d: string): string {
               {post.summary && <p class="community-post-summary">{post.summary}</p>}
               <footer>
                 <button class="community-like-btn" data-post-id={post.id} data-liked={post.liked}>
-                  <span class="like-icon">{post.liked ? '♥' : '♡'}</span>
+                  <span class="like-icon"><BrandIcon name="heart" size={16} /></span>
                   <span class="like-count">{post.like_count}</span>
                 </button>
                 <a href={`/community/${post.id}`} class="community-comment-link">
-                  <span>💬</span> <span>{post.comment_count}</span> 评论
+                  <BrandIcon name="message" size={16} /> <span>{post.comment_count}</span> 评论
                 </a>
                 <a href={`/community/${post.id}`} class="community-read-more">查看详情 →</a>
               </footer>
@@ -179,14 +180,14 @@ function fmtDate(d: string): string {
       const iconEl = btn.querySelector('.like-icon');
       const currentCount = parseInt(countEl?.textContent || '0', 10);
       if (countEl) countEl.textContent = String(liked ? currentCount - 1 : currentCount + 1);
-      if (iconEl) iconEl.textContent = liked ? '♡' : '♥';
+      btn.setAttribute('aria-label', liked ? '点赞帖子' : '取消点赞帖子');
       btn.dataset.liked = String(!liked);
 
       const result = await togglePostLike(postId, !liked);
       if (!result.ok) {
         // 回滚
         if (countEl) countEl.textContent = String(currentCount);
-        if (iconEl) iconEl.textContent = liked ? '♥' : '♡';
+        btn.setAttribute('aria-label', liked ? '取消点赞帖子' : '点赞帖子');
         btn.dataset.liked = String(liked);
       } else if (countEl && typeof result.like_count === 'number') {
         countEl.textContent = String(result.like_count);
