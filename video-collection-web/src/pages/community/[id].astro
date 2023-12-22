@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
+import BrandIcon from '../../components/BrandIcon.astro';
 import Comments from '../../components/Comments.astro';
 import { getCommunityPostDetail } from '../../lib/api';
 
@@ -27,10 +28,10 @@ if (!post) return Astro.redirect('/community');
       <div class="community-post-content" set:html={post.content}></div>
       <footer>
         <button class="community-like-btn" id="like-btn" data-post-id={post.id} data-liked={post.liked} aria-label={post.liked ? '取消点赞帖子' : '点赞帖子'}>
-          <span class="like-icon">{post.liked ? '♥' : '♡'}</span>
+          <span class="like-icon"><BrandIcon name="heart" size={16} /></span>
           <span class="like-count">{post.like_count}</span>
         </button>
-        <a href="#comments" class="community-meta-info" id="post-comment-count" data-count={post.comment_count}>💬 {post.comment_count} 评论</a>
+        <a href="#comments" class="community-meta-info" id="post-comment-count" data-count={post.comment_count}><BrandIcon name="message" size={16} /><span data-comment-count>{post.comment_count} 评论</span></a>
       </footer>
     </article>
     <Comments targetType="post" targetId={post.id} />
@@ -47,7 +48,8 @@ if (!post) return Astro.redirect('/community');
     if (event.detail.targetType !== 'post' || event.detail.targetId !== Number(likeBtn?.dataset.postId) || !commentCount) return;
     const count = Math.max(0, Number(commentCount.dataset.count) + event.detail.delta);
     commentCount.dataset.count = String(count);
-    commentCount.textContent = `💬 ${count} 评论`;
+    const label = commentCount.querySelector('[data-comment-count]');
+    if (label) label.textContent = `${count} 评论`;
   }) as EventListener);
   likeBtn?.addEventListener('click', async () => {
     const postId = Number(likeBtn.dataset.postId);
@@ -63,7 +65,6 @@ if (!post) return Astro.redirect('/community');
       likeBtn.setAttribute('aria-label', liked ? '点赞帖子' : '取消点赞帖子');
       const icon = likeBtn.querySelector('.like-icon');
       const count = likeBtn.querySelector('.like-count');
-      if (icon) icon.textContent = liked ? '♡' : '♥';
       if (count && typeof result.like_count === 'number') count.textContent = String(result.like_count);
     }
     likeBtn.disabled = false;
