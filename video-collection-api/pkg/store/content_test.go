@@ -120,7 +120,7 @@ func TestPostgresContentStore(t *testing.T) {
 	if _, err = db.Exec("SET search_path TO " + schema); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec("CREATE TABLE users(id INTEGER PRIMARY KEY,username TEXT,nickname TEXT,avatar TEXT,status INTEGER); INSERT INTO users VALUES(1,'author','','',1),(2,'reader','','',1)"); err != nil {
+	if _, err = db.Exec("CREATE TABLE users(id INTEGER PRIMARY KEY,username TEXT,nickname TEXT,avatar TEXT,status INTEGER,role TEXT DEFAULT 'user'); INSERT INTO users(id,username,nickname,avatar,status) VALUES(1,'author','','',1),(2,'reader','','',1)"); err != nil {
 		t.Fatal(err)
 	}
 	s := &SQLContentStore{db: db}
