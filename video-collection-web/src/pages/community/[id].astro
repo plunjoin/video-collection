@@ -1,0 +1,87 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import Comments from '../../components/Comments.astro';
+import { getCommunityPostDetail } from '../../lib/api';
+
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id) || id < 1) return Astro.redirect('/community');
+const post = await getCommunityPostDetail(id);
+if (!post) return Astro.redirect('/community');
+---
+
+<Layout title={`${post.title} — bllii 社区`} activeNav="社区">
+  <div class="page-content" style="max-width: 880px;">
+    <a href="/community" class="news-back">‹ 返回社区</a>
+    <article class="community-post community-post-detail">
+      <div class="community-author">
+        <img src={post.author_avatar || '/brand/bllii-symbol.svg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-symbol.svg'" />
+        <div>
+          <strong>{post.author_name || '匿名用户'}</strong>
+          <small>{new Date(post.created_at).toLocaleString('zh-CN')}{post.category ? ` · ${post.category}` : ''}</small>
+        </div>
+        {post.pinned && <span class="community-pin-badge">置顶</span>}
+      </div>
+      <h1>{post.title}</h1>
+      {post.summary && <p class="community-post-summary">{post.summary}</p>}
+      <div class="community-post-content" set:html={post.content}></div>
+      <footer>
+        <button class="community-like-btn" id="like-btn" data-post-id={post.id} data-liked={post.liked} aria-label={post.liked ? '取消点赞帖子' : '点赞帖子'}>
+          <span class="like-icon">{post.liked ? '♥' : '♡'}</span>
+          <span class="like-count">{post.like_count}</span>
+        </button>
+        <a href="#comments" class="community-meta-info" id="post-comment-count" data-count={post.comment_count}>💬 {post.comment_count} 评论</a>
+      </footer>
+    </article>
+    <Comments targetType="post" targetId={post.id} />
+  </div>
+</Layout>
+
+<script>
+  import { getToken } from '../../lib/auth';
+  import { togglePostLike } from '../../lib/api';
+
+  const likeBtn = document.getElementById('like-btn') as HTMLButtonElement | null;
+  const commentCount = document.getElementById('post-comment-count');
+  window.addEventListener('comments-changed', ((event: CustomEvent<{ targetType: string; targetId: number; delta: number }>) => {
+    if (event.detail.targetType !== 'post' || event.detail.targetId !== Number(likeBtn?.dataset.postId) || !commentCount) return;
+    const count = Math.max(0, Number(commentCount.dataset.count) + event.detail.delta);
+    commentCount.dataset.count = String(count);
+    commentCount.textContent = `💬 ${count} 评论`;
+  }) as EventListener);
+  likeBtn?.addEventListener('click', async () => {
+    const postId = Number(likeBtn.dataset.postId);
+    if (!getToken()) {
+      window.location.href = `/login?redirect=${encodeURIComponent(location.pathname)}`;
+      return;
+    }
+    const liked = likeBtn.dataset.liked === 'true';
+    likeBtn.disabled = true;
+    const result = await togglePostLike(postId, !liked);
+    if (result.ok) {
+      likeBtn.dataset.liked = String(!liked);
+      likeBtn.setAttribute('aria-label', liked ? '点赞帖子' : '取消点赞帖子');
+      const icon = likeBtn.querySelector('.like-icon');
+      const count = likeBtn.querySelector('.like-count');
+      if (icon) icon.textContent = liked ? '♡' : '♥';
+      if (count && typeof result.like_count === 'number') count.textContent = String(result.like_count);
+    }
+    likeBtn.disabled = false;
+  });
+</script>
+
+<style>
+.news-back { display: inline-block; margin-bottom: 20px; font-size: 12px; color: #65748a; }
+.community-post-detail { margin-bottom: 28px; }
+.community-post-detail h1 { font-size: 20px; font-weight: 700; margin: 18px 0 12px; }
+.community-post-content { font-size: 14px; line-height: 2; color: #4a5273; margin-top: 12px; }
+.community-post-content :global(p) { margin-bottom: 14px; }
+.community-post-content :global(img) { max-width: 100%; border-radius: 12px; margin: 12px 0; }
+.community-post-content :global(a) { color: #597bea; text-decoration: underline; }
+.community-meta-info { font-size: 12px; color: #7e8ba0; }
+.community-pin-badge { margin-left: auto; font-size: 10px; background: #fff3e0; color: #b67519; padding: 3px 10px; }
+.community-like-btn { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 12px; color: #69768a; padding: 0; }
+.community-like-btn[data-liked="true"] { color: #cf4b63; }
+.community-like-btn:disabled { opacity: .55; }
+.community-post-summary { font-size: 13px; color: #6b7390; line-height: 1.8; }
+</style>
