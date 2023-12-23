@@ -5,12 +5,16 @@ import QuickNav from '../components/QuickNav.astro';
 import CurrentlyAiring from '../components/CurrentlyAiring.astro';
 import FeaturedRecommend from '../components/FeaturedRecommend.astro';
 import HomePanels from '../components/HomePanels.astro';
+import StoryMood from '../components/StoryMood.astro';
+import StoryBookmark from '../components/StoryBookmark.astro';
 import { getAnimeVideos, getRankings } from '../lib/api';
 const [animeList, rankings] = await Promise.all([getAnimeVideos(18), getRankings()]);
 ---
 <Layout title="bllii — 在更多的故事里，遇见更好的你" activeNav="首页">
   <HeroBanner videos={animeList.slice(0, 5)} />
   <QuickNav />
+  <StoryBookmark />
+  <StoryMood videos={animeList} />
   <CurrentlyAiring animes={animeList.slice(0, 4)} />
   <FeaturedRecommend animes={animeList.slice(4, 12)} />
   <HomePanels latest={animeList} rankings={rankings.top} />
