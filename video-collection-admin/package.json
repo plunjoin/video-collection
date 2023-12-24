@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "vite --config vite.config.ts",
+    "build": "vue-tsc -b && vite build --config vite.config.ts",
+    "preview": "vite preview --config vite.config.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -27,5 +27,12 @@
     "typescript": "^5.7.3",
     "vite": "^6.2.0",
     "vue-tsc": "^2.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild",
+      "vue-demi"
+    ]
   }
 }
