@@ -1,4 +1,5 @@
 ---
+import BrandIcon from '../../components/BrandIcon.astro';
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
@@ -22,13 +23,17 @@ const metaStr = [video.year, video.remarks, [video.area, video.language].filter(
 const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 ---
 
-<Layout title={`正在播放：${video.name} - bllii 极光超清播放`} activeNav="番剧">
+<Layout title={`正在播放：${video.name} - bllii 放映室`} activeNav="番剧">
   <!-- 引入 Video.js 样式与核心脚本 -->
   <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
   <script is:inline src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
   <script is:inline src="/players/videojs/modern-player.js"></script>
 
-  <div class="max-w-[1360px] mx-auto px-4 sm:px-6 pt-4 pb-12">
+  <div class="player-room max-w-[1360px] mx-auto px-4 sm:px-6 pt-4 pb-12">
+    <div class="player-room__heading">
+      <div class="player-room__identity"><img src="/brand/bllii-symbol.svg" alt="" /><span>bllii 放映室 / 好故事，现在开始</span></div>
+      <button class="focus-command" data-focus-player aria-pressed="false" title="专注观看"><BrandIcon name="moon" size={18} /><span>专注观看</span></button>
+    </div>
     <!-- 面包屑导航与当前播放标题 -->
     <div class="flex items-center justify-between text-xs sm:text-sm text-slate-500 mb-3 flex-wrap gap-2">
       <div class="flex items-center gap-1.5">
@@ -43,22 +48,20 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
       <div class="flex items-center gap-3 text-xs">
         <span class="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          极光增强引擎生效中
+          <span data-enhance-status>画质增强</span>
         </span>
         <a href="#section-archive" class="text-slate-500 hover:text-primary-600 transition-colors flex items-center gap-1">
           <span>作品档案与评分</span>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+          <BrandIcon name="chevron-down" size={16} class="w-3.5 h-3.5" />
         </a>
       </div>
     </div>
 
     <!-- 首屏核心播放大厅：左侧 16:9 播放器 + 右侧线路选集与评分 -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="player-room__grid grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- 左侧：现代化极光播放器容器 (16:9) + 控制条 -->
-      <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
-        <div class="relative w-full aspect-[16/9] bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-900/10">
+      <div class="player-room__main lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
+        <div class="player-stage relative w-full aspect-[16/9] bg-black overflow-hidden">
           <video-js
             id="vplayer-element"
             class="video-js vjs-big-play-centered vjs-fill"
@@ -66,7 +69,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
         </div>
 
         <!-- 播放器下方：影片核心信息与操作条 -->
-        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="player-room__info bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h1 id="player-view-title" class="text-xl sm:text-2xl font-bold text-slate-800">
@@ -91,9 +94,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
               class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               title="上一集 (快捷键: [ )"
             >
-              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
+              <BrandIcon name="prev" size={20} class="w-4 h-4 text-slate-600" />
               <span>上一集</span>
             </button>
             <button 
@@ -102,9 +103,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
               title="下一集 (快捷键: ] )"
             >
               <span>下一集</span>
-              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
+              <BrandIcon name="next" size={20} class="w-4 h-4 text-slate-600" />
             </button>
             <button 
               id="btn-follow"
@@ -113,9 +112,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
               data-pic={video.picture}
               class="px-3.5 py-2 rounded-xl bg-primary-50 hover:bg-primary-100 text-primary-600 text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <svg id="btn-follow-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+              <BrandIcon name="plus" size={20} id="btn-follow-icon" class="w-4 h-4" />
               <span id="btn-follow-text">+ 追番</span>
             </button>
             <a 
@@ -123,16 +120,14 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
               class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium transition-colors flex items-center gap-1"
             >
               <span>作品百科</span>
-              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <BrandIcon name="chevron-down" size={16} class="w-3.5 h-3.5 text-slate-400" />
             </a>
           </div>
         </div>
       </div>
 
       <!-- 右侧：线路与选集控制面板 + 评分展台 -->
-      <div class="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
+      <div class="player-room__sidebar lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
         <!-- 线路选择 -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/80">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
@@ -167,7 +162,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
             <h3 class="text-sm font-bold text-slate-800">
               选集列表 <span class="text-xs font-normal text-slate-400">({episodes.length}话)</span>
             </h3>
-            <span class="text-xs text-primary-600 font-medium">自动连播已开启</span>
+            <span data-autoplay-status class="text-xs text-primary-600 font-medium">自动连播</span>
           </div>
 
           <!-- 集数方块网格 -->
@@ -250,7 +245,9 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
       // 提取 URL 中的 query 传参 (如 ?ep=23) 与 本地历史记录
       const urlParams = new URLSearchParams(window.location.search);
       const historyKey = `vplayer_history_${videoData.id}`;
-      const savedHistory = JSON.parse(localStorage.getItem(historyKey) || '{}');
+      const saveHistory = value => { try { localStorage.setItem(historyKey, JSON.stringify(value)); } catch {} };
+      let savedHistory = {};
+      try { savedHistory = JSON.parse(localStorage.getItem(historyKey) || '{}') || {}; } catch {}
 
       // 智能决策播放集数：
       // 1. 若 URL 中指定了 ?ep=xx，优先采用 URL 的集数
@@ -270,6 +267,18 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
         initialRouteIndex = savedHistory.routeIndex;
       }
       const savedTime = (savedHistory.episodeIndex === initialEpIndex && savedHistory.currentTime) ? savedHistory.currentTime : 0;
+      let restoringHistory = true;
+
+      const writeBookmark = (routeIndex, episodeIndex, currentTime, duration) => {
+        if (currentTime < 3) return;
+        try {
+          localStorage.setItem('bllii_story_bookmark', JSON.stringify({
+            videoId: videoData.id, videoName: videoData.name,
+            episodeName: videoData.play_groups?.[routeIndex]?.episodes?.[episodeIndex]?.name || `第${episodeIndex + 1}话`,
+            routeIndex, episodeIndex, currentTime, duration: Number.isFinite(duration) ? duration : 0, updatedAt: Date.now()
+          }));
+        } catch {}
+      };
 
       // 实例化现代化播放器内核
       const modernPlayer = new window.ModernVideoPlayer('vplayer-element', {
@@ -317,15 +326,16 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
           window.history.replaceState({}, '', newUrl.toString());
 
           // 保存完整集数索引至本地持久化存储
-          const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '{}');
-          localStorage.setItem(historyKey, JSON.stringify({
+          const existingHistory = savedHistory;
+          saveHistory({
             ...existingHistory,
             routeIndex: rIdx,
             episodeIndex: epIdx,
             episodeName: ep ? ep.name : `第${epIdx + 1}话`,
-            currentTime: 0,
+            currentTime: restoringHistory ? savedTime : 0,
             updatedAt: Date.now()
-          }));
+          });
+          restoringHistory = false;
 
           // 若已登录，实时同步至云端历史接口
           const token = localStorage.getItem('Bllii_token');
@@ -351,21 +361,31 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
           }
         },
         onTimeUpdate: (cur, dur, pct) => {
-          const existing = JSON.parse(localStorage.getItem(historyKey) || '{}');
-          localStorage.setItem(historyKey, JSON.stringify({
-            ...existing,
+          writeBookmark(modernPlayer.currentRouteIndex, modernPlayer.currentEpisodeIndex, cur, dur);
+          saveHistory({
+            episodeName: modernPlayer.episodes[modernPlayer.currentEpisodeIndex]?.name || '',
             routeIndex: modernPlayer.currentRouteIndex,
             episodeIndex: modernPlayer.currentEpisodeIndex,
             currentTime: cur,
             duration: dur,
             progress: pct,
             updatedAt: Date.now()
-          }));
+          });
         }
       });
 
       // 载入视频全量播放线路与选集数据并起播精准集数
       modernPlayer.loadVideoData(videoData, initialRouteIndex, initialEpIndex, savedTime);
+
+      const enhanceStatus = document.querySelector('[data-enhance-status]');
+      const autoplayStatus = document.querySelector('[data-autoplay-status]');
+      const syncStatus = () => {
+        if (enhanceStatus) enhanceStatus.textContent = modernPlayer.isEnhanced ? '画质增强已开启' : '原始画质';
+        if (autoplayStatus) autoplayStatus.textContent = modernPlayer.isAutoplayNext ? '自动连播已开启' : '自动连播已关闭';
+      };
+      syncStatus();
+      modernPlayer.player.on('blliisettingschange', syncStatus);
+      window.addEventListener('pagehide', () => writeBookmark(modernPlayer.currentRouteIndex, modernPlayer.currentEpisodeIndex, modernPlayer.getCurrentTime(), modernPlayer.player.duration()));
 
       // 绑定上一集与下一集快捷按钮点击事件
       const prevEpBtn = document.getElementById('btn-prev-ep');
@@ -410,6 +430,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 
   <!-- 追番与用户收藏交互 -->
   <script>
+    import { setIcon } from '../../lib/brand-icons';
     import { getUser, addFavorite, getFavorites, removeFavorite } from '../../lib/auth';
 
     const btnFollow = document.getElementById('btn-follow');
@@ -437,12 +458,12 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
         btnFollowText.textContent = '已追番';
         btnFollow.classList.remove('bg-primary-50', 'text-primary-600', 'hover:bg-primary-100');
         btnFollow.classList.add('bg-emerald-50', 'text-emerald-600', 'hover:bg-emerald-100');
-        btnFollowIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />';
+        setIcon(btnFollowIcon, 'check');
       } else {
         btnFollowText.textContent = '+ 追番';
         btnFollow.classList.remove('bg-emerald-50', 'text-emerald-600', 'hover:bg-emerald-100');
         btnFollow.classList.add('bg-primary-50', 'text-primary-600', 'hover:bg-primary-100');
-        btnFollowIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />';
+        setIcon(btnFollowIcon, 'plus');
       }
     }
 
@@ -473,5 +494,12 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
     });
 
     initFollow();
+    const focusButton = document.querySelector<HTMLButtonElement>('[data-focus-player]');
+    focusButton?.addEventListener('click', () => {
+      const active = focusButton.getAttribute('aria-pressed') !== 'true';
+      focusButton.setAttribute('aria-pressed', String(active));
+      focusButton.querySelector('span')!.textContent = active ? '退出专注' : '专注观看';
+      focusButton.title = active ? '退出专注观看' : '专注观看';
+    });
   </script>
 </Layout>
