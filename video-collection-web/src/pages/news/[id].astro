@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
+import BrandIcon from '../../components/BrandIcon.astro';
 import Comments from '../../components/Comments.astro';
 import { getNewsDetail } from '../../lib/api';
 
@@ -28,7 +29,7 @@ function fmtDate(d: string): string {
       <div class="news-meta">
         {item.author_name && <span>编辑：{item.author_name}</span>}
         <time>{fmtDate(item.created_at)}</time>
-        {item.like_count > 0 && <span>♥ {item.like_count}</span>}
+        {item.like_count > 0 && <span><BrandIcon name="heart" size={14} /> {item.like_count}</span>}
       </div>
 
       {item.cover && <img src={item.cover} alt={item.title} class="news-cover" onerror="this.onerror=null;this.style.display='none'" />}
