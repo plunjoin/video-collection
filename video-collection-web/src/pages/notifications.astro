@@ -1,0 +1,168 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="消息通知 - bllii">
+  <div class="inbox">
+    <header class="inbox__header">
+      <h1>消息通知 <span id="inbox-unread"></span></h1>
+      <button type="button" id="inbox-read-all">全部标为已读</button>
+    </header>
+    <div class="inbox__tabs" role="group" aria-label="消息筛选">
+      <button type="button" data-filter="all" aria-pressed="true">全部</button>
+      <button type="button" data-filter="unread" aria-pressed="false">未读</button>
+    </div>
+    <p id="inbox-status" role="status"></p>
+    <div id="inbox-list"></div>
+    <button type="button" id="inbox-more" hidden>加载更多</button>
+  </div>
+</Layout>
+
+<script>
+  import { getToken } from '../lib/auth';
+  import { deleteNotification, listNotifications, markNotificationsRead, notificationLink, type NotificationItem } from '../lib/notifications';
+
+  const list = document.getElementById('inbox-list')!;
+  const status = document.getElementById('inbox-status')!;
+  const unread = document.getElementById('inbox-unread')!;
+  const more = document.getElementById('inbox-more') as HTMLButtonElement;
+  const readAll = document.getElementById('inbox-read-all') as HTMLButtonElement;
+  let page = 0;
+  let total = 0;
+  let loaded = 0;
+  let unreadOnly = false;
+
+  function node<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value = ''): HTMLElementTagNameMap[K] {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (value) element.textContent = value;
+    return element;
+  }
+
+  function showEmpty(title: string, loginRequired = false) {
+    const empty = node('div', 'inbox__empty');
+    const image = node('img');
+    image.src = '/brand/bllii-symbol.svg';
+    image.alt = '';
+    empty.append(image, node('h2', '', title));
+    if (loginRequired) {
+      const login = node('a', '', '去登录');
+      login.href = '/login?redirect=/notifications';
+      empty.append(login);
+    }
+    list.replaceChildren(empty);
+  }
+
+  function render(item: NotificationItem): HTMLElement {
+    const row = node('article', `inbox__item${item.is_read ? '' : ' is-unread'}`);
+    const content = node('div', 'inbox__content');
+    content.append(node('strong', '', item.title || '消息通知'));
+    if (item.content) content.append(node('p', '', item.content));
+    const when = new Date(item.created_at);
+    content.append(node('time', '', Number.isNaN(when.getTime()) ? '' : when.toLocaleString('zh-CN')));
+    const actions = node('div', 'inbox__actions');
+    const link = notificationLink(item);
+    if (link) {
+      const open = node('a', '', '查看');
+      open.href = link;
+      open.onclick = async (event) => {
+        event.preventDefault();
+        if (!item.is_read) {
+          try { await markNotificationsRead([item.id]); } catch { /* Navigation still works. */ }
+        }
+        location.href = link;
+      };
+      actions.append(open);
+    }
+    if (!item.is_read) {
+      const mark = node('button', '', '标为已读');
+      mark.type = 'button';
+      mark.onclick = async () => {
+        mark.disabled = true;
+        try { await markNotificationsRead([item.id]); await load(true); }
+        catch (error) { status.textContent = error instanceof Error ? error.message : '操作失败'; mark.disabled = false; }
+      };
+      actions.append(mark);
+    }
+    const remove = node('button', '', '删除');
+    remove.type = 'button';
+    remove.onclick = async () => {
+      remove.disabled = true;
+      try { await deleteNotification(item.id); await load(true); }
+      catch (error) { status.textContent = error instanceof Error ? error.message : '删除失败'; remove.disabled = false; }
+    };
+    actions.append(remove);
+    row.append(content, actions);
+    return row;
+  }
+
+  async function load(reset = false) {
+    if (!getToken()) {
+      showEmpty('登录后查看消息', true);
+      readAll.hidden = true;
+      more.hidden = true;
+      return;
+    }
+    const nextPage = reset ? 1 : page + 1;
+    more.disabled = true;
+    status.textContent = '';
+    try {
+      const result = await listNotifications(nextPage, unreadOnly);
+      if (reset) { list.replaceChildren(); loaded = 0; }
+      result.data.forEach(item => list.append(render(item)));
+      page = nextPage;
+      total = result.total;
+      loaded += result.data.length;
+      unread.textContent = result.unread_count ? `(${result.unread_count} 未读)` : '';
+      readAll.hidden = result.unread_count === 0;
+      more.hidden = loaded >= total;
+      if (!total) showEmpty(unreadOnly ? '没有未读消息' : '暂无消息');
+      window.dispatchEvent(new Event('notifications-changed'));
+    } catch (error) { status.textContent = error instanceof Error ? error.message : '消息加载失败'; }
+    finally { more.disabled = false; }
+  }
+
+  more.onclick = () => load();
+  readAll.onclick = async () => {
+    readAll.disabled = true;
+    try { await markNotificationsRead(); await load(true); }
+    catch (error) { status.textContent = error instanceof Error ? error.message : '操作失败'; }
+    finally { readAll.disabled = false; }
+  };
+  document.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach(button => {
+    button.onclick = () => {
+      unreadOnly = button.dataset.filter === 'unread';
+      document.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach(tab => tab.setAttribute('aria-pressed', String(tab === button)));
+      void load(true);
+    };
+  });
+  void load(true);
+</script>
+
+<style is:global>
+.inbox { max-width: 880px; margin: 0 auto; padding: 28px 26px 70px; }
+.inbox__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.inbox__header h1 { font-size: 18px; font-weight: 650; color: #30375b; }
+.inbox__header span { font-size: 12px; font-weight: 400; color: #99a2be; }
+.inbox__header button, .inbox__actions button, .inbox__actions a, #inbox-more { padding: 7px 14px; border: 1px solid #e7eafa; border-radius: 99px; background: #f8faff; color: #7e89ab; font-size: 12px; cursor: pointer; }
+.inbox__header button:hover, .inbox__actions button:hover, .inbox__actions a:hover, #inbox-more:hover { border-color: #c4c9f1; color: #9271d9; }
+.inbox__tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.inbox__tabs button { padding: 7px 17px; border: 1px solid #e7eafa; border-radius: 99px; background: #f8f9ff; color: #7e89ab; cursor: pointer; font-size: 12px; }
+.inbox__tabs button[aria-pressed="true"] { border-color: #d8bdff; background: #fcf7ff; color: #9264db; font-weight: 600; }
+#inbox-status { min-height: 18px; color: #c45c69; font-size: 12px; }
+#inbox-list { display: flex; flex-direction: column; gap: 14px; }
+.inbox__item { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 18px 20px; border: 1px solid #eceffa; border-radius: 14px; background: #fff; }
+.inbox__item.is-unread { border-color: #e9dffa; background: #fdfbff; }
+.inbox__content { min-width: 0; }
+.inbox__content strong { display: block; font-size: 13px; color: #4a5273; }
+.inbox__content p { margin: 7px 0; color: #5a637e; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.inbox__content time { color: #99a2be; font-size: 10px; }
+.inbox__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
+.inbox__empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 42px 16px; border: 1px dashed #e9e8f5; border-radius: 14px; background: #fafbff; text-align: center; }
+.inbox__empty img { width: 48px; height: 48px; object-fit: contain; }
+.inbox__empty h2 { color: #7782a1; font-size: 13px; font-weight: 600; }
+.inbox__empty a { padding: 8px 18px; border-radius: 99px; background: var(--brand-gradient); color: #fff; font-size: 12px; font-weight: 600; }
+#inbox-more { display: block; margin: 20px auto; }
+#inbox-more[hidden], .inbox__header button[hidden] { display: none; }
+@media (max-width: 600px) { .inbox { padding: 22px 16px 70px; } .inbox__item { flex-direction: column; gap: 12px; padding: 16px; } .inbox__actions { justify-content: flex-start; } }
+</style>
