@@ -31,24 +31,24 @@ type DBAdmin interface {
 
 // DBInfo 数据库整体信息
 type DBInfo struct {
-	Engine      string `json:"engine"`                // "postgres" | "sqlite"
-	Driver      string `json:"driver"`                // 底层驱动名
-	Version     string `json:"version"`               // 数据库版本字符串
-	Host        string `json:"host,omitempty"`        // PostgreSQL 主机
-	Database    string `json:"database,omitempty"`    // PostgreSQL 库名
-	FilePath    string `json:"file_path,omitempty"`   // SQLite 数据文件路径
-	SizeBytes   int64  `json:"size_bytes"`            // 数据库整体占用字节数
-	TableCount  int    `json:"table_count"`           // 业务表数量
-	BackupsDir  string `json:"backups_dir"`           // 备份文件存储目录
-	ServerTime  string `json:"server_time"`           // 服务器当前时间
+	Engine     string `json:"engine"`              // "postgres" | "sqlite"
+	Driver     string `json:"driver"`              // 底层驱动名
+	Version    string `json:"version"`             // 数据库版本字符串
+	Host       string `json:"host,omitempty"`      // PostgreSQL 主机
+	Database   string `json:"database,omitempty"`  // PostgreSQL 库名
+	FilePath   string `json:"file_path,omitempty"` // SQLite 数据文件路径
+	SizeBytes  int64  `json:"size_bytes"`          // 数据库整体占用字节数
+	TableCount int    `json:"table_count"`         // 业务表数量
+	BackupsDir string `json:"backups_dir"`         // 备份文件存储目录
+	ServerTime string `json:"server_time"`         // 服务器当前时间
 }
 
 // DBTableInfo 单张数据表的统计信息
 type DBTableInfo struct {
 	Name        string `json:"name"`
-	Rows        int64  `json:"rows"`          // PG 为估算值(reltuples)，SQLite 为精确 COUNT(*)
-	Approximate bool   `json:"approximate"`   // Rows 是否为估算值
-	SizeBytes   int64  `json:"size_bytes"`    // 表占用字节数（SQLite 下为 0，库整体占用见 DBInfo）
+	Rows        int64  `json:"rows"`        // PG 为估算值(reltuples)，SQLite 为精确 COUNT(*)
+	Approximate bool   `json:"approximate"` // Rows 是否为估算值
+	SizeBytes   int64  `json:"size_bytes"`  // 表占用字节数（SQLite 下为 0，库整体占用见 DBInfo）
 	ColumnCount int    `json:"column_count"`
 	IndexCount  int    `json:"index_count"`
 	Comment     string `json:"comment,omitempty"`
@@ -72,11 +72,11 @@ type TableBrowseQuery struct {
 
 // TableBrowseResult 表数据浏览结果
 type TableBrowseResult struct {
-	Columns  []TableColumn     `json:"columns"`
-	Rows     []map[string]any  `json:"rows"`
-	Total    int64             `json:"total"`
-	Page     int               `json:"page"`
-	PageSize int               `json:"page_size"`
+	Columns  []TableColumn    `json:"columns"`
+	Rows     []map[string]any `json:"rows"`
+	Total    int64            `json:"total"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
 }
 
 // BackupOptions 备份选项
@@ -466,6 +466,9 @@ func (h *dbAdminHelper) BrowseTable(ctx context.Context, q TableBrowseQuery) (*T
 		rowMap := make(map[string]any, len(colNames))
 		for i, name := range colNames {
 			rowMap[name] = normalizeDBValue(vals[i])
+			if name == "password_hash" {
+				rowMap[name] = "[已隐藏]"
+			}
 		}
 		result.Rows = append(result.Rows, rowMap)
 	}
