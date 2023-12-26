@@ -4,6 +4,8 @@
 
 本次提供后端接口；Web / App 的内容页面与后台管理页面可据此接入。完整机器可读模型和参数位于 `/openapi.json`，交互文档位于 `/docs`。
 
+评论现已升级为[通用评论、回复与点赞接口](comments-api.md)，可关联影视、资讯、社区及未来内容类型。以下社区评论端点继续兼容，但新客户端应使用 `/api/comments`。
+
 ## 端点与权限
 
 | 端点 | 方法 | 权限及用途 |
@@ -85,7 +87,7 @@ Content-Type: application/json
 
 - 评论列表：`GET /api/community/comments?post_id=123&page=1&page_size=20`，按评论ID正序。
 - 评论创建：`POST /api/community/comments`，JSON 为 `{"post_id":123,"content":"评论正文"}`；正文为1–2000字。
-- 删除评论：`DELETE /api/community/comments?id=456`，仅评论作者有权删除；管理员使用管理端点删除。
+- 删除评论：`DELETE /api/community/comments?id=456`，仅评论作者有权删除；管理员使用管理端点删除。删除清空正文与点赞，保留空占位和已有回复；旧列表不返回占位，新通用评论接口返回 `is_deleted=true`。
 - 点赞：`POST /api/community/likes`，JSON 为 `{"post_id":123}`。
 - 取消点赞：`DELETE /api/community/likes?post_id=123`。
 
@@ -97,7 +99,7 @@ Content-Type: application/json
 
 通知类型为 `system / comment / like`。列表支持 `type` 和 `unread_only=true`，响应在通用列表字段之外包含 `unread_count`。`total` 是筛选后的数量，`unread_count` 是本人全部未读数量，不受筛选、分页影响。通知按ID倒序，列表读取不会自动标记已读。
 
-独立计数端点返回 `{"code":1,"data":{"unread_count":3}}`。通知对象包含 `id`、`user_id`、`actor_id`、`type`、`title`、`content`、`target_type`、`target_id`、`is_read`、`read_at`、`created_at`。互动通知的目标为 `target_type="post"`，系统通知目标为空。未读记录的 `read_at=null`。
+独立计数端点返回 `{"code":1,"data":{"unread_count":3}}`。通知对象包含 `id`、`user_id`、`actor_id`、`type`、`title`、`content`、`target_type`、`target_id`、`comment_id`、`parent_comment_id`、`is_read`、`read_at`、`created_at`。互动通知的目标类型支持 `video / news / post` 及服务端注册的新类型，系统通知目标为空。`comment_id` 用于定位评论或回复，`parent_comment_id` 为直接父评论；历史通知和帖子点赞通知的这两个字段为0。未读记录的 `read_at=null`。
 
 标记已读：
 
@@ -127,7 +129,7 @@ Content-Type: application/json
 
 ## 存储与验证
 
-SQLite 与 PostgreSQL 共用参数化查询和事务逻辑；初始化自动创建 `content_entries`、`community_comments`、`community_likes`、`user_notifications` 及索引，不修改已有业务数据。
+SQLite 与 PostgreSQL 共用参数化查询和事务逻辑；初始化自动创建 `content_entries`、`comments`、`comment_likes`、`community_likes`、`user_notifications` 及索引。旧 `community_comments` 数据一次性迁移到 `comments`，保留ID和创建时间；迁移标记防止已删除数据在重启后重新出现。
 
 ```powershell
 go test ./...
