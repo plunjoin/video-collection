@@ -64,3 +64,7 @@ pnpm run build
 ## 通用采集规则工作台
 
 后台菜单“采集规则工作台”（`/collection-rules`）提供来源选择、连接配置、字段映射与清洗、样本预览四步配置，支持网页、JSON 接口、多种数据库和 Excel / CSV。保存后接入现有调度与日志，可在结果面板查看导入记录。详细能力、部署变量及当前边界见 [采集工作台说明](../video-collection-api/docs/collection-studio.md)。
+
+## 视频规则模板
+
+采集点 `/sources` 的模板列表来自后端配置文件，可编辑请求头、固定参数、GET / POST 请求规则、响应字段路径、分页、分类绑定及清洗规则。MacCMS 是模板之一；新增模板无需修改 Vue 代码。详见 [采集规则说明](../video-collection-api/docs/collection-rules.md) 与 [生产部署](../deploy/README.md)。
