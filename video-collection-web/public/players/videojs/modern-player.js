@@ -19,6 +19,11 @@
 (function (window) {
   'use strict';
 
+  const BRAND_ICON_SPRITE = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n  <symbol id=\"bllii-home\" viewBox=\"0 0 24 24\"><path d=\"m3 11 7-7q2-2 4 0l7 7M5 10v9q0 2 2 2h10q2 0 2-2v-9M10 21v-7h4v7\"/><path d=\"M17 4h3v3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-search\" viewBox=\"0 0 24 24\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m15.5 15.5 5 5M7.5 9q1-2 3-2\"/><path d=\"M19 4h2M20 3v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-calendar\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"16\" rx=\"4\"/><path d=\"M8 3v4m8-4v4M4 10h16M8 14h2m-2 3h2m4-3h2\"/><path d=\"m14 17 1 1 3-3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-rank\" viewBox=\"0 0 24 24\"><path d=\"M4 20h16M5 17v-5h4v5m1 0V8h4v9m1 0v-6h4v6\"/><path d=\"m10 4 2-2 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-library\" viewBox=\"0 0 24 24\"><path d=\"M7 3h10M5 6h14\"/><rect x=\"3\" y=\"9\" width=\"18\" height=\"12\" rx=\"4\"/><path d=\"m10 12 5 3-5 3z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bookmark\" viewBox=\"0 0 24 24\"><path d=\"M6 5q0-2 2-2h8q2 0 2 2v16l-6-4-6 4z\"/><path d=\"M10 7h4m-4 3h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-heart\" viewBox=\"0 0 24 24\"><path d=\"M12 20S3 15 3 8a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z\"/><path d=\"M16 6q2 0 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-star\" viewBox=\"0 0 24 24\"><path d=\"m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1Z\"/><path d=\"m19 3 1-1m1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-bell\" viewBox=\"0 0 24 24\"><path d=\"M8 18h8M9 21h6M5 17c2-2 1-4 1-7a6 6 0 0 1 12 0c0 3-1 5 1 7Z\"/><path d=\"m19 3 2 2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-user\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-2c0-7 16-7 16 0v2M10 8h.1m3.9 0h.1\"/><path d=\"M19 6h2m-1-1v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-history\" viewBox=\"0 0 24 24\"><path d=\"M4 8a9 9 0 1 1-1 7M3 3v5h5M12 7v5l3 2\"/><path d=\"M4 18h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-logout\" viewBox=\"0 0 24 24\"><path d=\"M10 3H6q-2 0-2 2v14q0 2 2 2h4M10 12h11m-4-4 4 4-4 4\"/><path d=\"M8 7h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-play\" viewBox=\"0 0 24 24\"><path d=\"M8 4q-2-1-2 2v12q0 3 2 2l12-7q2-1 0-2Z\"/><path d=\"M2 8h1m-2 4h2m-1 4h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-pause\" viewBox=\"0 0 24 24\"><rect x=\"5\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><rect x=\"15\" y=\"4\" width=\"4\" height=\"16\" rx=\"2\"/><path d=\"M11 12h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-prev\" viewBox=\"0 0 24 24\"><path d=\"m18 5-9 7 9 7ZM5 5v14\"/><path d=\"M3 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-next\" viewBox=\"0 0 24 24\"><path d=\"m6 5 9 7-9 7ZM19 5v14\"/><path d=\"M21 9v6\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-left\" viewBox=\"0 0 24 24\"><path d=\"M20 12H4m6-6-6 6 6 6\"/><path d=\"M17 8h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-arrow-right\" viewBox=\"0 0 24 24\"><path d=\"M4 12h16m-6-6 6 6-6 6\"/><path d=\"M4 16h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-chevron-down\" viewBox=\"0 0 24 24\"><path d=\"m5 9 7 7 7-7\"/><path d=\"M11 5h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-check\" viewBox=\"0 0 24 24\"><path d=\"m5 12 5 5L20 6\"/><path d=\"M3 17h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-plus\" viewBox=\"0 0 24 24\"><path d=\"M12 5v14M5 12h14\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-close\" viewBox=\"0 0 24 24\"><path d=\"m6 6 12 12M6 18 18 6\"/><path d=\"M20 3h1\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-shuffle\" viewBox=\"0 0 24 24\"><path d=\"M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 3M3 18h3c1 0 3-2 4-4m4-4c1-2 3-4 4-4h3m-4-3 4 3-4 4\"/><path d=\"M3 11h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-sparkles\" viewBox=\"0 0 24 24\"><path d=\"m10 4 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z\"/><path d=\"m19 2 1 3 3 1-3 1-1 3-1-3-3-1 3-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-smile\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"7\"/><path d=\"M8 10v1m8-1v1m-8 4q4 4 8 0\"/><path d=\"M18 3h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-compass\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m16 8-2 6-6 2 2-6Z\"/><path d=\"M12 2v2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-moon\" viewBox=\"0 0 24 24\"><path d=\"M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11Z\"/><path d=\"m18 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-ratio\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 9h4m-4 0v4m10 2h-4m4 0v-4\"/><path d=\"M11 2h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-routes\" viewBox=\"0 0 24 24\"><path d=\"M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4\"/><path d=\"M3 3h2m14 18h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-episodes\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"14\" y=\"4\" width=\"7\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"15\" width=\"7\" height=\"6\" rx=\"2\"/><path d=\"M14 16h7m-7 4h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-repeat\" viewBox=\"0 0 24 24\"><path d=\"M4 10V8q0-3 3-3h13m-3-3 3 3-3 3M20 14v2q0 3-3 3H4m3-3-3 3 3 3\"/><path d=\"m10 10 5 2-5 2Z\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-volume\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 8q4 4 0 8\"/><path d=\"M19 5q7 7 0 14\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-muted\" viewBox=\"0 0 24 24\"><path d=\"M3 9h4l5-5v16l-5-5H3ZM16 9l6 6m-6 0 6-6\"/><path d=\"M18 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-fullscreen\" viewBox=\"0 0 24 24\"><path d=\"M8 3H5q-2 0-2 2v3m13-5h3q2 0 2 2v3M3 16v3q0 2 2 2h3m8 0h3q2 0 2-2v-3\"/><path d=\"M10 12h4\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-message\" viewBox=\"0 0 24 24\"><path d=\"M7 4h10q4 0 4 4v6q0 4-4 4h-6l-6 3v-4q-2-1-2-3V8q0-4 4-4Z\"/><path d=\"M7 9h10M7 13h5\"/><path d=\"M15 13h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-mail\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"4\"/><path d=\"m4 7 8 6 8-6\"/><path d=\"M17 21h3\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-link\" viewBox=\"0 0 24 24\"><path d=\"m10 8 3-3a4 4 0 0 1 6 6l-3 3m-2 2-3 3a4 4 0 0 1-6-6l3-3m1 5 6-6\"/><path d=\"M3 4h2\" stroke=\"#ff89c7\"/></symbol>\n  <symbol id=\"bllii-lock\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"10\" width=\"16\" height=\"11\" rx=\"4\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3M12 14v3\"/><path d=\"M18 3h2\" stroke=\"#ff89c7\"/></symbol>\n</svg>\n"; // brand-sprite
+  function brandIcon(name, className = '') {
+    return `<svg class="bllii-player-icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#bllii-${name}" /></svg>`;
+  }
+
   // 画面比例模式配置
   const ASPECT_MODES = [
     { key: 'auto', name: '居中自适应', label: '比例: 居中', short: '居中' },
@@ -48,6 +53,13 @@
 
   // 注入播放器控制条高质感现代样式、比例居中与手势样式
   function ensurePlayerStyles() {
+    if (!document.getElementById('bllii-player-icons')) {
+      const icons = document.createElement('div');
+      icons.id = 'bllii-player-icons';
+      icons.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+      icons.innerHTML = BRAND_ICON_SPRITE;
+      document.body.appendChild(icons);
+    }
     if (document.getElementById('vplayer-modern-styles')) return;
     const style = document.createElement('style');
     style.id = 'vplayer-modern-styles';
@@ -851,6 +863,91 @@
         }
       }
     `;
+    style.innerHTML += `
+      .vjs-modern-skin { --bllii-blue: #4b9fff; --bllii-pink: #ff89c7; --bllii-ink: #353b58; }
+      .bllii-player-icon { width: 21px; height: 21px; display: inline-block; vertical-align: middle; flex: none; }
+      .vjs-modern-skin .vjs-big-play-button {
+        width: 76px; height: 76px; border-radius: 22px; border: 1px solid #ffffffb0;
+        background: #ffffffec; color: #438ff0; box-shadow: 0 8px 25px #00000020;
+      }
+      .vjs-modern-skin .vjs-big-play-button:hover { background: white; }
+      .vjs-modern-skin .vjs-big-play-button .bllii-player-icon { width: 40px; height: 40px; }
+      .vjs-modern-skin .vjs-icon-placeholder::before { display: none !important; }
+      .vjs-modern-skin .vjs-control-bar {
+        background: #15191edd !important; backdrop-filter: blur(10px) !important;
+        border-radius: 0 !important; padding-inline: 12px !important; gap: 4px;
+      }
+      .vjs-modern-skin .vjs-play-progress, .vjs-modern-skin .vjs-volume-level {
+        background: linear-gradient(90deg, #4b9fff, #9a83ff 65%, #ff89c7) !important;
+      }
+      .vjs-modern-skin .vjs-play-progress:before { text-shadow: none !important; color: #ff89c7 !important; }
+      .vjs-modern-skin .vjs-custom-btn,
+      .vjs-modern-skin .vjs-play-control,
+      .vjs-modern-skin .vjs-fullscreen-control,
+      .vjs-modern-skin .vjs-mute-control {
+        width: 32px !important; min-width: 32px !important; height: 32px !important;
+        padding: 0 !important; margin: 0 !important; border-radius: 6px !important;
+        display: inline-flex !important; align-items: center !important; justify-content: center !important;
+        background: transparent !important; border: 1px solid transparent !important; box-shadow: none !important;
+        color: #eef5ff !important; position: relative;
+      }
+      .vjs-modern-skin .vjs-custom-btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      .vjs-modern-skin .vjs-custom-btn svg { width: 20px !important; height: 20px !important; margin: 0 !important; }
+      .vjs-modern-skin .vjs-custom-btn.active { color: #91c4ff !important; background: #4b9fff18 !important; }
+      .vjs-modern-skin button:hover { border-color: #4b9fff65 !important; }
+      .vjs-modern-skin button:focus-visible { outline: 2px solid #ff89c7; outline-offset: -2px; }
+      .vjs-modern-skin .vjs-custom-btn::after {
+        content: attr(aria-label); position: absolute; bottom: 42px; right: 0; padding: 7px 10px;
+        background: #ffffff; color: #353b58; font-size: 11px; border-radius: 4px;
+        white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; box-shadow: 0 4px 20px #00000020;
+      }
+      .vjs-modern-skin .vjs-custom-btn:hover::after, .vjs-modern-skin .vjs-custom-btn:focus-visible::after { opacity: 1; }
+      .vjs-modern-skin .vjs-paused-icon, .vjs-modern-skin .vjs-muted-icon { display: none; }
+      .vjs-modern-skin.vjs-playing .vjs-playing-icon { display: none; }
+      .vjs-modern-skin.vjs-playing .vjs-paused-icon { display: inline-block; }
+      .vjs-modern-skin .vjs-vol-0 .vjs-audible-icon { display: none; }
+      .vjs-modern-skin .vjs-vol-0 .vjs-muted-icon { display: inline-block; }
+      .vjs-modern-skin .vjs-loading-spinner { border: 0; width: 56px; height: 56px; margin: -28px 0 0 -28px; }
+      .vjs-modern-skin .vjs-loading-spinner::before, .vjs-modern-skin .vjs-loading-spinner::after { display: none; }
+      .vjs-modern-skin .vjs-loading-spinner .bllii-player-icon { width: 48px; height: 48px; color: #91c4ff; animation: blliiBuffer 1.2s ease-in-out infinite; }
+      @keyframes blliiBuffer { 0%,100% { transform: translateX(-3px); opacity: .65; } 50% { transform: translateX(3px); opacity: 1; } }
+      .vjs-modern-skin .vjs-routes-menu-popup, .vjs-modern-skin .vjs-episodes-drawer,
+      .vjs-modern-skin .vjs-next-countdown-card, .vjs-modern-skin .vjs-menu-content {
+        background: #f7fafff5 !important; color: #353b58 !important;
+        border: 1px solid #e3ebf7 !important; border-radius: 6px !important; box-shadow: 0 6px 24px #00000018 !important;
+      }
+      .vjs-modern-skin .vjs-drawer-header { border-color: #e3ebf7; background: #f0f6ff; }
+      .vjs-modern-skin .vjs-drawer-title { color: #353b58; }
+      .vjs-modern-skin .vjs-drawer-title svg { color: #4b9fff; }
+      .vjs-modern-skin .vjs-drawer-close { width: 32px; height: 32px; display: grid; place-items: center; color: #7185a0; }
+      .vjs-modern-skin .vjs-drawer-ep-btn, .vjs-modern-skin .vjs-route-item { color: #596e89; background: #eef4fc; border-radius: 4px; border-color: #dfe8f5; }
+      .vjs-modern-skin .vjs-drawer-ep-btn.active, .vjs-modern-skin .vjs-route-item.active,
+      .vjs-modern-skin .vjs-menu-item.vjs-selected { background: #4b9fff !important; color: white !important; border-color: #4b9fff !important; }
+      .vjs-modern-skin .vjs-next-countdown-card [id="countdown-ep-title"] { color: #353b58; }
+      .vjs-modern-skin .vjs-next-countdown-card [id="countdown-num-text"] { color: #438ff0; }
+      .vjs-modern-skin #btn-next-now { background: #438ff0; color: white; }
+      .vjs-modern-skin #btn-next-cancel { background: #e8eff8; color: #596e89; }
+      .vjs-modern-skin .vjs-hud-progress-bar { background: linear-gradient(90deg, #4b9fff, #ff89c7); }
+      .vjs-modern-skin .vjs-gesture-hud { background: #15191eeb; border-color: #4b9fff55; border-radius: 8px; box-shadow: 0 6px 24px #00000020; }
+      .vjs-modern-skin .vjs-hud-delta { color: #91c4ff; }
+      .vjs-modern-skin .vjs-center-toast { display: flex; align-items: center; gap: 8px; }
+      @media (max-width: 520px) {
+        .vjs-modern-skin .vjs-control-bar { padding-inline: 5px !important; gap: 1px; }
+        .vjs-modern-skin .vjs-custom-btn, .vjs-modern-skin .vjs-play-control, .vjs-modern-skin .vjs-fullscreen-control { min-width: 27px !important; width: 27px !important; }
+        .vjs-modern-skin .vjs-time-control { font-size: 10px !important; min-width: 0 !important; }
+        .vjs-modern-skin .vjs-custom-btn::after { display: none; }
+        .vjs-modern-skin .vjs-big-play-button { width: 56px; height: 56px; border-radius: 16px; }
+        .vjs-modern-skin .vjs-big-play-button .bllii-player-icon { width: 32px; height: 32px; }
+      }
+      @media (max-width: 400px) {
+        .vjs-modern-skin .vjs-control-bar { gap: 0; }
+        .vjs-modern-skin .vjs-time-divider { display: none !important; }
+        .vjs-modern-skin .vjs-duration::before { content: '/'; margin-right: 2px; }
+        .vjs-modern-skin .vjs-playback-rate { margin: 0 !important; min-width: 28px !important; padding-inline: 2px !important; }
+        .vjs-modern-skin .vjs-custom-control-spacer { min-width: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) { .vjs-modern-skin *, .vjs-modern-skin *::before, .vjs-modern-skin *::after { animation: none !important; transition: none !important; } }
+    `;
     document.head.appendChild(style);
   }
 
@@ -957,6 +1054,16 @@
         this.applyAspectRatio(this.aspectRatio, false);
 
         this.injectCustomControls();
+        const nativeIcon = (selector, markup) => {
+          const placeholder = playerEl.querySelector(selector + ' .vjs-icon-placeholder');
+          if (placeholder) placeholder.innerHTML = markup;
+        };
+        nativeIcon('.vjs-play-control', `<span class="vjs-playing-icon">${brandIcon('play')}</span><span class="vjs-paused-icon">${brandIcon('pause')}</span>`);
+        nativeIcon('.vjs-mute-control', `<span class="vjs-audible-icon">${brandIcon('volume')}</span><span class="vjs-muted-icon">${brandIcon('muted')}</span>`);
+        nativeIcon('.vjs-fullscreen-control', brandIcon('fullscreen'));
+        nativeIcon('.vjs-big-play-button', brandIcon('play'));
+        const spinner = playerEl.querySelector('.vjs-loading-spinner');
+        if (spinner) spinner.insertAdjacentHTML('beforeend', brandIcon('play'));
         this.injectOverlays();
         this.setupGestureSystem();
         this.setupResponsiveObserver();
@@ -976,9 +1083,7 @@
       this.btnEnhance.className = `vjs-custom-btn vjs-btn-enhance ${this.isEnhanced ? 'active' : ''}`;
       this.btnEnhance.title = '超清画质增强 (对比度/锐化/高动态色彩优化)';
       this.btnEnhance.innerHTML = `
-        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-        </svg>
+        ${brandIcon('sparkles')}
         <span class="enhance-text">画质增强: 开</span>
       `;
       this.btnEnhance.onclick = (e) => {
@@ -992,9 +1097,7 @@
       this.btnRatio.className = `vjs-custom-btn vjs-btn-ratio ${this.aspectRatio !== 'auto' ? 'active' : ''}`;
       this.btnRatio.title = '画面比例与尺寸 (居中自适应 / 16:9 / 4:3 / 铺满)';
       this.btnRatio.innerHTML = `
-        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-        </svg>
+        ${brandIcon('ratio')}
         <span class="ratio-text">比例: 居中</span>
       `;
       this.btnRatio.onclick = (e) => {
@@ -1008,9 +1111,7 @@
       this.btnRoutes.className = 'vjs-custom-btn vjs-btn-routes';
       this.btnRoutes.title = '切换播放线路';
       this.btnRoutes.innerHTML = `
-        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-        </svg>
+        ${brandIcon('routes')}
         <span class="route-label">线路 1</span>
       `;
       this.btnRoutes.onclick = (e) => {
@@ -1024,9 +1125,7 @@
       this.btnEpisodes.className = 'vjs-custom-btn vjs-btn-episodes';
       this.btnEpisodes.title = '选集播放列表 (支持全屏)';
       this.btnEpisodes.innerHTML = `
-        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-        </svg>
+        ${brandIcon('episodes')}
         <span>选集</span>
       `;
       this.btnEpisodes.onclick = (e) => {
@@ -1040,10 +1139,7 @@
       this.btnAutoplay.className = `vjs-custom-btn vjs-btn-autoplay ${this.isAutoplayNext ? 'active' : ''}`;
       this.btnAutoplay.title = '自动播放下一集开关 (默认开启)';
       this.btnAutoplay.innerHTML = `
-        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
+        ${brandIcon('repeat')}
         <span class="autoplay-text">连播: 开</span>
       `;
       this.btnAutoplay.onclick = (e) => {
@@ -1072,6 +1168,9 @@
         cbEl.appendChild(this.btnAutoplay);
       }
 
+      [this.btnEnhance, this.btnRatio, this.btnRoutes, this.btnEpisodes, this.btnAutoplay].forEach(button => {
+        button.setAttribute('aria-label', button.title);
+      });
       this.updateBtnLabels();
     }
 
@@ -1134,9 +1233,7 @@
       this.drawerEl.innerHTML = `
         <div class="vjs-drawer-header">
           <div class="vjs-drawer-title">
-            <svg class="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
-            </svg>
+            ${brandIcon('episodes')}
             <span id="drawer-video-title">剧集选集</span>
           </div>
           <button class="vjs-drawer-close" title="关闭选集">&times;</button>
@@ -1144,6 +1241,8 @@
         <div class="vjs-drawer-body" id="drawer-episodes-list"></div>
       `;
       this.drawerEl.querySelector('.vjs-drawer-close').onclick = () => this.closeEpisodesDrawer();
+      this.drawerEl.querySelector('.vjs-drawer-close').innerHTML = brandIcon('close');
+      this.drawerEl.querySelector('.vjs-drawer-close').setAttribute('aria-label', '关闭选集');
       playerEl.appendChild(this.drawerEl);
 
       // 4. 自动连播倒计时卡片
@@ -1179,9 +1278,7 @@
       this.quickSeekLeft.className = 'vjs-quick-seek-feedback vjs-seek-left';
       this.quickSeekLeft.innerHTML = `
         <div class="vjs-seek-content">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"/>
-          </svg>
+          ${brandIcon('prev')}
           <span class="vjs-seek-text">-5s</span>
         </div>
       `;
@@ -1191,9 +1288,7 @@
       this.quickSeekRight.className = 'vjs-quick-seek-feedback vjs-seek-right';
       this.quickSeekRight.innerHTML = `
         <div class="vjs-seek-content">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4zM19.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z"/>
-          </svg>
+          ${brandIcon('next')}
           <span class="vjs-seek-text">+5s</span>
         </div>
       `;
@@ -1204,12 +1299,8 @@
       this.gestureHud.className = 'vjs-gesture-hud';
       this.gestureHud.innerHTML = `
         <div class="vjs-hud-icon-wrap">
-          <svg class="vjs-hud-forward w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4zM19.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z"/>
-          </svg>
-          <svg class="vjs-hud-backward w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"/>
-          </svg>
+          ${brandIcon('next', 'vjs-hud-forward')}
+          ${brandIcon('prev', 'vjs-hud-backward')}
           <span class="vjs-hud-delta font-bold text-sm text-indigo-400 font-mono">+0s</span>
         </div>
         <div class="vjs-hud-time">00:00 / 00:00</div>
@@ -1513,6 +1604,8 @@
 
       // 画质增强
       if (this.btnEnhance) {
+        this.btnEnhance.setAttribute('aria-pressed', String(this.isEnhanced));
+        this.btnEnhance.setAttribute('aria-label', this.isEnhanced ? '画质增强：已开启' : '画质增强：已关闭');
         const textSpan = this.btnEnhance.querySelector('.enhance-text');
         if (textSpan) {
           textSpan.innerText = isCompact
@@ -1523,6 +1616,7 @@
 
       // 画面比例 (居中 / 16:9 / 4:3 / 铺满)
       if (this.btnRatio) {
+        this.btnRatio.setAttribute('aria-label', `画面比例：${(ASPECT_MODES.find(m => m.key === this.aspectRatio) || ASPECT_MODES[0]).name}`);
         const textSpan = this.btnRatio.querySelector('.ratio-text');
         if (textSpan) {
           const mode = ASPECT_MODES.find(m => m.key === this.aspectRatio) || ASPECT_MODES[0];
@@ -1532,6 +1626,8 @@
 
       // 连播开关
       if (this.btnAutoplay) {
+        this.btnAutoplay.setAttribute('aria-pressed', String(this.isAutoplayNext));
+        this.btnAutoplay.setAttribute('aria-label', this.isAutoplayNext ? '自动连播：已开启' : '自动连播：已关闭');
         const textSpan = this.btnAutoplay.querySelector('.autoplay-text');
         if (textSpan) {
           textSpan.innerText = isCompact
@@ -1542,6 +1638,7 @@
 
       // 线路标签
       if (this.btnRoutes) {
+        this.btnRoutes.setAttribute('aria-label', `切换线路：${this.routes[this.currentRouteIndex]?.server || this.currentRouteIndex + 1}`);
         const labelSpan = this.btnRoutes.querySelector('.route-label');
         if (labelSpan) {
           const cur = this.routes[this.currentRouteIndex];
@@ -1550,6 +1647,7 @@
             : '线路';
         }
       }
+      if (this.player) this.player.trigger('blliisettingschange');
     }
 
     bindEvents() {
@@ -2054,7 +2152,10 @@
 
     showToast(msg, duration = 1500) {
       if (!this.toastEl) return;
-      this.toastEl.innerText = msg;
+      this.toastEl.innerHTML = brandIcon('sparkles');
+      const label = document.createElement('span');
+      label.textContent = msg.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').trim();
+      this.toastEl.appendChild(label);
       this.toastEl.classList.add('show');
       if (this.toastTimer) clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => {
