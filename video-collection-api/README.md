@@ -10,7 +10,7 @@
 ### 1. 纯后端 RESTful API 架构
 - **完全解耦**：彻底移除静态 HTML、嵌入式模板与视图控制器，仅对外提供标准 JSON 数据接口。
 - **全局统一响应规范**：接口统一以 `{ code: 1, data: ..., msg: ... }` 或 `{ code: 0, error: ... }` 格式输出，404 与异常统一由 JSON 处理，避免任何 HTML 穿透。
-- **会话与鉴权**：支持基于 Cookie（`auth_token`）与 HTTP Authorization 头（`Bearer <token>`）双重认证，普通用户权限与管理员权限分级管控。
+- **会话与鉴权**：支持基于 Cookie（`agg_auth_token`）与 HTTP Authorization 头（`Bearer <token>`）双重认证，普通用户权限与管理员权限分级管控。
 
 ### 2. OpenAPI 3.0 文档与交互式调试中心
 - **交互式 Swagger UI**：访问 `/docs` 或 `/swagger`，在线浏览所有分类接口，支持直接填写参数在线调试并查看响应结构。
@@ -190,6 +190,8 @@ services:
 
 ## 📚 接口模块分类索引
 
+资讯、社区与站内通知的完整参数、权限规则及调用示例见 [内容与通知接口说明](docs/content-api.md)，也可在 `/docs` 在线调试。SQLite / PostgreSQL 启动时会自动创建这些模块的表和索引，无需手动执行 SQL。
+
 | 模块 | 核心端点 | 描述 |
 | :--- | :--- | :--- |
 | **Auth** | `POST /api/login`<br>`POST /api/register`<br>`POST /api/logout`<br>`GET /api/me` | 用户登录、注册、注销与当前用户查询 |
@@ -197,6 +199,9 @@ services:
 | **Categories** | `GET /api/categories` | 获取系统视频分类列表 |
 | **User** | `GET /api/user/history`<br>`POST /api/user/history`<br>`POST /api/user/history/sync`<br>`GET /api/user/favorites` | 播放进度云端同步、历史记录管理与追剧收藏 |
 | **Site** | `GET /api/site/config`<br>`POST /api/feedback` | 公开站点信息、用户求片与报错反馈提交 |
+| **News** | `GET /api/news`<br>`GET/POST/DELETE /api/admin/news` | 资讯列表、详情、草稿、发布、分类、搜索与置顶 |
+| **Community** | `GET/POST/DELETE /api/community/posts`<br>`GET/POST/DELETE /api/community/comments`<br>`POST/DELETE /api/community/likes` | 发帖、评论、点赞；管理员通过 `/api/admin/community/posts` 和 `/api/admin/community/comments` 管理内容 |
+| **Notifications** | `GET/DELETE /api/user/notifications`<br>`GET /api/user/notifications/unread-count`<br>`POST /api/user/notifications/read`<br>`POST /api/admin/notifications` | 互动通知、系统通知、未读统计、已读管理与定向/广播发送 |
 | **Admin - Sources** | `GET/POST/DELETE /api/admin/sources`<br>`POST /api/admin/sources/collect`<br>`POST /api/admin/sources/collect-all` | 采集源维护、连通性测试与手动采集任务触发 |
 | **Admin - Videos** | `DELETE /api/admin/videos`<br>`POST /api/admin/videos/save`<br>`POST /api/admin/videos/batch-delete` | 视频编辑、单条删除与批量清理 |
 | **Admin - Users** | `GET/POST/DELETE /api/admin/users` | 用户账号分页列表、权限分配与状态修改 |
