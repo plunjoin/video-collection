@@ -8,6 +8,7 @@
           <span class="sub-desc">支持 MacCMS v10 JSON、XML、RSS 及自定义 RESTful 接口采集</span>
         </div>
         <div class="header-right">
+          <el-button @click="$router.push('/collection-rules')">通用采集规则工作台</el-button>
           <el-button type="primary" @click="openEditDialog()">
             <el-icon><Plus /></el-icon>新增节点
           </el-button>
@@ -100,7 +101,7 @@
             <el-radio value="json">MacCMS JSON (默认)</el-radio>
             <el-radio value="xml">MacCMS XML</el-radio>
             <el-radio value="rss">RSS 2.0</el-radio>
-            <el-radio value="custom">通用 RESTful</el-radio>
+            <el-radio value="custom_json">通用 RESTful</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="API 接口地址" prop="api">
@@ -219,7 +220,7 @@ const loadData = async () => {
   try {
     const res = await getSources()
     if (res.code === 1 && res.data) {
-      tableData.value = res.data.map((item: any) => ({
+      tableData.value = res.data.filter(item => item.type !== 'pipeline').map((item: any) => ({
         ...item,
         active: item.active !== undefined ? item.active : item.enabled !== false
       }))
@@ -231,14 +232,16 @@ const loadData = async () => {
 
 const openEditDialog = (row?: any) => {
   if (row) {
+    Object.assign(form, JSON.parse(JSON.stringify(row)))
     editingId.value = row.id
     form.id = row.id
     form.name = row.name
     form.api = row.api
-    form.type = row.type
+    form.type = row.type === 'custom' ? 'custom_json' : row.type
     form.collect_hours = row.collect_hours || 24
     form.active = row.active !== undefined ? row.active : row.enabled !== false
   } else {
+    Object.keys(form).forEach(key => delete (form as any)[key])
     editingId.value = null
     form.id = 'src_' + Date.now()
     form.name = ''
@@ -320,7 +323,10 @@ const handleTest = async (row: SourceConfig) => {
   try {
     const res = await testSource({
       api: row.api,
-      type: row.type
+      type: row.type,
+      headers: row.headers,
+      custom_params: row.custom_params,
+      custom_mapping: row.custom_mapping
     })
     if (res.code === 1) {
       testSuccess.value = true
