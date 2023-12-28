@@ -1,10 +1,13 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 import node from '@astrojs/node';
+import { loadEnv } from 'vite';
+
+const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'static',
+  output: 'server',
   adapter: node({ mode: 'standalone' }),
   integrations: [tailwind()],
   server: {
@@ -15,8 +18,7 @@ export default defineConfig({
     server: {
       proxy: {
         '/api': {
-          // target: 'https://john-admin.bllii.com',
-          target: 'http://localhost:80',
+          target: env.API_PROXY_TARGET || env.INTERNAL_API_URL || 'http://localhost:80',
           changeOrigin: true
         }
       }
