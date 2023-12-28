@@ -35,6 +35,7 @@ vite.config.d.ts
 *.test
 *.out
 /bin/
+/docs/
 /pkg/
 vendor/
 
