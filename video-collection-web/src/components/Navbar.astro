@@ -64,14 +64,14 @@ const navItems = [
       <a href="/search" aria-label="搜索番剧" class="sm:hidden text-slate-500 p-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg></a>
       <!-- 消息通知按钮 -->
       <a 
-        href="/follow"
+        href="/notifications"
         aria-label="消息通知"
         class="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square rounded-full text-slate-500 hover:text-[#597bea] hover:bg-slate-100 flex items-center justify-center transition-colors relative shrink-0"
       >
         <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+        <span id="nav-unread-count" class="hidden absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white text-[10px] leading-[17px] text-center"></span>
       </a>
 
       <!-- 未登录按钮 (默认) -->
@@ -163,7 +163,8 @@ const navItems = [
 </header>
 
 <script>
-  import { getUser, checkMe, logout } from '../lib/auth';
+  import { getUser, getToken, checkMe, logout } from '../lib/auth';
+  import { getUnreadCount } from '../lib/notifications';
 
   const guestBtn = document.getElementById('nav-guest-btn');
   const userMenu = document.getElementById('nav-user-menu');
@@ -172,6 +173,18 @@ const navItems = [
   const nicknameEl = document.getElementById('nav-user-nickname');
   const roleTextEl = document.getElementById('nav-user-role-text');
   const logoutBtn = document.getElementById('nav-btn-logout');
+  const unreadBadge = document.getElementById('nav-unread-count');
+
+  async function refreshUnread() {
+    if (!unreadBadge) return;
+    unreadBadge.classList.add('hidden');
+    if (!getToken()) return;
+    try {
+      const count = await getUnreadCount();
+      unreadBadge.textContent = count > 99 ? '99+' : String(count);
+      unreadBadge.classList.toggle('hidden', count === 0);
+    } catch { unreadBadge.classList.add('hidden'); }
+  }
 
   function updateAuthUI() {
     const user = getUser();
@@ -192,12 +205,15 @@ const navItems = [
 
   // 初始加载检查本地与服务器状态
   updateAuthUI();
-  checkMe().then(() => updateAuthUI());
+  checkMe().then(() => { updateAuthUI(); void refreshUnread(); });
+  void refreshUnread();
 
   // 监听登录变更
   window.addEventListener('auth-changed', () => {
     updateAuthUI();
+    void refreshUnread();
   });
+  window.addEventListener('notifications-changed', () => void refreshUnread());
 
   // 支持点击头像常驻展开，并支持再次点击或点击外部关闭
   let isMenuClickedOpen = false;
