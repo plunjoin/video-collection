@@ -29,6 +29,7 @@ AIGC:
 - **优雅的 Redoc 视角**：访问 `/redoc`，提供清晰的三栏式现代 API 规范文档。
 
 ### 3. 多协议智能采集引擎
+- **通用采集规则工作台**：网页 CSS、JSON 接口、PostgreSQL / MySQL / SQLite / SQL Server、Excel / CSV，统一字段映射、清洗、样本预览及文章/视频/通用数据入库，见[配置与接口说明](docs/collection-studio.md)。
 - **MacCMS v10 JSON**：苹果CMS标准接口 (`/api.php/provide/vod/?ac=detail&out=json`)。
 - **MacCMS / 飞飞CMS XML**：标准 XML 资源流。
 - **RSS 2.0 / Atom**：外部订阅源接入。
