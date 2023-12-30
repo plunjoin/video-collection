@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import DetailTabs from '../../components/DetailTabs.astro';
 import Synopsis from '../../components/Synopsis.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
+import Comments from '../../components/Comments.astro';
 import { getVideoDetail } from '../../lib/api';
 
 const { id } = Astro.params;
@@ -240,6 +241,8 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
       <RelatedAnime items={related} currentVideo={video} />
     </div>
   </div>
+
+  <Comments targetType="video" targetId={video.id} />
 
   <!-- 客户端播放器实例化脚本 -->
   <script is:inline define:vars={{ videoData: video }}>

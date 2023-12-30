@@ -6,6 +6,7 @@ import DetailTabs from '../../components/DetailTabs.astro';
 import EpisodeSelector from '../../components/EpisodeSelector.astro';
 import Synopsis from '../../components/Synopsis.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
+import Comments from '../../components/Comments.astro';
 import { getVideoDetail } from '../../lib/api';
 const detail = await getVideoDetail(Astro.params.id || '0');
 if (!detail) return Astro.redirect('/404');
@@ -18,4 +19,5 @@ const { video, related } = detail;
   <Synopsis content={video.content} />
   {video.actor && <section class="brand-section" id="tab-角色"><div class="section-heading"><h2>主要演出</h2></div><p class="text-sm text-slate-500 leading-loose">{video.actor}</p></section>}
   <RelatedAnime items={related} currentVideo={video} />
+  <Comments targetType="video" targetId={video.id} />
 </Layout>
