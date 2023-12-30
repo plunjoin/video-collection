@@ -192,6 +192,8 @@ services:
 
 资讯、社区与站内通知的完整参数、权限规则及调用示例见 [内容与通知接口说明](docs/content-api.md)，也可在 `/docs` 在线调试。SQLite / PostgreSQL 启动时会自动创建这些模块的表和索引，无需手动执行 SQL。
 
+影视、资讯和社区共用[通用评论接口](docs/comments-api.md)，支持多级回复、评论点赞及站内通知；旧社区评论数据自动迁移且保留原ID。新内容类型可通过服务端注册接入。
+
 | 模块 | 核心端点 | 描述 |
 | :--- | :--- | :--- |
 | **Auth** | `POST /api/login`<br>`POST /api/register`<br>`POST /api/logout`<br>`GET /api/me` | 用户登录、注册、注销与当前用户查询 |
@@ -200,6 +202,7 @@ services:
 | **User** | `GET /api/user/history`<br>`POST /api/user/history`<br>`POST /api/user/history/sync`<br>`GET /api/user/favorites` | 播放进度云端同步、历史记录管理与追剧收藏 |
 | **Site** | `GET /api/site/config`<br>`POST /api/feedback` | 公开站点信息、用户求片与报错反馈提交 |
 | **News** | `GET /api/news`<br>`GET/POST/DELETE /api/admin/news` | 资讯列表、详情、草稿、发布、分类、搜索与置顶 |
+| **Comments** | `GET/POST/DELETE /api/comments`<br>`POST/DELETE /api/comments/likes`<br>`GET/DELETE /api/admin/comments` | 通用评论、多级回复、评论点赞、通知及管理；关联影视/资讯/社区，可扩展 |
 | **Community** | `GET/POST/DELETE /api/community/posts`<br>`GET/POST/DELETE /api/community/comments`<br>`POST/DELETE /api/community/likes` | 发帖、评论、点赞；管理员通过 `/api/admin/community/posts` 和 `/api/admin/community/comments` 管理内容 |
 | **Notifications** | `GET/DELETE /api/user/notifications`<br>`GET /api/user/notifications/unread-count`<br>`POST /api/user/notifications/read`<br>`POST /api/admin/notifications` | 互动通知、系统通知、未读统计、已读管理与定向/广播发送 |
 | **Admin - Sources** | `GET/POST/DELETE /api/admin/sources`<br>`POST /api/admin/sources/collect`<br>`POST /api/admin/sources/collect-all` | 采集源维护、连通性测试与手动采集任务触发 |
