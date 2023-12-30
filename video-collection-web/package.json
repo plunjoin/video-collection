@@ -6,6 +6,9 @@
     "brand:sync": "node scripts/sync-brand.mjs",
     "dev": "astro dev",
     "start": "astro dev",
+    "start:prod": "node ./dist/server/entry.mjs",
+    "test:api-proxy": "node --experimental-strip-types --test scripts/api-proxy.test.mjs",
+    "test:m3u8": "node --test scripts/m3u8-cleaner.test.mjs",
     "build": "astro build",
     "build:prod": "astro build --mode production",
     "preview": "astro preview",
@@ -16,5 +19,15 @@
     "@astrojs/tailwind": "^5.1.5",
     "astro": "^5.4.2",
     "tailwindcss": "^3.4.17"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "vite": "6.4.3"
   }
 }
