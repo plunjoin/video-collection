@@ -60,3 +60,7 @@ pnpm run dev
 pnpm run build
 ```
 执行完毕后将在 `dist/` 目录下生成标准静态 SPA 生产资源，可直接部署至 Nginx 或嵌入任意静态服务器中。
+
+## 通用采集规则工作台
+
+后台菜单“采集规则工作台”（`/collection-rules`）提供来源选择、连接配置、字段映射与清洗、样本预览四步配置，支持网页、JSON 接口、多种数据库和 Excel / CSV。保存后接入现有调度与日志，可在结果面板查看导入记录。详细能力、部署变量及当前边界见 [采集工作台说明](../video-collection-api/docs/collection-studio.md)。
