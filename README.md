@@ -139,7 +139,7 @@ chmod +x run.sh
 | **OpenAPI JSON** | [localhost:80/openapi.json](http://localhost:80/openapi.json) | 导入 Postman / Apifox 等工具 |
 | **RSS 订阅** | [localhost:80/rss.xml](http://localhost:80/rss.xml) | 聚合订阅输出 |
 
-首次初始化数据库时会创建管理员账号：**`admin` / `admin123`**。部署前请通过后台修改密码。
+首次初始化数据库时会创建管理员账号：**`admin`**，密码可通过 `ADMIN_INITIAL_PASSWORD` 配置，未设置时为 `admin123`。生产部署步骤见 [部署与维护](./deploy/README.md)。
 
 > [!TIP]
 > 示例采集源使用占位地址。首次使用请在后台配置已授权的数据源，再执行采集；启动服务本身不会产生真实影视数据。
@@ -242,11 +242,11 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 
 | 子项目 | 配置入口 | 本地默认行为 |
 | :--- | :--- | :--- |
-| **Admin** | [`vite.config.ts`](./video-collection-admin/vite.config.ts) → `server.proxy` | `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
+| **Admin** | `API_PROXY_TARGET`；[`vite.config.ts`](./video-collection-admin/vite.config.ts) → `server.proxy` | `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
 | **Web** | [`astro.config.mjs`](./video-collection-web/astro.config.mjs)；`PUBLIC_API_URL` / `INTERNAL_API_URL` | 浏览器未设置 `PUBLIC_API_URL` 时使用同源请求；开发 `/api` 代理到 `http://localhost:80`；服务端优先读取 `INTERNAL_API_URL` |
 | **App** | 客户端「我的 → API 配置」 | Android 模拟器使用 `http://10.0.2.2:80`，其他平台默认 `http://127.0.0.1:80` |
 
-Web 的 [`.env.example`](./video-collection-web/.env.example) 包含一个远程 API 地址示例；本地开发请替换为自己的后端地址，或留空 `PUBLIC_API_URL` 使用开发代理。真机访问 API 时，App 应填写宿主机局域网 IP，不能使用真机自己的 `localhost`。
+Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBLIC_API_URL`，浏览器使用同源 `/api`；开发代理和生产 Node 服务代理默认连接 `http://localhost:80`，生产服务可通过运行时的 `INTERNAL_API_URL` 修改后端地址。真机访问 API 时，App 应填写宿主机局域网 IP，不能使用真机自己的 `localhost`。
 
 生产环境的反向代理、数据库、构建与服务部署步骤见 [API 文档](./video-collection-api/README.md)、[Web 文档](./video-collection-web/README.md)与 [Admin 文档](./video-collection-admin/README.md)。
 
@@ -254,6 +254,8 @@ Web 的 [`.env.example`](./video-collection-web/.env.example) 包含一个远程
 
 | 文档 | 适用内容 |
 | :--- | :--- |
+| [生产部署与维护](./deploy/README.md) | Docker Compose、域名 HTTPS、数据持久化、备份恢复与升级 |
+| [可配置采集规则](./video-collection-api/docs/collection-rules.md) | 模板目录、自定义请求、字段映射与分页 |
 | [API 使用与部署](./video-collection-api/README.md) | 采集协议、鉴权、存储、OpenAPI、二进制构建与部署 |
 | [管理后台](./video-collection-admin/README.md) | 后台模块、接口对接、开发与构建 |
 | [Web 门户](./video-collection-web/README.md) | 页面组件、开发、构建与接口调用 |
