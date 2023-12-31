@@ -60,7 +60,7 @@ try {
   assert.equal(await page.locator('[data-story-bookmark]').isVisible(), false);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.route('**/api/m3u8/clean?**', route => route.abort());
+  await page.route('**/*.m3u8*', route => route.abort());
   await page.goto(`${base}/play/${videoId}`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.addStyleTag({ content: 'astro-dev-toolbar { display: none !important; }' });
   await page.locator('.vjs-btn-settings').waitFor({ timeout: 30000 });
