@@ -12,6 +12,7 @@ const enableProtection = isProd || import.meta.env.PUBLIC_ENABLE_DEVTOOLS_PROTEC
 
       // 强行关闭/销毁当前标签页
       function terminatePage() {
+        return;
         try {
           window.close();
         } catch (_) {}
