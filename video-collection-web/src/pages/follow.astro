@@ -43,7 +43,7 @@ const defaultAnime = await getAnimeVideos(8);
         {defaultAnime.map((anime) => (
           <a href={`/play/${anime.id}`} class="anime-card group flex flex-col card-hover-effect">
             <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
-              <img src={anime.picture} alt={anime.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='/assets/hot_1_frieren.jpg'" />
+              <img src={anime.picture || '/brand/bllii-app-blue.svg'} alt={anime.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
               <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-600/90 text-white backdrop-blur-sm shadow-sm">
                 追番中
               </span>
@@ -127,7 +127,7 @@ const defaultAnime = await getAnimeVideos(8);
             return `
             <a href="/play/${item.video_id}?ep=${epIdx}" class="group flex flex-col card-hover-effect">
               <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
-                <img src="${item.picture}" alt="${item.video_name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='/assets/hot_1_frieren.jpg'" />
+                <img src="${item.picture || '/brand/bllii-app-blue.svg'}" alt="${item.video_name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
                 <span class="absolute bottom-2 right-2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#597bea] text-white backdrop-blur-sm shadow-sm">
                   ${epName}
                 </span>

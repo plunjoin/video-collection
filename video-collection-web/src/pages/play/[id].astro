@@ -4,22 +4,21 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import DetailTabs from '../../components/DetailTabs.astro';
 import Synopsis from '../../components/Synopsis.astro';
-import CharacterIntro from '../../components/CharacterIntro.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
-import QuoteFooter from '../../components/QuoteFooter.astro';
 import { getVideoDetail } from '../../lib/api';
 
 const { id } = Astro.params;
-const { video, related } = await getVideoDetail(id || 1);
+const detail = await getVideoDetail(id || '0');
+if (!detail) return Astro.redirect('/404');
+const { video, related } = detail;
 const playGroups = video.play_groups || [];
-const currentGroup = playGroups[0] || { server: '线路1-极速蓝光', episodes: [] };
+const currentGroup = playGroups[0] || { server: '', episodes: [] };
 const episodes = currentGroup.episodes || [];
 
-const score = video.score || 9.8;
-const ratingCount = video.rating_count || '245.6万人评分';
-const posterImg = video.picture || '/assets/detail_frieren_poster.jpg';
-const tags = video.tags && video.tags.length > 0 ? video.tags : [video.type_name || '番剧', '高评分', '超清'];
-const metaStr = `${video.year || '2024年'} | ${video.remarks || '全集'} | ${video.area || '动漫'} / ${video.language || '国语'}`;
+const posterImg = video.picture || '/brand/bllii-app-blue.svg';
+const tags = video.tags && video.tags.length > 0 ? video.tags : [video.type_name || '番剧'];
+const metaStr = [video.year, video.remarks, [video.area, video.language].filter(Boolean).join(' / ')].filter(Boolean).join(' | ');
+const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 ---
 
 <Layout title={`正在播放：${video.name} - bllii 极光超清播放`} activeNav="番剧">
@@ -77,14 +76,7 @@ const metaStr = `${video.year || '2024年'} | ${video.remarks || '全集'} | ${v
               </span>
             </div>
             <p class="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-              <span>{video.year || '2024'}</span>
-              <span>•</span>
-              <span>{video.area || '日本'}</span>
-              <span>•</span>
-              <span class="text-amber-500 font-semibold">★ {score}分</span>
-              <span>•</span>
-              <span>{video.remarks || '全集'}</span>
-              <span>•</span>
+              {metaItems.map(item => <><span>{item}</span><span>•</span></>)}
               <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-600">
                 {video.type_name || '番剧'}
               </span>
@@ -199,59 +191,6 @@ const metaStr = `${video.year || '2024年'} | ${video.remarks || '全集'} | ${v
           </div>
         </div>
 
-        <!-- 侧边栏：作品评分展台 (还原 bllii 高质感评分分布) -->
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/80 text-slate-800">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">站内综合评分</span>
-            <span class="text-[11px] text-slate-400">{ratingCount}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-              {score}
-            </span>
-            <div>
-              <div class="flex items-center text-[#f59e0b]">
-                {Array.from({ length: 5 }).map(() => (
-                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                  </svg>
-                ))}
-              </div>
-              <p class="text-[10px] text-emerald-600 font-medium mt-0.5">超过 98% 的同题材动画</p>
-            </div>
-          </div>
-
-          <div class="mt-3 space-y-1.5 text-[10px] text-slate-500 font-medium">
-            <div class="flex items-center gap-2">
-              <span class="w-5 shrink-0 text-slate-400 text-right">5星</span>
-              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 78%;"></div>
-              </div>
-              <span class="w-6 shrink-0 text-right text-slate-400">78%</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="w-5 shrink-0 text-slate-400 text-right">4星</span>
-              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 18%;"></div>
-              </div>
-              <span class="w-6 shrink-0 text-right text-slate-400">18%</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="w-5 shrink-0 text-slate-400 text-right">3星</span>
-              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 3%;"></div>
-              </div>
-              <span class="w-6 shrink-0 text-right text-slate-400">3%</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="w-5 shrink-0 text-slate-400 text-right">2星</span>
-              <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full bg-[#f59e0b]" style="width: 1%;"></div>
-              </div>
-              <span class="w-6 shrink-0 text-right text-slate-400">1%</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -297,14 +236,8 @@ const metaStr = `${video.year || '2024年'} | ${video.remarks || '全集'} | ${v
         </div>
       </div>
 
-      <!-- 角色介绍 -->
-      <CharacterIntro />
-
       <!-- 相关推荐 (同系列/同题材智能推荐) -->
       <RelatedAnime items={related} currentVideo={video} />
-
-      <!-- 经典名台词底栏 -->
-      <QuoteFooter source={video.name} />
     </div>
   </div>
 

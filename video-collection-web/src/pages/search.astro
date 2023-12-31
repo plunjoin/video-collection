@@ -51,10 +51,10 @@ const totalDbCount = total || 6686;
       {list.map((anime) => (
         <a href={`/play/${anime.id}`} class="anime-item group flex flex-col card-hover-effect">
           <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
-            <img src={anime.picture} alt={anime.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='/assets/hot_1_frieren.jpg'" />
-            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
-              {anime.remarks || '全集'}
-            </span>
+            <img src={anime.picture || '/brand/bllii-app-blue.svg'} alt={anime.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+            {anime.remarks && <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+              {anime.remarks}
+            </span>}
           </div>
           <div class="mt-2.5 px-0.5">
             <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">{anime.name}</h3>
@@ -125,14 +125,14 @@ const totalDbCount = total || 6686;
               <a href="/play/${anime.id}" class="anime-item group flex flex-col card-hover-effect">
                 <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
                   <img 
-                    src="${escapeHtml(anime.picture) || '/assets/hot_1_frieren.jpg'}" 
+                    src="${escapeHtml(anime.picture) || '/brand/bllii-app-blue.svg'}" 
                     alt="${escapeHtml(anime.name)}" 
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                    onerror="this.src='/assets/hot_1_frieren.jpg'" 
+                    onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" 
                   />
-                  <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
-                    ${escapeHtml(anime.remarks) || '全集'}
-                  </span>
+                  ${anime.remarks ? `<span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                    ${escapeHtml(anime.remarks)}
+                  </span>` : ''}
                 </div>
                 <div class="mt-2.5 px-0.5">
                   <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">${escapeHtml(anime.name)}</h3>

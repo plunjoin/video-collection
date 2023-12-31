@@ -34,9 +34,6 @@ export interface VideoRecord {
   source_id?: string;
   source_ids?: string[];
   hits?: number;
-  score?: number;
-  follow_count?: string;
-  rating_count?: string;
   tags?: string[];
   created_at?: string;
   updated_at?: string;
@@ -67,12 +64,8 @@ export function cleanSynopsis(html?: string): string {
     .trim();
 }
 
-// 计算适合 Bllii 视觉风格的高清评分与追番数，并智能解析多维题材标签
+// 标准化视频数据，并根据标题与简介智能解析多维题材标签
 export function formatVideo(v: VideoRecord): VideoRecord {
-  const baseHits = v.hits || 0;
-  const score = ((90 + ((v.id * 7 + baseHits) % 9)) / 10).toFixed(1);
-  const followCount = `${((v.id * 13 + baseHits * 10 + 1200) / 100).toFixed(1)}万追番`;
-  const ratingCount = `${((v.id * 17 + baseHits * 12 + 1500) / 100).toFixed(1)}万人评分`;
   const cleanText = cleanSynopsis(v.content);
 
   // 智能推断番剧题材类型 (确保多维筛选 100% 精准匹配)
@@ -108,17 +101,8 @@ export function formatVideo(v: VideoRecord): VideoRecord {
     genres.push('悬疑');
   }
 
-  // 兜底保证每个作品至少有 1-2 个题材标签
-  if (genres.length === 0) {
-    const fallbackGenres = ['热血', '奇幻', '冒险', '恋爱', '搞笑', '悬疑'];
-    genres.push(fallbackGenres[v.id % fallbackGenres.length]);
-  }
-
   return {
     ...v,
-    score: parseFloat(score),
-    follow_count: followCount,
-    rating_count: ratingCount,
     content: cleanText,
     tags: Array.from(new Set([v.type_name || '番剧', ...genres])),
     picture: v.picture || v.pic || '',
@@ -235,41 +219,18 @@ export async function getAnimeVideos(limit = 18): Promise<VideoRecord[]> {
   return animes.slice(0, limit);
 }
 
-// 2. 获取视频详情 (支持任意真实 ID，如 273, 206, 187...)
+// 2. 获取视频详情，未找到时返回 null
 export async function getVideoDetail(id: number | string) {
-  const numId = Number(id) || 273;
+  const numId = Number(id);
+  if (!numId) return null;
   const res = await apiFetch<{ code: number; data: VideoRecord; related: VideoRecord[] }>(`/api/video?id=${numId}`);
-  if (res && res.code === 1 && res.data) {
-    const relatedAnime = (res.related || []).filter(isAnimeRecord).map(formatVideo);
-    const fallbackRelated = relatedAnime.length > 0 ? relatedAnime : (await getAnimeVideos(10)).filter(v => v.id !== numId);
-    return {
-      video: formatVideo(res.data),
-      related: fallbackRelated.slice(0, 10)
-    };
-  }
-  
-  // 若未找到指定 ID，则取动漫列表中第一部兜底
-  const fallbackList = await getAnimeVideos(10);
-  const fallback = fallbackList[0] || {
-    id: numId,
-    name: '暂无该影片',
-    sub_name: '',
-    type_id: 4,
-    type_name: '国产动漫',
-    picture: '',
-    actor: '',
-    director: '',
-    area: '大陆',
-    language: '汉语普通话',
-    year: '2024',
-    remarks: '更新中',
-    content: '暂未获取到该视频数据，请检查网络或采集库。',
-    play_groups: []
-  };
+  if (!res || res.code !== 1 || !res.data) return null;
 
+  const relatedAnime = (res.related || []).filter(isAnimeRecord).map(formatVideo);
+  const related = relatedAnime.length > 0 ? relatedAnime : (await getAnimeVideos(10)).filter(v => v.id !== numId);
   return {
-    video: formatVideo(fallback),
-    related: fallbackList.slice(1, 10)
+    video: formatVideo(res.data),
+    related: related.slice(0, 10)
   };
 }
 
@@ -299,45 +260,25 @@ export async function getCategories() {
   const res = await apiFetch<{ code: number; data: Category[] }>('/api/categories');
   if (res && res.code === 1 && res.data && res.data.length > 0) {
     const animeCategories = res.data.filter(c => c.id === 4 || c.pid === 4 || c.name.includes('动漫'));
-    if (animeCategories.length > 0) return animeCategories;
+    return animeCategories;
   }
-  return [
-    { id: 4, pid: 0, name: '全部动漫', sort: 4 },
-    { id: 15, pid: 4, name: '国产动漫', sort: 41 },
-    { id: 16, pid: 4, name: '日韩动漫', sort: 42 },
-    { id: 17, pid: 4, name: '欧美动漫', sort: 43 },
-  ];
+  return [];
 }
 
 // 5. 获取最新更新 (严格保证为纯动漫更新)
 export async function getLatest() {
-  const [res, animeRes] = await Promise.all([
-    apiFetch<{ code: number; total: number; today: VideoRecord[]; yesterday: VideoRecord[]; earlier: VideoRecord[] }>('/api/latest'),
-    getVideos({ page: 1, pageSize: 36, typeId: 4 })
-  ]);
+  const res = await apiFetch<{ code: number; total: number; today: VideoRecord[]; yesterday: VideoRecord[]; earlier: VideoRecord[] }>('/api/latest');
+  if (!res || res.code !== 1) return { code: 0, total: 0, today: [], yesterday: [], earlier: [] };
 
-  const animeFresh = animeRes.list;
-
-  if (res && res.code === 1) {
-    const todayAnime = (res.today || []).filter(isAnimeRecord).map(formatVideo);
-    const yesterdayAnime = (res.yesterday || []).filter(isAnimeRecord).map(formatVideo);
-    const earlierAnime = (res.earlier || []).filter(isAnimeRecord).map(formatVideo);
-
-    return {
-      code: 1,
-      total: animeRes.total || (todayAnime.length + yesterdayAnime.length + earlierAnime.length),
-      today: todayAnime.length > 0 ? todayAnime : animeFresh.slice(0, 12),
-      yesterday: yesterdayAnime.length > 0 ? yesterdayAnime : animeFresh.slice(12, 24),
-      earlier: earlierAnime.length > 0 ? earlierAnime : animeFresh.slice(24, 36),
-    };
-  }
-
+  const today = (res.today || []).filter(isAnimeRecord).map(formatVideo);
+  const yesterday = (res.yesterday || []).filter(isAnimeRecord).map(formatVideo);
+  const earlier = (res.earlier || []).filter(isAnimeRecord).map(formatVideo);
   return {
     code: 1,
-    total: animeRes.total,
-    today: animeFresh.slice(0, 12),
-    yesterday: animeFresh.slice(12, 24),
-    earlier: animeFresh.slice(24, 36),
+    total: today.length + yesterday.length + earlier.length,
+    today,
+    yesterday,
+    earlier,
   };
 }
 
@@ -379,16 +320,10 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   site_notice_enabled: '1',
   site_keywords: '高清动漫,番剧新番,日漫,国漫,免费在线观看,苹果CMS接口',
   site_description: 'Bllii致力于提供全面、快速的高清二次元番剧与动漫流媒体在线观看服务与智能聚合。',
-  site_contact_email: 'contact@Bllii.com',
-  site_contact_group: '官方交流群: 876543210 (TG: @Bllii)',
+  site_contact_email: '',
+  site_contact_group: '',
   site_disclaimer: '【免责声明】本站所有视频资源均系第三方公开网络接口与网络爬虫自动检索聚合，本站服务器不存储、不制作、不上传任何视听节目及视频文件。若相关内容无意侵犯了贵司版权或合法权益，请通过上方联系方式提供权利证明与侵权链接，我们将在收到通知后24小时内断开相关播放解析并配合清理。本站提倡支持正版影视与动漫。',
-  friend_links: [
-    { name: 'Bangumi 番组计划', url: 'https://bangumi.tv', description: '动画与游戏分享社区' },
-    { name: '萌娘百科', url: 'https://zh.moegirl.org.cn', description: '万物皆可萌的ACG百科全书' },
-    { name: 'ACG 动漫社区', url: 'https://acg.rip', description: '动漫资源分享与爱好者交流' },
-    { name: 'MyAnimeList', url: 'https://myanimelist.net', description: '全球知名动漫资料库' },
-    { name: 'AnimeDB', url: 'https://anidb.net', description: '动漫数据库与档案' },
-  ],
+  friend_links: [],
 };
 
 export async function getSiteConfig(): Promise<SiteConfig> {

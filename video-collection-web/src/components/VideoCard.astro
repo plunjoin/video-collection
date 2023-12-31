@@ -7,7 +7,6 @@ const { video, badge } = Astro.props;
   <div class="video-card__cover">
     <img src={video.picture || '/brand/bllii-app-light.svg'} alt={video.name} loading="lazy" onerror="this.onerror=null;this.src='/brand/bllii-app-light.svg'" />
     {badge && <span class="video-card__badge">{badge}</span>}
-    {video.score && <span class="video-card__score">{video.score.toFixed(1)}</span>}
     <span class="video-card__play" aria-hidden="true">▶</span>
   </div>
   <h3>{video.name}</h3>

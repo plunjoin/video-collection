@@ -13,12 +13,10 @@
 | **金刚区快捷入口** | `src/components/QuickNav.astro` | 新番时间表、排行榜、专属合集、追番列表、我的收藏 5大彩色圆形入口 |
 | **正在热播** | `src/components/CurrentlyAiring.astro` | 6列海报卡片网格，右上角“更新”角标，剧集进度提示 |
 | **精选推荐** | `src/components/FeaturedRecommend.astro` | 4列宽屏横卡海报，展示类型与标签（如治愈/青春/游戏改） |
-| **排行榜** | `src/components/Leaderboard.astro` | 本周热门、评分排行、追番人数、新番榜分类，金银铜数字角标 |
-| **底部推广通栏** | `src/components/BottomBanner.astro` | “与热爱的作品 不期而遇” 及加入我们操作按钮 |
-| **番剧详情展台** | `src/components/AnimeHero.astro` | 沉浸式海报背板、元数据标签、立即播放与追番按钮、独立白色评分卡（9.8分及星级柱状图） |
+| **排行榜** | `src/components/Leaderboard.astro` | 热播排行，金银铜数字角标 |
+| **番剧详情展台** | `src/components/AnimeHero.astro` | 沉浸式海报背板、元数据标签、立即播放与追番按钮 |
 | **选集与播放器** | `src/components/EpisodeSelector.astro`<br>`src/components/PlayerModal.astro` | 01~12集方形按钮网格，点击即弹出无缝内置 HLS/MP4 视频播放器 |
-| **剧情与角色** | `src/components/Synopsis.astro`<br>`src/components/CharacterIntro.astro` | 展开/折叠剧情简介，四大主角（芙莉莲、欣梅尔、菲伦、修塔尔克）头像与声优 |
-| **经典台词横幅** | `src/components/QuoteFooter.astro` | “有些相遇，一生都会记得。—— 葬送的芙莉莲” 电影质感底栏 |
+| **剧情简介** | `src/components/Synopsis.astro` | 展开/折叠剧情简介 |
 
 ---
 

@@ -1,22 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
-
-const posts = [
-  { id: 1, user: '芙莉莲单推人', avatar: '/assets/char_1_frieren.jpg', title: '【深度长文】聊聊辛梅尔对芙莉莲深藏在每一个细节里的温柔与深情', time: '2小时前', likes: 1240, comments: 168 },
-  { id: 2, user: '迷宫大厨', avatar: '/assets/char_2_himmel.jpg', title: '《迷宫饭》魔物料理还原挑战第十期：烤巴西利斯克全记录！', time: '4小时前', likes: 890, comments: 72 },
-  { id: 3, user: '阿库亚的舞台', avatar: '/assets/char_3_fern.jpg', title: '《我推的孩子》第二季舞台剧篇作画分镜封神瞬间逐帧解析', time: '昨天', likes: 2150, comments: 340 },
-  { id: 4, user: '防卫队后勤部', avatar: '/assets/char_4_stark.jpg', title: '《怪兽8号》战斗燃点混剪推荐，谁是你们心中的战力天花板？', time: '2天前', likes: 670, comments: 45 }
-];
 ---
-
 
 <Layout title="同好社区 — bllii" activeNav="社区">
   <div class="page-content">
-    <div class="page-toolbar"><span class="page-pill" aria-pressed="true">同好广场</span><span class="text-xs text-slate-400">社区内容预览 · 发布与评论即将开放</span></div>
-    <div class="community-layout"><div>{posts.map(post => <article class="community-post">
-      <div class="community-author"><img src={post.avatar} alt="" /><div><strong>{post.user}</strong><small>精选讨论示例</small></div></div>
-      <h2>{post.title}</h2><footer><span>♡ {post.likes}</span><span>讨论 {post.comments}</span></footer>
-    </article>)}</div>
-    <aside class="community-aside"><h2>从共同的喜欢开始</h2><a href="/search?q=芙莉莲"># 温柔的故事，值得再看一次</a><a href="/category?genre=治愈"># 今天也需要一点治愈</a><a href="/rank"># 大家都在追什么</a><img src="/brand/bllii-symbol.svg" alt="" /><p class="text-xs text-slate-400 leading-loose">MORE STORIES,<br />TOGETHER.</p></aside></div>
+    <div class="page-toolbar"><span class="page-pill" aria-pressed="true">同好广场</span><span class="text-xs text-slate-400">发布与评论即将开放</span></div>
+    <div class="community-layout">
+      <div class="page-empty"><img src="/brand/bllii-symbol.svg" alt="" /><h2>暂无讨论</h2><p>社区内容还在筹备中，敬请期待。</p></div>
+      <aside class="community-aside"><h2>从共同的喜欢开始</h2><a href="/category?genre=治愈"># 今天也需要一点治愈</a><a href="/rank"># 大家都在追什么</a><img src="/brand/bllii-symbol.svg" alt="" /><p class="text-xs text-slate-400 leading-loose">MORE STORIES,<br />TOGETHER.</p></aside>
+    </div>
   </div>
 </Layout>

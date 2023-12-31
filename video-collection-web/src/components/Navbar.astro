@@ -97,7 +97,8 @@ const navItems = [
           aria-haspopup="true"
         >
           <img
-            src="/assets/char_1_frieren.jpg"
+            id="nav-avatar-img"
+            src="/brand/bllii-symbol.svg"
             alt="User Avatar"
             class="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-full object-cover ring-2 ring-[#597bea]/60 group-hover:ring-[#597bea] transition-all shadow-sm shrink-0"
           />
@@ -179,6 +180,8 @@ const navItems = [
       guestBtn?.classList.remove('flex');
       userMenu?.classList.remove('hidden');
       if (nicknameEl) nicknameEl.textContent = user.nickname || user.username;
+      const avatarImg = document.getElementById('nav-avatar-img') as HTMLImageElement | null;
+      if (avatarImg) avatarImg.src = user.avatar || '/brand/bllii-symbol.svg';
       if (roleTextEl) roleTextEl.textContent = user.role === 'admin' ? '超级管理员' : 'bllii 追番官';
     } else {
       userMenu?.classList.add('hidden');

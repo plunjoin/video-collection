@@ -159,28 +159,26 @@ const sorts = [
             data-type-id={anime.type_id || 0}
             data-area={anime.area || ''}
             data-year={anime.year || ''}
-            data-score={anime.score || 9.0}
             data-hits={anime.hits || 0}
           >
             <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
               <img 
-                src={anime.picture} 
+                src={anime.picture || '/brand/bllii-app-blue.svg'} 
                 alt={anime.name} 
                 loading="lazy" 
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                onerror="this.src='/assets/hot_1_frieren.jpg'" 
+                onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" 
               />
-              <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
-                {anime.remarks || '全集'}
-              </span>
+              {anime.remarks && <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                {anime.remarks}
+              </span>}
             </div>
             <div class="mt-2.5 px-0.5">
               <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
                 {anime.name}
               </h3>
               <div class="flex items-center justify-between text-xs text-slate-400 mt-1">
-                <span>{anime.year || '2024'}</span>
-                <span class="text-[#f59e0b] font-bold">★ {anime.score || '9.5'}</span>
+                <span>{anime.year}</span>
               </div>
             </div>
           </a>
@@ -343,7 +341,6 @@ const sorts = [
         noResults.classList.add('hidden');
 
         grid.innerHTML = list.map(anime => {
-          const score = anime.score || ((90 + ((anime.id * 7 + (anime.hits || 0)) % 9)) / 10).toFixed(1);
           return `
             <a 
               href="/play/${anime.id}"
@@ -351,23 +348,22 @@ const sorts = [
             >
               <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
                 <img 
-                  src="${escapeHtml(anime.picture) || '/assets/hot_1_frieren.jpg'}" 
+                  src="${escapeHtml(anime.picture) || '/brand/bllii-app-blue.svg'}" 
                   alt="${escapeHtml(anime.name)}" 
                   loading="lazy" 
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                  onerror="this.src='/assets/hot_1_frieren.jpg'" 
+                  onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" 
                 />
-                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
-                  ${escapeHtml(anime.remarks) || '全集'}
-                </span>
+                ${anime.remarks ? `<span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                  ${escapeHtml(anime.remarks)}
+                </span>` : ''}
               </div>
               <div class="mt-2.5 px-0.5">
                 <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
                   ${escapeHtml(anime.name)}
                 </h3>
                 <div class="flex items-center justify-between text-xs text-slate-400 mt-1">
-                  <span>${escapeHtml(anime.year) || '2024'}</span>
-                  <span class="text-[#f59e0b] font-bold">★ ${score}</span>
+                  <span>${escapeHtml(anime.year)}</span>
                 </div>
               </div>
             </a>

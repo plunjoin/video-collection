@@ -47,11 +47,11 @@ const tabs = ['本周热门', '评分排行', '追番人数', '新番榜'];
           <!-- 封面图及角标 -->
           <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
             <img
-              src={anime.picture}
+              src={anime.picture || '/brand/bllii-app-blue.svg'}
               alt={anime.name}
               loading="lazy"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onerror="this.src='/assets/rank_1_frieren.jpg'"
+              onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'"
             />
             
             <!-- 排名数字角标 (左上角) -->
@@ -65,22 +65,12 @@ const tabs = ['本周热门', '评分排行', '追番人数', '新番榜'];
             </span>
           </div>
 
-          <!-- 标题、评分与追番数 -->
+          <!-- 标题与年份 -->
           <div class="mt-2.5 px-0.5">
             <h3 class="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
               {anime.name}
             </h3>
-            
-            <div class="mt-1 flex items-center justify-between">
-              <!-- 高亮橙黄评分 (bllii 规范) -->
-              <span class="text-sm font-bold text-[#f59e0b]">
-                {anime.score || '9.8'}
-              </span>
-              <!-- 追番人数 -->
-              <span class="text-xs text-slate-400">
-                {anime.follow_count || '180万追番'}
-              </span>
-            </div>
+            <p class="mt-1 text-xs text-slate-400">{[anime.year, anime.area].filter(Boolean).join(' · ')}</p>
           </div>
         </a>
       );

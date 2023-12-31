@@ -8,7 +8,7 @@ const slides = videos.length ? videos.slice(0, 5) : featuredVideo ? [featuredVid
   <div class="brand-hero" data-hero>
     {(slides.length ? slides : [null]).map((video, i) => (
       <div class="brand-hero__slide" data-slide hidden={i !== 0}>
-        <img class="brand-hero__image" src={video?.picture || '/assets/hero_banner.jpg'} alt={video?.name || '在更多的故事里，遇见更好的你'} loading={i === 0 ? 'eager' : 'lazy'} onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+        <img class="brand-hero__image" src={video?.picture || '/brand/bllii-app-blue.svg'} alt={video?.name || '在更多的故事里，遇见更好的你'} loading={i === 0 ? 'eager' : 'lazy'} onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
         <div class="brand-hero__shade"></div>
         <div class="brand-hero__copy">
           <p class="brand-eyebrow">MORE STORIES, TOGETHER</p>

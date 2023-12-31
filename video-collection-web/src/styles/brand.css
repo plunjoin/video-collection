@@ -94,7 +94,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .anime-hero__banner > img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
 .anime-hero__banner::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #797baa35, #4a5a8020); }
 .anime-hero__banner p { position: absolute; z-index: 1; right: 5%; bottom: 25px; color: white; text-align: right; font: 25px/1.7 'KaiTi', serif; text-shadow: 0 2px 10px #353b58; }
-.anime-hero__info { display: grid; grid-template-columns: 190px minmax(0, 1fr) 210px; gap: 26px; padding: 22px 24px; align-items: start; }
+.anime-hero__info { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 26px; padding: 22px 24px; align-items: start; }
 .anime-hero__poster { width: 190px; aspect-ratio: 3/4; object-fit: cover; border-radius: 12px; border: 4px solid white; margin-top: -80px; z-index: 1; box-shadow: 0 5px 18px #536d8f18; background: #f3f6ff; }
 .anime-hero__info h1 { font-size: 27px; font-weight: 750; color: #252d51; margin-bottom: 10px; }
 .anime-hero__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }.anime-hero__tags span { font-size: 10px; color: #698ae4; background: #eff5ff; border: 1px solid #dfebff; padding: 1px 7px; border-radius: 4px; }.anime-hero__tags span:first-child { background: linear-gradient(100deg, #ec94dc, #b092ff); color: white; border: 0; }

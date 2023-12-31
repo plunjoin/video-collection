@@ -75,10 +75,10 @@ const friendLinks = config.friend_links || [];
             <span class="text-slate-400 shrink-0">联系邮箱：</span>
             <a
               id="footer-contact-email"
-              href={`mailto:${config.site_contact_email || "contact@Bllii.com"}`}
+              href={config.site_contact_email ? `mailto:${config.site_contact_email}` : undefined}
               class="text-primary-600 hover:text-primary-700 font-medium hover:underline transition-colors truncate"
             >
-              {config.site_contact_email || "contact@Bllii.com"}
+              {config.site_contact_email || "暂未设置"}
             </a>
           </li>
 
@@ -89,10 +89,7 @@ const friendLinks = config.friend_links || [];
               id="footer-contact-group"
               class="text-slate-700 font-medium truncate"
             >
-              {
-                config.site_contact_group ||
-                  "官方交流群: 876543210 (TG: @Bllii)"
-              }
+              {config.site_contact_group || "暂未设置"}
             </span>
           </li>
 
@@ -146,6 +143,7 @@ const friendLinks = config.friend_links || [];
           class="flex flex-wrap gap-2 pt-1"
           id="footer-friend-links-container"
         >
+          {friendLinks.length === 0 && <span class="text-slate-400">暂无友情链接</span>}
           {
             friendLinks.map((link) => (
               <a

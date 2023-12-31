@@ -6,7 +6,7 @@ const tags = video.tags?.length ? video.tags : [video.type_name || '番剧'];
 ---
 <section class="anime-hero">
   <div class="anime-hero__banner">
-    <img src={video.picture || '/assets/detail_hero_banner.jpg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+    <img src={video.picture || '/brand/bllii-app-blue.svg'} alt="" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
     <p>即使世界再遥远<br />也会遇见喜欢的故事</p>
   </div>
   <div class="anime-hero__info">
@@ -22,11 +22,6 @@ const tags = video.tags?.length ? video.tags : [video.type_name || '番剧'];
         <button id="btn-fav" class="brand-outline" aria-label="收藏" data-id={video.id} data-name={video.name} data-pic={video.picture}>☆</button>
       </div>
     </div>
-    <aside class="anime-rating" aria-label="作品评分">
-      <strong>{video.score ? video.score.toFixed(1) : '暂无'}</strong>
-      <div><span aria-hidden="true">★★★★★</span><small>{video.rating_count || '暂无评分数据'}</small></div>
-      <blockquote>“ 温柔而有力量，<br />照亮了平凡的生活。”</blockquote>
-    </aside>
   </div>
   <script>
     import { getUser, addFavorite, getFavorites, removeFavorite } from '../lib/auth';

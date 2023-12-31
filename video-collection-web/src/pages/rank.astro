@@ -4,7 +4,6 @@ import { getRankings } from '../lib/api';
 const { top } = await getRankings();
 const groups = [
   { label: '人气热播', list: top },
-  { label: '口碑精选', list: [...top].sort((a,b) => (b.score || 0) - (a.score || 0)) },
   { label: '最新作品', list: [...top].sort((a,b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0)) },
 ];
 ---
@@ -15,9 +14,7 @@ const groups = [
       <div class="ranking-list">{group.list.map((video,index) => <article class="ranking-entry">
         <span class="ranking-number">{String(index+1).padStart(2,'0')}</span>
         <img src={video.picture || '/brand/bllii-app-light.svg'} alt={video.name} loading="lazy" onerror="this.onerror=null;this.src='/brand/bllii-app-light.svg'" />
-        <div class="ranking-info"><h2><a href={`/anime/${video.id}`}>{video.name}</a></h2><p>{video.remarks || '更新中'} · {video.year || '番剧'}</p><p>{video.type_name} · {video.area}</p></div>
-        <span class="ranking-score">{video.score?.toFixed(1) || '—'}<small>作品评分</small></span>
-        <a class="brand-outline" href={`/play/${video.id}`}>立即观看 →</a>
+        <div class="ranking-info"><h2><a href={`/anime/${video.id}`}>{video.name}</a></h2><p>{video.remarks || '更新中'} · {video.year || '番剧'}</p><p>{video.type_name} · {video.area}</p></div>        <a class="brand-outline" href={`/play/${video.id}`}>立即观看 →</a>
       </article>)}</div>
       {!group.list.length && <div class="page-empty"><img src="/brand/bllii-symbol.svg" alt="" /><h2>热爱正在汇集</h2><p>暂时没有榜单数据，稍后再来看看。</p></div>}
     </div>)}
