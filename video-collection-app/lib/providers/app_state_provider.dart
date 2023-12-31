@@ -80,6 +80,18 @@ class AppStateProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
   Map<String, dynamic>? get user => _user;
   bool get isLoggedIn => _user != null;
+
+  Future<void> refreshProfile() async {
+    if (!isLoggedIn) return;
+    final generation = _accountGeneration;
+    final me = await _api.userRequest('/api/me');
+    if (generation != _accountGeneration) return;
+    _user = Map<String, dynamic>.from(me['data']);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('account_user', json.encode(_user));
+    notifyListeners();
+  }
+
   bool _syncing = false;
   int? _syncGeneration;
   bool get syncing => _syncing;
