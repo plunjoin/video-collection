@@ -28,7 +28,7 @@ AND EXISTS (
     )
 );
 
--- 3. 针对所有尚未填充 source_id 的历史线路（全库约 14.6 万条），标准化填补量子资源站节点信息
+-- 3. 针对所有尚未填充 source_id 的历史线路（全库约 14.6 万条），标准化填补示例数据源节点信息
 UPDATE videos
 SET play_groups = (
     SELECT COALESCE(jsonb_agg(
@@ -37,12 +37,12 @@ SET play_groups = (
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
-                            jsonb_set(elem, '{source_id}', '"liangzi_zy"'::jsonb),
-                            '{source_name}', '"量子资源站"'::jsonb
+                            jsonb_set(elem, '{source_id}', '"example_json"'::jsonb),
+                            '{source_name}', '"示例数据源"'::jsonb
                         ),
-                        '{server}', '"量子资源站"'::jsonb
+                        '{server}', '"示例数据源"'::jsonb
                     ),
-                    '{from}', to_jsonb('量子资源站 (' || COALESCE(elem->>'player_code', 'm3u8') || ')')
+                    '{from}', to_jsonb('示例数据源 (' || COALESCE(elem->>'player_code', 'm3u8') || ')')
                 )
             ELSE elem
         END

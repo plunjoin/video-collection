@@ -87,13 +87,7 @@ func (v *VideoRecord) FillCompatFields() {
 			if item.Server != "" && item.Server != "no" {
 				item.SourceName = item.Server
 			} else if len(v.SourceIDs) > i && v.SourceIDs[i] != "" {
-				if v.SourceIDs[i] == "liangzi_zy" {
-					item.SourceName = "量子资源站"
-				} else {
-					item.SourceName = v.SourceIDs[i]
-				}
-			} else if v.SourceID == "liangzi_zy" || strings.HasPrefix(v.SourceID, "liangzi_zy") {
-				item.SourceName = "量子资源站"
+				item.SourceName = v.SourceIDs[i]
 			}
 		}
 		if item.From == "" {

@@ -24,7 +24,7 @@ type AppConfig struct {
 // SourceConfig 针对单个视频采集源的完整配置 (支持 MacCMS JSON、MacCMS XML、网页 RSS 订阅、自定义通用 JSON 等多种形态)
 type SourceConfig struct {
 	ID               string            `yaml:"id" json:"id"`                               // 采集源唯一ID
-	Name             string            `yaml:"name" json:"name"`                           // 采集源名称，如 "量子资源"
+	Name             string            `yaml:"name" json:"name"`                           // 采集源名称，如 "示例数据源"
 	API              string            `yaml:"api" json:"api"`                             // 采集端点 URL
 	Type             string            `yaml:"type" json:"type"`                           // 协议类型: "json"(MacCMS JSON), "xml"(MacCMS XML), "rss"(网页RSS订阅), "custom_json"(自定义通用JSON)
 	Enabled          bool              `yaml:"enabled" json:"enabled"`                     // 是否启用该采集源

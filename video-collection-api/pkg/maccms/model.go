@@ -95,8 +95,8 @@ type Episode struct {
 
 // PlayGroup 播放源分组（支持多采集点节点独立标识）
 type PlayGroup struct {
-	SourceID   string    `json:"source_id,omitempty"`   // 来源采集节点ID，如 liangzi_zy
-	SourceName string    `json:"source_name,omitempty"` // 来源采集节点名称，如 量子资源站
+	SourceID   string    `json:"source_id,omitempty"`   // 来源采集节点ID，如 example_json
+	SourceName string    `json:"source_name,omitempty"` // 来源采集节点名称，如 示例数据源
 	PlayerCode string    `json:"player_code"`          // 播放器标识，如 m3u8, kkm3u8
 	From       string    `json:"from,omitempty"`       // 兼容 Admin 前端 from 字段
 	Server     string    `json:"server"`               // 服务器标识

@@ -1236,7 +1236,7 @@
       "PlayGroup": {
         "type": "object",
         "properties": {
-          "source": { "type": "string", "example": "量子云播" },
+          "source": { "type": "string", "example": "示例线路" },
           "urls": { "type": "array", "items": { "$ref": "#/components/schemas/PlayUrl" } }
         }
       },
@@ -1308,7 +1308,7 @@
         "required": ["name", "api"],
         "properties": {
           "id": { "type": "string", "example": "src_maccms" },
-          "name": { "type": "string", "example": "量子云资源站" },
+          "name": { "type": "string", "example": "示例数据源" },
           "api": { "type": "string", "example": "https://api.example.com/api.php/provide/vod" },
           "type": { "type": "string", "enum": ["json", "xml"], "default": "json" },
           "collect_hours": { "type": "integer", "default": 24 },
