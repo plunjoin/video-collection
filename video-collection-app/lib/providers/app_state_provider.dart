@@ -115,9 +115,7 @@ class AppStateProvider extends ChangeNotifier {
     }
 
     // 5. 搜索历史
-    _searchHistory =
-        prefs.getStringList('search_history') ??
-        ['葬送的芙莉莲', '斗破苍穹', '凡人修仙传', '间谍过家家', '鬼灭之刃'];
+    _searchHistory = prefs.getStringList('search_history') ?? [];
 
     _isInitialized = true;
     notifyListeners();

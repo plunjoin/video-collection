@@ -1100,14 +1100,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(widget.video.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
-          const SizedBox(width: 12),
-          Text(widget.video.score.toStringAsFixed(1), style: const TextStyle(fontSize: 25, color: AppColors.gold)),
-        ]),
+        Text(widget.video.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         const SizedBox(height: 5),
-        Text('${widget.video.year} · ${currentEp?.name ?? "待播放"}', maxLines: 1,
+        Text([widget.video.year, currentEp?.name ?? '待播放'].where((s) => s.isNotEmpty).join(' · '), maxLines: 1,
           overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary)),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 4, children: [
@@ -1150,22 +1146,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${widget.video.area} · ${widget.video.year}',
+                  [widget.video.area, widget.video.year].where((s) => s.isNotEmpty).join(' · '),
                   style: TextStyle(
                     color: isDark
                         ? AppColors.darkTextSecondary
                         : AppColors.lightTextSecondary,
                     fontSize: 12,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  widget.video.followCount,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
                   ),
                 ),
               ],

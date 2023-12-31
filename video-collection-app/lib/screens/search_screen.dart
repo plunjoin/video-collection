@@ -29,18 +29,6 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   List<VideoRecord> _searchResults = [];
 
-  final List<String> _hotKeywords = [
-    '葬送的芙莉莲',
-    '斗破苍穹',
-    '凡人修仙传',
-    '间谍过家家',
-    '鬼灭之刃',
-    '沧元图',
-    '异世界',
-    '修仙',
-    '热血战斗',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -211,29 +199,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 const SizedBox(height: 24),
               ],
-
-              // 热门推荐
-              Text(
-                '大家都在搜',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _hotKeywords.map((item) {
-                  return BrandPill(label: Text(item),onPressed: () {
-                      _controller.text = item;
-                      _performSearch(item);
-                    });
-                }).toList(),
-              ),
             ],
           ),
         );

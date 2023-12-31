@@ -10,7 +10,6 @@ import '../widgets/hero_banner.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/leaderboard_card.dart';
 import '../widgets/quick_nav.dart';
-import '../widgets/quote_banner.dart';
 import '../widgets/search_bar_widget.dart';
 import 'anime_detail_screen.dart';
 import 'player_screen.dart';
@@ -489,7 +488,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         BrandStoryBanner(onTap: () => widget.onSwitchTab(4)),
-        const QuoteBannerWidget(),
       ],
     );
   }

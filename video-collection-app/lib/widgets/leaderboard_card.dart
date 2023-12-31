@@ -33,11 +33,8 @@ class LeaderboardCard extends StatelessWidget {
             const SizedBox(height: 7),
             Text(video.remarks, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary)),
             const SizedBox(height: 5),
-            Text('${video.year} · ${video.area}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary)),
+            Text([video.year, video.area].where((s) => s.isNotEmpty).join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary)),
           ])),
-          const SizedBox(width: 6),
-          Column(children: [Text(video.score.toStringAsFixed(1), style: const TextStyle(fontSize: 21, color: AppColors.gold)),
-            const Text('评分', style: TextStyle(fontSize: 9, color: AppColors.lightTextSecondary))]),
         ])),
       )),
     );

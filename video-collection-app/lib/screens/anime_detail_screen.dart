@@ -178,7 +178,7 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${video.year} · ${video.area} · ${video.typeName}',
+                          [video.year, video.area, video.typeName].where((s) => s.isNotEmpty).join(' · '),
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.lightTextSecondary,
@@ -191,28 +191,6 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
                             fontSize: 11,
                             color: AppColors.lightTextSecondary,
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Text(
-                              video.score.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: AppColors.gold,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              '★★★★★',
-                              style: TextStyle(
-                                color: AppColors.gold,
-                                fontSize: 11,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),

@@ -9,9 +9,9 @@
 | 核心模块 | Flutter 实现 | Web 端对应组件 | 特性说明 |
 | :--- | :--- | :--- | :--- |
 | **顶部品牌与搜索** | `SearchBarWidget` | `Navbar.astro` | Bllii 标志性蓝紫渐变徽标，胶囊搜索栏，即时关键词检索 |
-| **主视觉轮播展台** | `HeroBannerWidget` | `HeroBanner.astro` | 16:9 沉浸海报大图、多维题材标签、评分角标、立即观看与一键追番 |
+| **主视觉轮播展台** | `HeroBannerWidget` | `HeroBanner.astro` | 16:9 沉浸海报大图、多维题材标签、立即观看与一键追番 |
 | **金刚区快捷入口** | `QuickNavWidget` | `QuickNav.astro` | 新番时刻、排行榜、全部分类、我的追番、观看历史 5大彩色渐变圆钮 |
-| **正在热播** | `HomeScreen` + `AnimePosterCard` | `CurrentlyAiring.astro` | 3列海报卡片网格，右上角集数角标，底部渐变评分浮层 |
+| **正在热播** | `HomeScreen` + `AnimePosterCard` | `CurrentlyAiring.astro` | 3列海报卡片网格，右上角集数角标 |
 | **精选推荐** | `HomeScreen` 横滑推荐 | `FeaturedRecommend.astro` | 宽屏横向滑动卡片流，快速探索高质量番剧 |
 | **排行榜单** | `RankScreen` + `LeaderboardCard` | `Leaderboard.astro` | 总热度榜/日漫榜/国漫榜切换，Top 1/2/3 金银铜牌专属徽章 |
 | **新番时间表** | `TimelineScreen` | `timeline.astro` / `latest.astro` | 今日新番更新、昨日放送、更早连载状态时间线 |
@@ -27,8 +27,7 @@
 1. **深度直连 Go 聚合后端 (`video-collection-api`)**：
    - 默认接入 `http://localhost:80`
    - 支持在「我的 -> API配置」中动态修改为局域网 IP（例如真机调试时的 `http://192.168.x.x:80`）并一键测试连通性。
-2. **离线与断网容灾保障**：
-   - 当后端服务未启动或网络环境受限时，客户端内置了高精度的离线番剧数据集（涵盖《葬送的芙莉莲》、《斗破苍穹》、《凡人修仙传》、《间谍过家家》、《鬼灭之刃》等），确保 App 任何情况下都能 100% 完整流畅预览与体验。
+   - 所有内容均来自后端接口，客户端不内置任何演示数据；接口不可用时展示空状态。
 
 ---
 

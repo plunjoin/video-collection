@@ -72,9 +72,6 @@ class VideoRecord {
   final String remarks;
   final String content;
   final int hits;
-  final double score;
-  final String followCount;
-  final String ratingCount;
   final List<String> tags;
   final List<PlayGroup> playGroups;
 
@@ -93,9 +90,6 @@ class VideoRecord {
     required this.remarks,
     required this.content,
     required this.hits,
-    required this.score,
-    required this.followCount,
-    required this.ratingCount,
     required this.tags,
     required this.playGroups,
   });
@@ -106,17 +100,6 @@ class VideoRecord {
     int typeId = int.tryParse(json['type_id']?.toString() ?? '4') ?? 4;
     String rawContent = json['content']?.toString() ?? '';
     String cleanText = cleanSynopsis(rawContent);
-
-    // 计算适合 Bllii 视觉风格的高清评分与追番数
-    double score =
-        double.tryParse(json['score']?.toString() ?? '') ??
-        ((90 + ((id * 7 + hits) % 9)) / 10.0);
-    String followCount =
-        json['follow_count']?.toString() ??
-        '${((id * 13 + hits * 10 + 1200) / 100.0).toStringAsFixed(1)}万追番';
-    String ratingCount =
-        json['rating_count']?.toString() ??
-        '${((id * 17 + hits * 12 + 1500) / 100.0).toStringAsFixed(1)}万人评分';
 
     // 智能推断番剧题材类型 (与 Web 端 100% 对齐)
     List<String> genres = [];
@@ -156,12 +139,6 @@ class VideoRecord {
         .hasMatch(textToScan)) {
       genres.add('悬疑');
     }
-
-    if (genres.isEmpty) {
-      const fallbackGenres = ['热血', '奇幻', '冒险', '恋爱', '搞笑', '悬疑'];
-      genres.add(fallbackGenres[id % fallbackGenres.length]);
-    }
-
     String typeName = json['type_name']?.toString() ?? '番剧';
     Set<String> tagSet = {typeName, ...genres};
 
@@ -185,15 +162,12 @@ class VideoRecord {
       picture: json['picture']?.toString() ?? '',
       actor: json['actor']?.toString() ?? '',
       director: json['director']?.toString() ?? '',
-      area: json['area']?.toString() ?? '大陆',
-      language: json['language']?.toString() ?? '普通话',
-      year: json['year']?.toString() ?? '2024',
-      remarks: json['remarks']?.toString() ?? '全集',
+      area: json['area']?.toString() ?? '',
+      language: json['language']?.toString() ?? '',
+      year: json['year']?.toString() ?? '',
+      remarks: json['remarks']?.toString() ?? '',
       content: cleanText,
       hits: hits,
-      score: double.parse(score.toStringAsFixed(1)),
-      followCount: followCount,
-      ratingCount: ratingCount,
       tags: tagSet.toList(),
       playGroups: parsedGroups,
     );
@@ -215,9 +189,6 @@ class VideoRecord {
       'remarks': remarks,
       'content': content,
       'hits': hits,
-      'score': score,
-      'follow_count': followCount,
-      'rating_count': ratingCount,
       'tags': tags,
       'play_groups': playGroups.map((g) => g.toJson()).toList(),
     };
