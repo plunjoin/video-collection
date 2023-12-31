@@ -2,6 +2,8 @@
 
 本项目是基于 **Flutter 3 + Material 3** 打造的现代化二次元影视与番剧流媒体客户端，高精度对标与复刻 `video-collection-web` (Bllii) 的沉浸式视觉设计、配色体系与接口规范。
 
+登录后在“我的 → 积分 / 装扮 / 消息”使用每日签到、积分求片、装扮兑换佩戴和个人通知；账号权限、积分规则及后台审核见 [运营说明](../video-collection-api/docs/community-operations.md)。
+
 ---
 
 ## 🎨 视觉与功能特性 (100% 对齐 Web 端)
