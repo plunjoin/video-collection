@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BrandIcon from '../components/BrandIcon.astro';
+import '../styles/growth.css';
+export const prerender = false;
+---
+<Layout title="同好成长站 — bllii" activeNav="追番">
+  <div class="page-content growth-station" aria-busy="false">
+    <div id="growth-status" role="status" aria-live="polite" hidden></div>
+    <div id="guest-hint" class="g-guest" hidden><BrandIcon name="star" /><p>每一份喜欢，都值得被珍藏。登录后开启你的成长旅程。</p><a class="brand-button" href="/login?redirect=/points">开启旅程 <BrandIcon name="arrow-right" size={16} /></a></div>
+    <div class="g-overview">
+      <section class="g-pass" aria-labelledby="pass-title">
+        <div class="g-heading"><h2 id="pass-title"><BrandIcon name="user" size={18} />我的同好通行证</h2><a href="/notifications" aria-label="查看我的消息"><BrandIcon name="bell" size={18} />消息</a></div>
+        <div class="g-member"><img id="member-avatar" src="/brand/bllii-symbol.svg" alt="我的头像" width="64" height="64" /><div><strong id="member-name">故事里的新朋友</strong><div class="g-member-labels"><span id="member-level" class="g-label">成长旅程待开启</span><span id="member-badge" class="g-nameplate" hidden></span></div></div><div class="g-balance"><span>可用积分</span><strong id="balance">—</strong></div></div>
+        <div class="g-level-copy"><span id="level-note">成长值随热爱累积，兑换装扮不会降低等级。</span><span id="experience">—</span></div>
+        <progress id="level-progress" max="100" value="0" aria-label="成长等级进度"></progress>
+        <div id="level-stops" class="g-level-stops" aria-label="成长等级路线"></div>
+        <p id="tryon-note" class="g-tryon-note" hidden>正在试戴，尚未修改你的装扮。<button id="reset-tryon" type="button">恢复当前装扮</button></p>
+      </section>
+      <section class="g-checkin" aria-labelledby="checkin-title">
+        <div class="g-heading"><h2 id="checkin-title"><BrandIcon name="calendar" size={18} />七日相伴</h2><span id="streak" class="g-muted">每天一点新的期待</span></div>
+        <div id="checkin-route" class="g-checkin-route" aria-label="七日签到路线"></div>
+        <div class="g-checkin-bottom"><p id="checkin-note">回来看看喜欢的故事，顺手收下一点星光。</p><button id="checkin" class="brand-button" data-mutate type="button" disabled>签到领积分</button></div>
+        <details class="g-rules"><summary>签到与积分规则</summary><p id="rules">登录后查看当前奖励规则。</p></details>
+      </section>
+    </div>
+    <div class="g-tablist" role="tablist" aria-label="成长站分区">
+      <button class="page-pill" id="tab-daily" role="tab" aria-controls="panel-daily" aria-selected="true" tabindex="0" data-tab="daily"><BrandIcon name="star" size={17} />成长日常</button>
+      <button class="page-pill" id="tab-wardrobe" role="tab" aria-controls="panel-wardrobe" aria-selected="false" tabindex="-1" data-tab="wardrobe"><BrandIcon name="user" size={17} />装扮衣橱</button>
+      <button class="page-pill" id="tab-wishes" role="tab" aria-controls="panel-wishes" aria-selected="false" tabindex="-1" data-tab="wishes"><BrandIcon name="heart" size={17} />同好心愿</button>
+      <button class="page-pill" id="tab-ledger" role="tab" aria-controls="panel-ledger" aria-selected="false" tabindex="-1" data-tab="ledger"><BrandIcon name="history" size={17} />积分足迹</button>
+    </div>
+    <section id="panel-daily" class="g-panel" role="tabpanel" aria-labelledby="tab-daily">
+      <div class="section-heading"><h2>日常里的小小成就 <span>DAILY SPARKS</span></h2><button id="refresh-growth" class="g-text-button" type="button"><BrandIcon name="history" size={15} />刷新进度</button></div>
+      <p class="g-section-note">把故事看下去、收藏一份心动、留下你的声音。完成后，来领取属于你的奖励。</p>
+      <div id="missions" class="g-missions"><p class="brand-empty">正在寻找今天的小目标…</p></div>
+      <div class="g-story-note"><img src="/brand/bllii-symbol.svg" alt="" width="55" height="55" /><div><strong>热爱不必赶进度</strong><p>签到和任务奖励会积累成长值；消费不会降级，求片退款也不会重复增加成长值。</p></div><a href="/category" class="brand-outline">遇见下一部好故事 <BrandIcon name="arrow-right" size={15} /></a></div>
+    </section>
+    <section id="panel-wardrobe" class="g-panel" role="tabpanel" aria-labelledby="tab-wardrobe" hidden>
+      <div class="section-heading"><h2>给热爱，添一点颜色 <span>YOUR LITTLE STYLE</span></h2><span class="g-muted" id="owned-count">装扮衣橱</span></div>
+      <div id="shop-filters" class="g-filters" role="group" aria-label="装扮类型">{Object.entries({'':'全部装扮',owned:'我的衣橱',avatar:'头像',animated_avatar:'动态头像',frame:'头像框',badge:'铭牌',nickname_color:'彩色昵称'}).map(([value,label]) => <button class="page-pill" type="button" data-filter={value} aria-pressed={value==='' ? 'true':'false'}>{label}</button>)}</div>
+      <p class="g-section-note">先试戴，看看和你的名字搭不搭。兑换后永久拥有，可以随时更换。</p>
+      <div id="shop" class="g-shop-grid"><p class="brand-empty">正在打开衣橱…</p></div>
+    </section>
+    <section id="panel-wishes" class="g-panel" role="tabpanel" aria-labelledby="tab-wishes" hidden>
+      <div class="g-wishes-layout"><div><div class="section-heading"><h2>一起期待的故事 <span>WISH TOGETHER</span></h2><button id="refresh-wall" type="button" class="g-text-button">刷新</button></div><p class="g-section-note">给同好的心愿亮一盏灯，不消耗积分。助力数供管理员安排找片优先级参考。</p><div id="wish-wall" class="g-wall"><p class="brand-empty">正在收集大家的期待…</p></div><div class="g-pagination"><button id="wall-prev" type="button" class="page-pill" disabled>上一页</button><span id="wall-page">第 1 页</span><button id="wall-next" type="button" class="page-pill" disabled>下一页</button></div></div>
+        <aside class="g-request-box"><h2><BrandIcon name="library" size={20} />许一个观影心愿</h2><p id="request-rule">填写作品名与线索，管理员会通过站内消息回复。</p><form id="movie-request"><label for="request-title">想看的作品</label><input id="request-title" required maxlength="200" placeholder="一个名字，一份期待" /><label for="request-details">再给一点线索</label><textarea id="request-details" maxlength="2000" rows="3" placeholder="年份、主演、语言，或你记得的一个场景（选填）"></textarea><p class="g-privacy-note"><BrandIcon name="user" size={14} />默认仅你和管理员可见。提交后可主动公开，邀请同好助力。</p><button class="brand-button" id="submit-request" data-mutate type="submit" disabled>提交心愿 <BrandIcon name="arrow-right" size={16} /></button></form></aside>
+      </div>
+      <div class="section-heading g-own-heading"><h2>我的心愿进度</h2><a href="/notifications">查看处理消息 <BrandIcon name="arrow-right" size={14} /></a></div><div id="requests" class="g-requests"><p class="brand-empty">登录后查看你的心愿。</p></div><button id="requests-more" type="button" class="page-pill" hidden>加载更多心愿</button>
+    </section>
+    <section id="panel-ledger" class="g-panel" role="tabpanel" aria-labelledby="tab-ledger" hidden><div class="section-heading"><h2>每一点热爱，都有迹可循 <span>YOUR FOOTPRINTS</span></h2></div><p class="g-section-note">最近100笔奖励、消费与退款记录。可用积分用于兑换，成长值记录你的陪伴。</p><div id="ledger" class="g-ledger"><p class="brand-empty">登录后查看你的积分足迹。</p></div></section>
+  </div>
+</Layout>
+<script>
+  import '../lib/growth-station';
+</script>
