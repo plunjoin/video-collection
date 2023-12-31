@@ -14,6 +14,8 @@ AIGC:
 基于 Go 语言构建的高性能影视数据智能采集清洗、多协议聚合检索与用户服务纯后端 API 系统。
 本项目已完成**前后端彻底分离**架构重构，移除了内部 HTML 模板引擎与前端嵌入式页面（前端后台独立于 `video-collection-admin`，客户端前端独立于 `video-collection-web`），专注于提供标准规范、高性能的 RESTful API 接口，并全面接入 **OpenAPI 3.0** 与 **Swagger UI / Redoc** 交互式文档中心。
 
+播放时由 Web / Flutter 客户端直接请求视频源并执行 M3U8 广告过滤，服务端不代理播放列表，也不执行切片过滤。原 `/api/m3u8` 与 `/api/m3u8/clean` 接口已移除。
+
 ---
 
 ## 🌟 核心特性与架构
@@ -226,3 +228,7 @@ services:
 | **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
 
 > AI生成
+
+## 可配置采集与生产部署
+
+视频采集支持可编辑的 YAML 模板目录及保存在数据库中的规则副本，MacCMS 作为其中一种模板。详见 [采集规则说明](docs/collection-rules.md)。Docker Compose、数据库持久化、HTTPS、备份恢复和升级见 [部署文档](../deploy/README.md)。
