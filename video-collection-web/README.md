@@ -42,8 +42,35 @@ pnpm dev
 ### 3. 构建生产版本
 ```bash
 pnpm build
-pnpm preview
+pnpm start:prod
+# 等同于 node ./dist/server/entry.mjs
 ```
+
+在 `video-collection-web` 目录执行，默认访问 `http://localhost:4321/`。`pnpm preview` 可用于本地预览构建结果。
+
+项目使用 Astro `output: 'server'` 和 Node standalone 适配器，页面在请求时渲染。部署时必须保留完整的 `dist` 目录（包括 `dist/server` 和 `dist/client`）以及生产依赖；`dist/client` 提供 CSS、JavaScript、图片和播放器等静态资源。
+
+可通过环境变量设置监听地址和端口：
+
+```powershell
+# Windows PowerShell
+$env:HOST = '0.0.0.0'
+$env:PORT = '4321'
+node ./dist/server/entry.mjs
+```
+
+```bash
+# Linux / macOS
+HOST=0.0.0.0 PORT=4321 node ./dist/server/entry.mjs
+```
+
+服务端取数和生产 Node 服务的 `/api/*` 代理共用 `INTERNAL_API_URL`，默认是 `http://localhost:80`（未设置时也兼容运行时的完整 `PUBLIC_API_URL`）。浏览器的 `PUBLIC_API_URL` 建议留空，登录、评论等业务接口统一使用同源 `/api`。本地启动 Node 服务即可转发接口，无需额外配置 Nginx；后端 API 需单独启动。
+
+播放器直接向视频源请求 M3U8，广告切片过滤在浏览器执行，过滤后的点播列表通过本地 Blob 提供给播放器。多码率、音轨、密钥、初始化片段和切片地址均在客户端解析，不经过播放列表代理。视频源需允许跨域读取；请求或解析失败时回退原始地址，直播使用原始列表维持刷新。切集和关闭播放器会释放本地列表。
+
+例如后端监听 `8080` 时，在启动 Node 前设置 `$env:INTERNAL_API_URL = 'http://localhost:8080'`。直接执行 Node 不会自动加载 `.env.production`，服务端地址应通过启动环境变量传入；修改浏览器的 `PUBLIC_API_URL` 则需要重新构建。
+
+如果启动后页面 404，先直接访问 Node 启动日志中的地址。旧的静态构建需要 `dist/client/index.html` 才能提供首页；更新配置后请重新执行 `pnpm build` 并部署完整 `dist`。若 Node 地址能访问而域名返回 404，请检查反向代理是否将页面请求转发到实际监听端口。
 
 ---
 
