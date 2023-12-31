@@ -93,7 +93,7 @@
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="110px">
         <el-form-item label="节点名称" prop="name">
-          <el-input v-model="form.name" placeholder="例如：飞速云切片资源网 / 已授权数据源" />
+          <el-input v-model="form.name" placeholder="例如：自有片库 / 已授权数据源" />
         </el-form-item>
         <el-form-item label="接口协议类型" prop="type">
           <el-radio-group v-model="form.type">

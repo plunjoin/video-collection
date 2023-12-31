@@ -87,13 +87,7 @@ func (v *VideoRecord) FillCompatFields() {
 			if item.Server != "" && item.Server != "no" {
 				item.SourceName = item.Server
 			} else if len(v.SourceIDs) > i && v.SourceIDs[i] != "" {
-				if v.SourceIDs[i] == "example_json" {
-					item.SourceName = "示例数据源"
-				} else {
-					item.SourceName = v.SourceIDs[i]
-				}
-			} else if v.SourceID == "example_json" || strings.HasPrefix(v.SourceID, "example_json") {
-				item.SourceName = "示例数据源"
+				item.SourceName = v.SourceIDs[i]
 			}
 		}
 		if item.From == "" {
