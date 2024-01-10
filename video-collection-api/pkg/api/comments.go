@@ -68,6 +68,9 @@ func (srv *Server) genericCommentsHandler(admin bool) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodDelete {
+			if !staffPublicationDelete(w, u) {
+				return
+			}
 			id, ok := contentID(w, r.URL.Query().Get("id"))
 			if !ok {
 				return
@@ -91,6 +94,9 @@ func (srv *Server) genericCommentsHandler(admin bool) http.HandlerFunc {
 		c := store.Comment{TargetType: strings.TrimSpace(req.TargetType), TargetID: req.TargetID, ParentID: req.ParentID, Content: req.Content, UserID: u.ID, AuthorName: u.Nickname, AuthorAvatar: u.Avatar}
 		if c.AuthorName == "" {
 			c.AuthorName = u.Username
+		}
+		if srv.queuePublication(w, r, u, "comment", 0, c) {
+			return
 		}
 		if err := srv.store.AddComment(r.Context(), &c); err != nil {
 			contentError(w, err)
