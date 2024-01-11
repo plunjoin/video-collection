@@ -24,6 +24,9 @@ type Comment struct {
 	UserID       int       `json:"user_id"`
 	AuthorName   string    `json:"author_name"`
 	AuthorAvatar string    `json:"author_avatar"`
+	AuthorFrame  string    `json:"author_frame"`
+	AuthorBadge  string    `json:"author_badge"`
+	AuthorColor  string    `json:"author_color"`
 	Content      string    `json:"content"`
 	IsDeleted    bool      `json:"is_deleted"`
 	LikeCount    int       `json:"like_count"`
@@ -163,7 +166,7 @@ CREATE TABLE IF NOT EXISTS comment_likes (
 }
 
 const commentColumns = `c.id,c.target_type,c.target_id,c.parent_id,c.root_id,c.user_id,
- COALESCE(NULLIF(u.nickname,''),u.username,''),COALESCE(u.avatar,''),c.content,c.is_deleted,
+ COALESCE(NULLIF(u.nickname,''),u.username,''),` + identityColumns + `,c.content,c.is_deleted,
  (SELECT COUNT(*) FROM comment_likes l WHERE l.comment_id=c.id),
  (SELECT COUNT(*) FROM comments r WHERE r.parent_id=c.id AND r.is_deleted=0),
  (SELECT COUNT(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=$1),c.created_at`
@@ -171,7 +174,7 @@ const commentColumns = `c.id,c.target_type,c.target_id,c.parent_id,c.root_id,c.u
 func scanComment(row contentScanner) (*Comment, error) {
 	var c Comment
 	var deleted, liked int
-	err := row.Scan(&c.ID, &c.TargetType, &c.TargetID, &c.ParentID, &c.RootID, &c.UserID, &c.AuthorName, &c.AuthorAvatar, &c.Content, &deleted, &c.LikeCount, &c.ReplyCount, &liked, &c.CreatedAt)
+	err := row.Scan(&c.ID, &c.TargetType, &c.TargetID, &c.ParentID, &c.RootID, &c.UserID, &c.AuthorName, &c.AuthorAvatar, &c.AuthorFrame, &c.AuthorBadge, &c.AuthorColor, &c.Content, &deleted, &c.LikeCount, &c.ReplyCount, &liked, &c.CreatedAt)
 	c.IsDeleted, c.Liked = deleted != 0, liked != 0
 	if c.TargetType == "post" {
 		c.PostID = c.TargetID
@@ -274,6 +277,13 @@ func (s *SQLContentStore) AddComment(ctx context.Context, c *Comment) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = s.addCommentTx(ctx, tx, c); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *SQLContentStore) addCommentTx(ctx context.Context, tx *sql.Tx, c *Comment) error {
 	owner, err := s.commentTarget(ctx, tx, c.TargetType, c.TargetID, true, false)
 	if err != nil {
 		return err
@@ -318,7 +328,7 @@ func (s *SQLContentStore) AddComment(ctx context.Context, c *Comment) error {
 	if c.TargetType == "post" {
 		c.PostID = c.TargetID
 	}
-	return tx.Commit()
+	return nil
 }
 
 // Lock the target first, then re-read the comment after acquiring that lock.
