@@ -2,12 +2,38 @@ package openapi
 
 import (
 	_ "embed"
+	"encoding/json"
 	"net/http"
 	"strings"
 )
 
 //go:embed spec.json
 var openAPISpec []byte
+
+//go:embed growth-spec.json
+var growthSpec []byte
+
+func init() {
+	var base, extra map[string]any
+	if err := json.Unmarshal(openAPISpec, &base); err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(growthSpec, &extra); err != nil {
+		panic(err)
+	}
+	for path, methods := range extra["paths"].(map[string]any) {
+		base["paths"].(map[string]any)[path] = methods
+	}
+	for name, schema := range extra["components"].(map[string]any)["schemas"].(map[string]any) {
+		base["components"].(map[string]any)["schemas"].(map[string]any)[name] = schema
+	}
+	base["tags"] = append(base["tags"].([]any), extra["tags"].([]any)...)
+	var err error
+	openAPISpec, err = json.MarshalIndent(base, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+}
 
 const swaggerUIHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
