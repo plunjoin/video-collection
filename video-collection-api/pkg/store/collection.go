@@ -68,7 +68,7 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		now := time.Now().UTC()
 		if id == 0 {
 			var author int
-			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role='admin' AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
+			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role IN ('admin','super_admin') AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
 				return false, fmt.Errorf("没有可用的管理员作为文章作者")
 			}
 			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,'draft',$7,$8) RETURNING id`, author, r.Values["title"], r.Values["summary"], r.Values["content"], r.Values["cover"], r.Values["category"], now, now).Scan(&id)
