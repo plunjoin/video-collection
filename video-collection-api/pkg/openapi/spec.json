@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "MacCMS v10 智能采集聚合平台 RESTful API",
+    "title": "视频采集与社区运营平台 RESTful API",
     "version": "1.0.0",
     "description": "MacCMS v10 视频智能采集聚合平台 & 客户端纯后端 RESTful API 服务接口文档。\n\n本服务已全面完成前后端分离重构，移除了内部模板与前端静态页面，专注于提供高性能、高可用、标准规范的数据接口服务。\n\n### 认证机制说明\n- 管理员接口与用户个人中心接口支持通过 Cookie 认证（`agg_auth_token`）或 HTTP 请求头传递 Authorization Token（`Bearer <token>`）。\n- 公开接口无需任何鉴权即可直接调用。",
     "contact": {
@@ -6249,7 +6249,7 @@
           "username": { "type": "string", "example": "user01" },
           "nickname": { "type": "string", "example": "小明" },
           "avatar": { "type": "string", "example": "" },
-          "role": { "type": "string", "enum": ["admin", "user"], "example": "user" },
+          "role": { "type": "string", "enum": ["super_admin", "admin", "observer", "operator", "user"], "example": "user" },
           "status": { "type": "integer", "description": "1 正常, 0 禁用", "example": 1 },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
