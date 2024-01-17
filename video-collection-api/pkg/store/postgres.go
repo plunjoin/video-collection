@@ -259,7 +259,7 @@ func (s *PostgresStore) InitDefaultAdmin(ctx context.Context) error {
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO users (username, password_hash, nickname, role, status)
 		VALUES ($1, $2, $3, $4, $5)
-	`, "admin", string(hash), "超级管理员", "admin", 1)
+	`, "admin", string(hash), "超级管理员", "super_admin", 1)
 	return err
 }
 
