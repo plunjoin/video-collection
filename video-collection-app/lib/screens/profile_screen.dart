@@ -10,11 +10,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/video_model.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
-import '../widgets/brand_widgets.dart';
 import '../widgets/anime_poster_card.dart';
 import 'anime_detail_screen.dart';
 import 'settings_screen.dart';
 import 'account_screen.dart';
+import 'growth_screen.dart';
+import '../widgets/member_avatar.dart';
 import 'player_screen.dart';
 import '../services/api_service.dart';
 
@@ -145,38 +146,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(7),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.primary200,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child:
-                                      appState.user?['avatar']
-                                              ?.toString()
-                                              .isNotEmpty ==
-                                          true
-                                      ? ClipOval(
-                                          child: CachedNetworkImage(
-                                            imageUrl: appState.user!['avatar']
-                                                .toString(),
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.cover,
-                                            errorWidget: (_, url, error) =>
-                                                const BrandLogo(
-                                                  width: 48,
-                                                  symbolOnly: true,
-                                                ),
-                                          ),
-                                        )
-                                      : const BrandLogo(
-                                          width: 48,
-                                          symbolOnly: true,
-                                        ),
+                                MemberAvatar(
+                                  avatar:
+                                      appState.user?['avatar']?.toString() ??
+                                      '',
+                                  frame:
+                                      appState.user?['decorations']?['frame']
+                                          ?.toString() ??
+                                      '',
+                                  size: 64,
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -197,10 +175,27 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
+                                          color: memberColor(
+                                            appState
+                                                .user?['decorations']?['nickname_color'],
+                                          ),
                                           fontSize: 18,
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
+                                      if (appState
+                                              .user?['decorations']?['badge']
+                                              ?.toString()
+                                              .isNotEmpty ==
+                                          true)
+                                        Text(
+                                          appState.user!['decorations']['badge']
+                                              .toString(),
+                                          style: const TextStyle(
+                                            color: Colors.indigo,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       SizedBox(height: 5),
                                       Text(
                                         appState.isLoggedIn
@@ -232,6 +227,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     child: const Text('登录 / 注册'),
                                   )
                                 else ...[
+                                  FilledButton.icon(
+                                    onPressed: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const GrowthScreen(),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.stars_rounded),
+                                    label: const Text('同好成长站 / 消息'),
+                                  ),
                                   OutlinedButton.icon(
                                     onPressed: appState.syncing
                                         ? null
