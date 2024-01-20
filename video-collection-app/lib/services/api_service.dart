@@ -59,7 +59,7 @@ class ApiService {
           json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       if (response.statusCode >= 400 || data['code'] != 1) {
         throw ApiException(
-          data['msg']?.toString() ?? '请求失败，请稍后重试',
+          data['error']?.toString() ?? data['msg']?.toString() ?? '请求失败，请稍后重试',
           response.statusCode,
         );
       }
