@@ -1,0 +1,12 @@
+---
+import { memberColor, memberAvatar, type MemberAppearance } from '../lib/members';
+interface Props extends MemberAppearance { metadata?: string; }
+const { name = '匿名用户', avatar, frame, badge, color, metadata } = Astro.props;
+---
+<div class="member-identity">
+  <img class="member-avatar" style={`--member-frame:${memberColor(frame) || '#f0eafa'}`} src={memberAvatar(avatar)} alt={`${name}的头像`} width="42" height="42" onerror="this.onerror=null;this.src='/brand/bllii-symbol.svg'" />
+  <div class="member-identity__details">
+    <span class="member-name"><strong style={memberColor(color) ? `color:${memberColor(color)}` : undefined}>{name}</strong>{badge && <span class="member-badge" aria-label={`铭牌：${badge}`}>{badge}</span>}</span>
+    {metadata && <small class="member-metadata">{metadata}</small>}
+  </div>
+</div>
