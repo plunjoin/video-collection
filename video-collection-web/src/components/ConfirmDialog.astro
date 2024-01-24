@@ -1,0 +1,14 @@
+---
+import BrandDialog from './BrandDialog.astro';
+---
+<BrandDialog id="site-confirm" title="确认操作" descriptionId="site-confirm-description" class="brand-dialog--confirm">
+  <p id="site-confirm-description" data-confirm-description></p>
+  <Fragment slot="footer">
+    <button type="button" class="brand-outline" data-confirm-cancel>取消</button>
+    <button type="button" class="brand-button" data-confirm-accept>确认</button>
+  </Fragment>
+</BrandDialog>
+<script>
+  import { initDialogs } from '../lib/dialogs';
+  initDialogs();
+</script>
