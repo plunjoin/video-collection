@@ -1,17 +1,18 @@
 ---
 import BrandIcon from './BrandIcon.astro';
+import BrandDialog from './BrandDialog.astro';
 ---
 <div class="page-reading-line" aria-hidden="true"><span data-reading-progress></span></div>
 <aside class="story-tools" aria-label="故事工具">
   <button class="story-tool" data-open-pocket aria-label="故事口袋" title="故事口袋"><BrandIcon name="library" /><span data-pocket-count hidden>0</span></button>
   <button class="story-tool" data-back-top aria-label="回到顶部" title="回到顶部" hidden><BrandIcon name="arrow-up" /></button>
 </aside>
-<dialog class="pocket-dialog" data-pocket-dialog aria-labelledby="pocket-heading">
-  <header><div><span class="tiny-label">STORIES FOR LATER</span><h2 id="pocket-heading">故事口袋 <small data-pocket-total>0</small></h2></div><button class="icon-command" data-pocket-close aria-label="关闭故事口袋" title="关闭"><BrandIcon name="close" /></button></header>
+<BrandDialog id="story-pocket" title="故事口袋">
+  <small slot="title-extra" data-pocket-total>0</small>
   <div class="pocket-list" data-pocket-list></div>
   <div class="pocket-empty" data-pocket-empty><img src="/brand/bllii-symbol.svg" alt="" /><h3>下一份喜欢，还在路上</h3><a href="/category">发现番剧 <BrandIcon name="arrow-right" size={16} /></a></div>
-  <footer><span>留一点期待，给下一次相遇。</span><span data-pocket-limit></span></footer>
-</dialog>
+  <Fragment slot="footer"><span>留一点期待，给下一次相遇。</span><span data-pocket-limit></span></Fragment>
+</BrandDialog>
 <div class="story-notice" data-story-notice role="status" aria-live="polite" hidden><BrandIcon name="bookmark" size={18} /><span></span></div>
 <script>
   import { initStoryPocket } from '../lib/story-pocket';
