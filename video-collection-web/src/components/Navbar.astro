@@ -115,7 +115,7 @@ const navItems = [
               </p>
             </div>
 
-            <div class="py-1 text-xs text-slate-600">
+            <div class="py-1 text-xs text-slate-600"><a href="/points" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea]">✦ 同好成长站</a>
               <a href="/follow" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
                 <BrandIcon name="bookmark" size={20} class="w-4 h-4 text-slate-400" />
                 <span>我的追番</span>
@@ -179,10 +179,10 @@ const navItems = [
       guestBtn?.classList.add('hidden');
       guestBtn?.classList.remove('flex');
       userMenu?.classList.remove('hidden');
-      if (nicknameEl) nicknameEl.textContent = user.nickname || user.username;
+      if (nicknameEl) { nicknameEl.textContent = (user.nickname || user.username) + (user.decorations?.badge ? ' · '+user.decorations.badge : ''); nicknameEl.style.color = /^#[0-9a-f]{6}$/i.test(user.decorations?.nickname_color || '') ? user.decorations!.nickname_color : ''; }
       const avatarImg = document.getElementById('nav-avatar-img') as HTMLImageElement | null;
-      if (avatarImg) avatarImg.src = user.avatar || '/brand/bllii-symbol.svg';
-      if (roleTextEl) roleTextEl.textContent = user.role === 'admin' ? '超级管理员' : 'bllii 追番官';
+      if (avatarImg) { avatarImg.src = user.avatar || '/brand/bllii-symbol.svg'; avatarImg.style.outline = /^#[0-9a-f]{6}$/i.test(user.decorations?.frame || '') ? '3px solid '+user.decorations!.frame : ''; }
+      if (roleTextEl) roleTextEl.textContent = ({super_admin:'超级管理员',admin:'管理员',observer:'观察员',operator:'运营人员'} as Record<string,string>)[user.role] || 'bllii 追番官';
     } else {
       userMenu?.classList.add('hidden');
       guestBtn?.classList.remove('hidden');
