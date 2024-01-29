@@ -6,6 +6,8 @@ export interface User {
   nickname: string;
   role: string;
   avatar?: string;
+  decorations?: { avatar: string; frame: string; badge: string; nickname_color: string };
+  wallet?: { balance: number };
 }
 
 export interface AuthResponse {
@@ -146,7 +148,9 @@ export async function checkMe(): Promise<User | null> {
         username: data.data.username,
         nickname: data.data.nickname || data.data.username,
         role: data.data.role,
-        avatar: data.data.avatar
+        avatar: data.data.avatar,
+        decorations: data.data.decorations,
+        wallet: data.data.wallet
       };
       localStorage.setItem(USER_KEY, JSON.stringify(u));
       return u;
