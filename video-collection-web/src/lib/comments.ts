@@ -11,6 +11,10 @@ export interface CommentItem {
   user_id: number;
   author_name: string;
   author_avatar: string;
+  author_frame?: string;
+  author_badge?: string;
+  author_color?: string;
+  pending?: boolean;
   content: string;
   is_deleted: boolean;
   like_count: number;
@@ -28,6 +32,7 @@ export interface Page<T> {
 
 interface ApiResponse<T> {
   code: number;
+  pending?: boolean;
   data: T;
   msg?: string;
   error?: string;
@@ -60,7 +65,7 @@ export async function createComment(targetType: CommentTarget, targetId: number,
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_type: targetType, target_id: targetId, parent_id: parentId, content }),
   });
-  return result.data;
+  return { ...result.data, pending: result.pending };
 }
 
 export function deleteComment(id: number): Promise<ApiResponse<unknown>> {
