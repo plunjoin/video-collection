@@ -50,6 +50,7 @@ export function deleteNotification(id: number): Promise<unknown> {
 }
 
 export function notificationLink(item: NotificationItem): string | null {
+  if (item.target_type === 'movie_request' || item.target_type === 'points') return '/points';
   if (item.target_id < 1) return null;
   const base = item.target_type === 'post' ? `/community/${item.target_id}`
     : item.target_type === 'news' ? `/news/${item.target_id}`
