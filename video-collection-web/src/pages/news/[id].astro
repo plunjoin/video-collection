@@ -2,6 +2,7 @@
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import BrandIcon from '../../components/BrandIcon.astro';
+import MemberIdentity from '../../components/MemberIdentity.astro';
 import Comments from '../../components/Comments.astro';
 import { getNewsDetail } from '../../lib/api';
 
@@ -27,7 +28,7 @@ function fmtDate(d: string): string {
       {item.category && <span class="editorial-label">{item.category}</span>}
       <h1>{item.title}</h1>
       <div class="news-meta">
-        {item.author_name && <span>编辑：{item.author_name}</span>}
+        {item.author_name && <MemberIdentity name={item.author_name} avatar={item.author_avatar} frame={item.author_frame} badge={item.author_badge} color={item.author_color} />}
         <time>{fmtDate(item.created_at)}</time>
         {item.like_count > 0 && <span><BrandIcon name="heart" size={14} /> {item.like_count}</span>}
       </div>
@@ -36,7 +37,7 @@ function fmtDate(d: string): string {
 
       {item.summary && <p class="news-summary">{item.summary}</p>}
 
-      <div class="news-body" set:html={item.content}></div>
+      <div class="news-body" style="white-space:pre-wrap">{item.content}</div>
     </article>
     <Comments targetType="news" targetId={item.id} />
   </div>
