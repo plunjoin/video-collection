@@ -48,6 +48,8 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store/app'
+import { useUserStore } from '@/store/user'
+import { canVisit } from '@/utils/permissions'
 import {
   VideoCameraFilled,
   Odometer,
@@ -75,7 +77,10 @@ const activeMenu = computed(() => {
   return route.path
 })
 
-const menuList = [
+const allMenus = [
+  { path: '/reviews', title: '内容审核中心', icon: Document },
+  { path: '/growth', title: '日活 / 积分 / 装扮', icon: Coin },
+  { path: '/notifications', title: '消息通知', icon: Notification },
   { path: '/dashboard', title: '系统仪表盘', icon: Odometer },
   { path: '/sources', title: '采集节点管理', icon: Connection },
   { path: '/collection-rules', title: '采集规则工作台', icon: SetUp },
@@ -91,6 +96,8 @@ const menuList = [
   { path: '/database', title: '数据库管理', icon: Coin },
   { path: '/logs', title: '运行审计日志', icon: Document }
 ]
+const userStore = useUserStore()
+const menuList = computed(() => allMenus.filter(item => canVisit(userStore.userInfo?.role || '', item.path)))
 </script>
 
 <style scoped lang="scss">
