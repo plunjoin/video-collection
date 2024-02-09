@@ -27,6 +27,7 @@ export const useUserStore = defineStore('user', () => {
     const res = await loginApi(form)
     const tokenVal = res.token || res.data?.token
     const userVal = res.user || res.data?.user
+    if (!userVal || userVal.role === 'user') throw new Error('此账号没有后台访问权限')
     if (res.code === 1 && tokenVal) {
       setToken(tokenVal)
       if (userVal) {
