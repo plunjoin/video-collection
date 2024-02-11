@@ -14,6 +14,11 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('admin_token')
+    const user = JSON.parse(localStorage.getItem('admin_user') || 'null')
+    if (user?.role === 'observer' && config.url?.startsWith('/api/admin/') && !['get', 'head'].includes(config.method || 'get')) {
+      ElMessage.warning('观察员只能查看，无法执行此操作')
+      return Promise.reject(new Error('观察员无操作权限'))
+    }
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
     }
