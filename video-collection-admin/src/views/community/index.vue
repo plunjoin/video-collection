@@ -178,7 +178,7 @@
             :rows="10"
             maxlength="50000"
             show-word-limit
-            placeholder="支持 HTML 富文本内容 (最多50000字)"
+            placeholder="纯文本内容，保留换行 (最多50000字)"
           />
         </el-form-item>
         <el-form-item label="显示状态">
@@ -306,7 +306,7 @@ const submitPostForm = async () => {
     try {
       const res = await savePost({ ...postForm })
       if (res.code === 1) {
-        ElMessage.success(editingPostId.value ? '帖子更新成功' : '官方帖发布成功')
+        ElMessage.success(res.msg || '保存成功')
         postDialogVisible.value = false
         loadPosts()
       } else {
