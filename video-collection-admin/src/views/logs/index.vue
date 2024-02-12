@@ -1,5 +1,6 @@
 <template>
   <div class="logs-page">
+    <el-card style="margin-bottom:20px"><h2>后台操作记录</h2><p>记录后台写入请求的账号、操作接口、结果和时间。</p><el-table :data="operations"><el-table-column prop="username" label="操作人"/><el-table-column prop="method" label="方法" width="90"/><el-table-column prop="path" label="操作接口" min-width="270"/><el-table-column prop="status" label="HTTP结果" width="100"/><el-table-column prop="created_at" label="时间"/></el-table><el-pagination v-model:current-page="auditPage" :total="auditTotal" :page-size="20" layout="total,prev,pager,next" @current-change="loadAudit"/></el-card>
     <el-card shadow="never" class="main-card">
       <div class="page-header">
         <div class="header-left">
@@ -59,9 +60,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getLogs } from '@/api/admin'
+import request from '@/utils/request'
 import type { LogEntry } from '@/types'
 import { RefreshRight } from '@element-plus/icons-vue'
 
+const operations=ref<any[]>([]), auditPage=ref(1),auditTotal=ref(0)
+async function loadAudit(){const r:any=await request.get('/api/admin/audit',{params:{page:auditPage.value}});operations.value=r.data;auditTotal.value=r.total}
 const loading = ref(false)
 const limit = ref(100)
 const autoRefresh = ref(false)
@@ -97,6 +101,7 @@ const handleAutoRefreshChange = (val: boolean) => {
 
 onMounted(() => {
   loadData()
+  loadAudit()
 })
 
 onUnmounted(() => {
