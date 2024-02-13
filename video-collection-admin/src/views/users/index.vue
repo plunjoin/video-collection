@@ -31,7 +31,7 @@
         <el-table-column prop="role" label="角色身份" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'" effect="plain">
-              {{ row.role === 'admin' ? '管理员 (Admin)' : '普通会员' }}
+              {{ roleLabels[row.role] || row.role }}
             </el-tag>
           </template>
         </el-table-column>
@@ -54,7 +54,7 @@
               size="small"
               type="danger"
               plain
-              :disabled="row.id === 1"
+              :disabled="row.id === userStore.userInfo?.id || (userStore.userInfo?.role !== 'super_admin' && row.role !== 'user')"
               @click="handleDelete(row)"
             >
               删除
@@ -89,9 +89,9 @@
           />
         </el-form-item>
         <el-form-item label="角色权限" prop="role">
-          <el-radio-group v-model="form.role">
+          <el-radio-group v-model="form.role" :disabled="userStore.userInfo?.role !== 'super_admin'">
             <el-radio value="user">普通会员</el-radio>
-            <el-radio value="admin">系统管理员</el-radio>
+            <el-radio value="super_admin">超级管理员</el-radio><el-radio value="admin">管理员</el-radio><el-radio value="observer">观察员</el-radio><el-radio value="operator">运营人员</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="账号状态">
@@ -116,9 +116,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getUsers, saveUser, deleteUser } from '@/api/admin'
 import type { UserInfo } from '@/types'
+import { useUserStore } from '@/store/user'
+import { roleLabels } from '@/utils/permissions'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, RefreshRight } from '@element-plus/icons-vue'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const tableData = ref<UserInfo[]>([])
 const dialogVisible = ref(false)
@@ -202,8 +205,8 @@ const submitForm = async () => {
 }
 
 const handleDelete = (row: UserInfo) => {
-  if (row.id === 1) {
-    ElMessage.warning('不能删除超级管理员账号')
+  if (row.id === userStore.userInfo?.id) {
+    ElMessage.warning('不能删除自己的账号')
     return
   }
   ElMessageBox.confirm(`确定要删除用户 [${row.username}] 吗？`, '删除确认', {
