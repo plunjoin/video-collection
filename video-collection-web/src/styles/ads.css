@@ -1,0 +1,61 @@
+/* ============================================================
+ * 广告位样式（banner / 首页推荐 inline / 详情页）
+ * 与 bllii 视觉体系保持一致；admin 未配置时组件 hidden，无任何残留布局。
+ * ============================================================ */
+
+.ad-slot[hidden] { display: none !important; }
+.ad-slot { margin: 18px 0; }
+.ad-slot--inline { margin: 0; display: contents; }
+
+.ad-banner {
+  display: block;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #eef2ff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.ad-banner:hover {
+  box-shadow: 0 10px 28px rgba(89, 123, 234, 0.22);
+  transform: translateY(-1px);
+}
+.ad-banner__img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+.ad-banner__tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  letter-spacing: 0.5px;
+}
+.ad-banner__title {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  right: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(15, 23, 42, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* inline 混排进番剧网格时不影响网格流 */
+.ad-slot--inline > * { animation: ad-fade-in 0.4s ease both; }
+@keyframes ad-fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
