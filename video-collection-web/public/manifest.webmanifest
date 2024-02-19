@@ -1,0 +1,51 @@
+{
+  "name": "bllii 追番库 - 在更多的故事里，遇见更好的你",
+  "short_name": "bllii追番",
+  "description": "bllii 动漫番剧在线播放与聚合平台：新番时间表、人气排行榜、个性化推荐与追番收藏。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#597bea",
+  "categories": ["entertainment", "video"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/brand/bllii-symbol.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "新番时间表", "url": "/latest" },
+    { "name": "人气排行榜", "url": "/rank" },
+    { "name": "我的追番", "url": "/follow" }
+  ]
+}
