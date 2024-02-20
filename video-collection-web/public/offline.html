@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>离线中 - bllii 追番库</title>
+  <link rel="icon" type="image/svg+xml" href="/brand/bllii-symbol.svg" />
+  <meta name="theme-color" content="#597bea" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #f8fafc; color: #334155;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      padding: 24px; text-align: center;
+    }
+    .card { max-width: 420px; }
+    .logo { width: 88px; height: 88px; margin: 0 auto 24px; border-radius: 24px; background: #eef2ff; display: flex; align-items: center; justify-content: center; }
+    .logo img { width: 56px; height: 56px; }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    p { font-size: 14px; line-height: 1.8; color: #64748b; margin-bottom: 24px; }
+    .actions { display: flex; gap: 12px; justify-content: center; }
+    a, button {
+      display: inline-block; padding: 10px 22px; border-radius: 999px; font-size: 14px; font-weight: 600;
+      text-decoration: none; cursor: pointer; border: none;
+    }
+    .primary { background: #597bea; color: #fff; }
+    .ghost { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo"><img src="/brand/bllii-symbol.svg" alt="bllii" /></div>
+    <h1>现在似乎 offline 了</h1>
+    <p>网络开小差了。你之前浏览过的页面已经收进口袋，恢复连接后可以继续追番。</p>
+    <div class="actions">
+      <button class="primary" onclick="location.reload()">重新加载</button>
+      <a class="ghost" href="/">回到首页</a>
+    </div>
+  </main>
+</body>
+</html>
