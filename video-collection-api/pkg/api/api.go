@@ -42,6 +42,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
 	srv.registerGrowthRoutes(mux)
+	srv.registerAnalyticsRoutes(mux)
 	// 公开接口
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)
