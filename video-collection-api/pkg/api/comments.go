@@ -45,6 +45,9 @@ func (srv *Server) genericCommentsHandler(admin bool) http.HandlerFunc {
 				return
 			}
 			q := store.CommentQuery{TargetType: strings.TrimSpace(r.URL.Query().Get("target_type")), TargetID: id, ViewerID: viewer, Page: page, PageSize: size, Admin: admin}
+		if sort := strings.TrimSpace(r.URL.Query().Get("sort")); sort == "hot" || sort == "latest" {
+			q.Sort = sort
+		}
 			for name, value := range map[string]*int{"parent_id": &q.ParentID, "root_id": &q.RootID} {
 				if r.URL.Query().Has(name) {
 					n, err := strconv.Atoi(r.URL.Query().Get(name))
