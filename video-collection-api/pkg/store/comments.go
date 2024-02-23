@@ -39,8 +39,12 @@ type CommentQuery struct {
 	TargetType                                           string
 	TargetID, ParentID, RootID, ViewerID, Page, PageSize int
 	Admin                                                bool
+	Sort                                                 string // "hot" 最热排序（神评置顶）；默认按发布时间
 	all                                                  bool // Legacy endpoint returns a flat list of live comments.
 }
+
+// godCommentLikeThreshold 是「神评」的点赞阈值：达到即视为神评，在最热排序中置顶。
+const godCommentLikeThreshold = 10
 
 type CommentStore interface {
 	RegisterCommentTarget(string, CommentTargetResolver) error
@@ -229,7 +233,14 @@ func (s *SQLContentStore) QueryComments(ctx context.Context, q CommentQuery) ([]
 	}
 	limit, offset := contentPage(q.Page, q.PageSize)
 	args = append(args, limit, offset)
-	rows, err := tx.QueryContext(ctx, "SELECT "+commentColumns+" FROM comments c LEFT JOIN users u ON u.id=c.user_id"+where+fmt.Sprintf(" ORDER BY c.id ASC LIMIT $%d OFFSET $%d", len(args)-1, len(args)), args...)
+	order := " ORDER BY c.id ASC"
+	if q.Sort == "hot" {
+		// 最热排序：神评（点赞达到阈值）置顶，其余按点赞降序。
+		// like_count 由 comment_likes 关联子查询得出，ORDER BY 中须复用同一表达式。
+		likes := "(SELECT COUNT(*) FROM comment_likes l WHERE l.comment_id=c.id)"
+		order = fmt.Sprintf(" ORDER BY CASE WHEN %s >= %d THEN 0 ELSE 1 END, %s DESC, c.id ASC", likes, godCommentLikeThreshold, likes)
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT "+commentColumns+" FROM comments c LEFT JOIN users u ON u.id=c.user_id"+where+order+fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args)), args...)
 	if err != nil {
 		return nil, 0, err
 	}
