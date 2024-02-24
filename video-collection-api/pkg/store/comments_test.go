@@ -174,6 +174,52 @@ func exerciseCommentMigration(t *testing.T, s *SQLContentStore, postgres bool) {
 	}
 }
 
+func TestCommentHotSorting(t *testing.T) {
+	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "hot.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if err = s.CreateUser(ctx, &User{Username: "reader", Role: "user", Status: 1}); err != nil {
+		t.Fatal(err)
+	}
+	news := &Content{Kind: "news", Title: "热评", Content: "正文", Status: "published"}
+	if err = s.SaveContent(ctx, news, 1, true); err != nil {
+		t.Fatal(err)
+	}
+	add := func(content string) *Comment {
+		c := &Comment{TargetType: "news", TargetID: news.ID, UserID: 1, Content: content}
+		if err := s.AddComment(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	a, b, c := add("神评"), add("热评"), add("新评")
+	like := func(commentID, n int) {
+		for i := 0; i < n; i++ {
+			if _, err := s.db.Exec("INSERT INTO comment_likes(comment_id,user_id,created_at) VALUES($1,$2,$3)", commentID, i+10, time.Now().UTC()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	like(a.ID, godCommentLikeThreshold+3)
+	like(b.ID, 2)
+	// 默认排序保持按发布时间（id 升序），不受 hot 影响。
+	latest, total, err := s.QueryComments(ctx, CommentQuery{TargetType: "news", TargetID: news.ID, ViewerID: 1})
+	if err != nil || total != 3 || len(latest) != 3 || latest[0].ID != a.ID || latest[2].ID != c.ID {
+		t.Fatalf("latest order broken: %+v %v %v", latest, total, err)
+	}
+	// 最热：神评置顶，其余按点赞降序，同赞按发布顺序。
+	hot, _, err := s.QueryComments(ctx, CommentQuery{TargetType: "news", TargetID: news.ID, ViewerID: 1, Sort: "hot"})
+	if err != nil || len(hot) != 3 {
+		t.Fatalf("hot query failed: %+v %v", hot, err)
+	}
+	if hot[0].ID != a.ID || hot[0].LikeCount != godCommentLikeThreshold+3 || hot[1].ID != b.ID || hot[2].ID != c.ID {
+		t.Fatalf("hot order: %+v", hot)
+	}
+}
+
 func TestCommentTransactionsAndVideoCleanup(t *testing.T) {
 	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "transactions.db"))
 	if err != nil {
