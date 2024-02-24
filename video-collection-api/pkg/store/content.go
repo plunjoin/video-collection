@@ -156,6 +156,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = migrateGrowth(tx, id); err != nil {
 		return err
 	}
+	if err = migrateAnalytics(tx, id, timestamp); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
