@@ -26,6 +26,22 @@ export function getAdminStats() {
   return request.get<any, ApiResponse<AdminStats>>('/api/admin/stats')
 }
 
+// 1.1 留存与功能渗透率看板
+export function getRetention() {
+  return request.get<any, ApiResponse<{ retention: any; penetration: any }>>('/api/admin/retention')
+}
+
+// 1.2 广告位管理
+export function getAds(slot?: string) {
+  return request.get<any, ApiResponse<any[]>>('/api/admin/ads', { params: slot ? { slot } : {} })
+}
+export function saveAd(data: any) {
+  return request.post<any, ApiResponse<any>>('/api/admin/ads', data)
+}
+export function deleteAd(id: number) {
+  return request.delete<any, ApiResponse>(`/api/admin/ads?id=${id}`)
+}
+
 // 2. 采集点管理
 export function getSources() {
   return request.get<any, ApiResponse<SourceConfig[]>>('/api/admin/sources')
