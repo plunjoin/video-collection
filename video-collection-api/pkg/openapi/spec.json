@@ -176,6 +176,17 @@
             "description": "必须为同目标顶层评论的ID"
           },
           {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["latest", "hot"],
+              "default": "latest"
+            },
+            "description": "latest 按发布时间；hot 最热排序（点赞达到神评阈值的置顶，其余按点赞降序）"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -555,6 +566,17 @@
               "default": 0
             },
             "description": "必须为同目标顶层评论的ID"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["latest", "hot"],
+              "default": "latest"
+            },
+            "description": "latest 按发布时间；hot 最热排序（点赞达到神评阈值的置顶，其余按点赞降序）"
           },
           {
             "name": "page",
