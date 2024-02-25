@@ -254,6 +254,9 @@ type Store interface {
 
 	// 统计数据
 	GetStats(ctx context.Context) (*StatsInfo, error)
+
+	// 轻量埋点 / 搜索日志 / 广告位 / 留存与渗透率
+	AnalyticsStore
 }
 
 func parseVodTime(raw string) time.Time {
