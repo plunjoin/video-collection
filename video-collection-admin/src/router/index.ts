@@ -20,6 +20,7 @@ export const routes: RouteRecordRaw[] = [
     children: [
       { path: 'reviews', name: 'Reviews', component: () => import('@/views/reviews/index.vue'), meta: { title: '内容审核中心' } },
       { path: 'growth', name: 'Growth', component: () => import('@/views/growth/index.vue'), meta: { title: '日活与积分运营' } },
+      { path: 'ads', name: 'Ads', component: () => import('@/views/ads/index.vue'), meta: { title: '广告位管理', icon: 'PriceTag' } },
       { path: 'notifications', name: 'Notifications', component: () => import('@/views/notifications/index.vue'), meta: { title: '消息通知' } },
       {
         path: 'dashboard',
