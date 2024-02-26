@@ -66,6 +66,7 @@ import {
   Setting,
   Coin,
   Document,
+  PriceTag,
   Fold,
   Expand
 } from '@element-plus/icons-vue'
@@ -80,6 +81,7 @@ const activeMenu = computed(() => {
 const allMenus = [
   { path: '/reviews', title: '内容审核中心', icon: Document },
   { path: '/growth', title: '日活 / 积分 / 装扮', icon: Coin },
+  { path: '/ads', title: '广告位管理', icon: PriceTag },
   { path: '/notifications', title: '消息通知', icon: Notification },
   { path: '/dashboard', title: '系统仪表盘', icon: Odometer },
   { path: '/sources', title: '采集节点管理', icon: Connection },
