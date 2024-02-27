@@ -84,3 +84,17 @@ HOST=0.0.0.0 PORT=4321 node ./dist/server/entry.mjs
 - `POST /api/video/hit?id={id}`：视频播放量打点统计
 
 > **容灾与体验优化**：若后端服务暂未启动或处于离线状态，客户端已内置高精度的回退数据集，保证页面样式、交互与所有视觉元素均 100% 完整呈现。
+
+## 📲 PWA、埋点、个性化与广告位
+
+| 能力 | 实现位置 | 说明 |
+| :--- | :--- | :--- |
+| **PWA 安装 / 离线浏览** | `public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`src/layouts/Layout.astro` | 可安装到桌面（standalone）；Service Worker 对页面导航走网络优先 + 缓存回退（离线时可继续浏览已访问过的页面，如追番收藏），静态资源走 stale-while-revalidate，`/api/` 不缓存 |
+| **PWA 图标** | `scripts/gen-pwa-icons.mjs` → `public/icons/` | 由品牌 SVG 栅格化生成 192/512 普通图标、192/512 maskable（60% 安全区）与 180 apple-touch-icon；换标后执行 `pnpm icons` 重新生成 |
+| **轻量埋点** | `public/js/tracker.js` | 自动上报 `page_view` / `page_leave`（停留时长，≥800ms）/ `search`；`rec_click`、`ad_click` 通过元素上的 `data-track` / `data-track-id` 属性自动上报；匿名访客 ID 存 localStorage（`bllii_vid`），登录后自动携带 token 关联用户 |
+| **个人搜索历史** | `src/pages/search.astro` | localStorage 键 `bllii_search_history`，最多 20 条，支持单条删除与一键清空，搜索成功即记录 |
+| **搜索自动补全** | `src/pages/search.astro` + `GET /api/search/suggest` | 输入防抖 180ms 拉取作品名补全，支持 ↑/↓/Enter/Esc 键盘操作；无输入时展示真实搜索热词 |
+| **个性化首页** | `src/components/ForYou.astro` + `GET /api/recommend/for-you` | 登录用户展示「为你推荐」（基于播放历史/收藏的类型亲和度）；未登录展示登录引导；推荐点击自动埋点 |
+| **广告位** | `src/components/AdSlot.astro`、`src/styles/ads.css` | `banner`（首页顶部横幅）、`home_recommend`（首页「为你推荐」番剧列表内混排）、`detail`（播放页横幅）；数据来自 `/api/ads`，后台未配置或过期时组件自动隐藏；样式见 `src/styles/ads.css` |
+
+升级 Service Worker 时递增 `public/sw.js` 中的 `CACHE` 版本号即可自动清理旧缓存。
