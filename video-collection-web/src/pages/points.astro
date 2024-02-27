@@ -18,7 +18,7 @@ export const prerender = false;
         <p id="tryon-note" class="g-tryon-note" hidden>正在试戴，尚未修改你的装扮。<button id="reset-tryon" type="button">恢复当前装扮</button></p>
       </section>
       <section class="g-checkin" aria-labelledby="checkin-title">
-        <div class="g-heading"><h2 id="checkin-title"><BrandIcon name="calendar" size={18} />七日相伴</h2><span id="streak" class="g-muted">每天一点新的期待</span></div>
+        <div class="g-heading"><h2 id="checkin-title"><BrandIcon name="calendar" size={18} /><span data-festival-copy="checkin-title">七日相伴</span></h2><span id="streak" class="g-muted">每天一点新的期待</span></div>
         <div id="checkin-route" class="g-checkin-route" aria-label="七日签到路线"></div>
         <div class="g-checkin-bottom"><p id="checkin-note">回来看看喜欢的故事，顺手收下一点星光。</p><button id="checkin" class="brand-button" data-mutate type="button" disabled>签到领积分</button></div>
         <details class="g-rules"><summary>签到与积分规则</summary><p id="rules">登录后查看当前奖励规则。</p></details>
@@ -43,7 +43,7 @@ export const prerender = false;
       <div id="shop" class="g-shop-grid"><p class="brand-empty">正在打开衣橱…</p></div>
     </section>
     <section id="panel-wishes" class="g-panel" role="tabpanel" aria-labelledby="tab-wishes" hidden>
-      <div class="g-wishes-layout"><div><div class="section-heading"><h2>一起期待的故事 <span>WISH TOGETHER</span></h2><button id="refresh-wall" type="button" class="g-text-button">刷新</button></div><p class="g-section-note">给同好的心愿亮一盏灯，不消耗积分。助力数供管理员安排找片优先级参考。</p><div id="wish-wall" class="g-wall"><p class="brand-empty">正在收集大家的期待…</p></div><div class="g-pagination"><button id="wall-prev" type="button" class="page-pill" disabled>上一页</button><span id="wall-page">第 1 页</span><button id="wall-next" type="button" class="page-pill" disabled>下一页</button></div></div>
+      <div class="g-wishes-layout"><div><div class="section-heading"><h2><span data-festival-copy="wishes-title">一起期待的故事</span> <span>WISH TOGETHER</span></h2><button id="refresh-wall" type="button" class="g-text-button">刷新</button></div><p class="g-section-note">给同好的心愿亮一盏灯，不消耗积分。每满 10 人亮灯，这部作品将被优先安排上架。</p><div id="wish-wall" class="g-wall"><p class="brand-empty">正在收集大家的期待…</p></div><div class="g-pagination"><button id="wall-prev" type="button" class="page-pill" disabled>上一页</button><span id="wall-page">第 1 页</span><button id="wall-next" type="button" class="page-pill" disabled>下一页</button></div></div>
         <aside class="g-request-box"><h2><BrandIcon name="library" size={20} />许一个观影心愿</h2><p id="request-rule">填写作品名与线索，管理员会通过站内消息回复。</p><form id="movie-request"><label for="request-title">想看的作品</label><input id="request-title" required maxlength="200" placeholder="一个名字，一份期待" /><label for="request-details">再给一点线索</label><textarea id="request-details" maxlength="2000" rows="3" placeholder="年份、主演、语言，或你记得的一个场景（选填）"></textarea><p class="g-privacy-note"><BrandIcon name="user" size={14} />默认仅你和管理员可见。提交后可主动公开，邀请同好助力。</p><button class="brand-button" id="submit-request" data-mutate type="submit" disabled>提交心愿 <BrandIcon name="arrow-right" size={16} /></button></form></aside>
       </div>
       <div class="section-heading g-own-heading"><h2>我的心愿进度</h2><a href="/notifications">查看处理消息 <BrandIcon name="arrow-right" size={14} /></a></div><div id="requests" class="g-requests"><p class="brand-empty">登录后查看你的心愿。</p></div><button id="requests-more" type="button" class="page-pill" hidden>加载更多心愿</button>
