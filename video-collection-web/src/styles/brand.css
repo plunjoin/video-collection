@@ -64,6 +64,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 15px; }
 .section-heading h2 { font-size: 18px; font-weight: 750; color: #252d51; letter-spacing: .4px; white-space: nowrap; }
 .section-heading h2 span { color: #8794b8; margin-left: 4px; font-weight: 400; }
+.section-heading h2 > span:first-child, .panel-subtitle > span:first-child { color: inherit; margin-left: 0; font-weight: inherit; font-size: inherit; }
 .section-heading > a { font-size: 11px; color: var(--brand-muted); white-space: nowrap; }
 .section-heading > a:hover { color: #597bea; }
 .brand-chips { display: flex; gap: 8px; flex: 1; overflow-x: auto; scrollbar-width: none; }
