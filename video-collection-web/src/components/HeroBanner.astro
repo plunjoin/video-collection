@@ -13,7 +13,7 @@ const slides = videos.length ? videos.slice(0, 5) : featuredVideo ? [featuredVid
         <img class="brand-hero__image" src={video?.picture || '/assets/hero_banner.jpg'} alt={video?.name || 'bllii'} loading={i === 0 ? 'eager' : 'lazy'} onerror="this.onerror=null;this.src='/assets/hero_banner.jpg'" />
         <div class="brand-hero__shade"></div>
         <div class="brand-hero__copy">
-          <p class="brand-eyebrow">bllii / 今日放映 <span class="hero-story-number">{String(i + 1).padStart(2, '0')}</span></p>
+          <p class="brand-eyebrow"><span data-festival-copy="hero-eyebrow">bllii / 今日放映</span> <span class="hero-story-number">{String(i + 1).padStart(2, '0')}</span></p>
           <h1>{video?.name || 'bllii · 动漫放映室'}</h1>
           <p class="brand-hero__title">{video ? [video.year, video.remarks, ...(video.tags || []).slice(0, 2)].filter(Boolean).join(' · ') : '在更多的故事里，遇见更好的你'}</p>
           <a class="brand-button" href={video ? `/play/${video.id}` : '/category'}><BrandIcon name="play" />{video ? '立即观看' : '发现番剧'}</a>
