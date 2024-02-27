@@ -225,6 +225,11 @@ services:
 | **Admin - Videos** | `DELETE /api/admin/videos`<br>`POST /api/admin/videos/save`<br>`POST /api/admin/videos/batch-delete` | 视频编辑、单条删除与批量清理 |
 | **Admin - Users** | `GET/POST/DELETE /api/admin/users` | 用户账号分页列表、权限分配与状态修改 |
 | **Admin - Stats & Logs** | `GET /api/admin/stats`<br>`GET /api/admin/logs` | 系统仪表盘统计指标与操作审计日志流水 |
+| **Analytics - 埋点** | `POST /api/track` | 轻量埋点上报（page_view / page_leave 停留时长 / rec_click / ad_click / search / favorite / play），匿名访客自动登记，登录用户自动关联 |
+| **Analytics - 搜索建议** | `GET /api/search/suggest` | 输入自动补全（作品名匹配）与真实搜索热词（近7天，无数据时兜底高热度番剧名） |
+| **Analytics - 个性化推荐** | `GET /api/recommend/for-you` | 基于播放历史与追剧收藏的类型亲和度（近期行为权重更高）加权推荐，需登录 |
+| **Analytics - 广告位** | `GET /api/ads`<br>`GET/POST/DELETE /api/admin/ads` | 按位置（banner / home_recommend / detail）拉取上架且有效期内的广告；后台维护物料、排期与上下架 |
+| **Analytics - 留存看板** | `GET /api/admin/retention` | 近14天新增访客的次日 / 7 日留存、今日新增与回访，以及功能渗透率（播放历史 / 收藏 / 搜索 / 推荐点击 / 评论） |
 | **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
 
 > AI生成
