@@ -38,6 +38,8 @@
 | **播放器管理** | `/players` | `GET /api/admin/players`、`POST /api/admin/players/switch` 切换默认播放器；`POST /api/admin/players/config` 更新解析参数；`POST /api/admin/players/upload` 导入播放器扩展 |
 | **系统配置** | `/settings` | `GET /api/site/config`、`POST /api/admin/site/config` 网站标题、滚动公告、SEO 关键词及描述、备案号等 |
 | **运行审计日志** | `/logs` | `GET /api/admin/logs` 控制台风格实时日志流，支持 5s 自动刷新、日志级别与条数筛选 |
+| **广告位管理** | `/ads` | `GET/POST/DELETE /api/admin/ads` 维护 banner（首页横幅）/ home_recommend（首页推荐位）/ detail（详情页）广告物料：图片、跳转链接或关联影片、排序、生效排期与上下架；客户端空广告位自动隐藏 |
+| **留存看板** | `/growth` → 「留存看板」标签 | `GET /api/admin/retention` 近14天新增访客的次日 / 7 日留存曲线、今日新增与回访，以及功能渗透率（播放历史 / 追番收藏 / 站内搜索 / 个性化推荐点击 / 评论互动，以近30天活跃注册用户为分母），用于验证 PWA、个性化推荐等粘性设计效果 |
 
 ---
 
