@@ -1,6 +1,9 @@
 import { getToken } from './auth';
 
 export type CommentTarget = 'video' | 'news' | 'post';
+export type CommentSort = 'latest' | 'hot';
+/** 「神评」点赞阈值：达到即在最热排序中置顶，并显示神评徽章。 */
+export const GOD_COMMENT_LIKES = 10;
 
 export interface CommentItem {
   id: number;
@@ -49,9 +52,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return result;
 }
 
-export function listComments(targetType: CommentTarget, targetId: number, page = 1, pageSize = 20, rootId = 0): Promise<Page<CommentItem>> {
+export function listComments(targetType: CommentTarget, targetId: number, page = 1, pageSize = 20, rootId = 0, sort: CommentSort = 'latest'): Promise<Page<CommentItem>> {
   const query = new URLSearchParams({ target_type: targetType, target_id: String(targetId), page: String(page), page_size: String(pageSize) });
   if (rootId) query.set('root_id', String(rootId));
+  if (sort === 'hot') query.set('sort', 'hot');
   return request<Page<CommentItem>>(`/api/comments?${query}`);
 }
 
