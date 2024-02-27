@@ -1,5 +1,6 @@
 ---
 import BrandIcon from '../../components/BrandIcon.astro';
+import AdSlot from '../../components/AdSlot.astro';
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
@@ -186,6 +187,9 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 
       </div>
     </div>
+
+    <!-- 广告位：详情/播放页横幅（admin 未配置时自动隐藏） -->
+    <AdSlot slot="detail" />
 
     <!-- 下半部分：作品全景百科与深度扩展展台 -->
     <div id="section-archive" class="mt-12 pt-6 border-t border-slate-100 scroll-mt-20">
