@@ -6,6 +6,51 @@
       <p>按北京时间统计登录用户，每个账号每天计一次。最近30天；积分流水包含活动奖励、兑换和求片退款。</p>
       <el-table :data="days"><el-table-column prop="day" label="日期"/><el-table-column prop="dau" label="日活"/><el-table-column prop="checkins" label="签到"/><el-table-column prop="earned" label="发放 / 退款"/><el-table-column prop="spent" label="消费"/></el-table>
     </el-tab-pane>
+    <el-tab-pane label="留存看板" name="retention">
+      <p>留存基于匿名访客 + 登录用户的到访记录；<b>次日 / 7 日留存</b>只统计观察窗口已结束的日期（-1 表示尚无数据）。<b>功能渗透率</b>以近 30 天有登录行为的注册用户为分母，用于验证个性化推荐、搜索、收藏等粘性设计是否真正被使用。</p>
+      <div class="metrics">
+        <el-statistic title="次日留存均值" :value="retention?.next_day_avg || 0" suffix="%" />
+        <el-statistic title="7 日留存均值" :value="retention?.seven_day_avg || 0" suffix="%" />
+        <el-statistic title="今日新增访客" :value="retention?.today_new || 0" />
+        <el-statistic title="今日回访访客" :value="retention?.today_return || 0" />
+      </div>
+      <h4 class="retention-subtitle">近期新增访客留存（最近14天）</h4>
+      <el-table :data="retention?.cohorts || []" size="small" border>
+        <el-table-column prop="day" label="日期" width="140" />
+        <el-table-column prop="new_visitors" label="新增访客" width="100" />
+        <el-table-column label="次日留存" min-width="220">
+          <template #default="{ row }">
+            <div class="retention-bar" v-if="row.next_day_retention >= 0">
+              <span class="retention-bar__num">{{ row.next_day_retention }}%</span>
+              <div class="retention-bar__track"><div class="retention-bar__fill" :style="{ width: Math.min(100, row.next_day_retention) + '%' }" /></div>
+            </div>
+            <span v-else class="retention-bar__none">尚无数据</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="7 日留存" min-width="220">
+          <template #default="{ row }">
+            <div class="retention-bar" v-if="row.seven_day_retention >= 0">
+              <span class="retention-bar__num">{{ row.seven_day_retention }}%</span>
+              <div class="retention-bar__track"><div class="retention-bar__fill retention-bar__fill--alt" :style="{ width: Math.min(100, row.seven_day_retention) + '%' }" /></div>
+            </div>
+            <span v-else class="retention-bar__none">尚无数据</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <h4 class="retention-subtitle">功能渗透率（近30天活跃用户 {{ penetration?.active_users || 0 }} 人 / 全站注册 {{ penetration?.total_users || 0 }} 人）</h4>
+      <el-table :data="penetration?.features || []" size="small" border>
+        <el-table-column prop="name" label="功能" width="180" />
+        <el-table-column prop="count" label="使用用户数" width="120" />
+        <el-table-column label="渗透率" min-width="260">
+          <template #default="{ row }">
+            <div class="retention-bar">
+              <span class="retention-bar__num">{{ row.rate }}%</span>
+              <div class="retention-bar__track"><div class="retention-bar__fill retention-bar__fill--penetration" :style="{ width: Math.min(100, row.rate) + '%' }" /></div>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-tab-pane>
     <el-tab-pane label="积分规则" name="rules"><el-form label-width="150px" :disabled="!canManage" style="max-width:580px">
       <el-form-item v-for="(label,key) in ruleLabels" :key="key" :label="label"><el-input-number v-model="rules[key]" :min="key === 'request_cost' ? 1 : 0" :max="key === 'request_cost' ? 10000 : key === 'streak_cap' ? 500 : key === 'streak_step' ? 20 : 100"/></el-form-item>
       <p>签到奖励 = 基础奖励 + (连续天数 − 1) × 增量，上限为奖励封顶；修改仅影响之后的奖励与消费。</p>
@@ -36,10 +81,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import request from '@/utils/request'
+import { getRetention } from '@/api/admin'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
 const user=useUserStore(), canManage=computed(()=>['super_admin','admin'].includes(user.userInfo?.role || ''))
 const tab=ref('metrics'),days=ref<any[]>([]),requests=ref<any[]>([]),shop=ref<any[]>([]),rules=reactive<Record<string,number>>({active:5,checkin:10,streak_step:2,streak_cap:30,request_cost:20}),busy=ref(false),page=ref(1),total=ref(0),chosenRequest=ref<any>(null),resolution=ref('processing'),reply=ref(''),itemVisible=ref(false)
+const retention=ref<any>(null),penetration=ref<any>(null)
+async function loadRetention(){try{const r:any=await getRetention();retention.value=r.data?.retention||null;penetration.value=r.data?.penetration||null}catch(e){retention.value=null;penetration.value=null}}
 const item=reactive({id:0,name:'',kind:'avatar',value:'',price:30,active:true})
 const missions=ref<any[]>([]),missionVisible=ref(false),missionEditing=ref(false)
 const missionKinds:Record<string,string>={history:'云端观影记录',favorite:'有效作品收藏',comment:'已发布留言',checkin:'连续签到天数',support:'求片助力'}
@@ -55,6 +103,6 @@ async function saveRules(){busy.value=true;try{await request.post('/api/admin/gr
 async function resolve(){if(!reply.value.trim()){ElMessage.warning('请输入处理说明');return}busy.value=true;try{await request.post('/api/admin/movie-requests',{id:chosenRequest.value.id,status:resolution.value,reply:reply.value});chosenRequest.value=null;await loadRequests();ElMessage.success('已处理并通知')}finally{busy.value=false}}
 function editItem(row?:any){Object.assign(item,row?{id:row.id,name:row.name,kind:row.kind,value:row.value,price:row.price,active:row.active}:{id:0,name:'',kind:'avatar',value:'',price:30,active:true});itemVisible.value=true}
 async function saveItem(){busy.value=true;try{await request.post('/api/admin/shop',item);itemVisible.value=false;await loadShop();ElMessage.success('装扮已保存')}finally{busy.value=false}}
-onMounted(async()=>{const results=await Promise.allSettled([request.get('/api/admin/growth'),request.get('/api/admin/growth/rules'),loadRequests(),loadShop(),loadMissions()]);if(results[0].status==='fulfilled')days.value=(results[0].value as any).data;if(results[1].status==='fulfilled')Object.assign(rules,(results[1].value as any).data)})
+onMounted(async()=>{const results=await Promise.allSettled([request.get('/api/admin/growth'),request.get('/api/admin/growth/rules'),loadRequests(),loadShop(),loadMissions(),loadRetention()]);if(results[0].status==='fulfilled')days.value=(results[0].value as any).data;if(results[1].status==='fulfilled')Object.assign(rules,(results[1].value as any).data)})
 </script>
-<style scoped>.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:20px 0}p{color:var(--text-color-secondary);line-height:1.8}.el-pagination,.el-textarea{margin-top:20px}@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}}</style>
+<style scoped>.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:20px 0}p{color:var(--text-color-secondary);line-height:1.8}.el-pagination,.el-textarea{margin-top:20px}.retention-subtitle{margin:22px 0 10px;font-size:14px;font-weight:600}.retention-bar{display:flex;align-items:center;gap:10px}.retention-bar__num{width:52px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-color-regular)}.retention-bar__track{flex:1;height:8px;border-radius:999px;background:var(--border-color-lighter,#eef1f6);overflow:hidden}.retention-bar__fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#6366f1,#8b5cf6);transition:width .4s ease}.retention-bar__fill--alt{background:linear-gradient(90deg,#0ea5e9,#22d3ee)}.retention-bar__fill--penetration{background:linear-gradient(90deg,#10b981,#34d399)}.retention-bar__none{font-size:12px;color:var(--text-color-placeholder)}@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}}</style>
