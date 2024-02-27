@@ -4,11 +4,13 @@
   "version": "1.0.0",
   "scripts": {
     "brand:sync": "node scripts/sync-brand.mjs",
+    "icons": "node scripts/gen-pwa-icons.mjs",
     "dev": "astro dev",
     "start": "astro dev",
     "start:prod": "node ./dist/server/entry.mjs",
     "test:api-proxy": "node --experimental-strip-types --test scripts/api-proxy.test.mjs",
     "test:m3u8": "node --test scripts/m3u8-cleaner.test.mjs",
+    "test:festival": "node --experimental-strip-types --test scripts/festival.test.mjs",
     "build": "astro build",
     "build:prod": "astro build --mode production",
     "preview": "astro preview",
