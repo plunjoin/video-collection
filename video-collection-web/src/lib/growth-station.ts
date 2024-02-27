@@ -2,6 +2,7 @@ import { growthRequest as api } from './growth';
 import { checkMe, getToken, type User } from './auth';
 import { iconMarkup } from './brand-icons';
 import { confirmAction } from './dialogs';
+import { activeFestival } from './festival';
 
 interface Level { level: number; name: string; threshold: number }
 interface Mission { key: string; name: string; description: string; kind: string; period: string; target: number; progress: number; reward: number; claimed: boolean; href: string }
@@ -19,6 +20,9 @@ const states: Record<string,string> = { pending:'待处理', processing:'寻找�
 let wallet: Wallet | null = null, journey: Journey | null = null, user: User | null = null;
 let catalog: Cosmetic[] = [], wishes: Wish[] = [], requests: Wish[] = [];
 let filter = '', wallPage = 1, wallTotal = 0, requestPage = 1, requestTotal = 0, busy = false, trial: Cosmetic | null = null;
+
+/** 组团求片阈值：满 WISH_GOAL 人亮灯即优先上架。 */
+const WISH_GOAL = 10;
 
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', cls = ''): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag); el.textContent = text; if (cls) el.className = cls; return el;
@@ -102,9 +106,10 @@ function renderOverview() {
   }
   if (wallet) {
     const r = wallet.rules;
-    $('streak').textContent = `连续相伴 ${streak} 天`;
+    const festival = activeFestival();
+    $('streak').textContent = `${festival ? festival.streakPrefix : '连续相伴'} ${streak} 天`;
     $('checkin').textContent = checked ? '今天已相见' : '签到领积分';
-    $('checkin-note').textContent = checked ? '今天的星光已收好，明天再相见。' : `今天签到可收下 ${Math.min(r.streak_cap,r.checkin+streak*r.streak_step)} 积分。`;
+    $('checkin-note').textContent = checked ? '今天的星光已收好，明天再相见。' : (festival ? festival.checkinNote : `今天签到可收下 ${Math.min(r.streak_cap,r.checkin+streak*r.streak_step)} 积分。`);
     $('rules').textContent = `每日活跃 +${r.active}；签到基础 ${r.checkin}，连续签到每天增加 ${r.streak_step}，单日上限 ${r.streak_cap}。按北京时间重置，断签后从第一天开始。`;
     $('request-rule').textContent = `每次心愿 ${r.request_cost} 积分，未采纳全额退还。最多同时提交5个未完成心愿。`;
   }
@@ -153,13 +158,27 @@ function renderShop() {
     actions.append(tryon,button); card.append(preview,details,node('p',c.equipped ? '正在佩戴' : c.owned ? '已收入衣橱' : `${c.price} 积分`,'g-shop-state'),actions); list.append(card);
   }
 }
+/** 组团求片：「已有 7/10 人亮灯，满 10 人优先上架」——利用从众心理促成合力。 */
+function wishLampProgress(wish: Wish): HTMLElement {
+  const box = node('div','','g-wish-lamp');
+  const lit = Math.max(0, Math.min(wish.support_count, WISH_GOAL));
+  const full = wish.support_count >= WISH_GOAL;
+  const bar = node('div','','g-wish-lamp-bar');
+  const fill = node('i');
+  fill.style.width = `${(lit / WISH_GOAL) * 100}%`;
+  bar.append(fill);
+  box.append(node('small', full ? 'g-wish-lamp-count is-full' : 'g-wish-lamp-count',
+    full ? `${WISH_GOAL}/${WISH_GOAL} 人亮灯，已满员，优先安排上架` : `已有 ${lit}/${WISH_GOAL} 人亮灯，满 ${WISH_GOAL} 人优先上架`));
+  box.append(bar);
+  return box;
+}
 function renderWall() {
   const list = $('wish-wall'); list.replaceChildren();
   if (!wishes.length) list.append(empty('还没有公开的心愿','把你的期待写下来，或等候下一位同好点亮这里。'));
   for (const wish of wishes) {
     const card = node('article','','g-wish'), head = node('div','','g-wish-head'), info = node('div'), footer = node('div','','g-wish-footer');
     info.append(node('h3',wish.title),node('small',`${wish.username} · ${states[wish.status]}`)); head.append(icon('library'),info);
-    footer.append(node('small',`${wish.support_count} 位同好也在期待`));
+    footer.append(wishLampProgress(wish));
     const button = mutationButton(wish.supported ? '已亮灯' : user?.id === wish.user_id ? '我的心愿' : getToken() ? '我也想看' : '登录后亮灯',async () => { await api('/api/user/movie-requests/support',{id:wish.id}); status('为这份期待亮了一盏灯。'); await Promise.all([loadWall(),loadMember()]); },'brand-outline');
     button.disabled ||= wish.supported || user?.id === wish.user_id || !canPublishWish(); footer.append(button);
     card.append(head,node('p',wish.details || '同好的小小期待，等待一个好消息。'),footer); list.append(card);
@@ -174,7 +193,7 @@ function renderRequests() {
   for (const wish of requests) {
     const card = node('article','','g-wish'), head = node('div','','g-wish-head'), info = node('div'), footer = node('div','','g-wish-footer');
     info.append(node('h3',wish.title),node('small',`${states[wish.status]} · ${date(wish.created_at)}`)); head.append(icon('heart'),info);
-    footer.append(node('small',`${wish.cost} 积分 · ${wish.shared ? `${wish.support_count} 人助力` : '仅自己与管理员可见'}`));
+    footer.append(node('small',`${wish.cost} 积分 · ${wish.shared ? `${wish.support_count}/${WISH_GOAL} 人助力` : '仅自己与管理员可见'}`));
     if (wish.shared || ['pending','processing'].includes(wish.status)) {
       const button = mutationButton(wish.shared ? '收回公开' : '邀请同好助力',async () => {
         if (!wish.shared && !await confirmAction('让同好一起期待',`公开后，昵称、作品名与线索会展示给所有访客。不会展示你的积分与账号名。你可以随时收回公开，已收到的助力会保留。`)) return;
