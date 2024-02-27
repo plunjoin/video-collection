@@ -6,7 +6,7 @@ const { latest, rankings } = Astro.props;
 <section class="brand-section home-panels">
   <div class="home-panel">
     <div class="section-heading"><h2>新番时间表</h2><a href="/latest">更多 →</a></div>
-    <div class="panel-subtitle">最新更新 <span>每一份期待，都值得被回应</span></div>
+    <div class="panel-subtitle"><span data-festival-copy="latest-label">最新更新</span> <span>每一份期待，都值得被回应</span></div>
     {latest.slice(0, 4).map(video => <a class="schedule-row" href={`/anime/${video.id}`}><span class="schedule-dot"></span><strong>{video.name}</strong><span>{video.remarks || '更新中'}</span><i>追番</i></a>)}
     {!latest.length && <p class="brand-empty">暂无更新</p>}
   </div>
