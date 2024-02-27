@@ -6,7 +6,13 @@ const { targetType, targetId } = Astro.props;
 ---
 
 <section class="discussion" data-comment-target={targetType} data-target-id={targetId} id="comments" aria-label="评论">
-  <div class="discussion__heading"><h2>评论 <span data-count></span></h2></div>
+  <div class="discussion__heading">
+    <h2>评论 <span data-count></span></h2>
+    <div class="discussion__sorts" role="group" aria-label="评论排序">
+      <button type="button" data-sort="latest" aria-pressed="true">最新</button>
+      <button type="button" data-sort="hot" aria-pressed="false">最热</button>
+    </div>
+  </div>
   <div class="discussion__compose">
     <div class="discussion__identity">
       <img data-avatar src="/brand/bllii-symbol.svg" alt="" />
@@ -29,7 +35,7 @@ const { targetType, targetId } = Astro.props;
 
 <script>
   import { iconMarkup } from '../lib/brand-icons';
-  import { createComment, deleteComment, getComment, listComments, setCommentLike, type CommentItem, type CommentTarget } from '../lib/comments';
+  import { createComment, deleteComment, getComment, listComments, setCommentLike, GOD_COMMENT_LIKES, type CommentItem, type CommentTarget, type CommentSort } from '../lib/comments';
   import { getToken, getUser } from '../lib/auth';
   import { confirmAction } from '../lib/dialogs';
   import { applyMemberAvatar, createMemberName } from '../lib/members';
@@ -53,6 +59,7 @@ const { targetType, targetId } = Astro.props;
     let page = 0;
     let loaded = 0;
     let total = 0;
+    let sort: CommentSort = 'latest';
 
     function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value = ''): HTMLElementTagNameMap[K] {
       const node = document.createElement(tag);
@@ -117,6 +124,7 @@ const { targetType, targetId } = Astro.props;
       const body = el('div', 'discussion__body');
       const head = el('div', 'discussion__item-head');
       head.append(createMemberName(member));
+      if (!comment.is_deleted && comment.like_count >= GOD_COMMENT_LIKES) head.append(el('span', 'discussion__god', '神评'));
       head.append(el('time','',dateLabel(comment.created_at)));
       const text = el('p', comment.is_deleted ? 'discussion__deleted' : 'discussion__text', comment.is_deleted ? '评论已删除' : comment.content);
       const actions = el('div', 'discussion__actions');
@@ -138,7 +146,7 @@ const { targetType, targetId } = Astro.props;
       const nextPage = reset ? 1 : page + 1;
       more.disabled = true;
       try {
-        const result = await listComments(targetType, targetId, nextPage);
+        const result = await listComments(targetType, targetId, nextPage, 20, 0, sort);
         if (reset) { list.replaceChildren(); loaded = 0; }
         result.data.forEach((comment) => {
           if (!list.querySelector(`[data-comment-id="${comment.id}"]`)) list.append(renderComment(comment));
@@ -321,6 +329,13 @@ const { targetType, targetId } = Astro.props;
     };
 
     more.onclick = () => loadRoots();
+    section.querySelectorAll<HTMLButtonElement>('[data-sort]').forEach((button) => button.addEventListener('click', () => {
+      const next = (button.dataset.sort || 'latest') as CommentSort;
+      if (next === sort) return;
+      sort = next;
+      section.querySelectorAll<HTMLButtonElement>('[data-sort]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === sort)));
+      void loadRoots(true);
+    }));
     section.addEventListener('click', async (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>('[data-action]');
       if (!button || !section.contains(button)) return;
@@ -345,6 +360,8 @@ const { targetType, targetId } = Astro.props;
             like.innerHTML = `${iconMarkup('heart', 14)} <span>${result.like_count}</span>`;
             like.setAttribute('aria-label', result.liked ? '取消点赞' : '点赞');
           });
+          // 最热排序下，被点赞的顶层评论即时挪到最前，保持「热」的手感
+          if (sort === 'hot' && card.parentElement === list && card.dataset.parentId === '0') list.prepend(card);
         } else if (button.dataset.action === 'delete') {
           await deleteComment(id);
           announceChange(-1);
@@ -373,9 +390,14 @@ const { targetType, targetId } = Astro.props;
 
 <style is:global>
   .discussion { width: min(880px, 100%); margin: 32px auto 0; scroll-margin-top: 88px; }
-  .discussion__heading { margin-bottom: 18px; }
+  .discussion__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
   .discussion__heading h2 { font-size: 16px; font-weight: 650; color: #30375b; }
   .discussion__heading span { color: #99a2be; font-weight: 400; }
+  .discussion__sorts { display: flex; gap: 6px; }
+  .discussion__sorts button { padding: 4px 14px; border: 1px solid #e2e7f8; border-radius: 99px; background: #f8faff; font-size: 11px; color: #707b9f; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+  .discussion__sorts button:hover { color: #9271d9; }
+  .discussion__sorts button[aria-pressed="true"] { color: #9264db; border-color: #d8bdff; background: #fcf7ff; }
+  .discussion__god { flex: none; padding: 1px 7px; border-radius: 5px; font-size: 10px; font-weight: 650; line-height: 1.6; background: linear-gradient(100deg, #ff9a40, #ff5e8a); color: #fff; }
   .discussion__compose { border: 1px solid #eceffa; border-radius: 18px; background: #fff; padding: 22px; margin-bottom: 20px; }
   .discussion__identity { display: flex; align-items: center; gap: 12px; min-height: 42px; }
   .discussion__identity img { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; border: 3px solid #f5eafb; object-fit: cover; }
