@@ -16,6 +16,7 @@ const totalDbCount = total || 6686;
         <input
           id="search-input"
           type="text"
+          autocomplete="off"
           placeholder="请输入想看的番剧名称、角色或声优..."
           class="w-full h-12 pl-5 pr-28 rounded-full bg-white text-sm text-slate-800 shadow-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
         />
@@ -25,6 +26,21 @@ const totalDbCount = total || 6686;
         >
           搜索
         </button>
+        <!-- 自动补全下拉 -->
+        <div
+          id="search-suggest"
+          role="listbox"
+          aria-label="搜索建议"
+          class="hidden absolute left-0 right-0 top-14 mt-1 bg-white rounded-2xl border border-slate-100 shadow-lg overflow-hidden text-left z-20"
+        >
+        </div>
+      </div>
+
+      <!-- 个人搜索历史 -->
+      <div id="search-history" class="hidden items-center justify-center gap-2 text-xs text-slate-400 flex-wrap">
+        <span>历史：</span>
+        <span id="search-history-list" class="inline-flex items-center gap-2 flex-wrap justify-center"></span>
+        <button id="search-history-clear" class="text-slate-300 hover:text-red-500 transition-colors cursor-pointer">清空</button>
       </div>
 
       <!-- 热搜词 (根据真实动漫数据) -->
@@ -81,12 +97,66 @@ const totalDbCount = total || 6686;
 
   <script is:inline define:vars={{ totalDbCount }}>
     (function () {
+      var HISTORY_KEY = 'bllii_search_history';
+      var HISTORY_MAX = 20;
+
       const input = document.getElementById('search-input');
       const btn = document.getElementById('search-btn');
       const grid = document.getElementById('video-grid');
       const countEl = document.getElementById('results-count');
       const statusEl = document.getElementById('searching-status');
       const noResultsEl = document.getElementById('no-results');
+      const suggestBox = document.getElementById('search-suggest');
+      const historyBox = document.getElementById('search-history');
+      const historyList = document.getElementById('search-history-list');
+      const historyClear = document.getElementById('search-history-clear');
+
+      /* ---------------- 个人搜索历史 (localStorage) ---------------- */
+      function loadHistory() {
+        try {
+          const raw = localStorage.getItem(HISTORY_KEY);
+          const arr = raw ? JSON.parse(raw) : [];
+          return Array.isArray(arr) ? arr.filter(x => x && typeof x.kw === 'string') : [];
+        } catch (e) { return []; }
+      }
+      function saveHistory(list) {
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX))); } catch (e) { /* ignore */ }
+      }
+      function rememberKeyword(kw) {
+        kw = (kw || '').trim();
+        if (!kw) return;
+        const list = loadHistory().filter(x => x.kw !== kw);
+        list.unshift({ kw: kw, ts: Date.now() });
+        saveHistory(list);
+        renderHistory();
+      }
+      function renderHistory() {
+        if (!historyBox || !historyList) return;
+        const list = loadHistory();
+        if (!list.length) { historyBox.classList.add('hidden'); historyBox.classList.remove('flex'); return; }
+        historyBox.classList.remove('hidden');
+        historyBox.classList.add('flex');
+        historyList.innerHTML = list.map(x =>
+          `<span class="inline-flex items-center gap-0.5 rounded-full bg-white border border-slate-200 pl-2.5 pr-1 py-0.5">
+            <button class="text-slate-600 hover:text-primary-600 transition-colors cursor-pointer search-history-btn" data-kw="${escapeHtml(x.kw)}">${escapeHtml(x.kw)}</button>
+            <button class="text-slate-300 hover:text-red-500 transition-colors px-1 cursor-pointer search-history-del" data-kw="${escapeHtml(x.kw)}" aria-label="删除该历史">×</button>
+          </span>`
+        ).join('');
+        historyList.querySelectorAll('.search-history-btn').forEach(b =>
+          b.addEventListener('click', () => { const kw = b.getAttribute('data-kw'); if (input) input.value = kw; doSearch(kw); }));
+        historyList.querySelectorAll('.search-history-del').forEach(b =>
+          b.addEventListener('click', () => {
+            const kw = b.getAttribute('data-kw');
+            saveHistory(loadHistory().filter(x => x.kw !== kw));
+            renderHistory();
+          }));
+      }
+      historyClear?.addEventListener('click', () => { saveHistory([]); renderHistory(); });
+
+      /* ---------------- 自动补全建议 ---------------- */
+      var suggestTimer = null;
+      var suggestItems = [];
+      var suggestIndex = -1;
 
       function escapeHtml(str) {
         if (!str) return '';
@@ -94,9 +164,84 @@ const totalDbCount = total || 6686;
           return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
         });
       }
+      function hideSuggest() {
+        if (suggestBox) { suggestBox.classList.add('hidden'); suggestBox.innerHTML = ''; }
+        suggestItems = [];
+        suggestIndex = -1;
+      }
+      function renderSuggest(keyword, items) {
+        if (!suggestBox) return;
+        suggestItems = items;
+        suggestIndex = -1;
+        if (!items.length) { hideSuggest(); return; }
+        suggestBox.innerHTML = items.map((name, i) =>
+          `<button type="button" role="option" aria-selected="false" data-suggest-index="${i}"
+            class="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-300 shrink-0"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <span class="truncate">${escapeHtml(name)}</span>
+          </button>`
+        ).join('');
+        suggestBox.classList.remove('hidden');
+        suggestBox.querySelectorAll('[data-suggest-index]').forEach(b =>
+          b.addEventListener('click', () => {
+            const name = items[parseInt(b.getAttribute('data-suggest-index'), 10)];
+            if (input) input.value = name;
+            doSearch(name);
+          }));
+      }
+      function highlightSuggest() {
+        if (!suggestBox) return;
+        suggestBox.querySelectorAll('[data-suggest-index]').forEach((b, i) => {
+          const active = i === suggestIndex;
+          b.setAttribute('aria-selected', active ? 'true' : 'false');
+          b.classList.toggle('bg-blue-50', active);
+          b.classList.toggle('text-primary-700', active);
+        });
+      }
+      async function fetchSuggest(q) {
+        if (!q || !q.trim()) { hideSuggest(); return; }
+        try {
+          const res = await fetch(`/api/search/suggest?keyword=${encodeURIComponent(q.trim())}&limit=8`);
+          const json = await res.json();
+          const items = (json && json.data && json.data.suggestions) || [];
+          renderSuggest(q, items);
+        } catch (e) { hideSuggest(); }
+      }
+      input?.addEventListener('input', () => {
+        clearTimeout(suggestTimer);
+        const q = input.value || '';
+        if (!q.trim()) { hideSuggest(); return; }
+        suggestTimer = setTimeout(() => fetchSuggest(q), 180);
+      });
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          if (!suggestItems.length) return;
+          e.preventDefault();
+          suggestIndex += (e.key === 'ArrowDown' ? 1 : -1);
+          if (suggestIndex < 0) suggestIndex = suggestItems.length - 1;
+          if (suggestIndex >= suggestItems.length) suggestIndex = 0;
+          highlightSuggest();
+        } else if (e.key === 'Enter') {
+          if (suggestIndex >= 0 && suggestItems[suggestIndex]) {
+            e.preventDefault();
+            const name = suggestItems[suggestIndex];
+            if (input) input.value = name;
+            doSearch(name);
+          } else {
+            doSearch(input.value);
+          }
+        } else if (e.key === 'Escape') {
+          hideSuggest();
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (suggestBox && !suggestBox.contains(e.target) && e.target !== input) hideSuggest();
+      });
 
+      /* ---------------- 搜索主流程 ---------------- */
       async function doSearch(kw) {
         const q = (kw || '').trim();
+        hideSuggest();
         if (!q) {
           window.location.href = '/search';
           return;
@@ -112,7 +257,7 @@ const totalDbCount = total || 6686;
           const total = (json && json.total !== undefined) ? json.total : items.length;
 
           if (countEl) {
-            countEl.innerHTML = `找到关于 "<strong class="text-slate-800">${escapeHtml(q)}</strong>" 的番剧共 <strong class="text-[#597bea] font-bold">${total}</strong> 部 (全库 6,686+ 部)：`;
+            countEl.innerHTML = `找到关于 "<strong class="text-slate-800">${escapeHtml(q)}</strong>" 的番剧共 <strong class="text-[#597bea] font-bold">${total}</strong> 部 (全库 ${totalDbCount.toLocaleString()}+ 部)：`;
           }
 
           if (items.length === 0) {
@@ -141,6 +286,10 @@ const totalDbCount = total || 6686;
             `).join('');
           }
 
+          // 记录个人搜索历史 + 埋点
+          rememberKeyword(q);
+          if (window.blliiTrack) window.blliiTrack.event('search', { keyword: q });
+
           // 同步 URL 参数
           const nextUrl = new URL(window.location.href);
           nextUrl.searchParams.set('q', q);
@@ -153,9 +302,7 @@ const totalDbCount = total || 6686;
       }
 
       btn?.addEventListener('click', () => doSearch(input?.value));
-      input?.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') doSearch(input.value);
-      });
+      // Enter 搜索在 keydown 中处理（支持键盘选择补全项），此处无需重复监听
 
       document.querySelectorAll('.search-tag-btn').forEach(b => {
         b.addEventListener('click', () => {
@@ -165,6 +312,8 @@ const totalDbCount = total || 6686;
         });
       });
 
+      // 初始化：渲染历史 + 处理 URL 中的 q 参数
+      renderHistory();
       const params = new URLSearchParams(window.location.search);
       const qParam = params.get('q');
       if (qParam && input) {
