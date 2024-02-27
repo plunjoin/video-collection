@@ -86,6 +86,13 @@
 .growth-station .g-wish p { font-size:11px; color:var(--brand-muted); line-height:1.9; overflow-wrap:anywhere; white-space:pre-wrap; }
 .growth-station .g-wish-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid #f0f1fa; }
 .growth-station .g-wish-footer .brand-outline { display:flex; align-items:center; gap:5px; padding:7px 12px; font-size:10px; }
+/* 组团求片：亮灯进度 */
+.growth-station .g-wish-lamp { flex:1; min-width:0; max-width:230px; }
+.growth-station .g-wish-lamp-count { display:block; font-size:10px; color:var(--brand-muted); margin-bottom:6px; font-variant-numeric:tabular-nums; }
+.growth-station .g-wish-lamp-count.is-full { color:#c98a2e; font-weight:650; }
+.growth-station .g-wish-lamp-bar { height:5px; border-radius:99px; background:#eef1fb; overflow:hidden; }
+.growth-station .g-wish-lamp-bar i { display:block; height:100%; border-radius:99px; background:var(--brand-gradient); transition:width .3s ease; }
+.growth-station .g-wish-lamp-count.is-full + .g-wish-lamp-bar i { background:linear-gradient(90deg,#f0b95c,#ff9a40); }
 .growth-station .g-request-box { padding:23px; border-radius:18px; background:linear-gradient(145deg,#f3f7ff,#fff4fa); border:1px solid #efebf8; }
 .growth-station .g-request-box>p { font-size:11px; line-height:1.9; color:var(--brand-muted); margin:12px 0 18px; }
 .growth-station label { display:block; font-size:10px; color:#8a87aa; margin:13px 0 7px; }
