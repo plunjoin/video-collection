@@ -13,10 +13,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-  api:
+  # radix/Redis：分布式会话 + 公开读接口缓存（可选，去掉本段与下方 REDIS_ADDR 即为无缓存模式）
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  # 合并后的统一服务：RESTful API + Go 托管的管理后台（/admin，go:embed 内嵌 SPA）
+  service:
     build:
       context: .
-      dockerfile: video-collection-api/Dockerfile
+      dockerfile: video-collection-service/Dockerfile
     restart: unless-stopped
     environment:
       PORT: "8080"
@@ -32,13 +45,19 @@ services:
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?请设置管理员初始密码}
       COLLECTION_TEMPLATES_PATH: /app/config/collection_templates.yaml
       COLLECTION_UPLOAD_DIR: /app/data/collection-uploads
+      REDIS_ADDR: redis:6379
+      REDIS_PREFIX: vc
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8080}:8080"
     volumes:
       - api-data:/app/data
       - api-themes:/app/themes
       - api-players:/app/players
-      - ./video-collection-api/config:/app/config:ro
+      - ./video-collection-service/config:/app/config:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
   web:
     build:
@@ -46,26 +65,18 @@ services:
       dockerfile: video-collection-web/Dockerfile
     restart: unless-stopped
     environment:
-      INTERNAL_API_URL: http://api:8080
+      INTERNAL_API_URL: http://service:8080
+      VITE_PORTAL_URL: ${PORTAL_URL:-/}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-4321}:4321"
     depends_on:
-      api:
+      service:
         condition: service_healthy
-  admin:
-    build:
-      context: .
-      dockerfile: video-collection-admin/Dockerfile
-      args:
-        VITE_PORTAL_URL: ${PORTAL_URL:-/}
-    restart: unless-stopped
-    ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${ADMIN_PORT:-3000}:80"
-    depends_on:
-      api:
-        condition: service_healthy
+  # 管理后台不再需要独立容器：统一服务已通过 go:embed 托管 /admin，
+  # 地址为 http://<host>:${API_PORT:-8080}/admin
 volumes:
   postgres-data:
+  redis-data:
   api-data:
   api-themes:
   api-players:
