@@ -2,7 +2,7 @@
 
 本项目是基于 **Flutter 3 + Material 3** 打造的现代化二次元影视与番剧流媒体客户端，高精度对标与复刻 `video-collection-web` (Bllii) 的沉浸式视觉设计、配色体系与接口规范。
 
-登录后在“我的 → 积分 / 装扮 / 消息”使用每日签到、积分求片、装扮兑换佩戴和个人通知；账号权限、积分规则及后台审核见 [运营说明](../video-collection-api/docs/community-operations.md)。
+登录后在“我的 → 积分 / 装扮 / 消息”使用每日签到、积分求片、装扮兑换佩戴和个人通知；账号权限、积分规则及后台审核见 [运营说明](../video-collection-service/docs/community-operations.md)。
 
 ---
 
@@ -28,9 +28,9 @@
 
 播放器直连视频源，在客户端解析 M3U8 并过滤片头、中插、片尾及关键词命中的广告切片。多码率和音轨子列表递归处理，密钥与切片地址补全为源站绝对地址；原始隐式 IV 和字节偏移会显式保留。原生平台使用临时列表文件，Web 使用本地 Blob，切集和退出时释放。服务端不提供 M3U8 过滤或播放列表代理；过滤失败回退原始链接，直播保留原始列表刷新行为。Web 直连要求视频源允许跨域读取。
 
-1. **深度直连 Go 聚合后端 (`video-collection-api`)**：
-   - 默认接入 `http://localhost:80`
-   - 支持在「我的 -> API配置」中动态修改为局域网 IP（例如真机调试时的 `http://192.168.x.x:80`）并一键测试连通性。
+1. **深度直连 Go 聚合后端 (`video-collection-service`)**：
+   - 调试包默认接入 `http://127.0.0.1:80`（Android 模拟器为 `http://10.0.2.2:80`），可在设置里修改并测试连接。
+   - 正式包不再提供服务端地址配置，构建时用 `--dart-define=API_BASE_URL=https://api.example.com` 写入生产地址。
    - 所有内容均来自后端接口，客户端不内置任何演示数据；接口不可用时展示空状态。
 
 ---
@@ -51,13 +51,21 @@ flutter run -d edge
 ```
 
 ### 3. 构建发布版本
+
+支持直接传参或使用环境配置文件（推荐）：
+
+**方式 A：使用配置文件（推荐）**
 ```bash
-# 构建 Windows 可执行程序
-flutter build windows
-
-# 构建 Web 发布包
-flutter build web
-
-# 构建 Android APK
-flutter build apk
+# 生产包（读取 env/prod.json）
+flutter build apk --release --dart-define-from-file=env/prod.json
+flutter build windows --release --dart-define-from-file=env/prod.json
+flutter build web --release --dart-define-from-file=env/prod.json
 ```
+
+**方式 B：单参数直接指定**
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
+flutter build windows --release --dart-define=API_BASE_URL=https://api.example.com
+flutter build web --release --dart-define=API_BASE_URL=https://api.example.com
+```
+
