@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/brand_controls.dart';
 
 import '../models/video_model.dart';
@@ -7,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/brand_widgets.dart';
 import '../utils/responsive.dart';
 import '../widgets/anime_poster_card.dart';
+import '../widgets/desktop_horizontal_scroll.dart';
 import 'anime_detail_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -29,6 +31,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   String _selectedSort = 'time';
 
   int _page = 1;
+  int _loadGeneration = 0;
   final int _pageSize = 24;
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -49,13 +52,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
     '悬疑',
   ];
 
-  final List<String> _years = [
+  List<String> get _years => [
     '全部',
-    '2025',
-    '2024',
-    '2023',
-    '2022',
-    '2021',
+    for (
+      var year = DateTime.now().year;
+      year >= DateTime.now().year - 4;
+      year--
+    )
+      year.toString(),
     '更早',
   ];
 
@@ -84,62 +88,85 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
+  String? get _requestYear =>
+      _selectedYear == '全部' || _selectedYear == '更早' ? null : _selectedYear;
+
+  List<VideoRecord> _applyLocalFilters(List<VideoRecord> videos) {
+    return videos.where((video) {
+      if (_selectedGenre != '全部' && !video.tags.contains(_selectedGenre)) {
+        return false;
+      }
+      if (_selectedYear == '更早') {
+        final year = int.tryParse(video.year);
+        if (year == null || year >= DateTime.now().year - 4) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  bool _hasAnotherPage(Map<String, dynamic> response, int page, int count) {
+    final total = response['total'];
+    if (total is int) return page * _pageSize < total;
+    return count >= _pageSize;
+  }
+
   Future<void> _loadInitial() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _isLoading = true;
+      _isLoadingMore = false;
       _page = 1;
-      _hasMore = true;
+      _hasMore = false;
     });
 
-    final cats = await _apiService.getCategories();
-    final res = await _apiService.getVideos(
-      page: _page,
+    var cats = _categories;
+    if (cats.isEmpty) cats = await _apiService.getCategories();
+    if (widget.initialTypeId == null &&
+        cats.isNotEmpty &&
+        !cats.any((category) => category.id == _selectedTypeId)) {
+      _selectedTypeId = cats.first.id;
+    }
+    final response = await _apiService.getVideos(
+      page: 1,
       pageSize: _pageSize,
       typeId: _selectedTypeId,
-      year: _selectedYear,
+      year: _requestYear,
       sort: _selectedSort,
     );
+    final rawItems = (response['list'] as List<VideoRecord>?) ?? [];
+    final items = _applyLocalFilters(rawItems);
 
-    List<VideoRecord> list = (res['list'] as List<VideoRecord>?) ?? [];
-    if (_selectedGenre != '全部') {
-      list = list.where((v) => v.tags.contains(_selectedGenre)).toList();
-    }
-
-    if (!mounted) return;
+    if (!mounted || generation != _loadGeneration) return;
     setState(() {
       _categories = cats;
-      _videos = list;
+      _videos = items;
       _isLoading = false;
-      _hasMore = list.length >= _pageSize;
+      _hasMore = _hasAnotherPage(response, 1, rawItems.length);
     });
   }
 
   Future<void> _loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
-    setState(() {
-      _isLoadingMore = true;
-    });
-
+    final generation = _loadGeneration;
     final nextPage = _page + 1;
-    final res = await _apiService.getVideos(
+    setState(() => _isLoadingMore = true);
+
+    final response = await _apiService.getVideos(
       page: nextPage,
       pageSize: _pageSize,
       typeId: _selectedTypeId,
-      year: _selectedYear,
+      year: _requestYear,
       sort: _selectedSort,
     );
+    final rawItems = (response['list'] as List<VideoRecord>?) ?? [];
+    final items = _applyLocalFilters(rawItems);
 
-    List<VideoRecord> list = (res['list'] as List<VideoRecord>?) ?? [];
-    if (_selectedGenre != '全部') {
-      list = list.where((v) => v.tags.contains(_selectedGenre)).toList();
-    }
-
-    if (!mounted) return;
+    if (!mounted || generation != _loadGeneration) return;
     setState(() {
       _page = nextPage;
-      _videos.addAll(list);
+      _videos.addAll(items);
       _isLoadingMore = false;
-      _hasMore = list.length >= _pageSize;
+      _hasMore = _hasAnotherPage(response, nextPage, rawItems.length);
     });
   }
 
@@ -155,18 +182,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
     required String Function(T) labelBuilder,
     required Function(T) onSelected,
   }) {
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: items.map((item) {
-          final isSelected = item == selectedItem;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: BrandPill(label: Text(labelBuilder(item)),selected: isSelected,onSelected: (_) => onSelected(item)),
-          );
-        }).toList(),
+    return DesktopHorizontalScroll(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: items.map((item) {
+            final isSelected = item == selectedItem;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: BrandPill(
+                label: Text(labelBuilder(item)),
+                selected: isSelected,
+                onSelected: (_) => onSelected(item),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -179,11 +211,26 @@ class _CategoryScreenState extends State<CategoryScreen> {
       appBar: BrandAppBar(
         title: const Text('发现  ·  分类'),
         actions: [
-          IconButton(icon: const Icon(Icons.tune_rounded), tooltip: '排序方式', onPressed: () async {
-            final sort = await showBrandOptions<String>(context, title: '按喜欢的方式发现',
-              selected: _selectedSort, options: [('time','最新更新'),('hits','人气热播'),('score','口碑精选')]);
-            if (sort != null && mounted) { setState(() => _selectedSort = sort); _loadInitial(); }
-          }),
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: '排序方式',
+            onPressed: () async {
+              final sort = await showBrandOptions<String>(
+                context,
+                title: '按喜欢的方式发现',
+                selected: _selectedSort,
+                options: [
+                  ('time', '最新更新'),
+                  ('hits', '人气热播'),
+                  ('score', '口碑精选'),
+                ],
+              );
+              if (sort != null && mounted) {
+                setState(() => _selectedSort = sort);
+                _loadInitial();
+              }
+            },
+          ),
         ],
       ),
       body: Column(
@@ -253,7 +300,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
             child: _isLoading
                 ? const Center(child: BrandLoading())
                 : _videos.isEmpty
-                ? const BrandEmpty(title: '还没有这样的故事', subtitle: '换个题材或年份，说不定就遇见了。')
+                ? BrandEmpty(
+                    title: '还没有这样的故事',
+                    subtitle: _hasMore
+                        ? '这一页没有匹配结果，继续加载后续内容。'
+                        : '换个题材或年份，说不定就遇见了。',
+                    action: _hasMore
+                        ? BrandButton(
+                            label: '继续加载',
+                            icon: Icons.expand_more_rounded,
+                            onPressed: _isLoadingMore ? null : _loadMore,
+                          )
+                        : null,
+                  )
                 : RefreshIndicator(
                     onRefresh: _loadInitial,
                     color: AppColors.primary500,
@@ -271,9 +330,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 12,
                       ),
-                      itemCount: _videos.length + (_isLoadingMore ? 3 : 0),
+                      itemCount: _videos.length + (_hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
-                        if (index >= _videos.length) {
+                        if (index == _videos.length) {
                           return Container(
                             decoration: BoxDecoration(
                               color: isDark
@@ -281,17 +340,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   : AppColors.lightBorder,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.primary500,
-                                  ),
-                                ),
-                              ),
+                            child: Center(
+                              child: _isLoadingMore
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.primary500,
+                                            ),
+                                      ),
+                                    )
+                                  : IconButton(
+                                      tooltip: '加载更多',
+                                      onPressed: _loadMore,
+                                      icon: const Icon(
+                                        Icons.expand_more_rounded,
+                                        color: AppColors.primary500,
+                                      ),
+                                    ),
                             ),
                           );
                         }
