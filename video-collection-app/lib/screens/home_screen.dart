@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../widgets/brand_controls.dart';
 
 import '../models/video_model.dart';
+import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/anime_poster_card.dart';
+import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/hero_banner.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/leaderboard_card.dart';
 import '../widgets/quick_nav.dart';
 import '../widgets/search_bar_widget.dart';
 import 'anime_detail_screen.dart';
+import 'content_hub_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
 
@@ -45,15 +50,24 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final results = await Future.wait([
+      final isLoggedIn = context.read<AppStateProvider>().isLoggedIn;
+      final requests = <Future<dynamic>>[
         _apiService.getVideos(page: 1, pageSize: 18, typeId: 4),
         _apiService.getRankings(),
-      ]);
+        _apiService.getVideos(page: 1, pageSize: 12, typeId: 4, sort: 'hits'),
+        if (isLoggedIn) _apiService.getPersonalizedRecommendations(),
+      ];
+      final results = await Future.wait(requests);
 
-      final videoData = results[0];
+      final videoData = results[0] as Map<String, dynamic>;
       final rankData = results[1] as Map<String, List<VideoRecord>>;
-
+      final popularData = results[2] as Map<String, dynamic>;
       final list = (videoData['list'] as List<VideoRecord>?) ?? [];
+      final popular = (popularData['list'] as List<VideoRecord>?) ?? [];
+      final personal = isLoggedIn
+          ? results[3] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final personalList = (personal['list'] as List<VideoRecord>?) ?? [];
       final ranks = rankData['anime'] ?? rankData['top'] ?? [];
 
       if (!mounted) return;
@@ -61,8 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (list.isNotEmpty) {
           _heroBanners = list.take(5).toList();
           _airingList = list.take(4).toList();
-          _recommendList = list.reversed.take(4).toList();
         }
+        _recommendList = personalList.isNotEmpty
+            ? personalList.take(12).toList()
+            : popular.take(12).toList();
         _rankings = ranks.take(5).toList();
         _isLoading = false;
       });
@@ -78,6 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AnimeDetailScreen(videoId: video.id)),
     );
+  }
+
+  void _openContentHub() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ContentHubScreen()));
   }
 
   void _openPlayer(VideoRecord video) {
@@ -101,8 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isWideDesktop = isDesktop && screenWidth >= 1050;
+    final contentWidth = Responsive.contentWidth(context);
+    final isWideDesktop = isDesktop && contentWidth >= 980;
 
     return Scaffold(
       appBar: isDesktop
@@ -112,6 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.forum_outlined),
+                  tooltip: '资讯与社区',
+                  onPressed: _openContentHub,
+                ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: '刷新数据',
@@ -140,6 +166,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.forum_outlined),
+                  tooltip: '资讯与社区',
+                  onPressed: _openContentHub,
+                ),
+              ],
             ),
       body: _isLoading
           ? const Center(child: BrandLoading())
@@ -164,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   isDark,
                                   Responsive.gridColumns(
                                     context,
+                                    width: contentWidth - 382,
                                     itemMinWidth: 180,
                                     min: 2,
                                     max: 4,
@@ -201,6 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             isDark,
                             Responsive.gridColumns(
                               context,
+                              width: contentWidth,
                               itemMinWidth: 160,
                               min: 2,
                               max: 4,
@@ -372,19 +407,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: ['全部', '治愈', '恋爱', '奇幻', '热血']
-                .map(
-                  (genre) => Padding(
-                    padding: const EdgeInsets.only(right: 8, bottom: 10),
-                    child: BrandPill(label: Text(genre),selected: _recommendGenre == genre,onSelected: (_) =>
-                          setState(() => _recommendGenre = genre)),
-                  ),
-                )
-                .toList(),
+        DesktopHorizontalScroll(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: ['全部', '治愈', '恋爱', '奇幻', '热血']
+                  .map(
+                    (genre) => Padding(
+                      padding: const EdgeInsets.only(right: 8, bottom: 10),
+                      child: BrandPill(
+                        label: Text(genre),
+                        selected: _recommendGenre == genre,
+                        onSelected: (_) =>
+                            setState(() => _recommendGenre = genre),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
         ),
         if (recommendations.isEmpty)
@@ -400,21 +441,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         SizedBox(
           height: recommendations.isEmpty ? 0 : 145,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: recommendations.length,
-            itemBuilder: (context, index) {
-              final video = recommendations[index];
-              return Container(
-                width: 170,
-                margin: const EdgeInsets.only(right: 12),
-                child: AnimePosterCard(
-                  video: video,
-                  onTap: () => _openDetail(video),
-                ),
-              );
-            },
+          child: DesktopHorizontalScroll(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: recommendations.length,
+              itemBuilder: (context, index) {
+                final video = recommendations[index];
+                return Container(
+                  width: 170,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: AnimePosterCard(
+                    video: video,
+                    onTap: () => _openDetail(video),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -486,9 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuoteSection() {
     return Column(
-      children: [
-        BrandStoryBanner(onTap: () => widget.onSwitchTab(4)),
-      ],
+      children: [BrandStoryBanner(onTap: () => widget.onSwitchTab(4))],
     );
   }
 }
