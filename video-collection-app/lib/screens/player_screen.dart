@@ -11,13 +11,20 @@ import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
 import '../services/fullscreen_service.dart';
+import '../services/api_service.dart';
 import '../services/client_playlist_service.dart';
+import '../widgets/anime_poster_card.dart';
+import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_intro.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/desktop_window_title_bar.dart';
+import '../widgets/danmaku_overlay.dart';
 import '../widgets/episode_selector.dart';
+import '../widgets/video_comments.dart';
+import 'account_screen.dart';
+import 'anime_detail_screen.dart';
 
 enum AspectRatioMode {
   contain, // 居中自适应
@@ -107,6 +114,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // 全屏内嵌选集抽屉
   bool _showFullscreenDrawer = false;
+  int _drawerRange = 0;
+
+  // 播放页下半屏：视频 / 弹幕 / 评论。选集只使用剧集卡片。
+  int _sheetIndex = 0;
+  List<DanmakuItem> _danmaku = [];
+  int _danmakuGeneration = 0;
+  bool _sendingDanmaku = false;
+  bool _savingFavorite = false;
+  bool _favorite = false;
+  int _commentTotal = 0;
+  List<VideoRecord> _related = [];
 
   // 极光超清色彩卷积矩阵 (对比度+10%, 饱和度+15%, 色彩通透)
   static const List<double> _auroraMatrix = [
@@ -136,6 +154,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     super.initState();
     _appState = context.read<AppStateProvider>();
+    _currentSpeed = _appState.playbackSpeed;
     _resumePosition = widget.initialPosition;
     _currentGroupIndex = widget.initialGroupIndex;
     _currentEpisodeIndex = widget.initialEpisodeIndex;
@@ -148,11 +167,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     _videoController = VideoController(_player);
 
+    _favorite = _appState.isFavorite(widget.video.id);
     _historyTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (_isPlaying && !_hasError) _recordHistory(countHit: false);
     });
     _listenPlayerStreams();
     _loadAndPlayCurrentEpisode();
+    unawaited(_loadRelated());
+    unawaited(_loadDanmaku());
+  }
+
+  Future<void> _loadRelated() async {
+    final result = await ApiService().getVideoDetail(widget.video.id);
+    if (!mounted) return;
+    final related = result['related'];
+    if (related is! List<VideoRecord>) return;
+    setState(() {
+      _related = related
+          .where((item) => item.id != widget.video.id)
+          .take(12)
+          .toList();
+    });
   }
 
   @override
@@ -370,6 +405,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // 触发连播下一集
   void _triggerAutoPlayNext() {
+    if (!_appState.autoPlayNext) return;
     final group = widget.video.playGroups[_currentGroupIndex];
     if (_currentEpisodeIndex + 1 >= group.episodes.length) return;
 
@@ -489,6 +525,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _showFullscreenDrawer = false;
     });
     _loadAndPlayCurrentEpisode();
+    unawaited(_loadDanmaku());
   }
 
   Future<void> _toggleFullscreen() async {
@@ -692,6 +729,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
             children: [
               // 视频解码渲染层 (支持居中自适应 / 16:9 / 4:3 / 铺满 + 极光画质增强)
               _buildVideoSurface(),
+
+              Positioned.fill(
+                child: DanmakuOverlay(
+                  items: _danmaku,
+                  episodeKey: _episodeKey(),
+                  position: _isDraggingProgress
+                      ? Duration(
+                          milliseconds: (_dragTargetSeconds * 1000).round(),
+                        )
+                      : _position,
+                  enabled: _appState.danmakuEnabled,
+                  playing: _isPlaying && !_isDraggingProgress,
+                  opacity: _appState.danmakuOpacity,
+                  fontScale: _appState.danmakuFontScale,
+                  speed: _appState.danmakuSpeed,
+                  area: _appState.danmakuArea,
+                  blocked: _appState.danmakuBlockedWords,
+                ),
+              ),
 
               // 软调亮度遮罩
               if (_brightness < 1.0)
@@ -999,18 +1055,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 左侧：大屏播放器 + 信息详情 + 快捷键指南
+                  // 左侧：大屏播放器 + 视频 / 弹幕 / 评论
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AspectRatio(aspectRatio: 16 / 9, child: playerCore),
-                          _buildPlayerInfoBar(currentEp, currentGroup, isDark),
-                          _buildDesktopMetaCard(isDark),
-                          _buildDesktopShortcutGuide(isDark),
-                        ],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AspectRatio(aspectRatio: 16 / 9, child: playerCore),
+                        _sheetTabs(isDark),
+                        Expanded(
+                          child: IndexedStack(
+                            index: _sheetIndex,
+                            sizing: StackFit.expand,
+                            children: [
+                              _videoSheet(
+                                isDark,
+                                currentEp,
+                                currentGroup,
+                                embedEpisodes: false,
+                              ),
+                              _danmakuSheet(isDark),
+                              _commentSheet(),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -1033,64 +1101,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.playlist_play_rounded,
-                                    color: AppColors.primary500,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '选集播放 (${currentGroup?.episodes.length ?? 0}话)',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: isDark
-                                          ? AppColors.darkTextPrimary
-                                          : AppColors.lightTextPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.emerald.withValues(
-                                    alpha: 0.12,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  '自动连播中',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.emerald,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          child: _episodeHeading(isDark, currentGroup),
                         ),
                         const Divider(height: 1),
                         Expanded(
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.all(16),
-                            child: EpisodeSelectorWidget(
-                              playGroups: groups,
-                              currentGroupIndex: _currentGroupIndex,
-                              currentEpisodeIndex: _currentEpisodeIndex,
-                              onSelected: (groupIndex, epIndex) {
-                                _switchEpisode(groupIndex, epIndex);
-                              },
-                            ),
+                            child: _episodeCards(),
                           ),
                         ),
                       ],
@@ -1104,144 +1121,582 @@ class _PlayerScreenState extends State<PlayerScreen> {
       );
     }
 
-    // 移动端：上下流式布局
+    // 移动端：播放器贴顶，下面是视频 / 弹幕 / 评论。
     return Scaffold(
-      appBar: BrandAppBar(
-        title: Text(widget.video.name),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isEnhanced
-                  ? Icons.auto_awesome_rounded
-                  : Icons.auto_awesome_outlined,
-              color: _isEnhanced ? AppColors.gold : null,
-            ),
-            tooltip: '极光画质增强',
-            onPressed: _toggleEnhance,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 播放器窗口 (16:9)
-          AspectRatio(aspectRatio: 16 / 9, child: playerCore),
-
-          // 核心控制与信息条
-          _buildPlayerInfoBar(currentEp, currentGroup, isDark),
-
-          Divider(
-            height: 1,
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-
-          // 选集列表与线路切换
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: isDark ? AppColors.darkBg : const Color(0xFFF7F8FB),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            AspectRatio(aspectRatio: 16 / 9, child: playerCore),
+            _sheetTabs(isDark),
+            Expanded(
+              child: IndexedStack(
+                index: _sheetIndex,
+                sizing: StackFit.expand,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  _videoSheet(isDark, currentEp, currentGroup),
+                  _danmakuSheet(isDark),
+                  _commentSheet(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetTabs(bool isDark) {
+    final labels = [
+      '视频',
+      '弹幕',
+      _commentTotal > 0 ? '评论 ${formatAudienceCount(_commentTotal)}' : '评论',
+    ];
+    final ink = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Material(
+      color: isDark ? AppColors.darkBg : Colors.white,
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++)
+            Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _sheetIndex = index),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 8),
+                  child: Column(
                     children: [
                       Text(
-                        '选集列表 (${currentGroup?.episodes.length ?? 0}话)',
+                        labels[index],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
+                          fontWeight: _sheetIndex == index
+                              ? FontWeight.w800
+                              : FontWeight.w500,
+                          color: _sheetIndex == index ? ink : muted,
                         ),
                       ),
-                      const Text(
-                        '自动连播已开启',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary500,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 3,
+                        width: 18,
+                        decoration: BoxDecoration(
+                          color: _sheetIndex == index
+                              ? AppColors.primary600
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  EpisodeSelectorWidget(
-                    playGroups: groups,
-                    currentGroupIndex: _currentGroupIndex,
-                    currentEpisodeIndex: _currentEpisodeIndex,
-                    onSelected: (groupIndex, epIndex) {
-                      _switchEpisode(groupIndex, epIndex);
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildPlayerInfoBar(
-    Episode? currentEp,
-    PlayGroup? currentGroup,
+  Widget _videoSheet(
     bool isDark,
-  ) {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.video.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            [
-              widget.video.year,
-              currentEp?.name ?? '待播放',
-            ].where((s) => s.isNotEmpty).join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.lightTextSecondary,
+    Episode? currentEp,
+    PlayGroup? currentGroup, {
+    bool embedEpisodes = true,
+  }) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      children: [
+        _danmakuBar(isDark),
+        const SizedBox(height: 14),
+        _titleBlock(isDark, currentEp, currentGroup),
+        const SizedBox(height: 16),
+        _actionRow(isDark),
+        if (embedEpisodes) ...[
+          const SizedBox(height: 18),
+          _episodeHeading(isDark, currentGroup),
+          const SizedBox(height: 8),
+          _episodeCards(),
+        ],
+        if (!embedEpisodes) ...[
+          const SizedBox(height: 16),
+          _buildDesktopMetaCard(isDark),
+          _buildDesktopShortcutGuide(isDark),
+        ],
+        if (_related.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _relatedHeading(isDark),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 196,
+            child: DesktopHorizontalScroll(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _related.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final item = _related[index];
+                  return AudiencePosterTile(
+                    video: item,
+                    onTap: () => _openRelated(item),
+                  );
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
+        ],
+      ],
+    );
+  }
+
+  String _episodeKey() {
+    final groups = widget.video.playGroups;
+    if (groups.isEmpty || _currentGroupIndex >= groups.length) return '0';
+    final group = groups[_currentGroupIndex];
+    if (_currentEpisodeIndex >= group.episodes.length) {
+      return '$_currentGroupIndex';
+    }
+    final name = group.episodes[_currentEpisodeIndex].name.trim();
+    final key = '$_currentGroupIndex:$name';
+    final runes = key.runes.toList();
+    if (runes.length <= 80) return key;
+    return String.fromCharCodes(runes.take(80));
+  }
+
+  Future<void> _loadDanmaku() async {
+    final key = _episodeKey();
+    final generation = ++_danmakuGeneration;
+    try {
+      final raw = await ApiService().listDanmaku(
+        videoId: widget.video.id,
+        episodeKey: key,
+      );
+      if (!mounted ||
+          generation != _danmakuGeneration ||
+          key != _episodeKey()) {
+        return;
+      }
+      setState(() {
+        _danmaku = raw.map(DanmakuItem.fromJson).toList();
+      });
+    } catch (_) {
+      if (!mounted || generation != _danmakuGeneration) return;
+      setState(() => _danmaku = []);
+    }
+  }
+
+  Future<void> _composeDanmaku() async {
+    if (!_appState.isLoggedIn) {
+      await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const AccountScreen()));
+      if (!mounted || !_appState.isLoggedIn) return;
+    }
+    final draft = await showDanmakuComposer(context);
+    if (draft == null || !mounted || _sendingDanmaku) return;
+    setState(() => _sendingDanmaku = true);
+    try {
+      final created = await ApiService().sendDanmaku(
+        videoId: widget.video.id,
+        episodeKey: _episodeKey(),
+        playTimeMs: _position.inMilliseconds,
+        mode: draft.mode,
+        color: draft.color,
+        content: draft.text,
+      );
+      if (!mounted) return;
+      setState(() => _danmaku = [..._danmaku, DanmakuItem.fromJson(created)]);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _sendingDanmaku = false);
+    }
+  }
+
+  Future<void> _removeDanmaku(DanmakuItem item) async {
+    final mine = _appState.user?['id']?.toString() == '${item.userId}';
+    if (!mine) return;
+    try {
+      await ApiService().deleteDanmaku(item.id);
+      if (!mounted) return;
+      setState(
+        () =>
+            _danmaku = _danmaku.where((entry) => entry.id != item.id).toList(),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Widget _danmakuBar(bool isDark) {
+    final fill = isDark ? AppColors.darkCard : const Color(0xFFF3F4F8);
+    final enabled = _appState.danmakuEnabled;
+    return Row(
+      children: [
+        Text(
+          '弹幕',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
+          ),
+        ),
+        Transform.scale(
+          scale: .8,
+          child: Switch.adaptive(
+            value: enabled,
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppColors.primary500,
+            onChanged: (value) {
+              _appState.setDanmakuEnabled(value);
+              setState(() {});
+            },
+          ),
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: _sendingDanmaku ? null : _composeDanmaku,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                _sendingDanmaku ? '发送中…' : '点我发弹幕～',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _titleBlock(bool isDark, Episode? currentEp, PlayGroup? currentGroup) {
+    final count = currentGroup?.episodes.length ?? 0;
+    final update = [
+      widget.video.remarks,
+      if (count > 0) '全$count话',
+    ].where((item) => item.isNotEmpty).join('  ');
+    final ink = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              BrandPill(
-                label: const Text('‹ 上一集'),
-                onPressed: _currentEpisodeIndex > 0 ? _playPrevEpisode : null,
+              Text(
+                widget.video.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
               ),
-              BrandPill(
-                label: const Text('下一集 ›'),
-                selected: true,
-                onPressed:
-                    currentGroup != null &&
-                        _currentEpisodeIndex + 1 < currentGroup.episodes.length
-                    ? _playNextEpisode
-                    : null,
-              ),
+              if (update.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(update, style: TextStyle(fontSize: 12, color: muted)),
+              ],
+              if (currentEp != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  currentEp.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: muted),
+                ),
+              ],
             ],
           ),
-        ],
+        ),
+        if (widget.video.hits > 0)
+          Text(
+            formatAudienceCount(widget.video.hits),
+            style: const TextStyle(
+              color: Color(0xFFFF8A34),
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _actionRow(bool isDark) {
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _actionItem(
+          icon: Icons.thumb_up_alt_outlined,
+          label: widget.video.hits > 0
+              ? formatAudienceCount(widget.video.hits)
+              : '人气',
+          caption: widget.video.hits > 0 ? '人气' : null,
+          color: muted,
+        ),
+        _actionItem(
+          icon: _favorite ? Icons.star_rounded : Icons.star_border_rounded,
+          label: _favorite ? '已追番' : '追番',
+          color: _favorite ? const Color(0xFFFFB020) : muted,
+          onTap: _savingFavorite ? null : _toggleFavorite,
+        ),
+        _actionItem(
+          icon: Icons.download_rounded,
+          label: '下载',
+          color: muted,
+          onTap: () {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('暂不支持缓存下载，请在线观看')));
+          },
+        ),
+        _actionItem(
+          icon: Icons.share_outlined,
+          label: '分享',
+          color: muted,
+          onTap: _sharePlayback,
+        ),
+      ],
+    );
+  }
+
+  Widget _actionItem({
+    required IconData icon,
+    required String label,
+    String? caption,
+    Color? color,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 68,
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: color),
+            ),
+            if (caption != null)
+              Text(caption, style: TextStyle(fontSize: 10, color: color)),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _episodeHeading(bool isDark, PlayGroup? currentGroup) {
+    final count = currentGroup?.episodes.length ?? 0;
+    final trailing = widget.video.remarks.isNotEmpty
+        ? widget.video.remarks
+        : (count > 0 ? '全$count话' : '');
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Row(
+      children: [
+        Text(
+          '选集',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
+          ),
+        ),
+        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+        const Spacer(),
+        if (trailing.isNotEmpty)
+          Text(trailing, style: TextStyle(fontSize: 12, color: muted)),
+      ],
+    );
+  }
+
+  Widget _episodeCards() {
+    return EpisodeCardList(
+      playGroups: widget.video.playGroups,
+      currentGroupIndex: _currentGroupIndex,
+      currentEpisodeIndex: _currentEpisodeIndex,
+      posterUrl: widget.video.picture,
+      onSelected: _switchEpisode,
+    );
+  }
+
+  Widget _relatedHeading(bool isDark) {
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Row(
+      children: [
+        Text(
+          '猜你喜欢',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
+          ),
+        ),
+        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+      ],
+    );
+  }
+
+  Widget _danmakuSheet(bool isDark) {
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final ink = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final mineId = _appState.user?['id']?.toString();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      children: [
+        Row(
+          children: [
+            Text(
+              _appState.danmakuEnabled ? '弹幕开着' : '弹幕关着',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            const Spacer(),
+            Text('${_danmaku.length} 条', style: TextStyle(color: muted)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '弹幕会按这一集的播放时间出现在画面上。想慢慢聊，去评论区。',
+          style: TextStyle(fontSize: 13, height: 1.5, color: muted),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonal(
+            onPressed: _sendingDanmaku ? null : _composeDanmaku,
+            child: const Text('发弹幕'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_danmaku.isEmpty)
+          Text('这一集还没有弹幕。', style: TextStyle(color: muted))
+        else
+          for (final item in _danmaku)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                item.content,
+                style: TextStyle(color: ink, fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '${_clock(item.playTimeMs)}  ${item.authorName}',
+                style: TextStyle(color: muted),
+              ),
+              trailing: mineId == '${item.userId}'
+                  ? IconButton(
+                      tooltip: '删除',
+                      onPressed: () => _removeDanmaku(item),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                    )
+                  : null,
+            ),
+      ],
+    );
+  }
+
+  String _clock(int milliseconds) {
+    final total = milliseconds < 0 ? 0 : milliseconds ~/ 1000;
+    final minutes = (total ~/ 60).toString().padLeft(2, '0');
+    final seconds = (total % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Widget _commentSheet() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      children: [
+        VideoCommentSection(
+          videoId: widget.video.id,
+          onTotal: (total) {
+            if (_commentTotal == total) return;
+            setState(() => _commentTotal = total);
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() => _savingFavorite = true);
+    try {
+      await _appState.toggleFavorite(widget.video);
+      if (!mounted) return;
+      setState(() => _favorite = _appState.isFavorite(widget.video.id));
+      if (_appState.accountError != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_appState.accountError!)));
+      }
+    } finally {
+      if (mounted) setState(() => _savingFavorite = false);
+    }
+  }
+
+  Future<void> _sharePlayback() async {
+    final group =
+        widget.video.playGroups.isNotEmpty &&
+            _currentGroupIndex < widget.video.playGroups.length
+        ? widget.video.playGroups[_currentGroupIndex]
+        : null;
+    final episode =
+        group != null && _currentEpisodeIndex < group.episodes.length
+        ? group.episodes[_currentEpisodeIndex].name
+        : '';
+    final text = [
+      widget.video.name,
+      episode,
+    ].where((item) => item.isNotEmpty).join(' · ');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('已复制片名，可以分享给同好')));
+  }
+
+  Future<void> _openRelated(VideoRecord video) async {
+    final wasPlaying = _isPlaying;
+    await _player.pause();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AnimeDetailScreen(videoId: video.id)),
+    );
+    if (mounted && wasPlaying) _player.play();
   }
 
   Widget _buildDesktopMetaCard(bool isDark) {
@@ -1682,6 +2137,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         onPressed: () {
                           setState(() {
                             _showFullscreenDrawer = !_showFullscreenDrawer;
+                            if (_showFullscreenDrawer) {
+                              _drawerRange =
+                                  _currentEpisodeIndex ~/ episodeRangeSize;
+                            }
                           });
                           _resetHideControlsTimer();
                         },
@@ -1755,63 +2214,107 @@ class _PlayerScreenState extends State<PlayerScreen> {
             const SizedBox(height: 8),
 
             // 线路切换
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(groups.length, (index) {
-                  final isSel = _currentGroupIndex == index;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: BrandPill(
-                      label: Text(groups[index].server),
-                      selected: isSel,
-                      onSelected: (selected) {
-                        if (selected) {
-                          _switchEpisode(index, _currentEpisodeIndex);
-                        }
-                      },
-                      onDark: true,
-                    ),
-                  );
-                }),
+            DesktopHorizontalScroll(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(groups.length, (index) {
+                    final isSel = _currentGroupIndex == index;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: BrandPill(
+                        label: Text(groups[index].server),
+                        selected: isSel,
+                        onSelected: (selected) {
+                          if (selected) {
+                            _switchEpisode(index, _currentEpisodeIndex);
+                          }
+                        },
+                        onDark: true,
+                      ),
+                    );
+                  }),
+                ),
               ),
             ),
 
             const SizedBox(height: 12),
 
-            // 集数网格
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2.0,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
-                ),
-                itemCount: episodes.length,
-                itemBuilder: (context, idx) {
-                  final isPlaying = idx == _currentEpisodeIndex;
-                  return InkWell(
-                    onTap: () => _switchEpisode(_currentGroupIndex, idx),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isPlaying
-                            ? AppColors.primary600
-                            : Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        episodes[idx].name,
-                        style: TextStyle(
-                          color: isPlaying ? Colors.white : Colors.white70,
-                          fontSize: 11,
-                          fontWeight: isPlaying
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+            if (episodeRanges(episodes.length).length > 1) ...[
+              DesktopHorizontalScroll(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final (index, range) in episodeRanges(
+                        episodes.length,
+                      ).indexed)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: BrandPill(
+                            label: Text(range.label),
+                            selected: _drawerRange == index,
+                            onDark: true,
+                            onSelected: (selected) {
+                              if (!selected) return;
+                              setState(() => _drawerRange = index);
+                            },
+                          ),
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // 集数网格。超过 99 集时只显示当前分页。
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final ranges = episodeRanges(episodes.length);
+                  final range = ranges.isEmpty
+                      ? const EpisodeRange(0, 0)
+                      : ranges[_drawerRange.clamp(0, ranges.length - 1)];
+                  final visible = episodes.isEmpty
+                      ? 0
+                      : range.end - range.start;
+                  return GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          childAspectRatio: 2.0,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                        ),
+                    itemCount: visible,
+                    itemBuilder: (context, idx) {
+                      final episodeIndex = range.start + idx;
+                      final isPlaying = episodeIndex == _currentEpisodeIndex;
+                      return InkWell(
+                        onTap: () =>
+                            _switchEpisode(_currentGroupIndex, episodeIndex),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isPlaying
+                                ? AppColors.primary600
+                                : Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            episodes[episodeIndex].name,
+                            style: TextStyle(
+                              color: isPlaying ? Colors.white : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: isPlaying
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
