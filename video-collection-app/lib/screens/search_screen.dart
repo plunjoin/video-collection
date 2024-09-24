@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../widgets/brand_controls.dart';
+
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
@@ -23,35 +27,87 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _resultsScrollController = ScrollController();
   final ApiService _apiService = ApiService();
 
+  Timer? _suggestionDebounce;
   bool _isSearching = false;
+  bool _isLoadingMore = false;
+  bool _isLoadingSuggestions = false;
   bool _hasSearched = false;
+  bool _suggestionsAreHot = true;
+  bool _hasMore = false;
+  int _searchRequestId = 0;
+  int _suggestionRequestId = 0;
+  int _page = 1;
+  final int _pageSize = 24;
+  int _total = 0;
+  List<String> _suggestions = [];
   List<VideoRecord> _searchResults = [];
 
   @override
   void initState() {
     super.initState();
+    _resultsScrollController.addListener(_onResultsScroll);
     if (widget.initialKeyword != null && widget.initialKeyword!.isNotEmpty) {
       _controller.text = widget.initialKeyword!;
       _performSearch(widget.initialKeyword!);
+    } else {
+      _loadSuggestions('');
     }
   }
 
   @override
   void dispose() {
+    _suggestionDebounce?.cancel();
     _controller.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _suggestionDebounce?.cancel();
+    _searchRequestId++;
+    setState(() {
+      _isSearching = false;
+      _hasSearched = false;
+      _isLoadingMore = false;
+      _searchResults = [];
+      _hasMore = false;
+    });
+    _suggestionDebounce = Timer(
+      const Duration(milliseconds: 280),
+      () => _loadSuggestions(value.trim()),
+    );
+  }
+
+  Future<void> _loadSuggestions(String keyword) async {
+    final requestId = ++_suggestionRequestId;
+    if (mounted) setState(() => _isLoadingSuggestions = true);
+    final result = await _apiService.getSearchSuggestions(keyword: keyword);
+    if (!mounted || requestId != _suggestionRequestId) return;
+    setState(() {
+      _suggestions = List<String>.from(result['suggestions'] as List? ?? []);
+      _suggestionsAreHot = result['hot'] == true;
+      _isLoadingSuggestions = false;
+    });
   }
 
   Future<void> _performSearch(String keyword) async {
     final query = keyword.trim();
     if (query.isEmpty) return;
 
+    _suggestionDebounce?.cancel();
+    final requestId = ++_searchRequestId;
     FocusScope.of(context).unfocus();
     setState(() {
       _isSearching = true;
+      _isLoadingMore = false;
       _hasSearched = true;
+      _page = 1;
+      _total = 0;
+      _hasMore = false;
+      _searchResults = [];
     });
 
     Provider.of<AppStateProvider>(
@@ -59,13 +115,57 @@ class _SearchScreenState extends State<SearchScreen> {
       listen: false,
     ).addSearchKeyword(query);
 
-    final res = await _apiService.getVideos(keyword: query, pageSize: 50);
+    final res = await _apiService.getVideos(
+      keyword: query,
+      page: 1,
+      pageSize: _pageSize,
+    );
     final list = (res['list'] as List<VideoRecord>?) ?? [];
+    final total = res['total'] is int ? res['total'] as int : list.length;
 
-    if (!mounted) return;
+    if (!mounted || requestId != _searchRequestId) return;
     setState(() {
       _searchResults = list;
+      _total = total;
+      _hasMore = total > list.length;
       _isSearching = false;
+    });
+  }
+
+  void _onResultsScroll() {
+    if (!_resultsScrollController.hasClients ||
+        _isSearching ||
+        _isLoadingMore ||
+        !_hasMore ||
+        _resultsScrollController.position.extentAfter > 320) {
+      return;
+    }
+    _loadMoreResults();
+  }
+
+  Future<void> _loadMoreResults() async {
+    if (_isLoadingMore || !_hasMore) return;
+    final query = _controller.text.trim();
+    if (query.isEmpty) return;
+    final requestId = _searchRequestId;
+    final nextPage = _page + 1;
+    setState(() => _isLoadingMore = true);
+    final res = await _apiService.getVideos(
+      keyword: query,
+      page: nextPage,
+      pageSize: _pageSize,
+    );
+    final nextItems = (res['list'] as List<VideoRecord>?) ?? [];
+    if (!mounted || requestId != _searchRequestId) return;
+    final existingIds = _searchResults.map((item) => item.id).toSet();
+    final newItems = nextItems
+        .where((item) => existingIds.add(item.id))
+        .toList();
+    setState(() {
+      _page = nextPage;
+      _searchResults.addAll(newItems);
+      _hasMore = _searchResults.length < _total && nextItems.isNotEmpty;
+      _isLoadingMore = false;
     });
   }
 
@@ -89,6 +189,7 @@ class _SearchScreenState extends State<SearchScreen> {
             readOnly: false,
             autoFocus: widget.initialKeyword == null,
             onTap: () {},
+            onChanged: _onQueryChanged,
             onSubmitted: _performSearch,
           ),
         ),
@@ -103,11 +204,26 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchResults(bool isDark) {
     if (_searchResults.isEmpty) {
-      return BrandEmpty(title: '还没有找到这个故事',
+      return BrandEmpty(
+        title: '还没有找到这个故事',
         subtitle: '试试更短的名字，或者换一个关键词。',
-        action: BrandButton(label: '重新寻找', icon: Icons.search_rounded,
-          onPressed: () => setState(() { _hasSearched = false; _controller.clear(); })));
-
+        action: BrandButton(
+          label: '重新寻找',
+          icon: Icons.search_rounded,
+          onPressed: () {
+            _searchRequestId++;
+            setState(() {
+              _isSearching = false;
+              _isLoadingMore = false;
+              _hasSearched = false;
+              _hasMore = false;
+              _controller.clear();
+              _searchResults.clear();
+            });
+            _loadSuggestions('');
+          },
+        ),
+      );
     }
 
     return Column(
@@ -116,7 +232,7 @@ class _SearchScreenState extends State<SearchScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(
-            '搜索结果 (${_searchResults.length}部)',
+            '搜索结果 ${_searchResults.length} / $_total 部',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -128,6 +244,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         Expanded(
           child: GridView.builder(
+            controller: _resultsScrollController,
             padding: const EdgeInsets.all(16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: Responsive.gridColumns(
@@ -140,8 +257,13 @@ class _SearchScreenState extends State<SearchScreen> {
               crossAxisSpacing: 10,
               mainAxisSpacing: 12,
             ),
-            itemCount: _searchResults.length,
+            itemCount: _searchResults.length + (_isLoadingMore ? 1 : 0),
             itemBuilder: (context, index) {
+              if (index >= _searchResults.length) {
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
+              }
               final video = _searchResults[index];
               return AnimePosterCard(
                 video: video,
@@ -164,7 +286,50 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const BrandPageBanner(title: '寻找心动的故事', subtitle: '记得一个名字，就能再次相遇。', eyebrow: 'FIND YOUR NEXT STORY'),
+              const BrandPageBanner(
+                title: '寻找心动的故事',
+                subtitle: '记得一个名字，就能再次相遇。',
+                eyebrow: 'FIND YOUR NEXT STORY',
+              ),
+              if (_suggestions.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Text(
+                      _suggestionsAreHot ? '大家在搜' : '搜索建议',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                    if (_isLoadingSuggestions) ...[
+                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _suggestions.map((item) {
+                    return BrandPill(
+                      label: Text(item),
+                      onPressed: () {
+                        _controller.text = item;
+                        _performSearch(item);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+              ],
               // 搜索历史
               if (history.isNotEmpty) ...[
                 Row(
@@ -191,10 +356,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: history.map((item) {
-                    return BrandPill(label: Text(item),onPressed: () {
+                    return BrandPill(
+                      label: Text(item),
+                      onPressed: () {
                         _controller.text = item;
                         _performSearch(item);
-                      });
+                      },
+                    );
                   }).toList(),
                 ),
                 const SizedBox(height: 24),
