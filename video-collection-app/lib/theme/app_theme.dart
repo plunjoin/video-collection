@@ -3,6 +3,39 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 
+/// San Francisco。macOS / iOS 用系统字体，中文缺字时回退到苹方或微软雅黑。
+class AppFonts {
+  static const family = 'SF Pro Text';
+  static const fallback = <String>[
+    'SF Pro Display',
+    '.SF Pro Text',
+    '.SF Pro Display',
+    '.AppleSystemUIFont',
+    'PingFang SC',
+    'Segoe UI',
+    'Microsoft YaHei UI',
+    'Microsoft YaHei',
+  ];
+
+  static TextStyle style({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? height,
+    double? letterSpacing,
+  }) {
+    return TextStyle(
+      fontFamily: family,
+      fontFamilyFallback: fallback,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: letterSpacing,
+    );
+  }
+}
+
 class AppTheme {
   static ThemeData get lightTheme => _build(Brightness.light);
   static ThemeData get darkTheme => _build(Brightness.dark);
@@ -33,6 +66,8 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: AppFonts.family,
+      fontFamilyFallback: AppFonts.fallback,
       scaffoldBackgroundColor: canvas,
       primaryColor: accent,
       splashFactory: NoSplash.splashFactory,
@@ -53,21 +88,21 @@ class AppTheme {
             surfaceTint: Colors.transparent,
           ),
       textTheme: TextTheme(
-        titleLarge: TextStyle(
+        titleLarge: AppFonts.style(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: ink,
           letterSpacing: .4,
         ),
-        titleMedium: TextStyle(
+        titleMedium: AppFonts.style(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: ink,
         ),
-        bodyLarge: TextStyle(fontSize: 14, height: 1.6, color: ink),
-        bodyMedium: TextStyle(fontSize: 13, height: 1.5, color: ink),
-        bodySmall: TextStyle(fontSize: 11, height: 1.6, color: muted),
-        labelLarge: TextStyle(
+        bodyLarge: AppFonts.style(fontSize: 14, height: 1.6, color: ink),
+        bodyMedium: AppFonts.style(fontSize: 13, height: 1.5, color: ink),
+        bodySmall: AppFonts.style(fontSize: 11, height: 1.6, color: muted),
+        labelLarge: AppFonts.style(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: ink,
@@ -89,7 +124,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         iconTheme: IconThemeData(color: muted, size: 21),
-        titleTextStyle: TextStyle(
+        titleTextStyle: AppFonts.style(
           fontSize: 19,
           fontWeight: FontWeight.w700,
           color: ink,
@@ -118,9 +153,9 @@ class AppTheme {
           horizontal: 16,
           vertical: 14,
         ),
-        labelStyle: TextStyle(fontSize: 12, color: muted),
-        hintStyle: TextStyle(fontSize: 12, color: muted),
-        floatingLabelStyle: const TextStyle(
+        labelStyle: AppFonts.style(fontSize: 12, color: muted),
+        hintStyle: AppFonts.style(fontSize: 12, color: muted),
+        floatingLabelStyle: AppFonts.style(
           fontSize: 12,
           color: AppColors.purple,
         ),
@@ -133,7 +168,7 @@ class AppTheme {
           shape: buttonShape,
           minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          textStyle: AppFonts.style(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -145,7 +180,7 @@ class AppTheme {
           shape: buttonShape,
           minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          textStyle: AppFonts.style(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -158,7 +193,7 @@ class AppTheme {
           shape: buttonShape,
           minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 12),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          textStyle: AppFonts.style(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -176,7 +211,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 3,
         shadowColor: const Color(0x227580B8),
-        textStyle: TextStyle(fontSize: 12, color: ink),
+        textStyle: AppFonts.style(fontSize: 12, color: ink),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: line),
@@ -206,7 +241,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentTextStyle: const TextStyle(fontSize: 12, color: Colors.white),
+        contentTextStyle: AppFonts.style(fontSize: 12, color: Colors.white),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: AppColors.purple,
