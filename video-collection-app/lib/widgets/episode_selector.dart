@@ -1,8 +1,52 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/video_model.dart';
 import '../theme/app_colors.dart';
 import 'brand_controls.dart';
+import 'desktop_horizontal_scroll.dart';
+
+/// 把播放量收成「1.2万」这种短数字，详情和播放页共用。
+String formatAudienceCount(int count) {
+  if (count >= 100000000) {
+    return '${(count / 100000000).toStringAsFixed(1)}亿';
+  }
+  if (count >= 10000) {
+    final value = count / 10000;
+    final text = value >= 10
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return '$text万';
+  }
+  return '$count';
+}
+
+/// 选集超过 99 集时按 1-99、100-198 这样分页。
+const int episodeRangeSize = 99;
+
+/// 单页超过这个数量时先折叠，避免几百集把详情页撑满。
+const int episodeCollapseCount = 30;
+
+class EpisodeRange {
+  final int start;
+  final int end;
+  const EpisodeRange(this.start, this.end);
+
+  String get label {
+    final from = start + 1;
+    final to = end;
+    return from == to ? '$from' : '$from-$to';
+  }
+}
+
+List<EpisodeRange> episodeRanges(int count, {int size = episodeRangeSize}) {
+  if (count <= 0 || size <= 0) return const [];
+  final ranges = <EpisodeRange>[];
+  for (var start = 0; start < count; start += size) {
+    ranges.add(EpisodeRange(start, (start + size).clamp(0, count)));
+  }
+  return ranges;
+}
 
 class EpisodeSelectorWidget extends StatefulWidget {
   final List<PlayGroup> playGroups;
@@ -25,11 +69,15 @@ class EpisodeSelectorWidget extends StatefulWidget {
 class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
   late int _selectedGroupIndex;
   bool _isAscending = true;
+  int _rangeIndex = 0;
+  bool _expanded = false;
+  int? _syncedEpisode;
 
   @override
   void initState() {
     super.initState();
     _selectedGroupIndex = widget.currentGroupIndex;
+    _syncPlayingRange(force: true);
   }
 
   @override
@@ -37,7 +85,38 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
     super.didUpdateWidget(oldWidget);
     if (widget.currentGroupIndex != oldWidget.currentGroupIndex) {
       _selectedGroupIndex = widget.currentGroupIndex;
+      _expanded = false;
     }
+    _syncPlayingRange();
+  }
+
+  void _syncPlayingRange({bool force = false}) {
+    if (widget.playGroups.isEmpty) return;
+    if (_selectedGroupIndex != widget.currentGroupIndex) return;
+    if (!force && _syncedEpisode == widget.currentEpisodeIndex) return;
+    _syncedEpisode = widget.currentEpisodeIndex;
+    final count = widget.playGroups[_selectedGroupIndex].episodes.length;
+    if (count == 0) return;
+    final ranges = episodeRanges(count);
+    _rangeIndex = (widget.currentEpisodeIndex ~/ episodeRangeSize).clamp(
+      0,
+      ranges.length - 1,
+    );
+    final offset = widget.currentEpisodeIndex - _rangeIndex * episodeRangeSize;
+    if (offset >= episodeCollapseCount) _expanded = true;
+  }
+
+  void _selectGroup(int index) {
+    setState(() {
+      _selectedGroupIndex = index;
+      _expanded = false;
+      if (index == widget.currentGroupIndex) {
+        _syncedEpisode = null;
+        _syncPlayingRange(force: true);
+      } else {
+        _rangeIndex = 0;
+      }
+    });
   }
 
   @override
@@ -62,9 +141,22 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
 
     final currentGroup = widget.playGroups[_selectedGroupIndex];
     final originalEpisodes = currentGroup.episodes;
-    final displayEpisodes = _isAscending
-        ? originalEpisodes
-        : originalEpisodes.reversed.toList();
+    final ranges = episodeRanges(originalEpisodes.length);
+    final safeRange = ranges.isEmpty
+        ? 0
+        : _rangeIndex.clamp(0, ranges.length - 1);
+    final range = ranges.isEmpty ? const EpisodeRange(0, 0) : ranges[safeRange];
+    final rangedIndices = [
+      for (var index = range.start; index < range.end; index++) index,
+    ];
+    final orderedIndices = _isAscending
+        ? rangedIndices
+        : rangedIndices.reversed.toList();
+    final collapsed =
+        !_expanded && orderedIndices.length > episodeCollapseCount;
+    final visibleIndices = collapsed
+        ? orderedIndices.take(episodeCollapseCount).toList()
+        : orderedIndices;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,26 +167,28 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
           children: [
             // 播放源切换 Chips
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: List.generate(widget.playGroups.length, (index) {
-                    final group = widget.playGroups[index];
-                    final isSelected = _selectedGroupIndex == index;
-                    final label = group.server.isNotEmpty
-                        ? group.server
-                        : '播放源 ${index + 1}';
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: BrandPill(label: Text(label),selected: isSelected,onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedGroupIndex = index;
-                            });
-                          }
-                        }),
-                    );
-                  }),
+              child: DesktopHorizontalScroll(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: List.generate(widget.playGroups.length, (index) {
+                      final group = widget.playGroups[index];
+                      final isSelected = _selectedGroupIndex == index;
+                      final label = group.server.isNotEmpty
+                          ? group.server
+                          : '播放源 ${index + 1}';
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: BrandPill(
+                          label: Text(label),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) _selectGroup(index);
+                          },
+                        ),
+                      );
+                    }),
+                  ),
                 ),
               ),
             ),
@@ -134,6 +228,33 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
           ],
         ),
 
+        if (ranges.length > 1) ...[
+          const SizedBox(height: 10),
+          DesktopHorizontalScroll(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(ranges.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: BrandPill(
+                      label: Text(ranges[index].label),
+                      selected: safeRange == index,
+                      onSelected: (selected) {
+                        if (!selected) return;
+                        setState(() {
+                          _rangeIndex = index;
+                          _expanded = false;
+                        });
+                      },
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
+
         const SizedBox(height: 12),
 
         // 剧集网格
@@ -146,12 +267,10 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
           ),
-          itemCount: displayEpisodes.length,
+          itemCount: visibleIndices.length,
           itemBuilder: (context, idx) {
-            final episode = displayEpisodes[idx];
-            final actualIdx = _isAscending
-                ? idx
-                : (originalEpisodes.length - 1 - idx);
+            final actualIdx = visibleIndices[idx];
+            final episode = originalEpisodes[actualIdx];
             final isPlaying =
                 _selectedGroupIndex == widget.currentGroupIndex &&
                 actualIdx == widget.currentEpisodeIndex;
@@ -225,7 +344,299 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
             );
           },
         ),
+        if (collapsed ||
+            (_expanded && orderedIndices.length > episodeCollapseCount))
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              icon: Icon(
+                _expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 18,
+              ),
+              label: Text(
+                _expanded
+                    ? '收起选集'
+                    : '展开剩余 ${orderedIndices.length - visibleIndices.length} 集',
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// 播放页选集。只保留剧集卡片，不再同时铺一排编号按钮。
+class EpisodeCardList extends StatefulWidget {
+  final List<PlayGroup> playGroups;
+  final int currentGroupIndex;
+  final int currentEpisodeIndex;
+  final String posterUrl;
+  final void Function(int groupIndex, int episodeIndex) onSelected;
+
+  const EpisodeCardList({
+    super.key,
+    required this.playGroups,
+    required this.currentGroupIndex,
+    required this.currentEpisodeIndex,
+    required this.onSelected,
+    this.posterUrl = '',
+  });
+
+  @override
+  State<EpisodeCardList> createState() => _EpisodeCardListState();
+}
+
+class _EpisodeCardListState extends State<EpisodeCardList> {
+  static const _previewCount = 4;
+  late int _selectedGroupIndex;
+  bool _expanded = false;
+  int _rangeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedGroupIndex = widget.currentGroupIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant EpisodeCardList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentGroupIndex != oldWidget.currentGroupIndex) {
+      _selectedGroupIndex = widget.currentGroupIndex;
+      _expanded = false;
+      _rangeIndex = 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (widget.playGroups.isEmpty) {
+      return const Text('暂无可播放片源');
+    }
+    final groupIndex = _selectedGroupIndex.clamp(
+      0,
+      widget.playGroups.length - 1,
+    );
+    final episodes = widget.playGroups[groupIndex].episodes;
+    final ranges = episodeRanges(episodes.length, size: 30);
+    final safeRange = ranges.isEmpty
+        ? 0
+        : _rangeIndex.clamp(0, ranges.length - 1);
+    final indexes = _visibleIndexes(episodes.length, ranges, safeRange);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.playGroups.length > 1)
+          DesktopHorizontalScroll(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var index = 0; index < widget.playGroups.length; index++)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: BrandPill(
+                        label: Text(
+                          widget.playGroups[index].server.isEmpty
+                              ? '播放源 ${index + 1}'
+                              : widget.playGroups[index].server,
+                        ),
+                        selected: groupIndex == index,
+                        onSelected: (selected) {
+                          if (!selected) return;
+                          setState(() {
+                            _selectedGroupIndex = index;
+                            _expanded = false;
+                            _rangeIndex = 0;
+                          });
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (_expanded && ranges.length > 1) ...[
+          const SizedBox(height: 8),
+          DesktopHorizontalScroll(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var index = 0; index < ranges.length; index++)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: BrandPill(
+                        label: Text(ranges[index].label),
+                        selected: safeRange == index,
+                        onSelected: (selected) {
+                          if (!selected) return;
+                          setState(() => _rangeIndex = index);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        for (final index in indexes)
+          _card(
+            episodes[index],
+            index,
+            dark,
+            playing:
+                groupIndex == widget.currentGroupIndex &&
+                index == widget.currentEpisodeIndex,
+          ),
+        if (episodes.length > _previewCount)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              child: Text(_expanded ? '收起选集' : '展开全部 ${episodes.length} 话'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<int> _visibleIndexes(
+    int count,
+    List<EpisodeRange> ranges,
+    int safeRange,
+  ) {
+    if (count == 0) return const [];
+    if (_expanded && ranges.length > 1) {
+      final range = ranges[safeRange];
+      return [for (var index = range.start; index < range.end; index++) index];
+    }
+    if (_expanded || count <= _previewCount) {
+      return [for (var index = 0; index < count; index++) index];
+    }
+    var start = _selectedGroupIndex == widget.currentGroupIndex
+        ? widget.currentEpisodeIndex
+        : 0;
+    if (start + _previewCount > count) start = count - _previewCount;
+    if (start < 0) start = 0;
+    return [
+      for (
+        var index = start;
+        index < start + _previewCount && index < count;
+        index++
+      )
+        index,
+    ];
+  }
+
+  Widget _card(Episode episode, int index, bool dark, {required bool playing}) {
+    final border = dark ? AppColors.darkBorder : const Color(0xFFEEF1F6);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: playing
+            ? (dark
+                  ? AppColors.rose.withValues(alpha: .16)
+                  : const Color(0xFFFFF1F6))
+            : (dark ? AppColors.darkCard : Colors.white),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => widget.onSelected(_selectedGroupIndex, index),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: playing ? AppColors.rose.withValues(alpha: .55) : border,
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 112,
+                    height: 64,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _thumb(dark),
+                        if (playing) const ColoredBox(color: Color(0x33000000)),
+                        if (playing)
+                          const Center(
+                            child: Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (playing)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            '正在播放',
+                            style: TextStyle(
+                              color: AppColors.rose,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        episode.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.35,
+                          fontWeight: playing
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          color: dark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _thumb(bool dark) {
+    final fallback = ColoredBox(
+      color: dark ? const Color(0xFF243049) : const Color(0xFFE7EEF8),
+      child: const Center(
+        child: Icon(Icons.movie_filter_outlined, color: AppColors.primary400),
+      ),
+    );
+    if (widget.posterUrl.isEmpty) return fallback;
+    return CachedNetworkImage(
+      imageUrl: widget.posterUrl,
+      fit: BoxFit.cover,
+      placeholder: (_, _) => fallback,
+      errorWidget: (_, _, _) => fallback,
     );
   }
 }
