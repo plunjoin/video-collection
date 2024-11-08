@@ -6,6 +6,7 @@ class SearchBarWidget extends StatelessWidget {
   final VoidCallback onTap;
   final TextEditingController? controller;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
   final bool readOnly;
   final bool autoFocus;
 
@@ -14,6 +15,7 @@ class SearchBarWidget extends StatelessWidget {
     required this.onTap,
     this.controller,
     this.onSubmitted,
+    this.onChanged,
     this.readOnly = true,
     this.autoFocus = false,
   });
@@ -77,6 +79,7 @@ class SearchBarWidget extends StatelessWidget {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
+                      onChanged: onChanged,
                       onSubmitted: onSubmitted,
                     ),
             ),
