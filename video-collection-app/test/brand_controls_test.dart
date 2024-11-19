@@ -162,7 +162,21 @@ void main() {
       const MethodChannel('window_manager'), (call) async => false);
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
-    await tester.showKeyboard(find.byType(TextField));
+    await tester.scrollUntilVisible(
+      find.text('屏蔽词'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          )
+          .first,
+    );
+    await tester.showKeyboard(find.byType(TextField).first);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();
@@ -171,7 +185,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
-    expect(find.text('热爱故事的你'), findsOneWidget);
+    expect(find.text('星空下的旅人'), findsOneWidget);
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
     expect(find.text('外观模式'), findsOneWidget);
