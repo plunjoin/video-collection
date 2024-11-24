@@ -147,7 +147,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('我的').last);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('热爱故事的你'), findsOneWidget);
+    expect(find.text('星空下的旅人'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
