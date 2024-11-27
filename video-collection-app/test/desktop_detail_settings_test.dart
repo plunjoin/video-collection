@@ -34,6 +34,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('desktop-detail-columns')), width >= 840 ? findsOneWidget : findsNothing);
+      await tester.tap(find.text('剧集'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('第 2 话'));
       await tester.tap(find.text('第 2 话'));
       expect(selected, (0, 1));
@@ -58,6 +60,20 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('accent'), 'pink');
     expect(prefs.getString('theme_mode'), 'dark');
+    await tester.scrollUntilVisible(
+      find.text('服务端地址'),
+      400,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          )
+          .first,
+    );
     expect(find.text('服务端地址'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
