@@ -12,14 +12,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"video-collection-api/config"
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/ingest"
-	"video-collection-api/pkg/maccms"
-	"video-collection-api/pkg/player"
-	"video-collection-api/pkg/scheduler"
-	"video-collection-api/pkg/store"
-	"video-collection-api/pkg/theme"
+	"video-collection-service/config"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/ingest"
+	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/player"
+	"video-collection-service/pkg/scheduler"
+	"video-collection-service/pkg/store"
+	"video-collection-service/pkg/theme"
 )
 
 type Server struct {
@@ -27,15 +27,20 @@ type Server struct {
 	scheduler     *scheduler.Scheduler
 	themeManager  *theme.Manager
 	playerManager *player.Manager
+	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager) *Server {
-	return &Server{
+	srv := &Server{
 		store:         s,
 		scheduler:     sc,
 		themeManager:  tm,
 		playerManager: pm,
 	}
+	// 默认不透传任何 Redis：命名空间全部为 nil（serveCached 自动降级直连数据库），
+	// 接入 Redis 后由 UseCache 覆盖。
+	srv.UseCache(nil, 0)
+	return srv
 }
 
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
@@ -52,7 +57,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/videos", srv.handleVideos)
 	mux.HandleFunc("/api/video", srv.handleVideoDetail)
 	mux.HandleFunc("/api/video/detail", srv.handleVideoDetail)
-	mux.HandleFunc("/api/video/hit", srv.handleVideoHit)
+	mux.HandleFunc("/api/video/hit", srv.cachedWrite(srv.handleVideoHit))
 	mux.HandleFunc("/api/rankings", srv.handleRankings)
 	mux.HandleFunc("/api/latest", srv.handleLatest)
 	mux.HandleFunc("/api/site/config", srv.handleSiteConfig)
@@ -69,48 +74,48 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	mux.HandleFunc("/api/admin/stats", adminAuth(srv.handleAdminStats))
-	mux.HandleFunc("/api/admin/sources", adminAuth(srv.handleAdminSources))
+	mux.HandleFunc("/api/admin/sources", srv.adminWrite(srv.handleAdminSources))
 	mux.HandleFunc("/api/admin/sources/templates", adminAuth(srv.handleCollectionTemplates))
 	mux.HandleFunc("/api/admin/sources/test", adminAuth(srv.handleTestRemoteSource))
-	mux.HandleFunc("/api/admin/sources/collect", adminAuth(srv.handleTriggerCollect))
-	mux.HandleFunc("/api/admin/sources/collect-all", adminAuth(srv.handleAdminCollectAll))
+	mux.HandleFunc("/api/admin/sources/collect", srv.adminWrite(srv.handleTriggerCollect))
+	mux.HandleFunc("/api/admin/sources/collect-all", srv.adminWrite(srv.handleAdminCollectAll))
 	mux.HandleFunc("/api/admin/logs", adminAuth(srv.handleAdminLogs))
-	mux.HandleFunc("/api/admin/videos", adminAuth(srv.handleAdminDeleteVideo))
-	mux.HandleFunc("/api/admin/videos/save", adminAuth(srv.handleAdminSaveVideo))
-	mux.HandleFunc("/api/admin/videos/batch-delete", adminAuth(srv.handleAdminBatchDeleteVideos))
+	mux.HandleFunc("/api/admin/videos", srv.adminWrite(srv.handleAdminDeleteVideo))
+	mux.HandleFunc("/api/admin/videos/save", srv.adminWrite(srv.handleAdminSaveVideo))
+	mux.HandleFunc("/api/admin/videos/batch-delete", srv.adminWrite(srv.handleAdminBatchDeleteVideos))
 
 	// 用户管理接口
-	mux.HandleFunc("/api/admin/users", adminAuth(srv.handleAdminUsers))
+	mux.HandleFunc("/api/admin/users", srv.adminWrite(srv.handleAdminUsers))
 
 	// 客户端主题管理与导入接口
 	mux.HandleFunc("/api/admin/themes", adminAuth(srv.handleAdminThemes))
-	mux.HandleFunc("/api/admin/themes/switch", adminAuth(srv.handleAdminSwitchTheme))
-	mux.HandleFunc("/api/admin/themes/upload", adminAuth(srv.handleAdminUploadTheme))
+	mux.HandleFunc("/api/admin/themes/switch", srv.adminWrite(srv.handleAdminSwitchTheme))
+	mux.HandleFunc("/api/admin/themes/upload", srv.adminWrite(srv.handleAdminUploadTheme))
 
 	// 播放器公开接口与管理接口 (支持Video.js、第三方播放器与在线导入)
 	mux.HandleFunc("/api/player/active", srv.handleActivePlayer)
 	mux.HandleFunc("/api/admin/players", adminAuth(srv.handleAdminPlayers))
-	mux.HandleFunc("/api/admin/players/switch", adminAuth(srv.handleAdminSwitchPlayer))
-	mux.HandleFunc("/api/admin/players/upload", adminAuth(srv.handleAdminUploadPlayer))
-	mux.HandleFunc("/api/admin/players/config", adminAuth(srv.handleAdminUpdatePlayerConfig))
+	mux.HandleFunc("/api/admin/players/switch", srv.adminWrite(srv.handleAdminSwitchPlayer))
+	mux.HandleFunc("/api/admin/players/upload", srv.adminWrite(srv.handleAdminUploadPlayer))
+	mux.HandleFunc("/api/admin/players/config", srv.adminWrite(srv.handleAdminUpdatePlayerConfig))
 
 	// 网站全局配置与定时计划任务
-	mux.HandleFunc("/api/admin/site/config", adminAuth(srv.handleAdminSaveSiteConfig))
-	mux.HandleFunc("/api/admin/scheduler/auto", adminAuth(srv.handleAdminAutoCollect))
+	mux.HandleFunc("/api/admin/site/config", srv.adminWrite(srv.handleAdminSaveSiteConfig))
+	mux.HandleFunc("/api/admin/scheduler/auto", srv.adminWrite(srv.handleAdminAutoCollect))
 
 	// 用户求片留言管理
 	mux.HandleFunc("/api/admin/feedbacks", adminAuth(srv.handleAdminFeedbacks))
-	mux.HandleFunc("/api/admin/feedbacks/reply", adminAuth(srv.handleAdminReplyFeedback))
+	mux.HandleFunc("/api/admin/feedbacks/reply", srv.adminWrite(srv.handleAdminReplyFeedback))
 
 	// 数据库管理 (引擎信息、表统计与浏览、备份恢复、清理维护与 SQL 执行器)
 	mux.HandleFunc("/api/admin/db/info", adminAuth(srv.handleDBInfo))
 	mux.HandleFunc("/api/admin/db/tables", adminAuth(srv.handleDBTables))
 	mux.HandleFunc("/api/admin/db/table", adminAuth(srv.handleDBTable))
-	mux.HandleFunc("/api/admin/db/backup", adminAuth(srv.handleDBBackup))
+	mux.HandleFunc("/api/admin/db/backup", srv.adminWrite(srv.handleDBBackup))
 	mux.HandleFunc("/api/admin/db/backups", adminAuth(srv.handleDBBackups))
-	mux.HandleFunc("/api/admin/db/restore", adminAuth(srv.handleDBRestore))
-	mux.HandleFunc("/api/admin/db/cleanup", adminAuth(srv.handleDBCleanup))
-	mux.HandleFunc("/api/admin/db/sql", adminAuth(srv.handleDBSQL))
+	mux.HandleFunc("/api/admin/db/restore", srv.adminWrite(srv.handleDBRestore))
+	mux.HandleFunc("/api/admin/db/cleanup", srv.adminWrite(srv.handleDBCleanup))
+	mux.HandleFunc("/api/admin/db/sql", srv.adminWrite(srv.handleDBSQL))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, data any) {
@@ -180,15 +185,22 @@ func (srv *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) handleMe(w http.ResponseWriter, r *http.Request) {
-	u := auth.GetCurrentUser(r, srv.store)
-	if u == nil {
-		errorResponse(w, http.StatusUnauthorized, "未登录")
-		return
+	switch r.Method {
+	case http.MethodGet:
+		u := auth.GetCurrentUser(r, srv.store)
+		if u == nil {
+			errorResponse(w, http.StatusUnauthorized, "未登录")
+			return
+		}
+		jsonResponse(w, http.StatusOK, map[string]any{
+			"code": 1,
+			"data": srv.userProfile(r, u),
+		})
+	case http.MethodPost:
+		srv.handleUpdateProfile(w, r)
+	default:
+		errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
 	}
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"code": 1,
-		"data": srv.userProfile(r, u),
-	})
 }
 
 func (srv *Server) handleAdminStats(w http.ResponseWriter, r *http.Request) {
@@ -600,47 +612,51 @@ func (srv *Server) handleVideos(w http.ResponseWriter, r *http.Request) {
 		orderDesc = false
 	}
 
-	records, total, err := srv.store.QueryVideos(r.Context(), store.VideoQuery{
-		Page:      page,
-		PageSize:  pageSize,
-		TypeID:    typeID,
-		Keyword:   keyword,
-		Area:      area,
-		Year:      year,
-		OrderBy:   orderBy,
-		OrderDesc: orderDesc,
-	})
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"code":      1,
-		"page":      page,
-		"page_size": pageSize,
-		"total":     total,
-		"data":      records,
-	})
+	srv.serveCached(r.Context(), w, srv.sc.videos,
+		videosCacheKey(page, pageSize, typeID, keyword, area, year, orderBy, orderDesc),
+		func(ctx context.Context) (any, error) {
+			records, total, err := srv.store.QueryVideos(ctx, store.VideoQuery{
+				Page:      page,
+				PageSize:  pageSize,
+				TypeID:    typeID,
+				Keyword:   keyword,
+				Area:      area,
+				Year:      year,
+				OrderBy:   orderBy,
+				OrderDesc: orderDesc,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{
+				"code":      1,
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+				"data":      records,
+			}, nil
+		})
 }
 
 func (srv *Server) handleCategories(w http.ResponseWriter, r *http.Request) {
-	cats, err := srv.store.GetCategories(r.Context())
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": cats})
+	srv.serveCached(r.Context(), w, srv.sc.categories, "all", func(ctx context.Context) (any, error) {
+		cats, err := srv.store.GetCategories(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"code": 1, "data": cats}, nil
+	})
 }
 
 // 获取当前激活的播放器及配置 (公开接口，客户端门户据此渲染)
 func (srv *Server) handleActivePlayer(w http.ResponseWriter, r *http.Request) {
-	p, err := srv.playerManager.GetActivePlayer(r.Context())
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": p})
+	srv.serveCached(r.Context(), w, srv.sc.player, "active", func(ctx context.Context) (any, error) {
+		p, err := srv.playerManager.GetActivePlayer(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"code": 1, "data": p}, nil
+	})
 }
 
 // 播放器管理：列出所有已安装的播放器
@@ -743,19 +759,20 @@ func (srv *Server) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	video, err := srv.store.GetVideoByID(r.Context(), id)
-	if err != nil || video == nil {
-		errorResponse(w, http.StatusNotFound, "未找到该影片详情")
-		return
-	}
+	srv.serveCached(r.Context(), w, srv.sc.detail, "id:"+strconv.Itoa(id), func(ctx context.Context) (any, error) {
+		video, err := srv.store.GetVideoByID(ctx, id)
+		if err != nil || video == nil {
+			return nil, errVideoNotFound
+		}
 
-	// 相关推荐：严格按照 名称/同系列/类型 顺序智能推荐 (提取系列名 -> 同系列 -> 同类型补齐)
-	related := srv.getRelatedVideos(r.Context(), video, 10)
+		// 相关推荐：严格按照 名称/同系列/类型 顺序智能推荐 (提取系列名 -> 同系列 -> 同类型补齐)
+		related := srv.getRelatedVideos(ctx, video, 10)
 
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"code":    1,
-		"data":    video,
-		"related": related,
+		return map[string]any{
+			"code":    1,
+			"data":    video,
+			"related": related,
+		}, nil
 	})
 }
 
@@ -967,30 +984,32 @@ func (srv *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 // 站点公开全局配置
 func (srv *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	settings, _ := srv.store.GetAllSettings(ctx)
-	if settings == nil {
-		settings = make(map[string]string)
-	}
-	defaults := map[string]string{
-		"site_name":                   "Bllii 动漫聚合",
-		"site_subtitle":               "追番库 • 让生活多一种可能",
-		"site_announcement":           "欢迎访问Bllii二次元番剧聚合平台！全新升级流媒体视觉、极光画质增强引擎与全站新番排行榜已全面开启！",
-		"site_keywords":               "高清动漫,番剧新番,日漫,国漫,免费在线观看,苹果CMS接口",
-		"site_description":            "Bllii致力于提供全面、快速的高清二次元番剧与动漫流媒体在线观看服务与智能聚合。",
-		"site_notice_enabled":         "1",
-		"auto_collect_enabled":        "0",
-		"auto_collect_interval_hours": "2",
-		"site_friend_links":           `[{"name":"Bangumi 番组计划","url":"https://bangumi.tv","description":"动画与游戏分享社区"},{"name":"萌娘百科","url":"https://zh.moegirl.org.cn","description":"万物皆可萌的ACG百科全书"},{"name":"ACG 动漫社区","url":"https://acg.rip","description":"动漫资源分享与爱好者交流"},{"name":"MyAnimeList","url":"https://myanimelist.net","description":"全球知名动漫资料库"},{"name":"AnimeDB","url":"https://anidb.net","description":"动漫数据库与档案"}]`,
-		"site_contact_email":          "contact@Bllii.com",
-		"site_contact_group":          "官方交流群: 876543210 (TG: @Bllii)",
-		"site_disclaimer":             "【免责声明】本站所有视频资源均系第三方公开网络接口与网络爬虫自动检索聚合，本站服务器不存储、不制作、不上传任何视听节目及视频文件。若相关内容无意侵犯了贵司版权或合法权益，请通过上方联系方式提供权利证明与侵权链接，我们将在收到通知后24小时内断开相关播放解析并配合清理。本站提倡支持正版影视与动漫。",
-	}
-	for k, v := range defaults {
-		if _, exists := settings[k]; !exists {
-			settings[k] = v
+	srv.serveCached(ctx, w, srv.sc.site, "config", func(ctx context.Context) (any, error) {
+		settings, _ := srv.store.GetAllSettings(ctx)
+		if settings == nil {
+			settings = make(map[string]string)
 		}
-	}
-	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": settings})
+		defaults := map[string]string{
+			"site_name":                   "Bllii 动漫聚合",
+			"site_subtitle":               "追番库 • 让生活多一种可能",
+			"site_announcement":           "欢迎访问Bllii二次元番剧聚合平台！全新升级流媒体视觉、极光画质增强引擎与全站新番排行榜已全面开启！",
+			"site_keywords":               "高清动漫,番剧新番,日漫,国漫,免费在线观看,苹果CMS接口",
+			"site_description":            "Bllii致力于提供全面、快速的高清二次元番剧与动漫流媒体在线观看服务与智能聚合。",
+			"site_notice_enabled":         "1",
+			"auto_collect_enabled":        "0",
+			"auto_collect_interval_hours": "2",
+			"site_friend_links":           `[{"name":"Bangumi 番组计划","url":"https://bangumi.tv","description":"动画与游戏分享社区"},{"name":"萌娘百科","url":"https://zh.moegirl.org.cn","description":"万物皆可萌的ACG百科全书"},{"name":"ACG 动漫社区","url":"https://acg.rip","description":"动漫资源分享与爱好者交流"},{"name":"MyAnimeList","url":"https://myanimelist.net","description":"全球知名动漫资料库"},{"name":"AnimeDB","url":"https://anidb.net","description":"动漫数据库与档案"}]`,
+			"site_contact_email":          "contact@Bllii.com",
+			"site_contact_group":          "官方交流群: 876543210 (TG: @Bllii)",
+			"site_disclaimer":             "【免责声明】本站所有视频资源均系第三方公开网络接口与网络爬虫自动检索聚合，本站服务器不存储、不制作、不上传任何视听节目及视频文件。若相关内容无意侵犯了贵司版权或合法权益，请通过上方联系方式提供权利证明与侵权链接，我们将在收到通知后24小时内断开相关播放解析并配合清理。本站提倡支持正版影视与动漫。",
+		}
+		for k, v := range defaults {
+			if _, exists := settings[k]; !exists {
+				settings[k] = v
+			}
+		}
+		return map[string]any{"code": 1, "data": settings}, nil
+	})
 }
 
 func (srv *Server) handleAdminSaveSiteConfig(w http.ResponseWriter, r *http.Request) {
@@ -1020,25 +1039,25 @@ func (srv *Server) handleRankings(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	hotList, err := srv.store.GetHotVideos(ctx, typeID, limit)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	movies, _ := srv.store.GetHotVideos(ctx, 1, 10)
-	tv, _ := srv.store.GetHotVideos(ctx, 2, 10)
-	variety, _ := srv.store.GetHotVideos(ctx, 3, 10)
-	anime, _ := srv.store.GetHotVideos(ctx, 4, 10)
-
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"code":    1,
-		"top":     hotList,
-		"movies":  movies,
-		"tv":      tv,
-		"variety": variety,
-		"anime":   anime,
-	})
+	srv.serveCached(ctx, w, srv.sc.rankings, "t"+strconv.Itoa(typeID)+":l"+strconv.Itoa(limit),
+		func(ctx context.Context) (any, error) {
+			hotList, err := srv.store.GetHotVideos(ctx, typeID, limit)
+			if err != nil {
+				return nil, err
+			}
+			movies, _ := srv.store.GetHotVideos(ctx, 1, 10)
+			tv, _ := srv.store.GetHotVideos(ctx, 2, 10)
+			variety, _ := srv.store.GetHotVideos(ctx, 3, 10)
+			anime, _ := srv.store.GetHotVideos(ctx, 4, 10)
+			return map[string]any{
+				"code":    1,
+				"top":     hotList,
+				"movies":  movies,
+				"tv":      tv,
+				"variety": variety,
+				"anime":   anime,
+			}, nil
+		})
 }
 
 // 最近更新时间线 (公开)
@@ -1046,39 +1065,40 @@ func (srv *Server) handleLatest(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	typeID, _ := strconv.Atoi(r.URL.Query().Get("type_id"))
 
-	list, total, err := srv.store.QueryVideos(ctx, store.VideoQuery{
-		Page:      1,
-		PageSize:  60,
-		TypeID:    typeID,
-		OrderBy:   "updated_at",
-		OrderDesc: true,
-	})
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	todayDate := time.Now().Format("2006-01-02")
-	yesterdayDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-
-	var todayList, yesterdayList, earlierList []store.VideoRecord
-	for _, v := range list {
-		dStr := v.UpdatedAt.Format("2006-01-02")
-		if dStr == todayDate {
-			todayList = append(todayList, v)
-		} else if dStr == yesterdayDate {
-			yesterdayList = append(yesterdayList, v)
-		} else {
-			earlierList = append(earlierList, v)
+	srv.serveCached(ctx, w, srv.sc.latest, "t"+strconv.Itoa(typeID), func(ctx context.Context) (any, error) {
+		list, total, err := srv.store.QueryVideos(ctx, store.VideoQuery{
+			Page:      1,
+			PageSize:  60,
+			TypeID:    typeID,
+			OrderBy:   "updated_at",
+			OrderDesc: true,
+		})
+		if err != nil {
+			return nil, err
 		}
-	}
 
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"code":      1,
-		"total":     total,
-		"today":     todayList,
-		"yesterday": yesterdayList,
-		"earlier":   earlierList,
+		todayDate := time.Now().Format("2006-01-02")
+		yesterdayDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+		var todayList, yesterdayList, earlierList []store.VideoRecord
+		for _, v := range list {
+			dStr := v.UpdatedAt.Format("2006-01-02")
+			if dStr == todayDate {
+				todayList = append(todayList, v)
+			} else if dStr == yesterdayDate {
+				yesterdayList = append(yesterdayList, v)
+			} else {
+				earlierList = append(earlierList, v)
+			}
+		}
+
+		return map[string]any{
+			"code":      1,
+			"total":     total,
+			"today":     todayList,
+			"yesterday": yesterdayList,
+			"earlier":   earlierList,
+		}, nil
 	})
 }
 
