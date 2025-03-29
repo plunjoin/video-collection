@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 func TestEquippedAppearanceAppearsOnExistingPostsAndReplies(t *testing.T) {
