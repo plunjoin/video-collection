@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"video-collection-api/config"
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/ingest"
+	"video-collection-service/config"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/ingest"
 )
 
 func (srv *Server) registerCollectionRoutes(mux *http.ServeMux) {
