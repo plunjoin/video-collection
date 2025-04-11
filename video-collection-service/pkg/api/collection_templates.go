@@ -2,7 +2,7 @@ package api
 
 import (
 	"net/http"
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func (srv *Server) handleCollectionTemplates(w http.ResponseWriter, r *http.Request) {
