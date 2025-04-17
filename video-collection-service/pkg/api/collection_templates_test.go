@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func TestTemplatesAuthorizationReloadAndRulePersistence(t *testing.T) {
