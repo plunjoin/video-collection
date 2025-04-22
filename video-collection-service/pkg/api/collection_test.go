@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"video-collection-api/config"
-	"video-collection-api/pkg/ingest"
-	"video-collection-api/pkg/store"
+	"video-collection-service/config"
+	"video-collection-service/pkg/ingest"
+	"video-collection-service/pkg/store"
 )
 
 func TestCollectionUploadPreviewAndSave(t *testing.T) {
