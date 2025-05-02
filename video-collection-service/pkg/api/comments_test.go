@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 func (f *contentFixture) comment(kind string, id, parent int, u *store.User) store.Comment {
