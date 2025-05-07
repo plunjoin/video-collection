@@ -10,12 +10,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/store"
 )
 
 func (srv *Server) registerContentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/comments", srv.genericCommentsHandler(false))
+	mux.HandleFunc("/api/danmaku", srv.handleDanmaku)
 	mux.HandleFunc("/api/comments/likes", srv.handleCommentLike)
 	mux.HandleFunc("/api/admin/comments", auth.AdminRequired(srv.store, srv.genericCommentsHandler(true)))
 	mux.HandleFunc("/api/news", srv.contentHandler("news", false))
