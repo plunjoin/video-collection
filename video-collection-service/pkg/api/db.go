@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 // dbAdminStore 获取当前存储实现上的数据库管理能力
