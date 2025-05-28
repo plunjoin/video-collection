@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/store"
 )
 
 func growthError(w http.ResponseWriter, err error) {
@@ -33,7 +33,7 @@ func (srv *Server) userProfile(r *http.Request, u *store.User) map[string]any {
 	}
 	balance, _ := srv.store.PointsBalance(r.Context(), u.ID)
 	wallet := map[string]int{"balance": balance}
-	return map[string]any{"id": u.ID, "username": u.Username, "nickname": u.Nickname, "avatar": avatar, "role": u.Role, "decorations": d, "wallet": wallet, "backend_access": store.IsStaff(u.Role), "can_review": store.CanReview(u.Role)}
+	return map[string]any{"id": u.ID, "username": u.Username, "nickname": u.Nickname, "avatar": avatar, "profile_avatar": u.Avatar, "bio": u.Bio, "role": u.Role, "decorations": d, "wallet": wallet, "backend_access": store.IsStaff(u.Role), "can_review": store.CanReview(u.Role)}
 }
 
 // Called from every publication entry point, including public community/comments.
