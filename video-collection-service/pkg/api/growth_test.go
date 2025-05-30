@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/store"
 )
 
 func TestBearerLogoutDoesNotRevokeOtherCookieAccount(t *testing.T) {
