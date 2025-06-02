@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 	"time"
-	"video-collection-api/pkg/auth"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/store"
 )
 
 func (srv *Server) handleJourney(w http.ResponseWriter, r *http.Request) {
