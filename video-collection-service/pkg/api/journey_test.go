@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 func TestJourneyTasksAndGrowthAccounting(t *testing.T) {
