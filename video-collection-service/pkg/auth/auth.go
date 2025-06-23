@@ -5,13 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 const (
@@ -19,15 +20,20 @@ const (
 	SessionDuration = 7 * 24 * time.Hour
 )
 
+// Session 表示一次登录会话。结构体可 JSON 序列化，支持写入 Redis 实现分布式会话。
 type Session struct {
-	UserID    int
-	Username  string
-	Role      string
-	ExpiresAt time.Time
+	UserID    int       `json:"user_id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// SessionManager 会话管理器。
+// 默认使用进程内内存存储；通过 SetStore 可切换为 Redis（radix）分布式存储，
+// 支撑多实例部署与重启免登录，Redis 故障时自动降级回内存存储。
 type SessionManager struct {
 	mu       sync.RWMutex
+	store    SessionStore // 可选外置存储，nil 表示纯内存模式
 	sessions map[string]Session
 }
 
@@ -35,27 +41,61 @@ var DefaultSessionManager = &SessionManager{
 	sessions: make(map[string]Session),
 }
 
+// SetStore 切换外置会话存储（传入 nil 恢复纯内存模式）。实现见 session_store.go。
+func (sm *SessionManager) SetStore(s SessionStore) {
+	sm.mu.Lock()
+	sm.store = s
+	sm.mu.Unlock()
+}
+
+// CreateSession 为用户创建新会话并返回令牌。
 func (sm *SessionManager) CreateSession(user *store.User) string {
 	b := make([]byte, 24)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		log.Printf("[auth] 生成会话令牌失败: %v", err)
+		return ""
+	}
 	token := hex.EncodeToString(b)
 
-	sm.mu.Lock()
-	sm.sessions[token] = Session{
+	sess := Session{
 		UserID:    user.ID,
 		Username:  user.Username,
 		Role:      user.Role,
 		ExpiresAt: time.Now().Add(SessionDuration),
 	}
-	sm.mu.Unlock()
 
+	sm.mu.RLock()
+	store := sm.store
+	sm.mu.RUnlock()
+
+	if store != nil {
+		if err := store.Save(context.Background(), token, sess, time.Until(sess.ExpiresAt)); err == nil {
+			return token
+		} else {
+			log.Printf("[auth] 会话写入 Redis 失败，降级为内存存储: %v", err)
+		}
+	}
+
+	sm.mu.Lock()
+	sm.sessions[token] = sess
+	sm.mu.Unlock()
 	return token
 }
 
+// GetSession 查询会话；外置存储未命中时会回退查询内存（覆盖降级写入的场景）。
 func (sm *SessionManager) GetSession(token string) (Session, bool) {
 	sm.mu.RLock()
-	defer sm.mu.RUnlock()
+	store := sm.store
+	sm.mu.RUnlock()
 
+	if store != nil {
+		if sess, ok := store.Load(context.Background(), token); ok && time.Now().Before(sess.ExpiresAt) {
+			return sess, true
+		}
+	}
+
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
 	sess, ok := sm.sessions[token]
 	if !ok || time.Now().After(sess.ExpiresAt) {
 		return Session{}, false
@@ -63,7 +103,18 @@ func (sm *SessionManager) GetSession(token string) (Session, bool) {
 	return sess, true
 }
 
+// DeleteSession 销毁会话（同时清理外置存储与内存中的副本）。
 func (sm *SessionManager) DeleteSession(token string) {
+	sm.mu.RLock()
+	store := sm.store
+	sm.mu.RUnlock()
+
+	if store != nil {
+		if err := store.Delete(context.Background(), token); err != nil {
+			log.Printf("[auth] 从 Redis 删除会话失败: %v", err)
+		}
+	}
+
 	sm.mu.Lock()
 	delete(sm.sessions, token)
 	sm.mu.Unlock()
