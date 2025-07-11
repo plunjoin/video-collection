@@ -15,7 +15,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/andybalholm/cascadia"
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 type Sample struct {
