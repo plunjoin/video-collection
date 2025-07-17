@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/xuri/excelize/v2"
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func testSource(input string) config.SourceConfig {
