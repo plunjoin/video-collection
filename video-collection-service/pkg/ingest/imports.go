@@ -19,7 +19,7 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	"github.com/xuri/excelize/v2"
 	_ "modernc.org/sqlite"
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 var fileToken = regexp.MustCompile(`^[a-f0-9]{32}\.(xlsx|csv)$`)
