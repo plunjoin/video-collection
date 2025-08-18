@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 // Client 多协议多格式智能采集客户端
