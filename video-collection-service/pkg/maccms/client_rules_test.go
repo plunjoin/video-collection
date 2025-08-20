@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func TestConfiguredRequestAndNestedResponse(t *testing.T) {
