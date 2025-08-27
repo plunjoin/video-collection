@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 // ParseCustomJsonResponse 解析任意自定义结构的 JSON API
