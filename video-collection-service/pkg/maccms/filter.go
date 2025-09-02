@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 // FilterEngine 数据过滤与规则清洗执行器
