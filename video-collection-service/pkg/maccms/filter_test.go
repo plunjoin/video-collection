@@ -3,7 +3,7 @@ package maccms
 import (
 	"testing"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func TestFilterEngine(t *testing.T) {
