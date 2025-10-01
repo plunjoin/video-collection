@@ -11,9 +11,63 @@
     {
       "name": "Audit",
       "description": "后台操作记录"
+    },
+    {
+      "name": "Danmaku",
+      "description": "按剧集时间轴发送和读取弹幕"
     }
   ],
   "paths": {
+    "/api/danmaku": {
+      "get": {
+        "tags": ["Danmaku"],
+        "summary": "按剧集读取弹幕时间轴",
+        "parameters": [
+          { "name": "video_id", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "episode_key", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "按播放时间排序，最多 2000 条" } }
+      },
+      "post": {
+        "tags": ["Danmaku"],
+        "summary": "在当前播放时间发送弹幕",
+        "security": [{ "BearerAuth": [] }, { "CookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["video_id", "episode_key", "content"],
+                "properties": {
+                  "video_id": { "type": "integer" },
+                  "episode_key": { "type": "string" },
+                  "play_time_ms": { "type": "integer" },
+                  "mode": { "type": "integer", "description": "0 滚动，1 顶部，2 底部" },
+                  "color": { "type": "string" },
+                  "content": { "type": "string", "description": "1 到 40 个字" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "已发送" },
+          "400": { "description": "内容或颜色无效" },
+          "401": { "description": "未登录" },
+          "429": { "description": "发送过于频繁" }
+        }
+      },
+      "delete": {
+        "tags": ["Danmaku"],
+        "summary": "删除自己的弹幕，审核员可删除任意弹幕",
+        "security": [{ "BearerAuth": [] }, { "CookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "已删除" }, "403": { "description": "无权删除" } }
+      }
+    },
     "/api/user/points": {
       "get": {
         "summary": "我的余额、签到状态、规则和最近100笔流水",
@@ -1990,6 +2044,14 @@
           "avatar": {
             "type": "string",
             "example": "https://api.dicebear.com/7.x/identicon/svg?seed=admin"
+          },
+          "profile_avatar": {
+            "type": "string",
+            "description": "用户自己设置的头像。avatar 可能被已佩戴装扮覆盖。"
+          },
+          "bio": {
+            "type": "string",
+            "description": "个人简介，最多 80 个字"
           },
           "role": {
             "type": "string",
