@@ -3553,6 +3553,32 @@
           },
           "401": { "description": "未登录", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "更新当前用户的昵称、头像和个人简介",
+        "security": [{ "CookieAuth": [] }, { "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nickname"],
+                "properties": {
+                  "nickname": { "type": "string", "description": "1 到 20 个字" },
+                  "avatar": { "type": "string", "description": "http(s) 链接、站内路径，或空字符串" },
+                  "bio": { "type": "string", "description": "最多 80 个字" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "更新后的用户信息" },
+          "400": { "description": "资料不合法", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "未登录", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
       }
     },
     "/api/categories": {
