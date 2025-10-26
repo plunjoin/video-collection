@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 // Handler 网页 RSS 2.0 订阅服务处理器
