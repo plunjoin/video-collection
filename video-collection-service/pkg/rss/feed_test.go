@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"video-collection-api/pkg/maccms"
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/store"
 )
 
 type mockStore struct {
