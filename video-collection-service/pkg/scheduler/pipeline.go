@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"video-collection-api/config"
-	"video-collection-api/pkg/ingest"
-	"video-collection-api/pkg/maccms"
-	"video-collection-api/pkg/store"
+	"video-collection-service/config"
+	"video-collection-service/pkg/ingest"
+	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/store"
 )
 
 func (sc *Scheduler) runPipeline(ctx context.Context, src config.SourceConfig, prog *TaskProgress) {
