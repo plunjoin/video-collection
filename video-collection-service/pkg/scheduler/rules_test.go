@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-	"video-collection-api/config"
-	"video-collection-api/pkg/store"
+	"video-collection-service/config"
+	"video-collection-service/pkg/store"
 )
 
 func TestRuleCollectionRespectsLimitsAndSourceHours(t *testing.T) {
