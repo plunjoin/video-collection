@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"video-collection-api/config"
+	"video-collection-service/config"
 )
 
 func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
