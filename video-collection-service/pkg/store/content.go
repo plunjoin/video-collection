@@ -88,6 +88,9 @@ type ContentStore interface {
 	ReadNotifications(context.Context, int, []int, bool) (int64, error)
 	DeleteNotification(context.Context, int, int) error
 	SendNotification(context.Context, *Notification, []int, bool) (int64, error)
+	ListDanmaku(context.Context, int, string) ([]Danmaku, error)
+	AddDanmaku(context.Context, *Danmaku) error
+	DeleteDanmaku(context.Context, int, int, bool) error
 }
 
 // Both supported drivers accept numbered $n placeholders and RETURNING.
@@ -157,6 +160,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		return err
 	}
 	if err = migrateAnalytics(tx, id, timestamp); err != nil {
+		return err
+	}
+	if err = migrateDanmaku(tx, id, timestamp); err != nil {
 		return err
 	}
 	return tx.Commit()
