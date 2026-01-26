@@ -13,8 +13,8 @@ import (
 
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
-	"video-collection-api/config"
-	"video-collection-api/pkg/maccms"
+	"video-collection-service/config"
+	"video-collection-service/pkg/maccms"
 )
 
 type PostgresStore struct {
@@ -130,6 +130,7 @@ func (s *PostgresStore) initSchema() error {
 		password_hash VARCHAR(255) NOT NULL,
 		nickname VARCHAR(64) DEFAULT '',
 		avatar VARCHAR(255) DEFAULT '',
+		bio TEXT NOT NULL DEFAULT '',
 		role VARCHAR(20) NOT NULL DEFAULT 'user',
 		status INT NOT NULL DEFAULT 1,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -239,6 +240,7 @@ func (s *PostgresStore) initSchema() error {
 		return err
 	}
 	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS hits INT DEFAULT 0;")
+	_, _ = s.db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NOT NULL DEFAULT '';")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_hits ON videos(hits DESC);")
 	_, _ = s.db.Exec("ALTER TABLE user_history ADD COLUMN IF NOT EXISTS play_time INT DEFAULT 0;")
 	return nil
@@ -315,10 +317,10 @@ func (s *PostgresStore) InitDefaultCategories(ctx context.Context) error {
 func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	u := &User{}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, username, password_hash, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, password_hash, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users WHERE username = $1
 	`, username)
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -331,10 +333,10 @@ func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) 
 func (s *PostgresStore) GetUserByID(ctx context.Context, id int) (*User, error) {
 	u := &User{}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, username, password_hash, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, password_hash, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users WHERE id = $1
 	`, id)
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -346,7 +348,7 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id int) (*User, error) 
 
 func (s *PostgresStore) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, username, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users ORDER BY id ASC
 	`)
 	if err != nil {
@@ -357,7 +359,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context) ([]User, error) {
 	var list []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, u)
@@ -386,6 +388,13 @@ func (s *PostgresStore) UpdateUser(ctx context.Context, user *User) error {
 		UPDATE users SET nickname=$1, avatar=$2, role=$3, status=$4, updated_at=NOW()
 		WHERE id=$5
 	`, user.Nickname, user.Avatar, user.Role, user.Status, user.ID)
+	return err
+}
+
+func (s *PostgresStore) UpdateProfile(ctx context.Context, id int, nickname, avatar, bio string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE users SET nickname=$1, avatar=$2, bio=$3, updated_at=NOW() WHERE id=$4
+	`, nickname, avatar, bio, id)
 	return err
 }
 
