@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
-	"video-collection-api/config"
-	"video-collection-api/pkg/maccms"
+	"video-collection-service/config"
+	"video-collection-service/pkg/maccms"
 )
 
 type SQLiteStore struct {
@@ -79,6 +79,7 @@ func (s *SQLiteStore) initSchema() error {
 		password_hash TEXT NOT NULL,
 		nickname TEXT DEFAULT '',
 		avatar TEXT DEFAULT '',
+		bio TEXT NOT NULL DEFAULT '',
 		role TEXT NOT NULL DEFAULT 'user',
 		status INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -204,6 +205,7 @@ func (s *SQLiteStore) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE user_history ADD COLUMN play_time INTEGER DEFAULT 0;")
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_id TEXT DEFAULT '';")
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_name TEXT DEFAULT '';")
+	_, _ = s.db.Exec("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_play_sources_v_s_p ON play_sources(video_id, source_id, player_code);")
 	return nil
 }
@@ -279,10 +281,10 @@ func (s *SQLiteStore) InitDefaultCategories(ctx context.Context) error {
 func (s *SQLiteStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	u := &User{}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, username, password_hash, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, password_hash, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users WHERE username = ?
 	`, username)
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -295,10 +297,10 @@ func (s *SQLiteStore) GetUserByUsername(ctx context.Context, username string) (*
 func (s *SQLiteStore) GetUserByID(ctx context.Context, id int) (*User, error) {
 	u := &User{}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, username, password_hash, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, password_hash, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users WHERE id = ?
 	`, id)
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -310,7 +312,7 @@ func (s *SQLiteStore) GetUserByID(ctx context.Context, id int) (*User, error) {
 
 func (s *SQLiteStore) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, username, nickname, avatar, role, status, created_at, updated_at
+		SELECT id, username, nickname, avatar, bio, role, status, created_at, updated_at
 		FROM users ORDER BY id ASC
 	`)
 	if err != nil {
@@ -321,7 +323,7 @@ func (s *SQLiteStore) ListUsers(ctx context.Context) ([]User, error) {
 	var list []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, u)
@@ -361,6 +363,13 @@ func (s *SQLiteStore) UpdateUser(ctx context.Context, user *User) error {
 		UPDATE users SET nickname=?, avatar=?, role=?, status=?, updated_at=?
 		WHERE id=?
 	`, user.Nickname, user.Avatar, user.Role, user.Status, now, user.ID)
+	return err
+}
+
+func (s *SQLiteStore) UpdateProfile(ctx context.Context, id int, nickname, avatar, bio string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE users SET nickname=?, avatar=?, bio=?, updated_at=? WHERE id=?
+	`, nickname, avatar, bio, time.Now(), id)
 	return err
 }
 
