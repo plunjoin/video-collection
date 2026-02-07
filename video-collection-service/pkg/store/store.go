@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"video-collection-api/config"
-	"video-collection-api/pkg/maccms"
+	"video-collection-service/config"
+	"video-collection-service/pkg/maccms"
 )
 
 // User 系统用户模型
@@ -16,6 +16,7 @@ type User struct {
 	PasswordHash string    `json:"-"`
 	Nickname     string    `json:"nickname"`
 	Avatar       string    `json:"avatar"`
+	Bio          string    `json:"bio"`
 	Role         string    `json:"role"`   // "admin" 或 "user"
 	Status       int       `json:"status"` // 1 正常, 0 禁用
 	CreatedAt    time.Time `json:"created_at"`
@@ -207,6 +208,7 @@ type Store interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	CreateUser(ctx context.Context, user *User) error
 	UpdateUser(ctx context.Context, user *User) error
+	UpdateProfile(ctx context.Context, id int, nickname, avatar, bio string) error
 	DeleteUser(ctx context.Context, id int) error
 	InitDefaultAdmin(ctx context.Context) error
 
