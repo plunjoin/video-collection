@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"video-collection-api/pkg/store"
+	"video-collection-service/pkg/store"
 )
 
 // ThemeInfo 主题元信息
