@@ -15,7 +15,8 @@
 .app-main-container {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  overflow-x: hidden;
+  padding: 24px 28px 40px;
   background-color: var(--bg-color);
   position: relative;
 }
