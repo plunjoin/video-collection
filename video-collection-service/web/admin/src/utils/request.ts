@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { ElMessage } from 'element-plus'
+import { notify }  from '@/components/radix/feedback'
 import router from '@/router'
 
 const service: AxiosInstance = axios.create({
@@ -16,7 +16,7 @@ service.interceptors.request.use(
     const token = localStorage.getItem('admin_token')
     const user = JSON.parse(localStorage.getItem('admin_user') || 'null')
     if (user?.role === 'observer' && config.url?.startsWith('/api/admin/') && !['get', 'head'].includes(config.method || 'get')) {
-      ElMessage.warning('观察员只能查看，无法执行此操作')
+      notify('观察员只能查看，无法执行此操作', 'warning')
       return Promise.reject(new Error('观察员无操作权限'))
     }
     if (token) {
@@ -39,7 +39,7 @@ service.interceptors.response.use(
         return res
       } else {
         const errorMsg = res.error || res.msg || '操作失败'
-        ElMessage.error(errorMsg)
+        notify(errorMsg, 'error')
         return Promise.reject(new Error(errorMsg))
       }
     }
@@ -56,7 +56,7 @@ service.interceptors.response.use(
     }
 
     if (status === 401) {
-      ElMessage.error('登录状态已失效，请重新登录')
+      notify('登录状态已失效，请重新登录', 'error')
       localStorage.removeItem('admin_token')
       localStorage.removeItem('admin_user')
       if (router.currentRoute.value.path !== '/login') {
@@ -66,9 +66,9 @@ service.interceptors.response.use(
         })
       }
     } else if (status === 403) {
-      ElMessage.error(errorMsg || '无权访问此管理资源')
+      notify(errorMsg || '无权访问此管理资源', 'error')
     } else {
-      ElMessage.error(errorMsg)
+      notify(errorMsg, 'error')
     }
 
     return Promise.reject(error)
