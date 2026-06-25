@@ -1,33 +1,33 @@
 <template>
   <div class="community-page">
-    <el-card shadow="never" class="table-card">
+    <r-card shadow="never" class="table-card">
       <div class="table-header">
         <div class="header-left">
           <span class="page-title">同好社区内容管理</span>
           <span class="sub-desc">管理用户发布的社区帖子与评论，支持置顶、隐藏与违规内容清理</span>
         </div>
         <div class="header-right">
-          <el-button type="primary" @click="openPostDialog()">
-            <el-icon><Plus /></el-icon>发布官方帖
-          </el-button>
+          <r-button type="primary" @click="openPostDialog()">
+            <r-icon><Plus /></r-icon>发布官方帖
+          </r-button>
         </div>
       </div>
 
-      <el-tabs v-model="activeTab">
+      <r-tabs v-model="activeTab">
         <!-- 帖子管理 -->
-        <el-tab-pane label="帖子管理" name="posts">
+        <r-tab-pane label="帖子管理" name="posts">
           <div class="filter-bar">
-            <el-select
+            <r-select
               v-model="postFilter.status"
               placeholder="状态筛选"
               style="width: 120px"
               @change="handlePostFilterChange"
             >
-              <el-option label="全部状态" value="" />
-              <el-option label="已发布" value="published" />
-              <el-option label="已隐藏" value="hidden" />
-            </el-select>
-            <el-input
+              <r-option label="全部状态" value="" />
+              <r-option label="已发布" value="published" />
+              <r-option label="已隐藏" value="hidden" />
+            </r-select>
+            <r-input
               v-model="postFilter.keyword"
               placeholder="搜索帖子标题"
               style="width: 220px"
@@ -35,57 +35,57 @@
               @keyup.enter="handlePostFilterChange"
               @clear="handlePostFilterChange"
             />
-            <el-button @click="loadPosts" :loading="postsLoading">
-              <el-icon><RefreshRight /></el-icon>刷新
-            </el-button>
+            <r-button @click="loadPosts" :loading="postsLoading">
+              <r-icon><RefreshRight /></r-icon>刷新
+            </r-button>
           </div>
 
-          <el-table :data="posts" v-loading="postsLoading" border stripe style="width: 100%">
-            <el-table-column prop="id" label="ID" width="70" align="center" />
-            <el-table-column prop="title" label="帖子标题" min-width="220" show-overflow-tooltip>
+          <r-table :data="posts" v-loading="postsLoading" border stripe style="width: 100%">
+            <r-table-column prop="id" label="ID" width="70" align="center" />
+            <r-table-column prop="title" label="帖子标题" min-width="220" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="title-cell">
-                  <el-tag v-if="row.pinned" type="warning" size="small" effect="dark" class="pin-tag">置顶</el-tag>
+                  <r-tag v-if="row.pinned" type="warning" size="small" effect="dark" class="pin-tag">置顶</r-tag>
                   <span class="font-bold">{{ row.title }}</span>
                 </div>
               </template>
-            </el-table-column>
-            <el-table-column prop="category" label="分类" width="100" align="center">
+            </r-table-column>
+            <r-table-column prop="category" label="分类" width="100" align="center">
               <template #default="{ row }">
-                <el-tag v-if="row.category" type="info" effect="plain">{{ row.category }}</el-tag>
+                <r-tag v-if="row.category" type="info" effect="plain">{{ row.category }}</r-tag>
                 <span v-else class="text-gray-400">-</span>
               </template>
-            </el-table-column>
-            <el-table-column prop="author_name" label="发帖人" width="110" align="center">
+            </r-table-column>
+            <r-table-column prop="author_name" label="发帖人" width="110" align="center">
               <template #default="{ row }">
                 <span>{{ row.author_name || '-' }}</span>
               </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="90" align="center">
+            </r-table-column>
+            <r-table-column prop="status" label="状态" width="90" align="center">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'published' ? 'success' : 'danger'">
+                <r-tag :type="row.status === 'published' ? 'success' : 'danger'">
                   {{ row.status === 'published' ? '已发布' : '已隐藏' }}
-                </el-tag>
+                </r-tag>
               </template>
-            </el-table-column>
-            <el-table-column prop="like_count" label="点赞" width="70" align="center" />
-            <el-table-column prop="comment_count" label="评论" width="70" align="center" />
-            <el-table-column prop="created_at" label="发布时间" width="160" align="center">
+            </r-table-column>
+            <r-table-column prop="like_count" label="点赞" width="70" align="center" />
+            <r-table-column prop="comment_count" label="评论" width="70" align="center" />
+            <r-table-column prop="created_at" label="发布时间" width="160" align="center">
               <template #default="{ row }">
                 <span class="date-text">{{ formatDate(row.created_at) }}</span>
               </template>
-            </el-table-column>
-            <el-table-column label="操作" width="240" align="center" fixed="right">
+            </r-table-column>
+            <r-table-column label="操作" width="240" align="center" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" type="primary" plain @click="openPostDialog(row)">编辑</el-button>
-                <el-button size="small" type="warning" plain @click="viewComments(row)">评论</el-button>
-                <el-button size="small" type="danger" plain @click="handleDeletePost(row)">删除</el-button>
+                <r-button size="small" type="primary" plain @click="openPostDialog(row)">编辑</r-button>
+                <r-button size="small" type="warning" plain @click="viewComments(row)">评论</r-button>
+                <r-button size="small" type="danger" plain @click="handleDeletePost(row)">删除</r-button>
               </template>
-            </el-table-column>
-          </el-table>
+            </r-table-column>
+          </r-table>
 
           <div class="pagination-wrap" v-if="postsTotal > postsPageSize">
-            <el-pagination
+            <r-pagination
               v-model:current-page="postsPage"
               :total="postsTotal"
               :page-size="postsPageSize"
@@ -93,45 +93,45 @@
               @current-change="loadPosts"
             />
           </div>
-        </el-tab-pane>
+        </r-tab-pane>
 
         <!-- 评论管理 -->
-        <el-tab-pane label="评论管理" name="comments">
+        <r-tab-pane label="评论管理" name="comments">
           <div class="filter-bar">
             <span class="filter-label">帖子 ID：</span>
-            <el-input-number v-model="commentPostId" :min="1" :controls="false" style="width: 120px" placeholder="帖子ID" />
-            <el-button type="primary" plain :disabled="!commentPostId" @click="loadComments">
+            <r-input-number v-model="commentPostId" :min="1" :controls="false" style="width: 120px" placeholder="帖子ID" />
+            <r-button type="primary" plain :disabled="!commentPostId" @click="loadComments">
               查询评论
-            </el-button>
+            </r-button>
             <span class="filter-tip">提示：可在“帖子管理”中点击某行的“评论”按钮快速跳转</span>
           </div>
 
           <template v-if="commentsLoaded">
-            <el-table :data="comments" v-loading="commentsLoading" border stripe style="width: 100%">
-              <el-table-column prop="id" label="ID" width="70" align="center" />
-              <el-table-column prop="post_id" label="所属帖子" width="90" align="center" />
-              <el-table-column prop="author_name" label="评论人" width="110" align="center">
+            <r-table :data="comments" v-loading="commentsLoading" border stripe style="width: 100%">
+              <r-table-column prop="id" label="ID" width="70" align="center" />
+              <r-table-column prop="post_id" label="所属帖子" width="90" align="center" />
+              <r-table-column prop="author_name" label="评论人" width="110" align="center">
                 <template #default="{ row }">
                   <span>{{ row.author_name || '-' }}</span>
                 </template>
-              </el-table-column>
-              <el-table-column prop="content" label="评论内容" min-width="280" show-overflow-tooltip />
-              <el-table-column prop="like_count" label="点赞" width="70" align="center" />
-              <el-table-column prop="reply_count" label="回复" width="70" align="center" />
-              <el-table-column prop="created_at" label="评论时间" width="160" align="center">
+              </r-table-column>
+              <r-table-column prop="content" label="评论内容" min-width="280" show-overflow-tooltip />
+              <r-table-column prop="like_count" label="点赞" width="70" align="center" />
+              <r-table-column prop="reply_count" label="回复" width="70" align="center" />
+              <r-table-column prop="created_at" label="评论时间" width="160" align="center">
                 <template #default="{ row }">
                   <span class="date-text">{{ formatDate(row.created_at) }}</span>
                 </template>
-              </el-table-column>
-              <el-table-column label="操作" width="100" align="center" fixed="right">
+              </r-table-column>
+              <r-table-column label="操作" width="100" align="center" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" type="danger" plain @click="handleDeleteComment(row)">删除</el-button>
+                  <r-button size="small" type="danger" plain @click="handleDeleteComment(row)">删除</r-button>
                 </template>
-              </el-table-column>
-            </el-table>
+              </r-table-column>
+            </r-table>
 
             <div class="pagination-wrap" v-if="commentsTotal > commentsPageSize">
-              <el-pagination
+              <r-pagination
                 v-model:current-page="commentsPage"
                 :total="commentsTotal"
                 :page-size="commentsPageSize"
@@ -141,28 +141,28 @@
             </div>
           </template>
           <div v-else class="empty-tip">
-            <el-empty description="输入帖子 ID 查询该帖下的全部评论" :image-size="90" />
+            <r-empty description="输入帖子 ID 查询该帖下的全部评论" :image-size="90" />
           </div>
-        </el-tab-pane>
-      </el-tabs>
-    </el-card>
+        </r-tab-pane>
+      </r-tabs>
+    </r-card>
 
     <!-- 帖子新增/编辑对话框 -->
-    <el-dialog
+    <r-dialog
       v-model="postDialogVisible"
       :title="editingPostId ? `编辑帖子 #${editingPostId}` : '发布官方帖'"
       width="720px"
       top="6vh"
     >
-      <el-form ref="postFormRef" :model="postForm" :rules="postFormRules" label-width="90px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="postForm.title" maxlength="200" show-word-limit placeholder="帖子标题 (最多200字)" />
-        </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-input v-model="postForm.category" maxlength="50" placeholder="如：推荐 / 吐槽 / 求助 / 官方公告" />
-        </el-form-item>
-        <el-form-item label="摘要" prop="summary">
-          <el-input
+      <r-form ref="postFormRef" :model="postForm" :rules="postFormRules" label-width="90px">
+        <r-form-item label="标题" prop="title">
+          <r-input v-model="postForm.title" maxlength="200" show-word-limit placeholder="帖子标题 (最多200字)" />
+        </r-form-item>
+        <r-form-item label="分类" prop="category">
+          <r-input v-model="postForm.category" maxlength="50" placeholder="如：推荐 / 吐槽 / 求助 / 官方公告" />
+        </r-form-item>
+        <r-form-item label="摘要" prop="summary">
+          <r-input
             v-model="postForm.summary"
             type="textarea"
             :rows="2"
@@ -170,9 +170,9 @@
             show-word-limit
             placeholder="列表页展示的简短摘要 (最多1000字)"
           />
-        </el-form-item>
-        <el-form-item label="正文" prop="content">
-          <el-input
+        </r-form-item>
+        <r-form-item label="正文" prop="content">
+          <r-input
             v-model="postForm.content"
             type="textarea"
             :rows="10"
@@ -180,22 +180,22 @@
             show-word-limit
             placeholder="纯文本内容，保留换行 (最多50000字)"
           />
-        </el-form-item>
-        <el-form-item label="显示状态">
-          <el-radio-group v-model="postForm.status">
-            <el-radio value="published">公开显示</el-radio>
-            <el-radio value="hidden">隐藏 (仅管理可见)</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="置顶推荐">
-          <el-switch v-model="postForm.pinned" active-text="置顶显示" inactive-text="常规排序" />
-        </el-form-item>
-      </el-form>
+        </r-form-item>
+        <r-form-item label="显示状态">
+          <r-radio-group v-model="postForm.status">
+            <r-radio value="published">公开显示</r-radio>
+            <r-radio value="hidden">隐藏 (仅管理可见)</r-radio>
+          </r-radio-group>
+        </r-form-item>
+        <r-form-item label="置顶推荐">
+          <r-switch v-model="postForm.pinned" active-text="置顶显示" inactive-text="常规排序" />
+        </r-form-item>
+      </r-form>
       <template #footer>
-        <el-button @click="postDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitPostForm">保存</el-button>
+        <r-button @click="postDialogVisible = false">取消</r-button>
+        <r-button type="primary" :loading="submitting" @click="submitPostForm">保存</r-button>
       </template>
-    </el-dialog>
+    </r-dialog>
   </div>
 </template>
 
@@ -203,8 +203,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getPostList, savePost, deletePost, getCommentList, deleteComment } from '@/api/content'
 import type { ContentItem, CommunityCommentItem } from '@/types'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, RefreshRight } from '@element-plus/icons-vue'
+import { notify, confirmAction } from '@/components/radix/feedback'
+import type { FormInstance, FormRules }  from '@/components/radix/types'
+import { Plus, RefreshRight } from '@/components/radix/icons'
 
 // ========== 帖子管理 ==========
 const postsLoading = ref(false)
@@ -306,11 +307,11 @@ const submitPostForm = async () => {
     try {
       const res = await savePost({ ...postForm })
       if (res.code === 1) {
-        ElMessage.success(res.msg || '保存成功')
+        notify(res.msg || '保存成功', 'success')
         postDialogVisible.value = false
         loadPosts()
       } else {
-        ElMessage.error(res.error || res.msg || '保存失败')
+        notify(res.error || res.msg || '保存失败', 'error')
       }
     } finally {
       submitting.value = false
@@ -319,17 +320,17 @@ const submitPostForm = async () => {
 }
 
 const handleDeletePost = (row: ContentItem) => {
-  ElMessageBox.confirm(`确定要删除帖子 [${row.title}] 吗？帖子下的评论将一并清理。`, '删除确认', {
+  confirmAction(`确定要删除帖子 [${row.title}] 吗？帖子下的评论将一并清理。`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     const res = await deletePost(row.id)
     if (res.code === 1) {
-      ElMessage.success('已删除帖子')
+      notify('已删除帖子', 'success')
       loadPosts()
     } else {
-      ElMessage.error(res.error || res.msg || '删除失败')
+      notify(res.error || res.msg || '删除失败', 'error')
     }
   }).catch(() => {})
 }
@@ -344,7 +345,7 @@ const viewComments = (row: ContentItem) => {
 
 const loadComments = async () => {
   if (!commentPostId.value) {
-    ElMessage.warning('请先输入要查询的帖子 ID')
+    notify('请先输入要查询的帖子 ID', 'warning')
     return
   }
   commentsLoading.value = true
@@ -365,17 +366,17 @@ const loadComments = async () => {
 }
 
 const handleDeleteComment = (row: CommunityCommentItem) => {
-  ElMessageBox.confirm(`确定要删除该条评论吗？内容：${row.content.substring(0, 40)}${row.content.length > 40 ? '…' : ''}`, '删除确认', {
+  confirmAction(`确定要删除该条评论吗？内容：${row.content.substring(0, 40)}${row.content.length > 40 ? '…' : ''}`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     const res = await deleteComment(row.id)
     if (res.code === 1) {
-      ElMessage.success('已删除评论')
+      notify('已删除评论', 'success')
       loadComments()
     } else {
-      ElMessage.error(res.error || res.msg || '删除失败')
+      notify(res.error || res.msg || '删除失败', 'error')
     }
   }).catch(() => {})
 }
