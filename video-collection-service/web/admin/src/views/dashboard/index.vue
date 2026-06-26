@@ -1,55 +1,55 @@
 <template>
   <div class="dashboard-container">
     <!-- 1. 核心数据指标卡片 -->
-    <el-row :gutter="16" class="stats-row">
-      <el-col :xs="12" :sm="8" :md="4" v-for="item in statCards" :key="item.key">
-        <el-card shadow="hover" class="stat-card" :body-style="{ padding: '16px' }">
+    <r-row :gutter="16" class="stats-row">
+      <r-col :xs="12" :sm="8" :md="4" v-for="item in statCards" :key="item.key">
+        <r-card shadow="hover" class="stat-card" :body-style="{ padding: '16px' }">
           <div class="card-header">
             <span class="card-label">{{ item.label }}</span>
             <div class="card-icon" :style="{ background: item.iconBg, color: item.iconColor }">
-              <el-icon><component :is="item.icon" /></el-icon>
+              <r-icon><component :is="item.icon" /></r-icon>
             </div>
           </div>
           <div class="card-value">
             <span class="num">{{ stats[item.key] ?? 0 }}</span>
             <span v-if="item.sub" class="sub-badge">{{ item.sub }}</span>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </r-card>
+      </r-col>
+    </r-row>
 
     <!-- 2. 快捷操作栏 & 采集调度状态 -->
-    <el-card shadow="never" class="section-card quick-actions-card">
+    <r-card shadow="never" class="section-card quick-actions-card">
       <div class="action-header">
         <div class="title-wrap">
-          <el-icon class="title-icon"><Lightning /></el-icon>
+          <r-icon class="title-icon"><Lightning /></r-icon>
           <span class="title-text">快速调度与即时操作</span>
         </div>
         <div class="action-buttons">
-          <el-button type="primary" :loading="collectingAll" @click="handleCollectAll(24)">
-            <el-icon><Refresh /></el-icon>全网近24小时增量采集
-          </el-button>
-          <el-button type="warning" plain :loading="collectingAll" @click="handleCollectAll(0)">
-            <el-icon><Download /></el-icon>全网历史全量采集
-          </el-button>
-          <el-button @click="$router.push('/sources')">
-            <el-icon><Plus /></el-icon>添加采集点
-          </el-button>
+          <r-button type="primary" :loading="collectingAll" @click="handleCollectAll(24)">
+            <r-icon><Refresh /></r-icon>全网近24小时增量采集
+          </r-button>
+          <r-button type="warning" plain :loading="collectingAll" @click="handleCollectAll(0)">
+            <r-icon><Download /></r-icon>全网历史全量采集
+          </r-button>
+          <r-button @click="$router.push('/sources')">
+            <r-icon><Plus /></r-icon>添加采集点
+          </r-button>
         </div>
       </div>
-    </el-card>
+    </r-card>
 
     <!-- 3. 采集源即时状态与图表分布 -->
-    <el-row :gutter="16" class="content-row">
+    <r-row :gutter="16" class="content-row">
       <!-- 采集点即时触发列表 -->
-      <el-col :xs="24" :lg="14">
-        <el-card shadow="never" class="section-card">
+      <r-col :xs="24" :lg="14">
+        <r-card shadow="never" class="section-card">
           <template #header>
             <div class="card-title-bar">
               <span class="title">活跃采集点与即时触发</span>
-              <el-button link type="primary" @click="$router.push('/sources')">
+              <r-button link type="primary" @click="$router.push('/sources')">
                 管理采集点 &rarr;
-              </el-button>
+              </r-button>
             </div>
           </template>
 
@@ -59,15 +59,15 @@
               <div class="source-info">
                 <div class="name-row">
                   <span class="name">{{ src.name }}</span>
-                  <el-tag size="small" :type="src.active ? 'success' : 'info'">
+                  <r-tag size="small" :type="src.active ? 'success' : 'info'">
                     {{ src.active ? '启用中' : '已停用' }}
-                  </el-tag>
-                  <el-tag size="small" type="warning" effect="plain">{{ src.type.toUpperCase() }}</el-tag>
+                  </r-tag>
+                  <r-tag size="small" type="warning" effect="plain">{{ src.type.toUpperCase() }}</r-tag>
                 </div>
                 <div class="api-url" :title="src.api">{{ src.api }}</div>
               </div>
               <div class="source-ops">
-                <el-button
+                <r-button
                   size="small"
                   type="primary"
                   plain
@@ -75,8 +75,8 @@
                   @click="handleTrigger(src.id, 24)"
                 >
                   增量采集
-                </el-button>
-                <el-button
+                </r-button>
+                <r-button
                   size="small"
                   type="warning"
                   plain
@@ -84,22 +84,22 @@
                   @click="handleTrigger(src.id, 0)"
                 >
                   全量补全
-                </el-button>
+                </r-button>
               </div>
             </div>
           </div>
-        </el-card>
-      </el-col>
+        </r-card>
+      </r-col>
 
       <!-- 系统状态与分类概览 -->
-      <el-col :xs="24" :lg="10">
-        <el-card shadow="never" class="section-card">
+      <r-col :xs="24" :lg="10">
+        <r-card shadow="never" class="section-card">
           <template #header>
             <div class="card-title-bar">
               <span class="title">分类视频分布概览</span>
-              <el-button link type="primary" @click="$router.push('/videos')">
+              <r-button link type="primary" @click="$router.push('/videos')">
                 视频仓库 &rarr;
-              </el-button>
+              </r-button>
             </div>
           </template>
 
@@ -122,15 +122,15 @@
               </div>
               <div class="sys-item">
                 <span class="label">OpenAPI 规范：</span>
-                <el-link type="primary" href="/openapi.json" target="_blank">
+                <r-link type="primary" href="/openapi.json" target="_blank">
                   v3.0.0 规范 JSON
-                </el-link>
+                </r-link>
               </div>
             </div>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </r-card>
+      </r-col>
+    </r-row>
   </div>
 </template>
 
@@ -144,7 +144,7 @@ import {
 } from '@/api/admin'
 import { getCategories } from '@/api/videos'
 import type { AdminStats, SourceConfig, Category } from '@/types'
-import { ElMessage } from 'element-plus'
+import { notify }  from '@/components/radix/feedback'
 import {
   Connection,
   Film,
@@ -156,7 +156,7 @@ import {
   Refresh,
   Download,
   Plus
-} from '@element-plus/icons-vue'
+} from '@/components/radix/icons'
 
 const stats = ref<Partial<AdminStats>>({})
 const sources = ref<SourceConfig[]>([])
@@ -253,7 +253,7 @@ const handleTrigger = async (sourceId: string, hours: number) => {
   try {
     const res = await triggerCollect(sourceId, hours)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '采集任务已在后台启动')
+      notify(res.msg || '采集任务已在后台启动', 'success')
       loadStats()
     }
   } catch (e) {
@@ -267,7 +267,7 @@ const handleCollectAll = async (hours: number) => {
   try {
     const res = await triggerCollectAll(hours)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '全网并发采集任务已启动')
+      notify(res.msg || '全网并发采集任务已启动', 'success')
       loadStats()
     }
   } catch (e) {
