@@ -1,23 +1,23 @@
 <template>
   <div class="news-page">
-    <el-card shadow="never" class="table-card">
+    <r-card shadow="never" class="table-card">
       <div class="table-header">
         <div class="header-left">
           <span class="page-title">动漫资讯内容管理</span>
           <span class="sub-desc">发布与维护前台资讯频道文章，支持草稿/发布状态与置顶推荐</span>
         </div>
         <div class="header-right">
-          <el-select
+          <r-select
             v-model="filterStatus"
             placeholder="状态筛选"
             style="width: 120px"
             @change="handleFilterChange"
           >
-            <el-option label="全部状态" value="" />
-            <el-option label="已发布" value="published" />
-            <el-option label="草稿箱" value="draft" />
-          </el-select>
-          <el-input
+            <r-option label="全部状态" value="" />
+            <r-option label="已发布" value="published" />
+            <r-option label="草稿箱" value="draft" />
+          </r-select>
+          <r-input
             v-model="keyword"
             placeholder="搜索标题/摘要"
             style="width: 200px"
@@ -25,20 +25,20 @@
             @keyup.enter="handleFilterChange"
             @clear="handleFilterChange"
           />
-          <el-button type="primary" @click="openDialog()">
-            <el-icon><Plus /></el-icon>新增资讯
-          </el-button>
-          <el-button @click="loadData" :loading="loading">
-            <el-icon><RefreshRight /></el-icon>刷新
-          </el-button>
+          <r-button type="primary" @click="openDialog()">
+            <r-icon><Plus /></r-icon>新增资讯
+          </r-button>
+          <r-button @click="loadData" :loading="loading">
+            <r-icon><RefreshRight /></r-icon>刷新
+          </r-button>
         </div>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="70" align="center" />
-        <el-table-column label="封面" width="90" align="center">
+      <r-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+        <r-table-column prop="id" label="ID" width="70" align="center" />
+        <r-table-column label="封面" width="90" align="center">
           <template #default="{ row }">
-            <el-image
+            <r-image
               v-if="row.cover"
               :src="row.cover"
               :preview-src-list="[row.cover]"
@@ -49,52 +49,52 @@
               <template #error>
                 <div class="cover-fallback">无图</div>
               </template>
-            </el-image>
+            </r-image>
             <div v-else class="cover-fallback">无图</div>
           </template>
-        </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
+        </r-table-column>
+        <r-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="title-cell">
-              <el-tag v-if="row.pinned" type="warning" size="small" effect="dark" class="pin-tag">置顶</el-tag>
+              <r-tag v-if="row.pinned" type="warning" size="small" effect="dark" class="pin-tag">置顶</r-tag>
               <span class="font-bold">{{ row.title }}</span>
             </div>
           </template>
-        </el-table-column>
-        <el-table-column prop="category" label="分类" width="110" align="center">
+        </r-table-column>
+        <r-table-column prop="category" label="分类" width="110" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.category" type="info" effect="plain">{{ row.category }}</el-tag>
+            <r-tag v-if="row.category" type="info" effect="plain">{{ row.category }}</r-tag>
             <span v-else class="text-gray-400">-</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="author_name" label="作者" width="110" align="center">
+        </r-table-column>
+        <r-table-column prop="author_name" label="作者" width="110" align="center">
           <template #default="{ row }">
             <span>{{ row.author_name || '-' }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="95" align="center">
+        </r-table-column>
+        <r-table-column prop="status" label="状态" width="95" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'published' ? 'success' : 'info'">
+            <r-tag :type="row.status === 'published' ? 'success' : 'info'">
               {{ row.status === 'published' ? '已发布' : '草稿' }}
-            </el-tag>
+            </r-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="like_count" label="点赞" width="75" align="center" />
-        <el-table-column prop="created_at" label="发布时间" width="160" align="center">
+        </r-table-column>
+        <r-table-column prop="like_count" label="点赞" width="75" align="center" />
+        <r-table-column prop="created_at" label="发布时间" width="160" align="center">
           <template #default="{ row }">
             <span class="date-text">{{ formatDate(row.created_at) }}</span>
           </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" align="center" fixed="right">
+        </r-table-column>
+        <r-table-column label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            <r-button size="small" type="primary" plain @click="openDialog(row)">编辑</r-button>
+            <r-button size="small" type="danger" plain @click="handleDelete(row)">删除</r-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </r-table-column>
+      </r-table>
 
       <div class="pagination-wrap" v-if="total > pageSize">
-        <el-pagination
+        <r-pagination
           v-model:current-page="page"
           :total="total"
           :page-size="pageSize"
@@ -102,27 +102,27 @@
           @current-change="loadData"
         />
       </div>
-    </el-card>
+    </r-card>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog
+    <r-dialog
       v-model="dialogVisible"
       :title="editingId ? `编辑资讯 #${editingId}` : '新增资讯'"
       width="720px"
       top="6vh"
     >
-      <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" maxlength="200" show-word-limit placeholder="资讯标题 (最多200字)" />
-        </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-input v-model="form.category" maxlength="50" placeholder="如：新番情报 / 制作动态 / 行业新闻" />
-        </el-form-item>
-        <el-form-item label="封面图" prop="cover">
-          <el-input v-model="form.cover" placeholder="http(s):// 开头的图片地址，留空则不显示封面" />
-        </el-form-item>
-        <el-form-item label="摘要" prop="summary">
-          <el-input
+      <r-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
+        <r-form-item label="标题" prop="title">
+          <r-input v-model="form.title" maxlength="200" show-word-limit placeholder="资讯标题 (最多200字)" />
+        </r-form-item>
+        <r-form-item label="分类" prop="category">
+          <r-input v-model="form.category" maxlength="50" placeholder="如：新番情报 / 制作动态 / 行业新闻" />
+        </r-form-item>
+        <r-form-item label="封面图" prop="cover">
+          <r-input v-model="form.cover" placeholder="http(s):// 开头的图片地址，留空则不显示封面" />
+        </r-form-item>
+        <r-form-item label="摘要" prop="summary">
+          <r-input
             v-model="form.summary"
             type="textarea"
             :rows="2"
@@ -130,9 +130,9 @@
             show-word-limit
             placeholder="列表页展示的简短摘要 (最多1000字)"
           />
-        </el-form-item>
-        <el-form-item label="正文" prop="content">
-          <el-input
+        </r-form-item>
+        <r-form-item label="正文" prop="content">
+          <r-input
             v-model="form.content"
             type="textarea"
             :rows="12"
@@ -140,22 +140,22 @@
             show-word-limit
             placeholder="纯文本内容，保留换行 (最多50000字)"
           />
-        </el-form-item>
-        <el-form-item label="发布状态">
-          <el-radio-group v-model="form.status">
-            <el-radio value="published">{{ isOperator ? '审核后发布' : '立即发布' }}</el-radio>
-            <el-radio value="draft">存为草稿</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="置顶推荐">
-          <el-switch v-model="form.pinned" active-text="置顶显示" inactive-text="常规排序" />
-        </el-form-item>
-      </el-form>
+        </r-form-item>
+        <r-form-item label="发布状态">
+          <r-radio-group v-model="form.status">
+            <r-radio value="published">{{ isOperator ? '审核后发布' : '立即发布' }}</r-radio>
+            <r-radio value="draft">存为草稿</r-radio>
+          </r-radio-group>
+        </r-form-item>
+        <r-form-item label="置顶推荐">
+          <r-switch v-model="form.pinned" active-text="置顶显示" inactive-text="常规排序" />
+        </r-form-item>
+      </r-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">{{ isOperator ? '提交审核' : '保存' }}</el-button>
+        <r-button @click="dialogVisible = false">取消</r-button>
+        <r-button type="primary" :loading="submitting" @click="submitForm">{{ isOperator ? '提交审核' : '保存' }}</r-button>
       </template>
-    </el-dialog>
+    </r-dialog>
   </div>
 </template>
 
@@ -164,8 +164,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { getNewsList, saveNews, deleteNews } from '@/api/content'
 import type { ContentItem } from '@/types'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, RefreshRight } from '@element-plus/icons-vue'
+import { notify, confirmAction } from '@/components/radix/feedback'
+import type { FormInstance, FormRules }  from '@/components/radix/types'
+import { Plus, RefreshRight } from '@/components/radix/icons'
 
 const loading = ref(false)
 const userStore = useUserStore()
@@ -256,18 +257,18 @@ const submitForm = async () => {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     if (form.cover && !/^https?:\/\/.+/.test(form.cover)) {
-      ElMessage.warning('封面必须为 http 或 https 开头的 URL')
+      notify('封面必须为 http 或 https 开头的 URL', 'warning')
       return
     }
     submitting.value = true
     try {
       const res = await saveNews({ ...form })
       if (res.code === 1) {
-        ElMessage.success(res.msg || '保存成功')
+        notify(res.msg || '保存成功', 'success')
         dialogVisible.value = false
         loadData()
       } else {
-        ElMessage.error(res.error || res.msg || '保存失败')
+        notify(res.error || res.msg || '保存失败', 'error')
       }
     } finally {
       submitting.value = false
@@ -276,17 +277,17 @@ const submitForm = async () => {
 }
 
 const handleDelete = (row: ContentItem) => {
-  ElMessageBox.confirm(`确定要删除资讯 [${row.title}] 吗？删除后前台将不可见。`, '删除确认', {
+  confirmAction(`确定要删除资讯 [${row.title}] 吗？删除后前台将不可见。`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     const res = await deleteNews(row.id)
     if (res.code === 1) {
-      ElMessage.success('已删除资讯')
+      notify('已删除资讯', 'success')
       loadData()
     } else {
-      ElMessage.error(res.error || res.msg || '删除失败')
+      notify(res.error || res.msg || '删除失败', 'error')
     }
   }).catch(() => {})
 }
