@@ -1,24 +1,24 @@
 <template>
   <div class="scheduler-page">
-    <el-row :gutter="16">
+    <r-row :gutter="16">
       <!-- 状态概览卡片 -->
-      <el-col :xs="24" :md="10">
-        <el-card shadow="never" class="status-card">
+      <r-col :xs="24" :md="10">
+        <r-card shadow="never" class="status-card">
           <template #header>
             <div class="card-header">
               <span class="card-title">定时调度引擎状态</span>
-              <el-tag :type="statusData.running ? 'danger' : 'success'">
+              <r-tag :type="statusData.running ? 'danger' : 'success'">
                 {{ statusData.running ? '正在采集运行中' : '空闲待命' }}
-              </el-tag>
+              </r-tag>
             </div>
           </template>
 
           <div class="status-content" v-loading="loading">
             <div class="status-item">
               <span class="label">自动采集服务：</span>
-              <el-tag :type="statusData.enabled ? 'success' : 'info'">
+              <r-tag :type="statusData.enabled ? 'success' : 'info'">
                 {{ statusData.enabled ? '已开启' : '已暂停' }}
-              </el-tag>
+              </r-tag>
             </div>
             <div class="status-item">
               <span class="label">执行周期频率：</span>
@@ -33,62 +33,62 @@
               <span class="val">{{ formatDate(statusData.last_run_time) }}</span>
             </div>
 
-            <el-divider />
+            <r-divider />
 
             <div class="quick-manual">
               <span class="manual-title">即时手动触发：</span>
               <div class="btns">
-                <el-button type="primary" :loading="triggering" @click="handleManualTrigger(24)">
+                <r-button type="primary" :loading="triggering" @click="handleManualTrigger(24)">
                   即时增量采集 (24h)
-                </el-button>
-                <el-button type="warning" plain :loading="triggering" @click="handleManualTrigger(0)">
+                </r-button>
+                <r-button type="warning" plain :loading="triggering" @click="handleManualTrigger(0)">
                   即时全量采集 (0h)
-                </el-button>
+                </r-button>
               </div>
             </div>
           </div>
-        </el-card>
-      </el-col>
+        </r-card>
+      </r-col>
 
       <!-- 调度配置表单 -->
-      <el-col :xs="24" :md="14">
-        <el-card shadow="never" class="config-card">
+      <r-col :xs="24" :md="14">
+        <r-card shadow="never" class="config-card">
           <template #header>
             <span class="card-title">自动采集计划参数配置</span>
           </template>
 
-          <el-form :model="form" label-width="140px" class="config-form">
-            <el-form-item label="开启自动定时采集">
-              <el-switch
+          <r-form :model="form" label-width="140px" class="config-form">
+            <r-form-item label="开启自动定时采集">
+              <r-switch
                 v-model="form.enabled"
                 active-text="启用后台定时巡检"
                 inactive-text="关闭"
               />
-            </el-form-item>
+            </r-form-item>
 
-            <el-form-item label="巡检执行周期">
-              <el-input-number
+            <r-form-item label="巡检执行周期">
+              <r-input-number
                 v-model="form.interval_hours"
                 :min="1"
                 :max="72"
                 :step="1"
               />
               <span class="unit-text">小时 / 次（推荐 2 小时）</span>
-            </el-form-item>
+            </r-form-item>
 
-            <el-form-item label="增量策略模式">
-              <el-radio-group v-model="collectMode">
-                <el-radio value="24">智能增量 (仅同步近24小时有更新的影视)</el-radio>
-              </el-radio-group>
-            </el-form-item>
+            <r-form-item label="增量策略模式">
+              <r-radio-group v-model="collectMode">
+                <r-radio value="24">智能增量 (仅同步近24小时有更新的影视)</r-radio>
+              </r-radio-group>
+            </r-form-item>
 
-            <el-form-item>
-              <el-button type="primary" :loading="saving" @click="saveConfig">
+            <r-form-item>
+              <r-button type="primary" :loading="saving" @click="saveConfig">
                 保存定时配置
-              </el-button>
-              <el-button @click="loadStatus">重置表单</el-button>
-            </el-form-item>
-          </el-form>
+              </r-button>
+              <r-button @click="loadStatus">重置表单</r-button>
+            </r-form-item>
+          </r-form>
 
           <div class="cron-tips">
             <h4 class="tips-title">💡 调度运行机制说明：</h4>
@@ -98,9 +98,9 @@
               <li>采集过程中会自动进行去重清洗、智能线路合并、剧集更新比对。</li>
             </ul>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </r-card>
+      </r-col>
+    </r-row>
   </div>
 </template>
 
@@ -108,8 +108,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getAutoCollectStatus, saveAutoCollectConfig, triggerCollectAll } from '@/api/admin'
 import type { AutoCollectStatus } from '@/types'
-import { ElMessage } from 'element-plus'
-
+import { notify }  from '@/components/radix/feedback'
 const loading = ref(false)
 const saving = ref(false)
 const triggering = ref(false)
@@ -153,7 +152,7 @@ const saveConfig = async () => {
       interval_hours: form.interval_hours
     })
     if (res.code === 1) {
-      ElMessage.success('定时自动采集配置已成功更新')
+      notify('定时自动采集配置已成功更新', 'success')
       loadStatus()
     }
   } finally {
@@ -166,7 +165,7 @@ const handleManualTrigger = async (hours: number) => {
   try {
     const res = await triggerCollectAll(hours)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '采集任务已在后台启动')
+      notify(res.msg || '采集任务已在后台启动', 'success')
       loadStatus()
     }
   } finally {
