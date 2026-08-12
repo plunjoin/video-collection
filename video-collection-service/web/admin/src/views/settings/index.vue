@@ -1,167 +1,167 @@
 <template>
   <div class="settings-page">
-    <el-card shadow="never" class="main-card">
+    <r-card shadow="never" class="main-card">
       <div class="page-header">
         <span class="page-title">系统全局参数与站点信息配置</span>
         <span class="sub-desc">配置前端客户端门户显示的网站名称、友情链接、联系方式、免责声明与备案信息</span>
       </div>
 
-      <el-form
+      <r-form
         ref="formRef"
         :model="form"
         label-width="140px"
         class="settings-form"
         v-loading="loading"
       >
-        <el-divider content-position="left">站点基础信息</el-divider>
+        <r-divider content-position="left">站点基础信息</r-divider>
 
-        <el-form-item label="网站品牌名称">
-          <el-input v-model="form.site_name" placeholder="例如：Bllii 动漫聚合" />
-        </el-form-item>
+        <r-form-item label="网站品牌名称">
+          <r-input v-model="form.site_name" placeholder="例如：Bllii 动漫聚合" />
+        </r-form-item>
 
-        <el-form-item label="副标题口号">
-          <el-input v-model="form.site_subtitle" placeholder="例如：追番库 • 让生活多一种可能" />
-        </el-form-item>
+        <r-form-item label="副标题口号">
+          <r-input v-model="form.site_subtitle" placeholder="例如：追番库 • 让生活多一种可能" />
+        </r-form-item>
 
-        <el-form-item label="全站滚动公告">
-          <el-input
+        <r-form-item label="全站滚动公告">
+          <r-input
             v-model="form.site_announcement"
             type="textarea"
             :rows="3"
             placeholder="展示在客户端首页顶部的通知公告内容"
           />
-        </el-form-item>
+        </r-form-item>
 
-        <el-form-item label="公告栏展示开关">
-          <el-switch
+        <r-form-item label="公告栏展示开关">
+          <r-switch
             v-model="form.site_notice_enabled"
             active-value="1"
             inactive-value="0"
             active-text="在前端显示公告"
             inactive-text="隐藏"
           />
-        </el-form-item>
+        </r-form-item>
 
         <!-- 友情链接管理 -->
-        <el-divider content-position="left">底部友情链接配置（前台页脚实时联动）</el-divider>
+        <r-divider content-position="left">底部友情链接配置（前台页脚实时联动）</r-divider>
 
         <div class="friend-links-box">
           <div class="table-actions">
             <span class="tip-text">配置展示在网站底部的友情链接列表，可自定义名称、网址与站点说明。</span>
-            <el-button type="primary" size="small" :icon="Plus" @click="handleAddLink">
+            <r-button type="primary" size="small" :icon="Plus" @click="handleAddLink">
               添加友情链接
-            </el-button>
+            </r-button>
           </div>
 
-          <el-table :data="friendLinks" border stripe style="width: 100%; margin-top: 12px">
-            <el-table-column label="网站名称" min-width="160">
+          <r-table :data="friendLinks" border stripe style="width: 100%; margin-top: 12px">
+            <r-table-column label="网站名称" min-width="160">
               <template #default="{ row }">
-                <el-input v-model="row.name" placeholder="例如：Bangumi 番组计划" />
+                <r-input v-model="row.name" placeholder="例如：Bangumi 番组计划" />
               </template>
-            </el-table-column>
-            <el-table-column label="链接地址 (URL)" min-width="240">
+            </r-table-column>
+            <r-table-column label="链接地址 (URL)" min-width="240">
               <template #default="{ row }">
-                <el-input v-model="row.url" placeholder="例如：https://bangumi.tv" />
+                <r-input v-model="row.url" placeholder="例如：https://bangumi.tv" />
               </template>
-            </el-table-column>
-            <el-table-column label="站点简介（选填）" min-width="200">
+            </r-table-column>
+            <r-table-column label="站点简介（选填）" min-width="200">
               <template #default="{ row }">
-                <el-input v-model="row.description" placeholder="例如：动漫番组记录与评价" />
+                <r-input v-model="row.description" placeholder="例如：动漫番组记录与评价" />
               </template>
-            </el-table-column>
-            <el-table-column label="排序/操作" width="180" align="center">
+            </r-table-column>
+            <r-table-column label="排序/操作" width="180" align="center">
               <template #default="{ $index }">
-                <el-button-group size="small">
-                  <el-button
+                <r-button-group size="small">
+                  <r-button
                     :icon="Top"
                     :disabled="$index === 0"
                     title="上移"
                     @click="handleMoveLink($index, -1)"
                   />
-                  <el-button
+                  <r-button
                     :icon="Bottom"
                     :disabled="$index === friendLinks.length - 1"
                     title="下移"
                     @click="handleMoveLink($index, 1)"
                   />
-                  <el-button
+                  <r-button
                     type="danger"
                     :icon="Delete"
                     title="删除"
                     @click="handleDeleteLink($index)"
                   />
-                </el-button-group>
+                </r-button-group>
               </template>
-            </el-table-column>
-          </el-table>
+            </r-table-column>
+          </r-table>
         </div>
 
         <!-- 官方联系方式配置 -->
-        <el-divider content-position="left">官方联系方式配置（前台页脚实时联动）</el-divider>
+        <r-divider content-position="left">官方联系方式配置（前台页脚实时联动）</r-divider>
 
-        <el-form-item label="联系邮箱">
-          <el-input
+        <r-form-item label="联系邮箱">
+          <r-input
             v-model="form.site_contact_email"
             placeholder="例如：contact@Bllii.com"
           />
-        </el-form-item>
+        </r-form-item>
 
-        <el-form-item label="官方社群 / 交流方式">
-          <el-input
+        <r-form-item label="官方社群 / 交流方式">
+          <r-input
             v-model="form.site_contact_group"
             placeholder="例如：官方交流群: 876543210 (TG: @Bllii)"
           />
-        </el-form-item>
+        </r-form-item>
 
         <!-- 免责声明与法律条款 -->
-        <el-divider content-position="left">平台免责声明与版权申明</el-divider>
+        <r-divider content-position="left">平台免责声明与版权申明</r-divider>
 
-        <el-form-item label="免责声明全文">
-          <el-input
+        <r-form-item label="免责声明全文">
+          <r-input
             v-model="form.site_disclaimer"
             type="textarea"
             :rows="5"
             placeholder="展示在网站底部的免责声明正文，声明第三方聚合属性与版权处理时效"
           />
-        </el-form-item>
+        </r-form-item>
 
         <!-- 搜索引擎优化 (SEO) -->
-        <el-divider content-position="left">搜索引擎优化 (SEO)</el-divider>
+        <r-divider content-position="left">搜索引擎优化 (SEO)</r-divider>
 
-        <el-form-item label="SEO 页面关键词">
-          <el-input
+        <r-form-item label="SEO 页面关键词">
+          <r-input
             v-model="form.site_keywords"
             placeholder="多个关键词用半角逗号分隔，如：高清动漫,番剧新番,免费在线观看"
           />
-        </el-form-item>
+        </r-form-item>
 
-        <el-form-item label="SEO 站点描述">
-          <el-input
+        <r-form-item label="SEO 站点描述">
+          <r-input
             v-model="form.site_description"
             type="textarea"
             :rows="3"
             placeholder="提供给各大搜索引擎蜘蛛抓取的站点描述摘要"
           />
-        </el-form-item>
+        </r-form-item>
 
-        <el-divider />
+        <r-divider />
 
-        <el-form-item>
-          <el-button type="primary" :loading="saving" @click="handleSave">
+        <r-form-item>
+          <r-button type="primary" :loading="saving" @click="handleSave">
             保存全局配置
-          </el-button>
-          <el-button @click="loadData">恢复设置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+          </r-button>
+          <r-button @click="loadData">恢复设置</r-button>
+        </r-form-item>
+      </r-form>
+    </r-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { getSiteConfig, saveSiteConfig } from '@/api/admin'
-import { ElMessage } from 'element-plus'
-import { Plus, Delete, Top, Bottom } from '@element-plus/icons-vue'
+import { notify }  from '@/components/radix/feedback'
+import { Plus, Delete, Top, Bottom } from '@/components/radix/icons'
 
 interface FriendLink {
   name: string
@@ -251,7 +251,7 @@ const handleSave = async () => {
 
     const res = await saveSiteConfig(form)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '站点配置已保存并即时生效')
+      notify(res.msg || '站点配置已保存并即时生效', 'success')
       loadData()
     }
   } finally {
