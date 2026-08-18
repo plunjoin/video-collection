@@ -1,6 +1,6 @@
 <template>
   <div class="sources-page">
-    <el-card shadow="never" class="table-card">
+    <r-card shadow="never" class="table-card">
       <!-- 头部操作区 -->
       <div class="table-header">
         <div class="header-left">
@@ -8,55 +8,55 @@
           <span class="sub-desc">按规则配置请求与响应，支持模板、自定义映射和通用采集</span>
         </div>
         <div class="header-right">
-          <el-button @click="$router.push('/collection-rules')">通用采集规则工作台</el-button>
-          <el-button type="primary" @click="openEditDialog()">
-            <el-icon><Plus /></el-icon>新增节点
-          </el-button>
-          <el-dropdown trigger="click" @command="handleCollectAll">
-            <el-button type="success">
-              <el-icon><Refresh /></el-icon>一键全网采集<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
+          <r-button @click="$router.push('/collection-rules')">通用采集规则工作台</r-button>
+          <r-button type="primary" @click="openEditDialog()">
+            <r-icon><Plus /></r-icon>新增节点
+          </r-button>
+          <r-dropdown trigger="click" @command="handleCollectAll">
+            <r-button type="success">
+              <r-icon><Refresh /></r-icon>一键全网采集<r-icon class="r-icon--right"><ArrowDown /></r-icon>
+            </r-button>
             <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item :command="24">近 24 小时增量同步</el-dropdown-item>
-                <el-dropdown-item :command="0" divided style="color: #e6a23c;">全量历史补全 (耗时较长)</el-dropdown-item>
-              </el-dropdown-menu>
+              <r-dropdown-menu>
+                <r-dropdown-item :command="24">近 24 小时增量同步</r-dropdown-item>
+                <r-dropdown-item :command="0" divided style="color: #e6a23c;">全量历史补全 (耗时较长)</r-dropdown-item>
+              </r-dropdown-menu>
             </template>
-          </el-dropdown>
-          <el-button @click="loadData" :loading="loading">
-            <el-icon><RefreshRight /></el-icon>刷新
-          </el-button>
+          </r-dropdown>
+          <r-button @click="loadData" :loading="loading">
+            <r-icon><RefreshRight /></r-icon>刷新
+          </r-button>
         </div>
       </div>
 
       <!-- 表格内容 -->
-      <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
-        <el-table-column prop="id" label="标识 ID" width="130" />
-        <el-table-column prop="name" label="节点名称 (采集源)" min-width="150">
+      <r-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+        <r-table-column prop="id" label="标识 ID" width="130" />
+        <r-table-column prop="name" label="节点名称 (采集源)" min-width="150">
           <template #default="{ row }">
             <span class="font-bold">{{ row.name }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="api" label="接口地址" min-width="260" show-overflow-tooltip>
+        </r-table-column>
+        <r-table-column prop="api" label="接口地址" min-width="260" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-link :href="row.api" target="_blank" type="primary" :underline="false">
+            <r-link :href="row.api" target="_blank" type="primary" :underline="false">
               {{ row.api }}
-            </el-link>
+            </r-link>
           </template>
-        </el-table-column>
-        <el-table-column prop="type" label="协议类型" width="100" align="center">
+        </r-table-column>
+        <r-table-column prop="type" label="协议类型" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getTypeTag(row.type)">{{ row.filter?.collector?.format || row.type }}</el-tag>
+            <r-tag :type="getTypeTag(row.type)">{{ row.filter?.collector?.format || row.type }}</r-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="collect_hours" label="增量策略" width="110" align="center">
+        </r-table-column>
+        <r-table-column prop="collect_hours" label="增量策略" width="110" align="center">
           <template #default="{ row }">
             <span>{{ row.collect_hours === 0 ? '全量' : `${row.collect_hours ?? 24} 小时` }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="active" label="状态" width="90" align="center">
+        </r-table-column>
+        <r-table-column prop="active" label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-switch
+            <r-switch
               v-model="row.active"
               @change="handleStatusChange(row)"
               inline-prompt
@@ -64,83 +64,83 @@
               inactive-text="关"
             />
           </template>
-        </el-table-column>
-        <el-table-column label="快捷采集" width="180" align="center">
+        </r-table-column>
+        <r-table-column label="快捷采集" width="180" align="center">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="handleCollect(row, row.collect_hours ?? 24)">
+            <r-button size="small" type="primary" plain @click="handleCollect(row, row.collect_hours ?? 24)">
               按配置
-            </el-button>
-            <el-button size="small" type="warning" plain @click="handleCollect(row, 0)">
+            </r-button>
+            <r-button size="small" type="warning" plain @click="handleCollect(row, 0)">
               全量补全
-            </el-button>
+            </r-button>
           </template>
-        </el-table-column>
-        <el-table-column label="管理操作" width="200" align="center" fixed="right">
+        </r-table-column>
+        <r-table-column label="管理操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="info" plain @click="handleTest(row)">测试</el-button>
-            <el-button size="small" type="primary" @click="openEditDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <r-button size="small" type="info" plain @click="handleTest(row)">测试</r-button>
+            <r-button size="small" type="primary" @click="openEditDialog(row)">编辑</r-button>
+            <r-button size="small" type="danger" @click="handleDelete(row)">删除</r-button>
           </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+        </r-table-column>
+      </r-table>
+    </r-card>
 
     <!-- 新增/编辑采集点模态框 -->
-    <el-dialog
+    <r-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑采集节点' : '新增采集节点'"
       width="min(900px, 95vw)"
       destroy-on-close
     >
-      <el-form ref="formRef" :model="form" :rules="formRules" label-width="110px">
-        <el-form-item label="节点名称" prop="name">
-          <el-input v-model="form.name" placeholder="例如：自有片库 / 已授权数据源" />
-        </el-form-item>
-        <el-form-item label="规则模板">
-          <el-select v-model="templateID" placeholder="选择模板作为起点" @change="applyTemplate">
-            <el-option v-for="item in templates" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
+      <r-form ref="formRef" :model="form" :rules="formRules" label-width="110px">
+        <r-form-item label="节点名称" prop="name">
+          <r-input v-model="form.name" placeholder="例如：自有片库 / 已授权数据源" />
+        </r-form-item>
+        <r-form-item label="规则模板">
+          <r-select v-model="templateID" placeholder="选择模板作为起点" @change="applyTemplate">
+            <r-option v-for="item in templates" :key="item.id" :label="item.name" :value="item.id" />
+          </r-select>
           <p class="config-hint">{{ templates.find(t => t.id === templateID)?.description || '现有规则可直接编辑；模板只在选择时复制。' }}</p>
-        </el-form-item>
-        <el-form-item label="API 接口地址" prop="api">
-          <el-input
+        </r-form-item>
+        <r-form-item label="API 接口地址" prop="api">
+          <r-input
             v-model="form.api"
             placeholder="例如：https://api.example.com/api.php/provide/vod/"
           />
-        </el-form-item>
-        <el-form-item label="默认增量周期" prop="collect_hours">
-          <el-input-number v-model="form.collect_hours" :min="0" :max="168" />
+        </r-form-item>
+        <r-form-item label="默认增量周期" prop="collect_hours">
+          <r-input-number v-model="form.collect_hours" :min="0" :max="168" />
           <span style="margin-left: 10px; color: #94a3b8; font-size: 12px;">小时</span>
-        </el-form-item>
-        <el-form-item label="页数上限"><el-input-number v-model="form.page_limit" :min="1" :max="10000" /><span class="config-hint">全量采集也遵守此上限；旧配置 0 表示不限页数。</span></el-form-item>
-        <el-form-item label="请求超时"><el-input-number v-model="form.timeout_sec" :min="1" :max="60" /><span class="config-hint">秒</span></el-form-item>
-        <el-form-item label="失败重试"><el-input-number v-model="form.retry_count" :min="0" :max="3" /></el-form-item>
-        <el-form-item label="请求间隔"><el-input-number v-model="form.interval_ms" :min="0" :max="10000" /><span class="config-hint">毫秒</span></el-form-item>
-        <el-form-item label="请求头"><el-input v-model="headersText" type="textarea" :rows="3" placeholder='{"Authorization":"Bearer ..."}' /></el-form-item>
-        <el-form-item label="固定参数"><el-input v-model="paramsText" type="textarea" :rows="3" placeholder='{"limit":"50"}' /></el-form-item>
-        <el-form-item label="采集规则">
-          <el-input v-model="ruleText" type="textarea" :rows="12" />
+        </r-form-item>
+        <r-form-item label="页数上限"><r-input-number v-model="form.page_limit" :min="1" :max="10000" /><span class="config-hint">全量采集也遵守此上限；旧配置 0 表示不限页数。</span></r-form-item>
+        <r-form-item label="请求超时"><r-input-number v-model="form.timeout_sec" :min="1" :max="60" /><span class="config-hint">秒</span></r-form-item>
+        <r-form-item label="失败重试"><r-input-number v-model="form.retry_count" :min="0" :max="3" /></r-form-item>
+        <r-form-item label="请求间隔"><r-input-number v-model="form.interval_ms" :min="0" :max="10000" /><span class="config-hint">毫秒</span></r-form-item>
+        <r-form-item label="请求头"><r-input v-model="headersText" type="textarea" :rows="3" placeholder='{"Authorization":"Bearer ..."}' /></r-form-item>
+        <r-form-item label="固定参数"><r-input v-model="paramsText" type="textarea" :rows="3" placeholder='{"limit":"50"}' /></r-form-item>
+        <r-form-item label="采集规则">
+          <r-input v-model="ruleText" type="textarea" :rows="12" />
           <p class="config-hint">支持 GET / POST、body、query 和 mapping。query 支持 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}；mapping 支持 data.items、images.0.url 等路径。未配置的参数不会自动添加。</p>
-        </el-form-item>
-        <el-collapse><el-collapse-item title="分类绑定与清洗规则" name="advanced">
-          <el-form-item label="分类绑定"><el-input v-model="categoriesText" type="textarea" :rows="4" /></el-form-item>
-          <el-form-item label="过滤与清洗"><el-input v-model="filterText" type="textarea" :rows="6" /></el-form-item>
-        </el-collapse-item></el-collapse>
-        <el-form-item label="启用状态">
-          <el-switch v-model="form.active" />
-        </el-form-item>
-      </el-form>
+        </r-form-item>
+        <r-collapse><r-collapse-item title="分类绑定与清洗规则" name="advanced">
+          <r-form-item label="分类绑定"><r-input v-model="categoriesText" type="textarea" :rows="4" /></r-form-item>
+          <r-form-item label="过滤与清洗"><r-input v-model="filterText" type="textarea" :rows="6" /></r-form-item>
+        </r-collapse-item></r-collapse>
+        <r-form-item label="启用状态">
+          <r-switch v-model="form.active" />
+        </r-form-item>
+      </r-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="info" :loading="testing" @click="testCurrentForm">连通性测试</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">保存节点配置</el-button>
+        <r-button @click="dialogVisible = false">取消</r-button>
+        <r-button type="info" :loading="testing" @click="testCurrentForm">连通性测试</r-button>
+        <r-button type="primary" :loading="submitting" @click="submitForm">保存节点配置</r-button>
       </template>
-    </el-dialog>
+    </r-dialog>
 
     <!-- 连通性测试结果弹窗 -->
-    <el-dialog v-model="testResultVisible" title="采集点连通性测试结果" width="550px">
+    <r-dialog v-model="testResultVisible" title="采集点连通性测试结果" width="550px">
       <div v-loading="testing" class="test-result-box">
-        <el-result
+        <r-result
           :icon="testSuccess ? 'success' : 'error'"
           :title="testSuccess ? '连接探测成功' : '探测失败'"
           :sub-title="testMsg"
@@ -149,26 +149,26 @@
             <div class="result-details">
               <div class="detail-item">
                 <span class="label">识别到分类数：</span>
-                <el-tag type="success">{{ testData.classes_total || 0 }} 个</el-tag>
+                <r-tag type="success">{{ testData.classes_total || 0 }} 个</r-tag>
               </div>
               <div class="detail-item" v-if="testData.samples && testData.samples.length">
                 <span class="label">抓取样本片名：</span>
                 <div class="sample-tags">
-                  <el-tag
+                  <r-tag
                     v-for="(name, idx) in testData.samples"
                     :key="idx"
                     size="small"
                     type="info"
                   >
                     {{ name }}
-                  </el-tag>
+                  </r-tag>
                 </div>
               </div>
             </div>
           </template>
-        </el-result>
+        </r-result>
       </div>
-    </el-dialog>
+    </r-dialog>
   </div>
 </template>
 
@@ -184,8 +184,9 @@ import {
   triggerCollectAll
 } from '@/api/admin'
 import type { SourceConfig, CollectionTemplate } from '@/types'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Refresh, ArrowDown, RefreshRight } from '@element-plus/icons-vue'
+import { notify, confirmAction } from '@/components/radix/feedback'
+import type { FormInstance, FormRules }  from '@/components/radix/types'
+import { Plus, Refresh, ArrowDown, RefreshRight } from '@/components/radix/icons'
 
 const templates = ref<CollectionTemplate[]>([])
 const templateID = ref('')
@@ -311,7 +312,7 @@ const handleStatusChange = async (row: any) => {
       active: row.active,
       enabled: row.active
     } as any)
-    ElMessage.success(`节点 [${row.name}] 状态已更新`)
+    notify(`节点 [${row.name}] 状态已更新`, 'success')
   } catch (e) {
     row.active = !row.active
   }
@@ -324,12 +325,12 @@ const submitForm = async () => {
     submitting.value = true
     try {
       await saveSource(payload())
-      ElMessage.success('节点配置保存成功，关联视频节点名称已同步更新')
+      notify('节点配置保存成功，关联视频节点名称已同步更新', 'success')
       dialogVisible.value = false
       loadData()
     } catch (err) {
-      if (err instanceof SyntaxError) ElMessage.error('JSON 格式错误，请检查规则、请求头和参数')
-      else if (err instanceof Error && !('response' in err)) ElMessage.error(err.message)
+      if (err instanceof SyntaxError) notify('JSON 格式错误，请检查规则、请求头和参数', 'error')
+      else if (err instanceof Error && !('response' in err)) notify(err.message, 'error')
     } finally {
       submitting.value = false
     }
@@ -341,14 +342,14 @@ const handleCollect = async (row: SourceConfig, hours: number) => {
   try {
     const res = await triggerCollect(row.id, hours)
     if (res.code === 1) {
-      ElMessage.success(`已为 [${row.name}] 启动 ${modeText} 采集任务`)
+      notify(`已为 [${row.name}] 启动 ${modeText} 采集任务`, 'success')
     }
   } catch (e) {}
 }
 
 const handleCollectAll = async (hours: number) => {
   const modeText = hours === 0 ? '全量历史' : '近24小时增量'
-  ElMessageBox.confirm(
+  confirmAction(
     `确定要触发所有已启用采集点的 ${modeText} 并发采集任务吗？`,
     '采集调度确认',
     {
@@ -359,7 +360,7 @@ const handleCollectAll = async (hours: number) => {
   ).then(async () => {
     const res = await triggerCollectAll(hours)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '全网并发采集任务已启动')
+      notify(res.msg || '全网并发采集任务已启动', 'success')
     }
   }).catch(() => {})
 }
@@ -390,20 +391,20 @@ const handleTest = async (row: SourceConfig) => {
 
 const testCurrentForm = async () => {
   if (!form.api) {
-    ElMessage.warning('请先填写 API 接口地址')
+    notify('请先填写 API 接口地址', 'warning')
     return
   }
-  try { await handleTest(payload() as SourceConfig) } catch (err) { ElMessage.error(err instanceof Error ? err.message : '配置格式错误') }
+  try { await handleTest(payload() as SourceConfig) } catch (err) { notify(err instanceof Error ? err.message : '配置格式错误', 'error') }
 }
 
 const handleDelete = (row: SourceConfig) => {
-  ElMessageBox.confirm(`确定要删除采集点 [${row.name}] 吗？删除后将不再同步此源。`, '删除确认', {
+  confirmAction(`确定要删除采集点 [${row.name}] 吗？删除后将不再同步此源。`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     await deleteSource(row.id)
-    ElMessage.success('已删除采集点')
+    notify('已删除采集点', 'success')
     loadData()
   }).catch(() => {})
 }
