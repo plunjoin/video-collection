@@ -1,33 +1,33 @@
 <template>
   <div class="themes-page">
-    <el-card shadow="never" class="main-card">
+    <r-card shadow="never" class="main-card">
       <div class="page-header">
         <div class="header-left">
           <span class="page-title">客户端主题引擎管理</span>
           <span class="sub-desc">支持多套前端主题无缝热切换，支持通过 ZIP 压缩包一键导入第三方主题包</span>
         </div>
         <div class="header-right">
-          <el-upload
+          <r-upload
             action="#"
             :auto-upload="false"
             :show-file-list="false"
             :on-change="handleUploadFile"
             accept=".zip"
           >
-            <el-button type="primary">
-              <el-icon><Upload /></el-icon>上传导入主题包 (.zip)
-            </el-button>
-          </el-upload>
-          <el-button @click="loadData" :loading="loading">
-            <el-icon><RefreshRight /></el-icon>刷新
-          </el-button>
+            <r-button type="primary">
+              <r-icon><Upload /></r-icon>上传导入主题包 (.zip)
+            </r-button>
+          </r-upload>
+          <r-button @click="loadData" :loading="loading">
+            <r-icon><RefreshRight /></r-icon>刷新
+          </r-button>
         </div>
       </div>
 
       <!-- 主题卡片网格 -->
       <div v-loading="loading" class="theme-grid">
         <div v-if="themeList.length === 0" class="empty-tip">暂无已安装的主题包</div>
-        <el-card
+        <r-card
           v-for="item in themeList"
           :key="item.id"
           class="theme-card"
@@ -35,24 +35,24 @@
           shadow="hover"
         >
           <div class="card-cover-wrap">
-            <el-image
+            <r-image
               class="theme-preview"
               :src="item.preview || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600'"
               fit="cover"
             />
             <div v-if="item.is_active" class="active-badge">
-              <el-icon><Check /></el-icon> 当前生效中
+              <r-icon><Check /></r-icon> 当前生效中
             </div>
           </div>
           <div class="theme-info">
             <div class="title-row">
               <span class="theme-name">{{ item.name }}</span>
-              <el-tag size="small" type="info">v{{ item.version }}</el-tag>
+              <r-tag size="small" type="info">v{{ item.version }}</r-tag>
             </div>
             <div class="author-row">作者：{{ item.author || '官方提供' }}</div>
             <div class="desc-row">{{ item.description || '精美自适应流媒体暗色视听主题' }}</div>
             <div class="action-row">
-              <el-button
+              <r-button
                 v-if="!item.is_active"
                 type="primary"
                 size="small"
@@ -60,15 +60,15 @@
                 @click="handleSwitch(item)"
               >
                 应用此主题
-              </el-button>
-              <el-button v-else type="success" size="small" disabled>
+              </r-button>
+              <r-button v-else type="success" size="small" disabled>
                 已是当前主题
-              </el-button>
+              </r-button>
             </div>
           </div>
-        </el-card>
+        </r-card>
       </div>
-    </el-card>
+    </r-card>
   </div>
 </template>
 
@@ -76,8 +76,9 @@
 import { ref, onMounted } from 'vue'
 import { getThemes, switchTheme, uploadTheme } from '@/api/admin'
 import type { ThemeInfo } from '@/types'
-import { ElMessage, type UploadFile } from 'element-plus'
-import { Upload, RefreshRight, Check } from '@element-plus/icons-vue'
+import { notify } from '@/components/radix/feedback'
+import type { UploadFile }  from '@/components/radix/types'
+import { Upload, RefreshRight, Check } from '@/components/radix/icons'
 
 const loading = ref(false)
 const themeList = ref<ThemeInfo[]>([])
@@ -100,7 +101,7 @@ const handleSwitch = async (theme: ThemeInfo) => {
   try {
     const res = await switchTheme(theme.id)
     if (res.code === 1) {
-      ElMessage.success(`已成功切换至主题 [${theme.name}]`)
+      notify(`已成功切换至主题 [${theme.name}]`, 'success')
       loadData()
     }
   } finally {
@@ -111,7 +112,7 @@ const handleSwitch = async (theme: ThemeInfo) => {
 const handleUploadFile = async (file: UploadFile) => {
   if (!file.raw) return
   if (!file.name.toLowerCase().endsWith('.zip')) {
-    ElMessage.error('仅支持上传 .zip 格式的主题扩展包')
+    notify('仅支持上传 .zip 格式的主题扩展包', 'error')
     return
   }
   const formData = new FormData()
@@ -121,7 +122,7 @@ const handleUploadFile = async (file: UploadFile) => {
   try {
     const res = await uploadTheme(formData)
     if (res.code === 1) {
-      ElMessage.success('主题扩展包导入成功！')
+      notify('主题扩展包导入成功！', 'success')
       loadData()
     }
   } finally {
@@ -186,7 +187,7 @@ onMounted(() => {
           box-shadow: 0 0 0 1px #6366f1;
         }
 
-        :deep(.el-card__body) {
+        :deep(.r-card__body) {
           padding: 0;
         }
 
