@@ -1,56 +1,56 @@
 <template>
   <div class="users-page">
-    <el-card shadow="never" class="table-card">
+    <r-card shadow="never" class="table-card">
       <div class="table-header">
         <div class="header-left">
           <span class="page-title">系统用户与管理员管控</span>
           <span class="sub-desc">集中管理系统管理员及前台注册用户，支持角色授权与密码重置</span>
         </div>
         <div class="header-right">
-          <el-button type="primary" @click="openDialog()">
-            <el-icon><Plus /></el-icon>新增用户
-          </el-button>
-          <el-button @click="loadData" :loading="loading">
-            <el-icon><RefreshRight /></el-icon>刷新
-          </el-button>
+          <r-button type="primary" @click="openDialog()">
+            <r-icon><Plus /></r-icon>新增用户
+          </r-button>
+          <r-button @click="loadData" :loading="loading">
+            <r-icon><RefreshRight /></r-icon>刷新
+          </r-button>
         </div>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
-        <el-table-column prop="id" label="UID" width="70" align="center" />
-        <el-table-column prop="username" label="用户名" min-width="140">
+      <r-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+        <r-table-column prop="id" label="UID" width="70" align="center" />
+        <r-table-column prop="username" label="用户名" min-width="140">
           <template #default="{ row }">
             <span class="font-bold">{{ row.username }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="nickname" label="昵称" min-width="140">
+        </r-table-column>
+        <r-table-column prop="nickname" label="昵称" min-width="140">
           <template #default="{ row }">
             <span>{{ row.nickname || '-' }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="role" label="角色身份" width="120" align="center">
+        </r-table-column>
+        <r-table-column prop="role" label="角色身份" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'" effect="plain">
+            <r-tag :type="row.role === 'admin' ? 'danger' : 'primary'" effect="plain">
               {{ roleLabels[row.role] || row.role }}
-            </el-tag>
+            </r-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="status" label="账号状态" width="100" align="center">
+        </r-table-column>
+        <r-table-column prop="status" label="账号状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+            <r-tag :type="row.status === 1 ? 'success' : 'danger'">
               {{ row.status === 1 ? '正常启用' : '已封禁' }}
-            </el-tag>
+            </r-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="注册时间" width="170" align="center">
+        </r-table-column>
+        <r-table-column prop="created_at" label="注册时间" width="170" align="center">
           <template #default="{ row }">
             <span class="date-text">{{ formatDate(row.created_at) }}</span>
           </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" align="center" fixed="right">
+        </r-table-column>
+        <r-table-column label="操作" width="180" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="openDialog(row)">编辑</el-button>
-            <el-button
+            <r-button size="small" type="primary" plain @click="openDialog(row)">编辑</r-button>
+            <r-button
               size="small"
               type="danger"
               plain
@@ -58,57 +58,57 @@
               @click="handleDelete(row)"
             >
               删除
-            </el-button>
+            </r-button>
           </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+        </r-table-column>
+      </r-table>
+    </r-card>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog
+    <r-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑用户信息' : '新增用户'"
       width="500px"
     >
-      <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" :disabled="!!editingId" placeholder="英文与数字组合" />
-        </el-form-item>
-        <el-form-item label="用户昵称" prop="nickname">
-          <el-input v-model="form.nickname" placeholder="显示的称谓昵称" />
-        </el-form-item>
-        <el-form-item
+      <r-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
+        <r-form-item label="用户名" prop="username">
+          <r-input v-model="form.username" :disabled="!!editingId" placeholder="英文与数字组合" />
+        </r-form-item>
+        <r-form-item label="用户昵称" prop="nickname">
+          <r-input v-model="form.nickname" placeholder="显示的称谓昵称" />
+        </r-form-item>
+        <r-form-item
           :label="editingId ? '重置密码' : '登录密码'"
           :prop="editingId ? '' : 'password'"
         >
-          <el-input
+          <r-input
             v-model="form.password"
             type="password"
             show-password
             :placeholder="editingId ? '留空表示不修改密码' : '设置登录密码 (至少6位)'"
           />
-        </el-form-item>
-        <el-form-item label="角色权限" prop="role">
-          <el-radio-group v-model="form.role" :disabled="userStore.userInfo?.role !== 'super_admin'">
-            <el-radio value="user">普通会员</el-radio>
-            <el-radio value="super_admin">超级管理员</el-radio><el-radio value="admin">管理员</el-radio><el-radio value="observer">观察员</el-radio><el-radio value="operator">运营人员</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="账号状态">
-          <el-switch
+        </r-form-item>
+        <r-form-item label="角色权限" prop="role">
+          <r-radio-group v-model="form.role" :disabled="userStore.userInfo?.role !== 'super_admin'">
+            <r-radio value="user">普通会员</r-radio>
+            <r-radio value="super_admin">超级管理员</r-radio><r-radio value="admin">管理员</r-radio><r-radio value="observer">观察员</r-radio><r-radio value="operator">运营人员</r-radio>
+          </r-radio-group>
+        </r-form-item>
+        <r-form-item label="账号状态">
+          <r-switch
             v-model="form.status"
             :active-value="1"
             :inactive-value="0"
             active-text="正常可用"
             inactive-text="禁用封禁"
           />
-        </el-form-item>
-      </el-form>
+        </r-form-item>
+      </r-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">保存</el-button>
+        <r-button @click="dialogVisible = false">取消</r-button>
+        <r-button type="primary" :loading="submitting" @click="submitForm">保存</r-button>
       </template>
-    </el-dialog>
+    </r-dialog>
   </div>
 </template>
 
@@ -118,8 +118,9 @@ import { getUsers, saveUser, deleteUser } from '@/api/admin'
 import type { UserInfo } from '@/types'
 import { useUserStore } from '@/store/user'
 import { roleLabels } from '@/utils/permissions'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, RefreshRight } from '@element-plus/icons-vue'
+import { notify, confirmAction } from '@/components/radix/feedback'
+import type { FormInstance, FormRules }  from '@/components/radix/types'
+import { Plus, RefreshRight } from '@/components/radix/icons'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -195,7 +196,7 @@ const submitForm = async () => {
         role: form.role,
         status: form.status
       })
-      ElMessage.success('用户保存成功')
+      notify('用户保存成功', 'success')
       dialogVisible.value = false
       loadData()
     } finally {
@@ -206,16 +207,16 @@ const submitForm = async () => {
 
 const handleDelete = (row: UserInfo) => {
   if (row.id === userStore.userInfo?.id) {
-    ElMessage.warning('不能删除自己的账号')
+    notify('不能删除自己的账号', 'warning')
     return
   }
-  ElMessageBox.confirm(`确定要删除用户 [${row.username}] 吗？`, '删除确认', {
+  confirmAction(`确定要删除用户 [${row.username}] 吗？`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     await deleteUser(row.id)
-    ElMessage.success('已删除用户')
+    notify('已删除用户', 'success')
     loadData()
   }).catch(() => {})
 }
