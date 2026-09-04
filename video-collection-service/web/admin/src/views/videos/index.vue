@@ -1,19 +1,19 @@
 <template>
   <div class="videos-page">
-    <el-button type="primary" style="margin-bottom:16px" @click="newVideo">新增视频资料</el-button>
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="queryForm" class="filter-form">
-        <el-form-item label="片名搜索">
-          <el-input
+    <r-button type="primary" style="margin-bottom:16px" @click="newVideo">新增视频资料</r-button>
+    <r-card shadow="never" class="filter-card">
+      <r-form :inline="true" :model="queryForm" class="filter-form">
+        <r-form-item label="片名搜索">
+          <r-input
             v-model="queryForm.keyword"
             placeholder="输入影片关键词"
             clearable
             style="width: 200px"
             @keyup.enter="handleSearch"
           />
-        </el-form-item>
-        <el-form-item label="所属分类">
-          <el-select
+        </r-form-item>
+        <r-form-item label="所属分类">
+          <r-select
             v-model="queryForm.type_id"
             placeholder="全部分类"
             clearable
@@ -22,37 +22,37 @@
             @change="handleSearch"
             @clear="handleSearch"
           >
-            <el-option label="全部分类" :value="0" />
-            <el-option
+            <r-option label="全部分类" :value="0" />
+            <r-option
               v-for="opt in categoryOptions"
               :key="opt.value"
               :label="opt.label"
               :value="opt.value"
             />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="resetQuery">
-            <el-icon><RefreshRight /></el-icon>重置
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+          </r-select>
+        </r-form-item>
+        <r-form-item>
+          <r-button type="primary" @click="handleSearch">
+            <r-icon><Search /></r-icon>查询
+          </r-button>
+          <r-button @click="resetQuery">
+            <r-icon><RefreshRight /></r-icon>重置
+          </r-button>
+        </r-form-item>
+      </r-form>
+    </r-card>
 
-    <el-card shadow="never" class="table-card">
+    <r-card shadow="never" class="table-card">
       <!-- 批量操作栏 -->
       <div class="batch-bar" v-if="selectedIds.length > 0">
         <span class="selected-text">已选中 {{ selectedIds.length }} 部视频</span>
-        <el-button type="danger" size="small" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon>批量删除所选
-        </el-button>
+        <r-button type="danger" size="small" @click="handleBatchDelete">
+          <r-icon><Delete /></r-icon>批量删除所选
+        </r-button>
       </div>
 
       <!-- 数据表格 -->
-      <el-table
+      <r-table
         :data="tableData"
         v-loading="loading"
         border
@@ -60,11 +60,11 @@
         style="width: 100%"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="50" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
-        <el-table-column label="封面" width="80" align="center">
+        <r-table-column type="selection" width="50" align="center" />
+        <r-table-column prop="id" label="ID" width="80" align="center" />
+        <r-table-column label="封面" width="80" align="center">
           <template #default="{ row }">
-            <el-image
+            <r-image
               style="width: 50px; height: 70px; border-radius: 4px"
               :src="row.pic || row.picture"
               :preview-src-list="[row.pic || row.picture]"
@@ -73,58 +73,58 @@
             >
               <template #error>
                 <div class="image-slot">
-                  <el-icon><Picture /></el-icon>
+                  <r-icon><Picture /></r-icon>
                 </div>
               </template>
-            </el-image>
+            </r-image>
           </template>
-        </el-table-column>
-        <el-table-column prop="name" label="片名 / 备注" min-width="180">
+        </r-table-column>
+        <r-table-column prop="name" label="片名 / 备注" min-width="180">
           <template #default="{ row }">
             <div class="title-cell">
               <span class="main-title font-bold">{{ row.name }}</span>
               <span v-if="row.remarks" class="sub-remarks">{{ row.remarks }}</span>
             </div>
           </template>
-        </el-table-column>
-        <el-table-column prop="type_name" label="分类" width="110" align="center">
+        </r-table-column>
+        <r-table-column prop="type_name" label="分类" width="110" align="center">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.type_name || '未分类' }}</el-tag>
+            <r-tag size="small">{{ row.type_name || '未分类' }}</r-tag>
           </template>
-        </el-table-column>
-        <el-table-column label="地区/年份" width="130" align="center">
+        </r-table-column>
+        <r-table-column label="地区/年份" width="130" align="center">
           <template #default="{ row }">
             <span class="meta-tag">{{ row.area || '-' }} / {{ row.year || '-' }}</span>
           </template>
-        </el-table-column>
-        <el-table-column label="聚合线路 / 节点" width="130" align="center">
+        </r-table-column>
+        <r-table-column label="聚合线路 / 节点" width="130" align="center">
           <template #default="{ row }">
-            <el-tag :type="getRoutesCount(row) > 1 ? 'success' : 'warning'" size="small">
+            <r-tag :type="getRoutesCount(row) > 1 ? 'success' : 'warning'" size="small">
               {{ getRoutesCount(row) }} 条线路
-            </el-tag>
+            </r-tag>
             <div v-if="row.source_ids && row.source_ids.length > 1" class="multi-node-badge">
               多节点({{ row.source_ids.length }})
             </div>
           </template>
-        </el-table-column>
-        <el-table-column prop="hits" label="播放热度" width="90" align="center" />
-        <el-table-column prop="updated_at" label="更新时间" width="160" align="center">
+        </r-table-column>
+        <r-table-column prop="hits" label="播放热度" width="90" align="center" />
+        <r-table-column prop="updated_at" label="更新时间" width="160" align="center">
           <template #default="{ row }">
             <span class="date-text">{{ formatDate(row.updated_at) }}</span>
           </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        </r-table-column>
+        <r-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="viewDetail(row)">详情</el-button>
-            <el-button size="small" type="warning" plain @click="editVideo(row)">编辑</el-button>
-            <el-button size="small" type="danger" plain @click="deleteSingleVideo(row)">删除</el-button>
+            <r-button size="small" type="primary" plain @click="viewDetail(row)">详情</r-button>
+            <r-button size="small" type="warning" plain @click="editVideo(row)">编辑</r-button>
+            <r-button size="small" type="danger" plain @click="deleteSingleVideo(row)">删除</r-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </r-table-column>
+      </r-table>
 
       <!-- 分页栏 -->
       <div class="pagination-bar">
-        <el-pagination
+        <r-pagination
           v-model:current-page="queryForm.page"
           v-model:page-size="queryForm.page_size"
           :page-sizes="[10, 20, 50, 100]"
@@ -134,13 +134,13 @@
           @current-change="loadData"
         />
       </div>
-    </el-card>
+    </r-card>
 
     <!-- 视频详情与多线路播放抽屉 -->
-    <el-drawer v-model="detailVisible" title="影视剧聚合线路详情" size="580px" destroy-on-close>
+    <r-drawer v-model="detailVisible" title="影视剧聚合线路详情" size="580px" destroy-on-close>
       <div v-if="currentDetail" class="detail-drawer-content">
         <div class="video-meta-header">
-          <el-image
+          <r-image
             :src="currentDetail.pic || currentDetail.picture"
             style="width: 90px; height: 125px; border-radius: 6px"
             fit="cover"
@@ -148,25 +148,25 @@
           <div class="meta-texts">
             <h3 class="meta-title">{{ currentDetail.name }}</h3>
             <div class="badges">
-              <el-tag size="small">{{ currentDetail.type_name }}</el-tag>
-              <el-tag size="small" type="success">{{ currentDetail.area }}</el-tag>
-              <el-tag size="small" type="info">{{ currentDetail.year }}</el-tag>
+              <r-tag size="small">{{ currentDetail.type_name }}</r-tag>
+              <r-tag size="small" type="success">{{ currentDetail.area }}</r-tag>
+              <r-tag size="small" type="info">{{ currentDetail.year }}</r-tag>
             </div>
             <p class="staff"><strong>导演：</strong>{{ currentDetail.director || '暂无' }}</p>
             <p class="staff"><strong>主演：</strong>{{ currentDetail.actor || '暂无' }}</p>
           </div>
         </div>
 
-        <el-divider content-position="left">聚合播放线路 ({{ getRoutesList(currentDetail).length }})</el-divider>
+        <r-divider content-position="left">聚合播放线路 ({{ getRoutesList(currentDetail).length }})</r-divider>
 
-        <el-tabs type="border-card" v-if="getRoutesList(currentDetail).length">
-          <el-tab-pane
+        <r-tabs type="border-card" v-if="getRoutesList(currentDetail).length">
+          <r-tab-pane
             v-for="(route, idx) in getRoutesList(currentDetail)"
             :key="idx"
             :label="getRouteLabel(route, idx)"
           >
             <div class="route-info">
-              <span>采集节点：<el-tag size="small" type="success">{{ route.source_name || route.source_id || '默认节点' }}</el-tag></span>
+              <span>采集节点：<r-tag size="small" type="success">{{ route.source_name || route.source_id || '默认节点' }}</r-tag></span>
               <span>播放器编码：<code>{{ route.player_code || route.from }}</code></span>
               <span v-if="route.server && route.server !== 'no'">解析服务器：{{ route.server }}</span>
               <span>总集数：{{ route.episodes?.length || 0 }} 集</span>
@@ -174,7 +174,7 @@
             <div class="episodes-list">
               <div v-for="(ep, epIdx) in route.episodes" :key="epIdx" class="episode-chip">
                 <span class="ep-name">{{ ep.name }}</span>
-                <el-link
+                <r-link
                   type="primary"
                   :href="ep.url"
                   target="_blank"
@@ -182,66 +182,66 @@
                   title="在新窗口打开播放地址"
                 >
                   播放地址
-                </el-link>
+                </r-link>
               </div>
             </div>
-          </el-tab-pane>
-        </el-tabs>
+          </r-tab-pane>
+        </r-tabs>
         <div v-else class="empty-tip">该视频暂无可用的播放集数线路</div>
 
-        <el-divider content-position="left">影片简介</el-divider>
+        <r-divider content-position="left">影片简介</r-divider>
         <div class="blurb-box">{{ currentDetail.blurb || currentDetail.content || '暂无简介' }}</div>
       </div>
-    </el-drawer>
+    </r-drawer>
 
     <!-- 视频编辑对话框 -->
-    <el-dialog v-model="editDialogVisible" title="编辑视频资料" width="600px">
-      <el-form :model="editForm" label-width="90px">
-        <el-form-item label="片名" required>
-          <el-input v-model="editForm.name" />
-        </el-form-item>
-        <el-form-item label="副标题/备注">
-          <el-input v-model="editForm.remarks" placeholder="如：第10集 / HD国语" />
-        </el-form-item>
-        <el-form-item label="所属分类">
-          <el-select v-model="editForm.type_id" filterable style="width: 100%">
-            <el-option
+    <r-dialog v-model="editDialogVisible" title="编辑视频资料" width="600px">
+      <r-form :model="editForm" label-width="90px">
+        <r-form-item label="片名" required>
+          <r-input v-model="editForm.name" />
+        </r-form-item>
+        <r-form-item label="副标题/备注">
+          <r-input v-model="editForm.remarks" placeholder="如：第10集 / HD国语" />
+        </r-form-item>
+        <r-form-item label="所属分类">
+          <r-select v-model="editForm.type_id" filterable style="width: 100%">
+            <r-option
               v-for="opt in categoryOptions"
               :key="opt.value"
               :label="opt.label"
               :value="opt.value"
             />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="海报图片">
-          <el-input v-model="editForm.picture" placeholder="http://..." />
-        </el-form-item>
-        <el-form-item label="年份 / 地区">
-          <el-row :gutter="10">
-            <el-col :span="12">
-              <el-input v-model="editForm.year" placeholder="年份" />
-            </el-col>
-            <el-col :span="12">
-              <el-input v-model="editForm.area" placeholder="地区" />
-            </el-col>
-          </el-row>
-        </el-form-item>
-        <el-form-item label="主演">
-          <el-input v-model="editForm.actor" />
-        </el-form-item>
-        <el-form-item label="导演">
-          <el-input v-model="editForm.director" />
-        </el-form-item>
-        <el-form-item label="简介">
-          <el-input v-model="editForm.content" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item label="播放线路"><el-input v-model="routesJSON" type="textarea" :rows="5" placeholder='[{"player_code":"hls","server":"no","note":"","episodes":[{"name":"第1集","url":"https://..."}]}]' /></el-form-item>
-      </el-form>
+          </r-select>
+        </r-form-item>
+        <r-form-item label="海报图片">
+          <r-input v-model="editForm.picture" placeholder="http://..." />
+        </r-form-item>
+        <r-form-item label="年份 / 地区">
+          <r-row :gutter="10">
+            <r-col :span="12">
+              <r-input v-model="editForm.year" placeholder="年份" />
+            </r-col>
+            <r-col :span="12">
+              <r-input v-model="editForm.area" placeholder="地区" />
+            </r-col>
+          </r-row>
+        </r-form-item>
+        <r-form-item label="主演">
+          <r-input v-model="editForm.actor" />
+        </r-form-item>
+        <r-form-item label="导演">
+          <r-input v-model="editForm.director" />
+        </r-form-item>
+        <r-form-item label="简介">
+          <r-input v-model="editForm.content" type="textarea" :rows="3" />
+        </r-form-item>
+        <r-form-item label="播放线路"><r-input v-model="routesJSON" type="textarea" :rows="5" placeholder='[{"player_code":"hls","server":"no","note":"","episodes":[{"name":"第1集","url":"https://..."}]}]' /></r-form-item>
+      </r-form>
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitEditVideo">保存修改</el-button>
+        <r-button @click="editDialogVisible = false">取消</r-button>
+        <r-button type="primary" :loading="saving" @click="submitEditVideo">保存修改</r-button>
       </template>
-    </el-dialog>
+    </r-dialog>
   </div>
 </template>
 
@@ -256,8 +256,8 @@ import {
   batchDeleteVideos
 } from '@/api/videos'
 import type { Category, VideoRecord } from '@/types'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, RefreshRight, Delete, Picture } from '@element-plus/icons-vue'
+import { notify, confirmAction }  from '@/components/radix/feedback'
+import { Search, RefreshRight, Delete, Picture } from '@/components/radix/icons'
 
 const loading = ref(false)
 const tableData = ref<VideoRecord[]>([])
@@ -401,11 +401,11 @@ const editVideo = (row: VideoRecord) => {
 const submitEditVideo = async () => {
   saving.value = true
   try {
-    let routes:any;try{routes=JSON.parse(routesJSON.value);if(!Array.isArray(routes))throw new Error()}catch{ElMessage.error('播放线路必须为 JSON 数组');return}
+    let routes:any;try{routes=JSON.parse(routesJSON.value);if(!Array.isArray(routes))throw new Error()}catch{notify('播放线路必须为 JSON 数组', 'error');return}
     const {id,name,sub_name,type_id,type_name,picture,actor,director,area,language,year,remarks,content,source_id}=editForm
     const res = await saveVideo({id,name,sub_name,type_id,type_name,picture,actor,director,area,language,year,remarks,content,source_id,play_groups:routes})
     if (res.code === 1) {
-      ElMessage.success(res.msg || '视频资料已保存')
+      notify(res.msg || '视频资料已保存', 'success')
       editDialogVisible.value = false
       loadData()
     }
@@ -415,20 +415,20 @@ const submitEditVideo = async () => {
 }
 
 const deleteSingleVideo = (row: VideoRecord) => {
-  ElMessageBox.confirm(`确定要删除影片 [${row.name}] 吗？`, '删除确认', {
+  confirmAction(`确定要删除影片 [${row.name}] 吗？`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
   }).then(async () => {
     await deleteVideo(row.id)
-    ElMessage.success('已删除该影片')
+    notify('已删除该影片', 'success')
     loadData()
   }).catch(() => {})
 }
 
 const handleBatchDelete = () => {
   if (selectedIds.value.length === 0) return
-  ElMessageBox.confirm(
+  confirmAction(
     `确定要批量删除已选中的 ${selectedIds.value.length} 部影片吗？操作不可逆！`,
     '批量删除确认',
     {
@@ -439,7 +439,7 @@ const handleBatchDelete = () => {
   ).then(async () => {
     const res = await batchDeleteVideos(selectedIds.value)
     if (res.code === 1) {
-      ElMessage.success(res.msg || '批量删除成功')
+      notify(res.msg || '批量删除成功', 'success')
       selectedIds.value = []
       loadData()
     }
@@ -461,7 +461,7 @@ onMounted(() => {
   .filter-card {
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    :deep(.el-form-item) {
+    :deep(.r-form-item) {
       margin-bottom: 0;
     }
   }
