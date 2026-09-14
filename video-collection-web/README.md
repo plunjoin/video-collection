@@ -1,6 +1,6 @@
 # Bllii - 客户端影视门户 (Astro 版)
 
-本项目基于 **Astro 5 + Tailwind CSS**，高精度复刻了 Bllii 现代化二次元番剧客户端视觉风格，并与 Go 后端聚合服务 `video-collection-api` 进行了深度接口打通。
+本项目基于 **Astro 5 + Tailwind CSS**，高精度复刻了 Bllii 现代化二次元番剧客户端视觉风格，并与 Go 后端聚合服务 `video-collection-service` 进行了深度接口打通。
 
 ---
 
@@ -76,7 +76,7 @@ HOST=0.0.0.0 PORT=4321 node ./dist/server/entry.mjs
 
 ## 🔌 接口集成说明 (`src/lib/api.ts`)
 
-项目在 `src/lib/api.ts` 中封装了对 `video-collection-api` 的所有数据接口调用：
+项目在 `src/lib/api.ts` 中封装了对 `video-collection-service` 的所有数据接口调用：
 - `GET /api/videos`：获取影片分页与分类列表（用于首页“正在热播”）
 - `GET /api/rankings`：获取全站热度与番剧榜单（用于首页“排行榜”）
 - `GET /api/video?id={id}`：获取影片详细信息、线路及多剧集播放链接
