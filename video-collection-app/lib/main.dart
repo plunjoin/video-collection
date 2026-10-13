@@ -26,9 +26,15 @@ void main() async {
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.hidden, // 隐藏原生系统白框标题栏
+      windowButtonVisibility: false,
       title: 'bllii · More Stories, Together',
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: false,
+      );
+      await windowManager.setAsFrameless();
       await windowManager.show();
       await windowManager.focus();
     });
@@ -65,6 +71,12 @@ class BlliiApp extends StatelessWidget {
           theme: AppTheme.themed(Brightness.light, appState.accentColor),
           darkTheme: AppTheme.themed(Brightness.dark, appState.accentColor),
           themeMode: appState.themeMode,
+          scrollBehavior: const MaterialScrollBehavior().copyWith(
+            scrollbars: false,
+          ),
+          builder: (context, child) => VirtualWindowFrame(
+            child: child ?? const SizedBox.shrink(),
+          ),
           home: const StartupScreen(),
         );
       },

@@ -92,6 +92,38 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String?> updateProfile({
+    required String nickname,
+    required String avatar,
+    required String bio,
+  }) async {
+    if (!isLoggedIn) return '请先登录';
+    final generation = _accountGeneration;
+    try {
+      final result = await _api.userRequest(
+        '/api/me',
+        method: 'POST',
+        body: {
+          'nickname': nickname.trim(),
+          'avatar': avatar.trim(),
+          'bio': bio.trim(),
+        },
+      );
+      if (generation != _accountGeneration) return null;
+      final data = result['data'];
+      if (data is Map) {
+        _user = Map<String, dynamic>.from(data);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('account_user', json.encode(_user));
+      }
+      _accountError = null;
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
   bool _syncing = false;
   int? _syncGeneration;
   bool get syncing => _syncing;
@@ -110,6 +142,14 @@ class AppStateProvider extends ChangeNotifier {
     _ => const Color(0xFF597BEA),
   };
   ThemeMode _themeMode = ThemeMode.light;
+  bool _danmakuEnabled = true;
+  double _danmakuOpacity = 1;
+  double _danmakuFontScale = 1;
+  double _danmakuSpeed = 1;
+  double _danmakuArea = 0.5;
+  double _playbackSpeed = 1;
+  bool _autoPlayNext = true;
+  String _danmakuBlocked = '';
   String _apiBaseUrl = resolveDefaultApiBaseUrl();
   final List<VideoRecord> _favoriteVideos = [];
   final List<PlayHistoryItem> _playHistory = [];
@@ -118,6 +158,19 @@ class AppStateProvider extends ChangeNotifier {
   bool _isInitialized = false;
 
   ThemeMode get themeMode => _themeMode;
+  bool get danmakuEnabled => _danmakuEnabled;
+  double get danmakuOpacity => _danmakuOpacity;
+  double get danmakuFontScale => _danmakuFontScale;
+  double get danmakuSpeed => _danmakuSpeed;
+  double get danmakuArea => _danmakuArea;
+  double get playbackSpeed => _playbackSpeed;
+  bool get autoPlayNext => _autoPlayNext;
+  String get danmakuBlocked => _danmakuBlocked;
+  List<String> get danmakuBlockedWords => _danmakuBlocked
+      .split(RegExp(r'[,，、\s]+'))
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList();
   String get apiBaseUrl => _apiBaseUrl;
   List<VideoRecord> get favoriteVideos => _favoriteVideos;
   List<PlayHistoryItem> get playHistory => _playHistory;
@@ -348,6 +401,48 @@ class AppStateProvider extends ChangeNotifier {
     await prefs.setString('accent', value);
   }
 
+  Future<void> setDanmakuEnabled(bool value) =>
+      _saveBool('danmaku_enabled', _danmakuEnabled = value);
+
+  Future<void> setDanmakuOpacity(double value) => _saveDouble(
+    'danmaku_opacity',
+    _danmakuOpacity = value.clamp(0.2, 1).toDouble(),
+  );
+
+  Future<void> setDanmakuFontScale(double value) =>
+      _saveDouble('danmaku_font_scale', _danmakuFontScale = value);
+
+  Future<void> setDanmakuSpeed(double value) =>
+      _saveDouble('danmaku_speed', _danmakuSpeed = value);
+
+  Future<void> setDanmakuArea(double value) =>
+      _saveDouble('danmaku_area', _danmakuArea = value);
+
+  Future<void> setPlaybackSpeed(double value) =>
+      _saveDouble('playback_speed', _playbackSpeed = value);
+
+  Future<void> setAutoPlayNext(bool value) =>
+      _saveBool('auto_play_next', _autoPlayNext = value);
+
+  Future<void> setDanmakuBlocked(String value) async {
+    _danmakuBlocked = value.trim();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('danmaku_blocked', _danmakuBlocked);
+  }
+
+  Future<void> _saveBool(String key, bool value) async {
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  Future<void> _saveDouble(String key, double value) async {
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(key, value);
+  }
+
   Future<void> _loadFromPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -363,14 +458,30 @@ class AppStateProvider extends ChangeNotifier {
       _themeMode = ThemeMode.system;
     }
 
-    // 2. API Base URL（Android 模拟器上 127.0.0.1 无法访问宿主机）
-    final savedUrl = prefs.getString('api_base_url');
-    if (savedUrl != null && savedUrl.isNotEmpty) {
-      _apiBaseUrl = normalizeApiBaseUrlForPlatform(savedUrl);
-      if (_apiBaseUrl != savedUrl) {
-        await prefs.setString('api_base_url', _apiBaseUrl);
+    _danmakuEnabled = prefs.getBool('danmaku_enabled') ?? true;
+    _danmakuOpacity = (prefs.getDouble('danmaku_opacity') ?? 1)
+        .clamp(0.2, 1)
+        .toDouble();
+    _danmakuFontScale = prefs.getDouble('danmaku_font_scale') ?? 1;
+    _danmakuSpeed = prefs.getDouble('danmaku_speed') ?? 1;
+    _danmakuArea = prefs.getDouble('danmaku_area') ?? 0.5;
+    _playbackSpeed = prefs.getDouble('playback_speed') ?? 1;
+    _autoPlayNext = prefs.getBool('auto_play_next') ?? true;
+    _danmakuBlocked = prefs.getString('danmaku_blocked') ?? '';
+
+    // 正式包忽略本地保存的地址，只使用构建时写入的生产地址。
+    if (allowsApiBaseUrlOverride) {
+      final savedUrl = prefs.getString('api_base_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        _apiBaseUrl = normalizeApiBaseUrlForPlatform(savedUrl);
+        if (_apiBaseUrl != savedUrl) {
+          await prefs.setString('api_base_url', _apiBaseUrl);
+        }
+        _api.setBaseUrl(_apiBaseUrl);
+      } else {
+        _apiBaseUrl = resolveDefaultApiBaseUrl();
+        _api.setBaseUrl(_apiBaseUrl);
       }
-      _api.setBaseUrl(_apiBaseUrl);
     } else {
       _apiBaseUrl = resolveDefaultApiBaseUrl();
       _api.setBaseUrl(_apiBaseUrl);
@@ -413,6 +524,7 @@ class AppStateProvider extends ChangeNotifier {
 
   // 修改 API 地址
   Future<bool> updateApiBaseUrl(String newUrl) async {
+    if (!allowsApiBaseUrlOverride) return false;
     final normalized = normalizeApiBaseUrlForPlatform(newUrl);
     final ok = await _api.testConnection(normalized);
     if (!ok) return false;

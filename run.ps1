@@ -39,7 +39,7 @@ function Show-Help {
     @"
 一键启动 video-collection 子项目
 
-所有服务在当前终端并行运行，日志带 [api]/[admin]/[web]/[app] 前缀。
+所有服务在当前终端并行运行，日志带 [service]/[admin]/[web]/[app] 前缀。
 按 Ctrl+C 停止全部。
 
 用法:
@@ -48,12 +48,13 @@ function Show-Help {
   ./run.sh <目标...>          # macOS / Linux
 
 项目目标:
-  api / admin / web / app / all
+  service / admin / web / app / all
+  （api 为 service 的别名；admin 为管理后台前端开发服务器，生产构建已内嵌于 service）
   Flutter 平台: windows android ios macos linux chrome edge web-server
 
 示例:
-  .\run.ps1 admin web windows
-  .\run.ps1 api admin web android
+  .\run.ps1 service web
+  .\run.ps1 api web android     # api 等同于 service
   .\run.ps1 all
   .\run.ps1 web
 
@@ -120,9 +121,10 @@ function Ensure-Pnpm {
 }
 
 function Ensure-GoDeps {
-    $dir = Join-Path $Root "video-collection-api"
-    if (-not (Test-Path $dir)) { Write-Host "[跳过] API 目录不存在" -ForegroundColor Yellow; return }
-    Write-Host "[依赖] API: go mod download" -ForegroundColor Cyan
+    param([string]$Dir)
+    if (-not $Dir) { $Dir = Join-Path $Root "video-collection-service" }
+    if (-not (Test-Path $Dir)) { Write-Host "[跳过] Service 目录不存在" -ForegroundColor Yellow; return }
+    Write-Host "[依赖] Service: go mod download" -ForegroundColor Cyan
     Push-Location $dir
     try { & go mod download } finally { Pop-Location }
 }
@@ -258,13 +260,14 @@ $wantApp = $false
 foreach ($token in $normalized) {
     switch ($token) {
         "all" {
-            [void]$wantProjects.Add("api")
+            [void]$wantProjects.Add("service")
             [void]$wantProjects.Add("admin")
             [void]$wantProjects.Add("web")
             $wantApp = $true
         }
-        "api"   { [void]$wantProjects.Add("api") }
-        "admin" { [void]$wantProjects.Add("admin") }
+        "api"     { [void]$wantProjects.Add("service") }
+        "admin"   { [void]$wantProjects.Add("admin") }
+        "service" { [void]$wantProjects.Add("service") }
         "web"   { [void]$wantProjects.Add("web") }
         "astro" { [void]$wantProjects.Add("web") }
         "app"   { $wantApp = $true }
@@ -296,7 +299,7 @@ Write-Host "=== video-collection 环境检查 ===" -ForegroundColor Green
 $missing = $false
 $needNode = $wantProjects.Contains("admin") -or $wantProjects.Contains("web")
 
-if ($wantProjects.Contains("api")) {
+if ($wantProjects.Contains("service")) {
     if (Test-CommandExists "go") { Write-Host "[OK] $(go version)" -ForegroundColor Green }
     else { Write-InstallHint "go"; $missing = $true }
 }
@@ -320,8 +323,8 @@ if ($missing) {
 
 Write-Host ""
 Write-Host "=== 检查 / 安装项目依赖 ===" -ForegroundColor Green
-if ($wantProjects.Contains("api")) { Ensure-GoDeps }
-if ($wantProjects.Contains("admin")) { Ensure-PnpmDeps -Name "Admin" -Dir (Join-Path $Root "video-collection-admin") }
+if ($wantProjects.Contains("service")) { Ensure-GoDeps -Dir (Join-Path $Root "video-collection-service") }
+if ($wantProjects.Contains("admin")) { Ensure-PnpmDeps -Name "Admin" -Dir (Join-Path $Root "video-collection-service/web/admin") }
 if ($wantProjects.Contains("web")) { Ensure-PnpmDeps -Name "Web" -Dir (Join-Path $Root "video-collection-web") }
 if ($wantApp) { Ensure-FlutterDeps }
 
@@ -337,11 +340,11 @@ Write-Host ""
 Write-Host "日志前缀区分服务。按 Ctrl+C 停止全部。" -ForegroundColor Yellow
 Write-Host ""
 
-if ($wantProjects.Contains("api")) {
-    Start-ServiceProcess -Tag "api" -WorkDir (Join-Path $Root "video-collection-api") -Command "go run ." -Color Green
+if ($wantProjects.Contains("service")) {
+    Start-ServiceProcess -Tag "service" -WorkDir (Join-Path $Root "video-collection-service") -Command "go run ." -Color Green
 }
 if ($wantProjects.Contains("admin")) {
-    Start-ServiceProcess -Tag "admin" -WorkDir (Join-Path $Root "video-collection-admin") -Command "pnpm dev" -Color Magenta
+    Start-ServiceProcess -Tag "admin" -WorkDir (Join-Path $Root "video-collection-service/web/admin") -Command "pnpm dev" -Color Magenta
 }
 if ($wantProjects.Contains("web")) {
     Start-ServiceProcess -Tag "web" -WorkDir (Join-Path $Root "video-collection-web") -Command "pnpm start" -Color Cyan

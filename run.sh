@@ -32,7 +32,7 @@ show_help() {
   cat <<'EOF'
 一键启动 video-collection 子项目（macOS / Linux）
 
-所有服务在当前终端并行运行，日志带 [api]/[admin]/[web]/[app] 前缀。
+所有服务在当前终端并行运行，日志带 [service]/[admin]/[web]/[app] 前缀。
 按 Ctrl+C 停止全部。
 
 用法:
@@ -40,12 +40,15 @@ show_help() {
   ./run.sh help
 
 项目目标:
-  api / admin / web / app / all
+  service / admin / web / app / all
+  service 为合并后的统一服务（API + Go 托管管理后台，见 video-collection-service/）；api 为其别名
+  admin 为管理后台前端开发服务器，生产构建已内嵌于 service
   Flutter 平台: windows android ios macos linux chrome edge web-server
 
 示例:
+  ./run.sh service web
   ./run.sh admin web macos
-  ./run.sh api admin web android
+  ./run.sh api web android
   ./run.sh all
   ./run.sh web
 
@@ -62,8 +65,8 @@ if [[ $# -eq 0 ]] || [[ "${1:-}" == "help" ]] || [[ "${1:-}" == "-h" ]] || [[ "$
   exit 0
 fi
 
-WANT_API=0
 WANT_ADMIN=0
+WANT_SERVICE=0
 WANT_WEB=0
 WANT_APP=0
 FLUTTER_DEVICE=""
@@ -78,8 +81,8 @@ is_flutter_device() {
 for token in "$@"; do
   t="$(printf '%s' "$token" | tr '[:upper:]' '[:lower:]')"
   case "$t" in
-    all) WANT_API=1; WANT_ADMIN=1; WANT_WEB=1; WANT_APP=1 ;;
-    api) WANT_API=1 ;;
+    all) WANT_SERVICE=1; WANT_ADMIN=1; WANT_WEB=1; WANT_APP=1 ;;
+    service|api) WANT_SERVICE=1 ;;
     admin) WANT_ADMIN=1 ;;
     web|astro) WANT_WEB=1 ;;
     app) WANT_APP=1 ;;
@@ -104,7 +107,7 @@ if [[ "$WANT_APP" -eq 1 && -z "$FLUTTER_DEVICE" ]]; then
   esac
 fi
 
-if [[ "$WANT_API$WANT_ADMIN$WANT_WEB$WANT_APP" == "0000" ]]; then
+if [[ "$WANT_ADMIN$WANT_WEB$WANT_SERVICE$WANT_APP" == "0000" ]]; then
   show_help
   exit 0
 fi
@@ -145,7 +148,7 @@ ensure_pnpm() {
 echo ""
 ok "=== video-collection 环境检查 ==="
 
-if [[ "$WANT_API" -eq 1 ]]; then
+if [[ "$WANT_SERVICE" -eq 1 ]]; then
   if have_cmd go; then ok "[OK] go $(go version 2>/dev/null | awk '{print $3}')"
   else print_install_hint go; MISSING=1; fi
 fi
@@ -169,9 +172,9 @@ if [[ "$MISSING" -eq 1 ]]; then
 fi
 
 ensure_go_deps() {
-  local dir="$ROOT/video-collection-api"
-  [[ -d "$dir" ]] || { warn "[跳过] API 目录不存在"; return 0; }
-  info "[依赖] API: go mod download"
+  local dir="${1:-$ROOT/video-collection-service}"
+  [[ -d "$dir" ]] || { warn "[跳过] Service 目录不存在"; return 0; }
+  info "[依赖] Service: go mod download"
   (cd "$dir" && go mod download)
 }
 
@@ -195,8 +198,8 @@ ensure_flutter_deps() {
 
 echo ""
 ok "=== 检查 / 安装项目依赖 ==="
-[[ "$WANT_API" -eq 1 ]] && ensure_go_deps
-[[ "$WANT_ADMIN" -eq 1 ]] && ensure_pnpm_deps "Admin" "$ROOT/video-collection-admin"
+[[ "$WANT_SERVICE" -eq 1 ]] && ensure_go_deps "$ROOT/video-collection-service"
+[[ "$WANT_ADMIN" -eq 1 ]] && ensure_pnpm_deps "Admin" "$ROOT/video-collection-service/web/admin"
 [[ "$WANT_WEB" -eq 1 ]] && ensure_pnpm_deps "Web" "$ROOT/video-collection-web"
 [[ "$WANT_APP" -eq 1 ]] && ensure_flutter_deps
 
@@ -249,7 +252,7 @@ start_one() {
 echo ""
 ok "=== 启动服务（同一终端） ==="
 projects=""
-[[ "$WANT_API" -eq 1 ]] && projects+="api "
+[[ "$WANT_SERVICE" -eq 1 ]] && projects+="service "
 [[ "$WANT_ADMIN" -eq 1 ]] && projects+="admin "
 [[ "$WANT_WEB" -eq 1 ]] && projects+="web "
 echo "projects: ${projects:-"(none)"}"
@@ -259,8 +262,8 @@ echo ""
 warn "日志前缀区分服务。按 Ctrl+C 停止全部。"
 echo ""
 
-[[ "$WANT_API" -eq 1 ]] && start_one "api" "$ROOT/video-collection-api" "go run ."
-[[ "$WANT_ADMIN" -eq 1 ]] && start_one "admin" "$ROOT/video-collection-admin" "pnpm dev"
+[[ "$WANT_ADMIN" -eq 1 ]] && start_one "admin" "$ROOT/video-collection-service/web/admin" "pnpm dev"
+[[ "$WANT_SERVICE" -eq 1 ]] && start_one "service" "$ROOT/video-collection-service" "go run ."
 [[ "$WANT_WEB" -eq 1 ]] && start_one "web" "$ROOT/video-collection-web" "pnpm start"
 
 if [[ "$WANT_APP" -eq 1 ]]; then

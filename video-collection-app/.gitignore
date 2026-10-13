@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Output dist / artifacts
+/dist/
+env/*.local.json
+

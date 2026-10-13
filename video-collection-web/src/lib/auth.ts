@@ -1,4 +1,4 @@
-// 用户身份鉴权与同步客户端 (直连 video-collection-api /api/login, /api/register, /api/me)
+// 用户身份鉴权与同步客户端 (直连 video-collection-service /api/login, /api/register, /api/me)
 
 export interface User {
   id: number;

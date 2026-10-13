@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/brand_controls.dart';
 
 import '../models/video_model.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/leaderboard_card.dart';
 import 'anime_detail_screen.dart';
@@ -43,19 +45,28 @@ class _RankScreenState extends State<RankScreen>
     });
 
     final res = await _apiService.getRankings();
-    final all = res['anime'] ?? res['top'] ?? [];
+    final overall = res['top'] ?? [];
+    final anime = res['anime'] ?? [];
 
     if (!mounted) return;
     setState(() {
-      _allRank = all;
-      _cnAnimeRank = all
-          .where((v) => v.typeId == 15 || v.area == '大陆')
+      _allRank = overall;
+      _cnAnimeRank = anime
+          .where(
+            (video) =>
+                video.typeId == 15 ||
+                video.area.contains('大陆') ||
+                video.area.contains('中国'),
+          )
           .toList();
-      _jpAnimeRank = all
-          .where((v) => v.typeId == 16 || v.area == '日本')
+      _jpAnimeRank = anime
+          .where(
+            (video) =>
+                video.typeId == 16 ||
+                video.area.contains('日本') ||
+                video.area.contains('日韩'),
+          )
           .toList();
-      if (_cnAnimeRank.isEmpty) _cnAnimeRank = all.take(3).toList();
-      if (_jpAnimeRank.isEmpty) _jpAnimeRank = all.skip(1).toList();
       _isLoading = false;
     });
   }
@@ -70,11 +81,17 @@ class _RankScreenState extends State<RankScreen>
     if (list.isEmpty) {
       return const BrandEmpty(title: '热爱正在汇集', subtitle: '这个榜单暂时没有作品，稍后再来看看。');
     }
-    return ListView.builder(
+    final listView = ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: list.length + 1,
       itemBuilder: (context, position) {
-        if (position == 0) return const BrandPageBanner(title: '大家的热爱，都在这里', subtitle: '一起发现值得追的好故事。', eyebrow: 'STORIES WE ALL LOVE');
+        if (position == 0) {
+          return const BrandPageBanner(
+            title: '大家的热爱，都在这里',
+            subtitle: '一起发现值得追的好故事。',
+            eyebrow: 'STORIES WE ALL LOVE',
+          );
+        }
         final index = position - 1;
         return LeaderboardCard(
           rank: index + 1,
@@ -83,19 +100,36 @@ class _RankScreenState extends State<RankScreen>
         );
       },
     );
+    if (Responsive.contentWidth(context) < 980) return listView;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: listView,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: BrandAppBar(
         title: const Text('人气排行榜'),
-        bottom: BrandTabs(controller: _tabController,tabs: const [
+        actions: [
+          IconButton(
+            tooltip: '刷新榜单',
+            onPressed: _loadRankings,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+        bottom: BrandTabs(
+          controller: _tabController,
+          tabs: const [
             Tab(text: '总热度榜'),
             Tab(text: '日韩动漫'),
             Tab(text: '国产动漫'),
-          ]),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: BrandLoading())

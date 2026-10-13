@@ -1,0 +1,188 @@
+name: Release Bllii App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build Android APK
+        working-directory: video-collection-app
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter pub get
+          flutter build apk --release --dart-define-from-file=env/prod.json
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/bllii_for_android_${TAG}.apk
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bllii-android
+          path: video-collection-app/dist/*.apk
+
+  build-windows:
+    name: Build Windows Application
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build Windows
+        working-directory: video-collection-app
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter pub get
+          flutter build windows --release --dart-define-from-file=env/prod.json
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "dist\bllii_for_windows_${tag}.zip" -Force
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bllii-windows
+          path: video-collection-app/dist/*.zip
+
+  build-linux:
+    name: Build Linux Application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libmpv-dev mpv
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build Linux
+        working-directory: video-collection-app
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter pub get
+          flutter build linux --release --dart-define-from-file=env/prod.json
+          mkdir -p dist
+          tar -czf dist/bllii_for_linux_${TAG}.tar.gz -C build/linux/x64/release/bundle .
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bllii-linux
+          path: video-collection-app/dist/*.tar.gz
+
+  build-macos:
+    name: Build macOS Application
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build macOS
+        working-directory: video-collection-app
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter pub get
+          flutter build macos --release --dart-define-from-file=env/prod.json
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/video_collection_app.app dist/bllii_for_mac_${TAG}.zip
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bllii-macos
+          path: video-collection-app/dist/*.zip
+
+  build-ios:
+    name: Build iOS Application
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build iOS (No codesign)
+        working-directory: video-collection-app
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter pub get
+          flutter build ios --release --no-codesign --dart-define-from-file=env/prod.json
+          mkdir -p dist
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../dist/bllii_for_ios_${TAG}.ipa Payload
+          cd ../../..
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bllii-ios
+          path: video-collection-app/dist/*.ipa
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-android, build-windows, build-linux, build-macos, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: Bllii Release ${{ github.event.inputs.tag_name || github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: release-assets/*

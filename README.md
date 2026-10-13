@@ -52,17 +52,19 @@
 ```mermaid
 flowchart TB
     sources["已授权数据源<br/>JSON / XML / RSS / 网页 / 数据库 / 文件"]
-    api["video-collection-api<br/>Go · RESTful API · 鉴权 · 采集调度"]
+    service["video-collection-service<br/>Go · RESTful API + 管理后台（go:embed）"]
     db[("PostgreSQL / SQLite")]
+    redis[("Redis (radix)<br/>会话与缓存 · 可选")]
     web["Web 门户<br/>Astro + Tailwind CSS"]
-    admin["管理后台<br/>Vue + Element Plus"]
     app["跨端客户端<br/>Flutter + Material 3"]
+    adminClient["浏览器管理后台<br/>Vue 3 · Reka UI (Radix Vue)（Go 托管）"]
 
-    sources -->|采集与清洗| api
-    api <-->|读写| db
-    web <-->|REST API| api
-    admin <-->|REST API| api
-    app <-->|REST API| api
+    sources -->|采集与清洗| service
+    service <-->|读写| db
+    service <-.->|会话 / 读缓存| redis
+    web <-->|REST API| service
+    service -->|/admin 托管 SPA| adminClient
+    app <-->|REST API| service
 
     classDef service fill:#eef6ff,stroke:#4b9fff,color:#353b58
     classDef client fill:#f5f1ff,stroke:#9a83ff,color:#353b58
@@ -72,7 +74,9 @@ flowchart TB
     class db storage
 ```
 
-- **前后端分离**：门户、后台与客户端独立运行，共用后端数据与接口。
+- **统一服务（video-collection-service）**：原 `video-collection-api` 与 `video-collection-admin` 已合并为一个 Go 服务——管理后台 SPA 通过 `go:embed` 内嵌，由服务直接托管 `/admin`，无需独立后台容器。
+- **radix 缓存与会话**：接入 Redis（`mediocregopher/radix/v4`）后启用分布式会话与公开读接口缓存；未配置时自动降级为内存会话 + 直连数据库。
+- **前后端分离**：门户与客户端独立运行，共用后端数据与接口。
 - **本地开发轻量启动**：PostgreSQL 不可用时，API 自动降级到 SQLite；也可显式指定 `DB_DRIVER=sqlite`。
 - **接口文档随服务提供**：`/docs`、`/redoc`、`/openapi.json`。
 
@@ -80,8 +84,8 @@ flowchart TB
 
 | 目录 / 文件 | 职责 | 技术栈 / 用途 |
 | :--- | :--- | :--- |
-| [`video-collection-api/`](./video-collection-api/) | 采集、检索、鉴权、调度、存储与 API 文档 | Go 1.26 |
-| [`video-collection-admin/`](./video-collection-admin/) | 运营与内容管理后台 | Vue 3 · TypeScript · Vite 6 · Element Plus |
+| [`video-collection-service/`](./video-collection-service/) | **统一服务**：RESTful API + Go 托管管理后台，含 radix 缓存/会话层 | Go 1.26 · radix v4 |
+| [`video-collection-service/web/admin/`](./video-collection-service/web/admin/) | 管理后台前端（Gemini 风格，Radix 原语驱动，构建产物 go:embed 进服务） | Vue 3 · Reka UI (Radix Vue) · TypeScript · Vite 6 |
 | [`video-collection-web/`](./video-collection-web/) | 用户门户与播放页面 | Astro 5 · Tailwind CSS |
 | [`video-collection-app/`](./video-collection-app/) | 桌面、移动与 Web 客户端 | Flutter · Material 3 |
 | [`bllii-brand-kit/`](./bllii-brand-kit/) | 标志、图标、品牌动画与预览 | SVG · PNG · GIF · MP4 |
@@ -91,15 +95,15 @@ flowchart TB
 
 ### 1. 准备环境
 
-按需要运行的子项目安装工具；仅启动 API、Admin 和 Web 时无需安装 Flutter。
+按需要运行的子项目安装工具；仅启动 Service 和 Web 时无需安装 Flutter。
 
 | 工具 | 要求 | 用于 |
 | :--- | :--- | :--- |
-| [Go](https://go.dev/dl/) | 1.26.0 或更高，参见 [`go.mod`](./video-collection-api/go.mod) | API |
-| [Node.js](https://nodejs.org/) | 建议使用当前 LTS 版本 | Admin / Web |
-| [pnpm](https://pnpm.io/installation) | 启动器使用的前端包管理器 | Admin / Web |
+| [Go](https://go.dev/dl/) | 1.26.0 或更高，参见 [`go.mod`](./video-collection-service/go.mod) | 统一服务 |
+| [Node.js](https://nodejs.org/) | 建议使用当前 LTS 版本 | 管理后台 / Web / 门户 |
+| [pnpm](https://pnpm.io/installation) | 启动器使用的前端包管理器 | 管理后台 / Web / 门户 |
 | [Flutter SDK](https://docs.flutter.dev/get-started/install) | 需包含 Dart `^3.13.3`，参见 [`pubspec.yaml`](./video-collection-app/pubspec.yaml)；安装目标平台工具链 | App |
-| [PostgreSQL](https://www.postgresql.org/download/) | 可选；本地可使用 SQLite | API 存储 |
+| [PostgreSQL](https://www.postgresql.org/download/) | 可选；本地可使用 SQLite | 服务存储 |
 
 ### 2. 获取项目
 
@@ -113,17 +117,23 @@ cd video-collection
 **Windows · PowerShell**
 
 ```powershell
-.\run.ps1 api admin web
+.\run.ps1 service web
 ```
 
 **macOS / Linux · Bash**
 
 ```bash
 chmod +x run.sh
-./run.sh api admin web
+./run.sh service web
 ```
 
-启动器会检查所选目标需要的运行时，并执行 `go mod download`，在缺少依赖时执行 `pnpm install` / `flutter pub get`。缺少 pnpm 时会尝试通过 Corepack 或 npm 安装；其他运行时缺失时会给出安装提示并退出。
+`service` 为合并后的统一服务（API + 管理后台）；旧参数 `api` / `admin` 仍指向合并前的两个子项目，保留兼容。启动器会检查所选目标需要的运行时，并执行 `go mod download`，在缺少依赖时执行 `pnpm install` / `flutter pub get`。缺少 pnpm 时会尝试通过 Corepack 或 npm 安装；其他运行时缺失时会给出安装提示并退出。
+
+> 管理后台首次运行前需先构建前端（之后由 `go:embed` 随二进制分发）：
+> ```bash
+> cd video-collection-service/web/admin
+> pnpm install --frozen-lockfile && pnpm build
+> ```
 
 所有服务在**同一个终端并行运行**，日志带 `[api]`、`[admin]`、`[web]`、`[app]` 前缀，按 **Ctrl+C** 停止全部。Windows 启动器会设置 UTF-8 控制台编码。
 
@@ -134,12 +144,13 @@ chmod +x run.sh
 | 入口 | 本地地址 | 说明 |
 | :--- | :--- | :--- |
 | **Web 门户** | [localhost:4321](http://localhost:4321/) | 用户浏览与播放入口 |
-| **管理后台** | [localhost:3000](http://localhost:3000/) | 管理与采集配置入口 |
-| **API 服务** | [localhost:80](http://localhost:80/) | 服务信息与接口入口 |
-| **Swagger UI** | [localhost:80/docs](http://localhost:80/docs) | 在线查看与调试接口 |
-| **Redoc** | [localhost:80/redoc](http://localhost:80/redoc) | 接口参考文档 |
-| **OpenAPI JSON** | [localhost:80/openapi.json](http://localhost:80/openapi.json) | 导入 Postman / Apifox 等工具 |
-| **RSS 订阅** | [localhost:80/rss.xml](http://localhost:80/rss.xml) | 聚合订阅输出 |
+| **管理后台** | [localhost:8080/admin](http://localhost:8080/admin) | 管理与采集配置入口（统一服务托管） |
+| **根路径 → 后台** | [localhost:8080/](http://localhost:8080/) | 默认端口根目录自动跳转管理后台（服务即后台） |
+| **服务状态（程序）** | [localhost:8080/status](http://localhost:8080/status) | 在线状态、缓存与接口索引（JSON） |
+| **Swagger UI** | [localhost:8080/docs](http://localhost:8080/docs) | 在线查看与调试接口 |
+| **Redoc** | [localhost:8080/redoc](http://localhost:8080/redoc) | 接口参考文档 |
+| **OpenAPI JSON** | [localhost:8080/openapi.json](http://localhost:8080/openapi.json) | 导入 Postman / Apifox 等工具 |
+| **RSS 订阅** | [localhost:8080/rss.xml](http://localhost:8080/rss.xml) | 聚合订阅输出 |
 
 首次初始化数据库时会创建管理员账号：**`admin`**，密码可通过 `ADMIN_INITIAL_PASSWORD` 配置，未设置时为 `admin123`。生产部署步骤见 [部署与维护](./deploy/README.md)。
 
@@ -184,20 +195,20 @@ chmod +x run.sh
 
 各段命令均从仓库根目录开始，在独立终端执行。
 
-**API**
+**Service（API + 管理后台一体）**
 
 ```bash
-cd video-collection-api
+cd video-collection-service
 go mod download
 go run .
 ```
 
-**Admin**
+启动后访问 `/admin` 即为管理后台（SPA 已内嵌，无需单独启动前端）；仅当前台有改动时，才需进入 `web/admin` 构建：
 
 ```bash
-cd video-collection-admin
+cd video-collection-service/web/admin
 pnpm install
-pnpm dev
+pnpm build
 ```
 
 **Web**
@@ -226,14 +237,14 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 
 **系统 / 容器环境变量 > `.env` > `config/collector_rules.yaml` > 默认值**
 
-复制 [`video-collection-api/.env.example`](./video-collection-api/.env.example) 为同目录下的 `.env`，按实际环境修改。
+复制 [`video-collection-service/.env.example`](./video-collection-service/.env.example) 为同目录下的 `.env`，按实际环境修改。
 
 | 变量 | 用途 | 默认 / 注意事项 |
 | :--- | :--- | :--- |
 | `PORT` | API 监听端口 | 未设置时为 `80`；示例 `.env` 为 `8080` |
 | `DB_DRIVER` | 业务数据库引擎 | `postgres` 或 `sqlite` |
 | `DB_DSN` / `DATABASE_URL` | 数据库完整连接串 | 设置后优先于分项连接配置 |
-| `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`DB_SSLMODE` | PostgreSQL 分项连接配置 | 具体示例见 API `.env.example` |
+| `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`DB_SSLMODE` | PostgreSQL 分项连接配置 | 具体示例见服务 `.env.example` |
 | `SQLITE_PATH` | SQLite 文件位置 | `data/collection.db` |
 | `CONFIG_PATH` | 采集规则配置路径 | `config/collector_rules.yaml` |
 
@@ -244,28 +255,28 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 
 | 子项目 | 配置入口 | 本地默认行为 |
 | :--- | :--- | :--- |
-| **Admin** | `API_PROXY_TARGET`；[`vite.config.ts`](./video-collection-admin/vite.config.ts) → `server.proxy` | `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
+| **Admin** | 服务直接托管 `/admin`；[`vite.config.ts`](./video-collection-service/web/admin/vite.config.ts) → `server.proxy` | 独立开发时 `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
 | **Web** | [`astro.config.mjs`](./video-collection-web/astro.config.mjs)；`PUBLIC_API_URL` / `INTERNAL_API_URL` | 浏览器未设置 `PUBLIC_API_URL` 时使用同源请求；开发 `/api` 代理到 `http://localhost:80`；服务端优先读取 `INTERNAL_API_URL` |
-| **App** | 客户端「我的 → API 配置」 | Android 模拟器使用 `http://10.0.2.2:80`，其他平台默认 `http://127.0.0.1:80` |
+| **App** | 调试包可在设置中修改；正式包使用构建参数 `API_BASE_URL` | 调试时 Android 模拟器使用 `http://10.0.2.2:80`，其他平台默认 `http://127.0.0.1:80`。正式包执行 `flutter build ... --dart-define=API_BASE_URL=https://api.example.com`，不再显示服务端地址配置 |
 
-Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBLIC_API_URL`，浏览器使用同源 `/api`；开发代理和生产 Node 服务代理默认连接 `http://localhost:80`，生产服务可通过运行时的 `INTERNAL_API_URL` 修改后端地址。真机访问 API 时，App 应填写宿主机局域网 IP，不能使用真机自己的 `localhost`。
+Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBLIC_API_URL`，浏览器使用同源 `/api`；开发代理和生产 Node 服务代理默认连接 `http://localhost:80`，生产服务可通过运行时的 `INTERNAL_API_URL` 修改后端地址。调试真机访问 API 时，App 应在设置里填写宿主机局域网 IP，不能使用真机自己的 `localhost`。正式包只读取构建时的 `API_BASE_URL`。
 
-生产环境的反向代理、数据库、构建与服务部署步骤见 [API 文档](./video-collection-api/README.md)、[Web 文档](./video-collection-web/README.md)与 [Admin 文档](./video-collection-admin/README.md)。
+生产环境的反向代理、数据库、构建与服务部署步骤见 [统一服务文档](./video-collection-service/README.md)与 [Web 文档](./video-collection-web/README.md)。
 
 ## 文档导航
 
 | 文档 | 适用内容 |
 | :--- | :--- |
 | [生产部署与维护](./deploy/README.md) | Docker Compose、域名 HTTPS、数据持久化、备份恢复与升级 |
-| [可配置采集规则](./video-collection-api/docs/collection-rules.md) | 模板目录、自定义请求、字段映射与分页 |
-| [API 使用与部署](./video-collection-api/README.md) | 采集协议、鉴权、存储、OpenAPI、二进制构建与部署 |
-| [管理后台](./video-collection-admin/README.md) | 后台模块、接口对接、开发与构建 |
+| [可配置采集规则](./video-collection-service/docs/collection-rules.md) | 模板目录、自定义请求、字段映射与分页 |
+| [统一服务 API 使用与部署](./video-collection-service/README.md) | 采集协议、鉴权、存储、OpenAPI、radix 缓存、二进制构建与部署 |
+| [管理后台](./video-collection-service/README.md) | Gemini 风格后台界面、模块、开发与构建 |
 | [Web 门户](./video-collection-web/README.md) | 页面组件、开发、构建与接口调用 |
 | [Flutter 客户端](./video-collection-app/README.md) | 多端运行、API 配置与发布构建 |
-| [通用采集规则工作台](./video-collection-api/docs/collection-studio.md) | 来源配置、字段映射、预览、入库与能力边界 |
-| [内容与通知 API](./video-collection-api/docs/content-api.md) | 资讯、社区、站内通知与权限规则 |
-| [通用评论 API](./video-collection-api/docs/comments-api.md) | 多级回复、点赞、通知与内容类型扩展 |
-| [数据库管理 API](./video-collection-api/docs/database-api.md) | 数据浏览、备份恢复、维护与管理 SQL |
+| [通用采集规则工作台](./video-collection-service/docs/collection-studio.md) | 来源配置、字段映射、预览、入库与能力边界 |
+| [内容与通知 API](./video-collection-service/docs/content-api.md) | 资讯、社区、站内通知与权限规则 |
+| [通用评论 API](./video-collection-service/docs/comments-api.md) | 多级回复、点赞、通知与内容类型扩展 |
+| [数据库管理 API](./video-collection-service/docs/database-api.md) | 数据浏览、备份恢复、维护与管理 SQL |
 | [品牌资产说明](./bllii-brand-kit/README.md) | 标志、图标、动画与接入规范 |
 
 ## 品牌资产
@@ -297,7 +308,7 @@ pnpm brand:sync
 <details>
 <summary><strong>前端已启动，但接口请求失败</strong></summary>
 
-先检查 API 是否启动，再确认端口和连接地址一致。API 默认端口为 `80`，API `.env.example` 中为 `8080`；Admin / Web 开发代理默认连接 `80`。Web 设置了 `PUBLIC_API_URL` 时，浏览器会使用该地址，也应确认后端跨域配置。
+先检查 Service 是否启动，再确认端口和连接地址一致。服务默认端口为 `80`，服务 `.env.example` 中为 `8080`；Admin / Web 开发代理默认连接 `80`。Web 设置了 `PUBLIC_API_URL` 时，浏览器会使用该地址，也应确认后端跨域配置。
 
 </details>
 

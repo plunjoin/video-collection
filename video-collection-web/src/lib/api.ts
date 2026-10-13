@@ -1,4 +1,4 @@
-// 真实数据交互客户端：深度直连 video-collection-api
+// 真实数据交互客户端：深度直连 video-collection-service
 // 100% 遵循接口返回的数据结构，无缝驱动前端页面
 
 import { getInternalApiUrl } from './api-server';

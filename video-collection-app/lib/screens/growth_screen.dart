@@ -3,15 +3,21 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/brand_controls.dart';
+import '../widgets/brand_widgets.dart';
 import '../widgets/member_avatar.dart';
 
 class GrowthScreen extends StatefulWidget {
-  const GrowthScreen({super.key});
+  final int initialTab;
+  const GrowthScreen({super.key, this.initialTab = 0});
   @override
   State<GrowthScreen> createState() => _GrowthScreenState();
 }
 
-class _GrowthScreenState extends State<GrowthScreen> {
+class _GrowthScreenState extends State<GrowthScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
   final _title = TextEditingController(), _details = TextEditingController();
   Map<String, dynamic> _wallet = {};
   Map<String, dynamic> _journey = {};
@@ -37,11 +43,17 @@ class _GrowthScreenState extends State<GrowthScreen> {
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(
+      length: 5,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 4),
+    );
     _load();
   }
 
   @override
   void dispose() {
+    _tabs.dispose();
     _title.dispose();
     _details.dispose();
     super.dispose();
@@ -123,15 +135,24 @@ class _GrowthScreenState extends State<GrowthScreen> {
         ),
       ) ??
       false;
-  Widget _card(List<Widget> children) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
+  Widget _card(List<Widget> children) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: dark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: dark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,
       ),
-    ),
-  );
+    );
+  }
   Widget _pager(int page, int total, void Function(int) change) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
@@ -147,30 +168,31 @@ class _GrowthScreenState extends State<GrowthScreen> {
     ],
   );
   @override
-  Widget build(BuildContext context) => DefaultTabController(
-    length: 5,
-    child: Scaffold(
-      appBar: AppBar(
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: dark ? AppColors.darkBg : AppColors.lightBg,
+      appBar: BrandAppBar(
         title: const Text('同好成长站'),
         actions: [
           IconButton(
             onPressed: _busy ? null : _load,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
-        bottom: const TabBar(
-          isScrollable: true,
-          tabs: [
-            Tab(text: '成长日常'),
-            Tab(text: '装扮商店'),
-            Tab(text: '积分求片'),
-            Tab(text: '同好心愿'),
-            Tab(text: '消息通知'),
+        bottom: BrandTabs(
+          controller: _tabs,
+          tabs: const [
+            Text('日常'),
+            Text('装扮'),
+            Text('求片'),
+            Text('心愿'),
+            Text('消息'),
           ],
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: BrandLoading())
           : _error != null
           ? Center(
               child: Column(
@@ -184,6 +206,7 @@ class _GrowthScreenState extends State<GrowthScreen> {
           : AbsorbPointer(
               absorbing: _busy,
               child: TabBarView(
+                controller: _tabs,
                 children: [
                   _rewards(),
                   _store(),
@@ -193,8 +216,8 @@ class _GrowthScreenState extends State<GrowthScreen> {
                 ],
               ),
             ),
-    ),
-  );
+    );
+  }
   Widget _rewards() {
     final user = context.watch<AppStateProvider>().user ?? {},
         d = user['decorations'] as Map? ?? {},
@@ -231,17 +254,41 @@ class _GrowthScreenState extends State<GrowthScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            '${_wallet['balance'] ?? 0} 积分',
-            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+          const SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFF0F8), Color(0xFFF3EEFF), Color(0xFFEAF3FF)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_wallet['balance'] ?? 0}',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary700,
+                  ),
+                ),
+                const Text(
+                  '可用积分',
+                  style: TextStyle(color: AppColors.lightTextSecondary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Lv.${_journey['level']?['level'] ?? 1} ${_journey['level']?['name'] ?? '初遇故事'} · ${_journey['experience'] ?? 0} 成长值',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text('连续签到 ${_wallet['streak'] ?? 0} 天 · 按北京时间每日重置'),
+              ],
+            ),
           ),
-          Text('连续签到 ${_wallet['streak'] ?? 0} 天 · 按北京时间每日重置'),
-          const SizedBox(height: 12),
-          Text(
-            'Lv.${_journey['level']?['level'] ?? 1} · ${_journey['level']?['name'] ?? ''}',
-          ),
-          Text('${_journey['experience'] ?? 0} 成长值 · 兑换不降级，退款不重复计入成长'),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _wallet['checked_in'] == true
@@ -345,10 +392,17 @@ class _GrowthScreenState extends State<GrowthScreen> {
             kind = c['kind'].toString(),
             owned = c['owned'] == true,
             equipped = c['equipped'] == true;
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: dark ? AppColors.darkCard : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: dark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+          ),
+          child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (kind == 'avatar' || kind == 'animated_avatar')
@@ -408,7 +462,6 @@ class _GrowthScreenState extends State<GrowthScreen> {
                 ),
               ],
             ),
-          ),
         );
       },
     ),

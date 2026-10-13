@@ -173,6 +173,14 @@ class VideoRecord {
     );
   }
 
+  /// 与 Web 端一致：只把动漫总类、子类，或类型名含动漫/动画的作品视为番剧。
+  bool get isAnime {
+    if (typeId == 4 || typeId == 15 || typeId == 16 || typeId == 17) {
+      return true;
+    }
+    return RegExp(r'动漫|动画|漫剧|动态漫').hasMatch(typeName);
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
