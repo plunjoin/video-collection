@@ -111,15 +111,17 @@ func (c *Client) do(ctx context.Context, a radix.Action) error {
 }
 
 // Get 读取字符串值；键不存在或 Redis 异常均返回 ("", false)，调用方按未命中处理。
+// radix 会把 Redis 的空值（键不存在）解成空字符串且不返回错误，必须用 Maybe 区分。
 func (c *Client) Get(ctx context.Context, key string) (string, bool) {
 	if !c.Enabled() {
 		return "", false
 	}
-	var out string
-	if err := c.do(ctx, radix.Cmd(&out, "GET", c.key(key))); err != nil {
+	var value string
+	maybe := radix.Maybe{Rcv: &value}
+	if err := c.do(ctx, radix.Cmd(&maybe, "GET", c.key(key))); err != nil || maybe.Null {
 		return "", false
 	}
-	return out, true
+	return value, true
 }
 
 // SetJSON 写入 JSON 序列化结果并设置 TTL。
@@ -205,16 +207,17 @@ func (ns *Namespace) Name() string {
 	return ns.name
 }
 
-// Generation 返回当前命名空间代份（Invalidate 的 INCR 计数）。Redis 不可用时返回 0。
+// Generation 返回当前命名空间代份（Invalidate 的 INCR 计数）。Redis 不可用或键不存在时返回 0。
+// 读取必须走 Get，才能和 Incr 使用同一个带前缀的键。
 func (ns *Namespace) Generation(ctx context.Context) int64 {
 	if !ns.Enabled() {
 		return 0
 	}
-	var out string
-	if err := ns.client.do(ctx, radix.Cmd(&out, "GET", ns.client.genKey(ns.name))); err != nil {
+	raw, ok := ns.client.Get(ctx, ns.client.genKey(ns.name))
+	if !ok {
 		return 0
 	}
-	gen64, convErr := strconv.ParseInt(out, 10, 64)
+	gen64, convErr := strconv.ParseInt(raw, 10, 64)
 	if convErr != nil {
 		return 0
 	}
