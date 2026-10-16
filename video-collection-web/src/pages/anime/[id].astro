@@ -8,11 +8,79 @@ import Synopsis from '../../components/Synopsis.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
 import Comments from '../../components/Comments.astro';
 import { getVideoDetail } from '../../lib/api';
+
 const detail = await getVideoDetail(Astro.params.id || '0');
 if (!detail) return Astro.redirect('/404');
 const { video, related } = detail;
+
+// 构建 SEO 友好描述（120-150字）
+const cleanContent = video.content ? video.content.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : '';
+const pageDescription = cleanContent 
+  ? `${video.name}在线观看：${cleanContent.slice(0, 140)}...` 
+  : `${video.name} - ${video.remarks || ''} ${video.area || ''} ${video.type_name || '动漫'}全集高清在线观看、最新更新与同好交流讨论。`;
+
+const pageImage = video.picture || video.pic || '/brand/bllii-app-blue.svg';
+const canonicalOrigin = Astro.site?.origin || Astro.url.origin;
+const pageUrl = `${canonicalOrigin}/anime/${video.id}`;
+const playUrl = `${canonicalOrigin}/play/${video.id}`;
+
+// 构建 Google 视频收录核心 VideoObject 结构化数据 (JSON-LD)
+const videoSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoObject',
+  'name': video.name,
+  'description': pageDescription,
+  'thumbnailUrl': [pageImage.startsWith('http') ? pageImage : `${canonicalOrigin}${pageImage}`],
+  'uploadDate': video.updated_at || video.created_at || '2026-01-01T00:00:00+08:00',
+  'contentUrl': playUrl,
+  'embedUrl': playUrl,
+  'genre': video.tags || [video.type_name || '动漫'],
+  'inLanguage': video.language || 'zh-CN',
+  ...(video.actor ? {
+    'actor': video.actor.split(/[,/、\s]+/).filter(Boolean).map((a: string) => ({
+      '@type': 'Person',
+      'name': a.trim()
+    }))
+  } : {}),
+  ...(video.director ? {
+    'director': {
+      '@type': 'Person',
+      'name': video.director.trim()
+    }
+  } : {}),
+  ...(video.hits ? {
+    'interactionStatistic': {
+      '@type': 'InteractionCounter',
+      'interactionType': { '@type': 'https://schema.org/WatchAction' },
+      'userInteractionCount': video.hits
+    }
+  } : {})
+};
+
+// 面包屑结构化数据
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  'itemListElement': [
+    { '@type': 'ListItem', 'position': 1, 'name': '首页', 'item': canonicalOrigin },
+    { '@type': 'ListItem', 'position': 2, 'name': video.type_name || '番剧', 'item': `${canonicalOrigin}/category` },
+    { '@type': 'ListItem', 'position': 3, 'name': video.name, 'item': pageUrl }
+  ]
+};
 ---
-<Layout title={`${video.name} — bllii`} activeNav="番剧">
+<Layout 
+  title={`${video.name} 在线播放与全集选集 — bllii`} 
+  activeNav="番剧"
+  description={pageDescription}
+  image={pageImage}
+  type="video.other"
+  canonical={pageUrl}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(videoSchema)} />
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
   <AnimeHero video={video} />
   <DetailTabs activeTab="选集" />
   <EpisodeSelector videoId={video.id} playGroups={video.play_groups} />

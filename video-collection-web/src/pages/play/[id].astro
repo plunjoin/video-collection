@@ -24,7 +24,14 @@ const metaStr = [video.year, video.remarks, [video.area, video.language].filter(
 const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
 ---
 
-<Layout title={`正在播放：${video.name} - bllii 放映室`} activeNav="番剧">
+<Layout 
+  title={`正在播放：${video.name} - bllii 放映室`} 
+  activeNav="番剧"
+  description={`${video.name}在线全集播放：${video.remarks || ''} ${video.area || ''} 高清多线路播放与讨论。`}
+  image={posterImg}
+  type="video.other"
+  canonical={`${Astro.site?.origin || Astro.url.origin}/play/${video.id}`}
+>
   <!-- 引入 Video.js 样式与核心脚本 -->
   <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
   <script is:inline src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
@@ -382,8 +389,42 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
         if (autoplayStatus) autoplayStatus.textContent = modernPlayer.isAutoplayNext ? '自动连播已开启' : '自动连播已关闭';
       };
       syncStatus();
-      modernPlayer.player.on('blliisettingschange', syncStatus);
       window.addEventListener('pagehide', () => writeBookmark(modernPlayer.currentRouteIndex, modernPlayer.currentEpisodeIndex, modernPlayer.getCurrentTime(), modernPlayer.player.duration()));
+
+      // 埋点：监听播放深度（25%, 50%, 75%, 100% 完播）与播放动作
+      const reportedMilestones: Record<number, boolean> = { 25: false, 50: false, 75: false, 100: false };
+      const currentVideoId = Number(videoData.id);
+
+      modernPlayer.player.on('play', () => {
+        if ((window as any).blliiTrack) {
+          (window as any).blliiTrack.event('play', { target_id: currentVideoId });
+        }
+      });
+
+      modernPlayer.player.on('timeupdate', () => {
+        const duration = modernPlayer.player.duration();
+        const currentTime = modernPlayer.player.currentTime();
+        if (!duration || duration <= 0) return;
+        const percent = Math.floor((currentTime / duration) * 100);
+
+        [25, 50, 75].forEach(milestone => {
+          if (percent >= milestone && !reportedMilestones[milestone]) {
+            reportedMilestones[milestone] = true;
+            if ((window as any).blliiTrack) {
+              (window as any).blliiTrack.progress(currentVideoId, milestone);
+            }
+          }
+        });
+      });
+
+      modernPlayer.player.on('ended', () => {
+        if (!reportedMilestones[100]) {
+          reportedMilestones[100] = true;
+          if ((window as any).blliiTrack) {
+            (window as any).blliiTrack.progress(currentVideoId, 100);
+          }
+        }
+      });
 
       // 绑定上一集与下一集快捷按钮点击事件
       const prevEpBtn = document.getElementById('btn-prev-ep');

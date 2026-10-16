@@ -1,11 +1,22 @@
 ---
 import type { VideoRecord } from '../lib/api';
 import BrandIcon from './BrandIcon.astro';
-interface Props { video: VideoRecord; badge?: string; }
-const { video, badge } = Astro.props;
+interface Props { video: VideoRecord; badge?: string; rank?: number; }
+const { video, badge, rank } = Astro.props;
 ---
-<article class="video-card">
-<a class="video-card__link" href={`/anime/${video.id}`}>
+<article 
+  class="video-card" 
+  data-track-expose
+  data-track-id={video.id} 
+  data-track-rank={rank !== undefined ? rank : ''}
+>
+<a 
+  class="video-card__link" 
+  href={`/anime/${video.id}`}
+  data-track="video_click"
+  data-track-id={video.id}
+  data-track-rank={rank !== undefined ? rank : ''}
+>
   <div class="video-card__cover">
     <img src={video.picture || '/brand/bllii-app-light.svg'} alt={video.name} loading="lazy" onerror="this.onerror=null;this.src='/brand/bllii-app-light.svg'" />
     {badge && <span class="video-card__badge">{badge}</span>}

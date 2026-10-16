@@ -18,13 +18,16 @@ import (
 
 // validTrackEvents 埋点事件白名单（防止脏数据写库）
 var validTrackEvents = map[string]bool{
-	"page_view":  true,
-	"page_leave": true,
-	"rec_click":  true,
-	"ad_click":   true,
-	"search":     true,
-	"favorite":   true,
-	"play":       true,
+	"page_view":     true,
+	"page_leave":    true,
+	"rec_click":     true,
+	"ad_click":      true,
+	"search":        true,
+	"favorite":      true,
+	"play":          true,
+	"impression":    true, // 卡片有效曝光
+	"video_click":   true, // 卡片点击（带位置排名）
+	"play_progress": true, // 播放进度节点（25/50/75/100）
 }
 
 // validAdSlots 广告位白名单
