@@ -70,11 +70,32 @@ jobs:
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "dist\bllii_for_windows_${tag}.zip" -Force
 
+          $iscc = $null
+          $isccCmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
+          if ($isccCmd) { $iscc = $isccCmd.Source }
+          if (-not $iscc) {
+            $candidates = @(
+              "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+              "C:\Program Files\Inno Setup 6\ISCC.exe",
+              "$env:LocalAppData\Programs\Inno Setup 6\ISCC.exe"
+            )
+            foreach ($c in $candidates) {
+              if (Test-Path $c) { $iscc = $c; break }
+            }
+          }
+          if (-not $iscc) {
+            choco install innosetup --no-progress -y
+            $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc /DMyAppVersion="$tag" installer\bllii.iss
+
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: bllii-windows
-          path: video-collection-app/dist/*.zip
+          path: |
+            video-collection-app/dist/*.zip
+            video-collection-app/dist/*.exe
 
   build-linux:
     name: Build Linux Application

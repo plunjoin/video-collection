@@ -1,4 +1,4 @@
-# 本地一键打包并按规范命名脚本
+﻿# 本地一键打包并按规范命名脚本
 # 用法:
 #   .\build-release.ps1
 #   .\build-release.ps1 -Version v1.0.0
@@ -6,7 +6,7 @@
 #   .\build-release.ps1 -Target windows -Version v1.0.0
 
 param(
-    [string]$Version = "v1.0.0",
+    [string]$Version = "v1.0.1",
     [string]$Target = "all"
 )
 
@@ -41,7 +41,44 @@ if ($Target -eq "all" -or $Target -eq "windows") {
     
     Write-Host "正在压缩 Windows 绿色包为: bllii_for_windows_${Version}.zip ..." -ForegroundColor Cyan
     Compress-Archive -Path "$winReleaseDir\*" -DestinationPath $winZip -Force
-    Write-Host "[完成] Windows: $winZip" -ForegroundColor Green
+    Write-Host "[完成] Windows 绿色包: $winZip" -ForegroundColor Green
+
+    # 构建 Setup.exe 安装包
+    $issScript = Join-Path $AppDir "installer\bllii.iss"
+    if (Test-Path $issScript) {
+        $wizardBmp = Join-Path $AppDir "installer\wizard.bmp"
+        if (-not (Test-Path $wizardBmp)) {
+            $genArt = Join-Path $AppDir "scripts\generate-installer-art.mjs"
+            if (Test-Path $genArt) {
+                Write-Host "正在生成安装包主题美术素材..." -ForegroundColor Cyan
+                node $genArt
+            }
+        }
+        $iscc = $null
+        $isccCmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
+        if ($isccCmd) {
+            $iscc = $isccCmd.Source
+        }
+        if (-not $iscc) {
+            $candidates = @(
+                "$env:LocalAppData\Programs\Inno Setup 6\ISCC.exe",
+                "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+                "C:\Program Files\Inno Setup 6\ISCC.exe"
+            )
+            foreach ($c in $candidates) {
+                if (Test-Path $c) { $iscc = $c; break }
+            }
+        }
+
+        if ($iscc) {
+            Write-Host "正在使用 Inno Setup 编译安装向导 (Setup.exe)..." -ForegroundColor Cyan
+            & $iscc /DMyAppVersion="$Version" $issScript
+            $setupExe = Join-Path $DistDir "bllii_setup_windows_${Version}.exe"
+            Write-Host "[完成] Windows 安装包: $setupExe" -ForegroundColor Green
+        } else {
+            Write-Host "[提示] 未检测到 Inno Setup (ISCC.exe)，跳过安装包生成。可通过 winget install JRSoftware.InnoSetup 安装。" -ForegroundColor Yellow
+        }
+    }
 }
 
 # 2. 打包 Android
