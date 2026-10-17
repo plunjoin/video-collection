@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"testing"

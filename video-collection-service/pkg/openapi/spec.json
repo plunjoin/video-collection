@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "视频采集与社区运营平台 RESTful API",
+    "title": "Bllii 动漫聚合与社区运营平台 (Bllii-Familiar) RESTful API",
     "version": "1.0.0",
-    "description": "MacCMS v10 视频智能采集聚合平台 & 客户端纯后端 RESTful API 服务接口文档。\n\n本服务已全面完成前后端分离重构，移除了内部模板与前端静态页面，专注于提供高性能、高可用、标准规范的数据接口服务。\n\n### 认证机制说明\n- 管理员接口与用户个人中心接口支持通过 Cookie 认证（`agg_auth_token`）或 HTTP 请求头传递 Authorization Token（`Bearer <token>`）。\n- 公开接口无需任何鉴权即可直接调用。",
+    "description": "Bllii-Familiar (追番使魔) 网络采集聚合平台 & 客户端纯后端 RESTful API 服务接口文档。\n\n本服务已全面完成前后端分离重构，移除了内部模板与前端静态页面，专注于提供高性能、高可用、标准规范的数据接口服务。\n\n### 认证机制说明\n- 管理员接口与用户个人中心接口支持通过 Cookie 认证（`agg_auth_token`）或 HTTP 请求头传递 Authorization Token（`Bearer <token>`）。\n- 公开接口无需任何鉴权即可直接调用。",
     "contact": {
       "name": "API 维护团队",
       "email": "support@video-collection.local"
@@ -6389,13 +6389,13 @@
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
-      "CollectionRule": {"type":"object","required":["version","format","method"],"properties":{"version":{"type":"integer","enum":[1]},"format":{"type":"string","enum":["maccms_json","maccms_xml","rss","custom_json"]},"method":{"type":"string","enum":["GET","POST"]},"body":{"type":"string","description":"静态请求体"},"query":{"type":"object","additionalProperties":{"type":"string"},"description":"参数值可使用 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}"},"mapping":{"type":"object","additionalProperties":{"type":"string"},"description":"list_path、page_path、page_count_path、total_path 及视频字段 *_path，支持嵌套路径和数组下标"}}},
+      "CollectionRule": {"type":"object","required":["version","format","method"],"properties":{"version":{"type":"integer","enum":[1]},"format":{"type":"string","enum":["standard_json","video_json","json","standard_xml","video_xml","xml","rss","custom_json"]},"method":{"type":"string","enum":["GET","POST"]},"body":{"type":"string","description":"静态请求体"},"query":{"type":"object","additionalProperties":{"type":"string"},"description":"参数值可使用 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}"},"mapping":{"type":"object","additionalProperties":{"type":"string"},"description":"list_path、page_path、page_count_path、total_path 及视频字段 *_path，支持嵌套路径和数组下标"}}},
       "CollectionTemplate": {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"},"aliases":{"type":"array","items":{"type":"string"}},"rule":{"$ref":"#/components/schemas/CollectionRule"}}},
       "SourceConfig": {
         "type": "object",
         "required": ["name"],
         "properties": {
-          "id": { "type": "string", "example": "src_maccms" },
+          "id": { "type": "string", "example": "src_video" },
           "name": { "type": "string", "example": "示例数据源" },
           "api": { "type": "string", "description": "HTTP来源必填；数据库及文件来源可为空", "example": "https://api.example.com/api.php/provide/vod" },
           "type": { "type": "string", "enum": ["rule", "json", "xml", "rss", "custom_json", "pipeline"], "default": "json" },

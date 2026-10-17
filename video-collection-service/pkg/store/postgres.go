@@ -14,7 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"video-collection-service/config"
-	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/collector"
 )
 
 type PostgresStore struct {
@@ -712,7 +712,7 @@ func (s *PostgresStore) matchCategorySmart(ctx context.Context, srcName string) 
 }
 
 // UpsertVideo 写入或更新视频数据（深度支持 PostgreSQL 原生 JSONB 与多采集节点独立聚合存储）
-func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *maccms.CleanedVod) (int, error) {
+func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *collector.CleanedVod) (int, error) {
 	// 并发采集写锁保护，防止多采集点同时采集同一视频时产生竞态同名记录
 	s.upsertMu.Lock()
 	defer s.upsertMu.Unlock()
@@ -775,7 +775,7 @@ func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *m
 	}
 
 	// 已存在：多节点线路聚合（保留来自不同采集节点的所有播放线路）
-	var mergedGroups []maccms.PlayGroup
+	var mergedGroups []collector.PlayGroup
 	_ = json.Unmarshal(existingPlayGroupsJSON, &mergedGroups)
 
 	for _, incoming := range vod.PlayGroups {
@@ -830,7 +830,7 @@ func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *m
 	}
 
 	// 保底去重：同一节点（source_id:player_code 或相同展示来源）若存在多条，保留剧集最完整的一条
-	dedupMap := make(map[string]maccms.PlayGroup)
+	dedupMap := make(map[string]collector.PlayGroup)
 	var dedupOrder []string
 	for _, g := range mergedGroups {
 		k := strings.ToLower(strings.TrimSpace(g.SourceID)) + ":" + strings.ToLower(strings.TrimSpace(g.PlayerCode))
@@ -846,7 +846,7 @@ func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *m
 			dedupOrder = append(dedupOrder, k)
 		}
 	}
-	finalGroups := make([]maccms.PlayGroup, 0, len(dedupOrder))
+	finalGroups := make([]collector.PlayGroup, 0, len(dedupOrder))
 	for _, k := range dedupOrder {
 		finalGroups = append(finalGroups, dedupMap[k])
 	}

@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"context"
@@ -40,7 +40,7 @@ func TestConfiguredRequestAndNestedResponse(t *testing.T) {
 	}
 }
 
-func TestLegacyRESTDoesNotReceiveCMSParameters(t *testing.T) {
+func TestLegacyRESTDoesNotReceiveCollectorParameters(t *testing.T) {
 	c := NewClient(config.SourceConfig{API: "https://example.com/videos", Type: "custom_json"})
 	u, _ := url.Parse(c.BuildURL(QueryParams{Action: "detail", Page: 3, Hours: 24}))
 	if u.Query().Get("page") != "3" || u.Query().Has("ac") || u.Query().Has("h") || u.Query().Has("pg") {

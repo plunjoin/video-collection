@@ -2,8 +2,10 @@
 package ingest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -74,15 +76,18 @@ func Validate(src config.SourceConfig) error {
 		return fmt.Errorf("文章必须映射 content 字段")
 	}
 	switch p.Input {
-	case "api", "html":
+	case "api", "rss", "html":
 		if err := validURL(src.API); err != nil {
 			return err
+		}
+		if p.Request.Method == "" {
+			p.Request.Method = "GET"
 		}
 		if p.Request.Method != "GET" && p.Request.Method != "POST" {
 			return fmt.Errorf("仅支持 GET 或 POST 请求")
 		}
 		if p.Request.StartPage < 1 {
-			return fmt.Errorf("起始页须大于 0")
+			p.Request.StartPage = 1
 		}
 		if p.Input == "html" {
 			if p.HTML.ItemSelector == "" {
@@ -244,9 +249,17 @@ func Run(ctx context.Context, src config.SourceConfig, limit int, emit func(Samp
 		u, _ := url.Parse(next)
 		q := u.Query()
 		for k, v := range src.CustomParams {
-			q.Set(k, v)
+			if strings.Contains(v, "{hours}") {
+				if src.CollectHours > 0 {
+					q.Set(k, strings.ReplaceAll(v, "{hours}", strconv.Itoa(src.CollectHours)))
+				}
+			} else if strings.Contains(v, "{page}") {
+				q.Set(k, strings.ReplaceAll(v, "{page}", strconv.Itoa(p.Request.StartPage+page)))
+			} else {
+				q.Set(k, v)
+			}
 		}
-		if p.Request.PageParam != "" && (p.Input == "api" || p.HTML.NextSelector == "") {
+		if p.Request.PageParam != "" && (p.Input == "api" || p.Input == "rss" || p.HTML.NextSelector == "") {
 			q.Set(p.Request.PageParam, strconv.Itoa(p.Request.StartPage+page))
 		}
 		u.RawQuery = q.Encode()
@@ -259,16 +272,31 @@ func Run(ctx context.Context, src config.SourceConfig, limit int, emit func(Samp
 			return err
 		}
 		before := count
-		if p.Input == "api" {
-			var root any
-			dec := json.NewDecoder(strings.NewReader(string(body)))
-			dec.UseNumber()
-			if err := dec.Decode(&root); err != nil {
-				return fmt.Errorf("接口响应不是有效 JSON")
-			}
-			list, ok := pathValue(root, p.Request.ListPath).([]any)
-			if !ok {
-				return fmt.Errorf("列表路径 %q 未指向数组", p.Request.ListPath)
+		if p.Input == "api" || p.Input == "rss" {
+			var list []any
+			if p.Input == "rss" || isXMLPayload(body) {
+				items, err := parseFeed(body)
+				if err != nil {
+					return err
+				}
+				list = items
+			} else {
+				var root any
+				dec := json.NewDecoder(strings.NewReader(string(body)))
+				dec.UseNumber()
+				if err := dec.Decode(&root); err != nil {
+					if items, xmlErr := parseFeed(body); xmlErr == nil && len(items) > 0 {
+						list = items
+					} else {
+						return fmt.Errorf("接口响应不是有效 JSON 或 RSS/XML 数据源")
+					}
+				} else {
+					arr, ok := pathValue(root, p.Request.ListPath).([]any)
+					if !ok {
+						return fmt.Errorf("列表路径 %q 未指向数组", p.Request.ListPath)
+					}
+					list = arr
+				}
 			}
 			for _, obj := range list {
 				if count >= limit {
@@ -399,7 +427,7 @@ func fetch(ctx context.Context, client *http.Client, src config.SourceConfig, ad
 			}
 		}
 		method, body := src.Filter.Pipeline.Request.Method, src.Filter.Pipeline.Request.Body
-		if src.Filter.Pipeline.Input == "html" {
+		if src.Filter.Pipeline.Input == "html" || src.Filter.Pipeline.Input == "rss" {
 			method, body = "GET", ""
 		}
 		req, err := http.NewRequestWithContext(ctx, method, address, strings.NewReader(body))
@@ -434,3 +462,298 @@ func fetch(ctx context.Context, client *http.Client, src config.SourceConfig, ad
 	}
 	return nil, last
 }
+
+func isXMLPayload(body []byte) bool {
+	trimmed := strings.TrimSpace(string(body))
+	return strings.HasPrefix(trimmed, "<?xml") ||
+		strings.HasPrefix(trimmed, "<rss") ||
+		strings.HasPrefix(trimmed, "<feed") ||
+		strings.HasPrefix(trimmed, "<RDF") ||
+		strings.HasPrefix(trimmed, "<channel") ||
+		(strings.HasPrefix(trimmed, "<!DOCTYPE") && (strings.Contains(trimmed, "<rss") || strings.Contains(trimmed, "<feed")))
+}
+
+var imgRegex = regexp.MustCompile(`(?i)<img[^>]+src=["']([^"']+)["']`)
+
+func extractCover(candidates ...string) string {
+	for _, c := range candidates {
+		c = strings.TrimSpace(c)
+		if strings.HasPrefix(c, "http://") || strings.HasPrefix(c, "https://") {
+			return c
+		}
+	}
+	for _, text := range candidates {
+		if text != "" {
+			if m := imgRegex.FindStringSubmatch(text); len(m) > 1 {
+				return m[1]
+			}
+		}
+	}
+	return ""
+}
+
+type rssItem struct {
+	Title          string `xml:"title"`
+	Link           string `xml:"link"`
+	GUID           string `xml:"guid"`
+	Description    string `xml:"description"`
+	ContentEncoded string `xml:"encoded"`
+	PubDate        string `xml:"pubDate"`
+	Creator        string `xml:"creator"`
+	Author         string `xml:"author"`
+	Category       string `xml:"category"`
+	Enclosure      struct {
+		URL string `xml:"url,attr"`
+	} `xml:"enclosure"`
+	MediaThumbnail struct {
+		URL string `xml:"url,attr"`
+	} `xml:"thumbnail"`
+	MediaContent struct {
+		URL string `xml:"url,attr"`
+	} `xml:"content"`
+}
+
+type rssFeed struct {
+	XMLName xml.Name `xml:"rss"`
+	Channel struct {
+		Title       string    `xml:"title"`
+		Link        string    `xml:"link"`
+		Description string    `xml:"description"`
+		Items       []rssItem `xml:"item"`
+	} `xml:"channel"`
+}
+
+type atomFeed struct {
+	XMLName xml.Name    `xml:"feed"`
+	Title   string      `xml:"title"`
+	Entries []atomEntry `xml:"entry"`
+}
+
+type atomEntry struct {
+	Title     string     `xml:"title"`
+	ID        string     `xml:"id"`
+	Published string     `xml:"published"`
+	Updated   string     `xml:"updated"`
+	Summary   string     `xml:"summary"`
+	Content   string     `xml:"content"`
+	Links     []atomLink `xml:"link"`
+	Author    struct {
+		Name string `xml:"name"`
+	} `xml:"author"`
+	Category struct {
+		Term string `xml:"term,attr"`
+	} `xml:"category"`
+}
+
+type atomLink struct {
+	Rel  string `xml:"rel,attr"`
+	Href string `xml:"href,attr"`
+}
+
+type channelFeed struct {
+	XMLName xml.Name  `xml:"channel"`
+	Items   []rssItem `xml:"item"`
+}
+
+type rdfFeed struct {
+	XMLName xml.Name  `xml:"RDF"`
+	Items   []rssItem `xml:"item"`
+}
+
+type maccmsXMLFeed struct {
+	Videos []struct {
+		ID       string `xml:"id"`
+		Name     string `xml:"name"`
+		Type     string `xml:"type"`
+		Pic      string `xml:"pic"`
+		Actor    string `xml:"actor"`
+		Director string `xml:"director"`
+		Des      string `xml:"des"`
+		Year     string `xml:"year"`
+		Area     string `xml:"area"`
+		Note     string `xml:"note"`
+		DL       struct {
+			DD []struct {
+				Flag string `xml:"flag,attr"`
+				Data string `xml:",chardata"`
+			} `xml:"dd"`
+		} `xml:"dl"`
+	} `xml:"list>video"`
+}
+
+func rssItemToMap(item rssItem) map[string]any {
+	link := strings.TrimSpace(item.Link)
+	guid := strings.TrimSpace(item.GUID)
+	id := guid
+	if id == "" {
+		id = link
+	}
+	if link == "" {
+		link = guid
+	}
+	content := strings.TrimSpace(item.ContentEncoded)
+	if content == "" {
+		content = strings.TrimSpace(item.Description)
+	}
+	desc := strings.TrimSpace(item.Description)
+	if desc == "" {
+		desc = content
+	}
+	author := strings.TrimSpace(item.Creator)
+	if author == "" {
+		author = strings.TrimSpace(item.Author)
+	}
+	cover := extractCover(item.Enclosure.URL, item.MediaContent.URL, item.MediaThumbnail.URL, item.ContentEncoded, item.Description)
+
+	return map[string]any{
+		"id":           id,
+		"guid":         guid,
+		"link":         link,
+		"url":          link,
+		"title":        strings.TrimSpace(item.Title),
+		"description":  desc,
+		"summary":      desc,
+		"content":      content,
+		"author":       author,
+		"creator":      author,
+		"pubDate":      strings.TrimSpace(item.PubDate),
+		"pub_date":     strings.TrimSpace(item.PubDate),
+		"published_at": strings.TrimSpace(item.PubDate),
+		"category":     strings.TrimSpace(item.Category),
+		"cover":        cover,
+	}
+}
+
+func atomEntryToMap(entry atomEntry) map[string]any {
+	var link string
+	for _, l := range entry.Links {
+		if l.Rel == "" || l.Rel == "alternate" {
+			link = strings.TrimSpace(l.Href)
+			break
+		}
+	}
+	if link == "" && len(entry.Links) > 0 {
+		link = strings.TrimSpace(entry.Links[0].Href)
+	}
+	id := strings.TrimSpace(entry.ID)
+	if id == "" {
+		id = link
+	}
+	if link == "" {
+		link = id
+	}
+	content := strings.TrimSpace(entry.Content)
+	if content == "" {
+		content = strings.TrimSpace(entry.Summary)
+	}
+	summary := strings.TrimSpace(entry.Summary)
+	if summary == "" {
+		summary = content
+	}
+	pubDate := strings.TrimSpace(entry.Published)
+	if pubDate == "" {
+		pubDate = strings.TrimSpace(entry.Updated)
+	}
+	author := strings.TrimSpace(entry.Author.Name)
+	cover := extractCover(entry.Content, entry.Summary)
+
+	return map[string]any{
+		"id":           id,
+		"guid":         id,
+		"link":         link,
+		"url":          link,
+		"title":        strings.TrimSpace(entry.Title),
+		"description":  summary,
+		"summary":      summary,
+		"content":      content,
+		"author":       author,
+		"creator":      author,
+		"pubDate":      pubDate,
+		"pub_date":     pubDate,
+		"published_at": pubDate,
+		"category":     strings.TrimSpace(entry.Category.Term),
+		"cover":        cover,
+	}
+}
+
+func parseFeed(body []byte) ([]any, error) {
+	clean := bytes.TrimPrefix(body, []byte("\xef\xbb\xbf"))
+	clean = bytes.TrimSpace(clean)
+
+	var rss rssFeed
+	if err := xml.Unmarshal(clean, &rss); err == nil && len(rss.Channel.Items) > 0 {
+		var list []any
+		for _, item := range rss.Channel.Items {
+			list = append(list, rssItemToMap(item))
+		}
+		return list, nil
+	}
+
+	var atom atomFeed
+	if err := xml.Unmarshal(clean, &atom); err == nil && len(atom.Entries) > 0 {
+		var list []any
+		for _, entry := range atom.Entries {
+			list = append(list, atomEntryToMap(entry))
+		}
+		return list, nil
+	}
+
+	var ch channelFeed
+	if err := xml.Unmarshal(clean, &ch); err == nil && len(ch.Items) > 0 {
+		var list []any
+		for _, item := range ch.Items {
+			list = append(list, rssItemToMap(item))
+		}
+		return list, nil
+	}
+
+	var rdf rdfFeed
+	if err := xml.Unmarshal(clean, &rdf); err == nil && len(rdf.Items) > 0 {
+		var list []any
+		for _, item := range rdf.Items {
+			list = append(list, rssItemToMap(item))
+		}
+		return list, nil
+	}
+
+	var mac maccmsXMLFeed
+	if err := xml.Unmarshal(clean, &mac); err == nil && len(mac.Videos) > 0 {
+		var list []any
+		for _, v := range mac.Videos {
+			var playURLs []string
+			var playFroms []string
+			for _, dd := range v.DL.DD {
+				if strings.TrimSpace(dd.Data) != "" {
+					flag := dd.Flag
+					if flag == "" {
+						flag = "m3u8"
+					}
+					playFroms = append(playFroms, flag)
+					playURLs = append(playURLs, strings.TrimSpace(dd.Data))
+				}
+			}
+			list = append(list, map[string]any{
+				"id":          v.ID,
+				"title":       v.Name,
+				"name":        v.Name,
+				"category":    v.Type,
+				"type":        v.Type,
+				"cover":       v.Pic,
+				"pic":         v.Pic,
+				"actor":       v.Actor,
+				"director":    v.Director,
+				"content":     v.Des,
+				"description": v.Des,
+				"year":        v.Year,
+				"area":        v.Area,
+				"remarks":     v.Note,
+				"play_url":    strings.Join(playURLs, "$$$"),
+				"play_from":   strings.Join(playFroms, "$$$"),
+			})
+		}
+		return list, nil
+	}
+
+	return nil, fmt.Errorf("未识别到有效的 RSS、Atom 或 XML 数据条目")
+}
+

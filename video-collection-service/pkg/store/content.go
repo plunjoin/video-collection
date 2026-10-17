@@ -75,6 +75,8 @@ type ContentStore interface {
 	GrowthStore
 	CollectionStore
 	CommentStore
+	WikiStore
+	TaskStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
 	SaveContent(context.Context, *Content, int, bool) error
@@ -165,7 +167,25 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = migrateDanmaku(tx, id, timestamp); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = migrateWiki(tx, id, timestamp); err != nil {
+		return err
+	}
+	if err = migrateCollectionTasks(tx, id, timestamp); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	// 旧库升级：为埋点相关表补 platform 列（网站 / App 维度）。
+	// PostgreSQL 原生幂等；SQLite 不支持 IF NOT EXISTS，重复执行报错被忽略。
+	if s.postgres {
+		_, _ = s.db.Exec("ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web'")
+		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web'")
+	} else {
+		_, _ = s.db.Exec("ALTER TABLE analytics_events ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
+		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
+	}
+	return nil
 }
 
 func contentPage(page, size int) (int, int) {

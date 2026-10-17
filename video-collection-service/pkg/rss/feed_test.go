@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/store"
 )
 
@@ -46,10 +46,10 @@ func (m *mockStore) QueryVideos(ctx context.Context, q store.VideoQuery) ([]stor
 			Remarks:   "4K先行预告",
 			Content:   "潘多拉星球新冒险",
 			UpdatedAt: time.Now(),
-			PlayGroups: []maccms.PlayGroup{
+			PlayGroups: []collector.PlayGroup{
 				{
 					PlayerCode: "m3u8",
-					Episodes: []maccms.Episode{
+					Episodes: []collector.Episode{
 						{Name: "预告1", URL: "https://example.com/ep1.m3u8"},
 					},
 				},

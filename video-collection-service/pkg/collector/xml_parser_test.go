@@ -1,10 +1,10 @@
-package maccms
+package collector
 
 import (
 	"testing"
 )
 
-func TestParseMacCmsXml(t *testing.T) {
+func TestParseVideoXml(t *testing.T) {
 	xmlData := []byte(`<?xml version="1.0" encoding="utf-8"?>
 <rss version="5.1">
   <class>

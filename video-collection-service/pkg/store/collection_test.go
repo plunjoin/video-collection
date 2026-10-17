@@ -60,3 +60,71 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 		t.Fatal("other source identity collided", err)
 	}
 }
+
+func TestCollectionRecordRectificationAndCalibration(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "rectify.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	// 1. 测试注入样本数据
+	count, err := s.ImportSampleCollectionRecords(ctx, "rule_demo", "record")
+	if err != nil || count != 5 {
+		t.Fatalf("ImportSampleCollectionRecords failed: count=%d, err=%v", count, err)
+	}
+
+	// 2. 检索并校验
+	rows, total, err := s.ListCollectionRecords(ctx, "rule_demo", 1, 10)
+	if err != nil || total != 5 || len(rows) != 5 {
+		t.Fatalf("ListCollectionRecords failed: total=%d, len=%d, err=%v", total, len(rows), err)
+	}
+
+	// 3. 在线校正字段
+	targetKey := "tmdb_person_1892"
+	newValues := map[string]string{
+		"actor_id": "1892",
+		"name":     "成龙 (Jackie Chan)",
+		"biography": "华语功夫电影巨星",
+	}
+	if err := s.UpdateCollectionRecord(ctx, "rule_demo", "record", targetKey, newValues); err != nil {
+		t.Fatalf("UpdateCollectionRecord failed: %v", err)
+	}
+
+	// 4. 校正入库为 Wiki 实体
+	sub, err := s.RectifyCollectionRecordToWiki(ctx, "rule_demo", "record", targetKey, WikiSubject{
+		Name:         "成龙",
+		OriginalName: "Jackie Chan",
+		Type:         "person",
+		SubType:      "actor",
+		Summary:      "华语功夫电影巨星，奥斯卡终身成就奖得主",
+		Infobox:      map[string]any{"代表作": "警察故事"},
+	})
+	if err != nil || sub == nil || sub.ID <= 0 {
+		t.Fatalf("RectifyCollectionRecordToWiki failed: sub=%+v, err=%v", sub, err)
+	}
+
+	// 检查 content_id 是否绑定
+	rows, _, _ = s.ListCollectionRecords(ctx, "rule_demo", 1, 10)
+	var found *CollectionRecord
+	for _, r := range rows {
+		if r.Key == targetKey {
+			found = &r
+			break
+		}
+	}
+	if found == nil || found.ContentID != sub.ID {
+		t.Fatalf("ContentID not linked: %+v", found)
+	}
+
+	// 5. 删除记录
+	if err := s.DeleteCollectionRecord(ctx, "rule_demo", "record", targetKey); err != nil {
+		t.Fatalf("DeleteCollectionRecord failed: %v", err)
+	}
+	rowsAfter, totalAfter, _ := s.ListCollectionRecords(ctx, "rule_demo", 1, 10)
+	if totalAfter != 4 || len(rowsAfter) != 4 {
+		t.Fatalf("Delete failed, total=%d", totalAfter)
+	}
+}
+

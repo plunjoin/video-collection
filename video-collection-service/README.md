@@ -12,7 +12,7 @@
 客户端 ──► /api/*  ──► Go 服务 ──► PostgreSQL / SQLite
                        │
                        ├─► radix(Redis)：会话存储、公开读缓存（可选）
-                       └─► 采集调度 / MacCMS / RSS / M3U8 清洗
+                       └─► Bllii-Familiar 使魔调度 / 网络采集 / RSS / M3U8 清洗
 ```
 
 ## 目录结构
@@ -25,7 +25,7 @@ video-collection-service/
 │   ├── api/                 # RESTful 接口（含缓存包装 serveCached/adminWrite）
 │   ├── auth/                # 鉴权与会话（内存/Redis 双实现 SessionStore）
 │   ├── cache/               # radix 封装：命名空间 + 代份失效模型
-│   ├── ingest/ maccms/ m3u8cleaner/ rss/ scheduler/ store/ theme/ player/ openapi/
+│   ├── ingest/ collector/ m3u8cleaner/ rss/ scheduler/ store/ theme/ player/ openapi/
 ├── web/
 │   └── admin/               # Vue3 管理后台（Gemini 风格）
 │       ├── embed.go         # go:embed all:dist —— SPA 托管处理器
@@ -129,16 +129,17 @@ docker compose --env-file deploy/.env up -d --build
 | **Admin - Videos** | `DELETE /api/admin/videos`<br>`POST /api/admin/videos/save`<br>`POST /api/admin/videos/batch-delete` | 视频编辑、单条删除与批量清理 |
 | **Admin - Users** | `GET/POST/DELETE /api/admin/users` | 用户账号分页列表、权限分配与状态修改 |
 | **Admin - Stats & Logs** | `GET /api/admin/stats`<br>`GET /api/admin/logs` | 系统仪表盘统计指标与操作审计日志流水 |
-| **Analytics - 埋点** | `POST /api/track` | 轻量埋点上报（page_view / page_leave 停留时长 / rec_click / ad_click / search / favorite / play） |
+| **Analytics - 埋点** | `POST /api/track` | 轻量埋点上报（page_view / page_leave 停留时长 / rec_click / ad_click / search / favorite / play / impression / video_click / play_progress）；支持 `platform` 字段，缺省按 User-Agent 识别网站 / App（Flutter Dart UA） |
 | **Analytics - 搜索建议** | `GET /api/search/suggest` | 输入自动补全（作品名匹配）与真实搜索热词（近7天） |
 | **Analytics - 个性化推荐** | `GET /api/recommend/for-you` | 基于播放历史与追剧收藏的类型亲和度加权推荐，需登录 |
 | **Analytics - 广告位** | `GET /api/ads`<br>`GET/POST/DELETE /api/admin/ads` | 按位置（banner / home_recommend / detail）拉取广告；后台维护物料、排期与上下架 |
 | **Analytics - 留存看板** | `GET /api/admin/retention` | 近14天新增访客留存、今日新增与回访，以及功能渗透率 |
+| **Analytics - 埋点总览** | `GET /api/admin/analytics/overview` | 网站 / App 的今日、昨日、累计 PV-UV、近30天趋势、平台分布、热门页面与事件分布 |
 | **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
 
 ## 管理后台模块
 
-Gemini 风格侧边导航 → 路由 → 后端接口对照：
+Liquid Glass 玻璃风侧边导航 → 路由 → 后端接口对照：
 
 | 模块 | 路由 | 主要接口 |
 | :--- | :--- | :--- |
@@ -153,12 +154,14 @@ Gemini 风格侧边导航 → 路由 → 后端接口对照：
 | 求片反馈 | `/feedbacks` | `/api/admin/feedbacks`、`reply` 状态与回复 |
 | 广告位 | `/ads` | `/api/admin/ads` 物料、排期、上下架 |
 | 成长运营 | `/growth` | `/api/admin/retention` 留存与功能渗透率看板 |
+| 埋点信息预览 | `/analytics` | `/api/admin/analytics/overview` 网站 / App PV-UV 总览、30天趋势、平台分布、热门页面、事件分布 |
 | 消息通知 | `/notifications` | `/api/admin/notifications` 定向/广播发送 |
 | 用户账号 | `/users` | `/api/admin/users` 角色授权、密码重置 |
 | 客户端主题 | `/themes` | `/api/admin/themes` 切换与 ZIP 上传 |
-| 播放器 | `/players` | `/api/admin/players` 切换、配置、上传 |
 | 数据库 | `/database` | `/api/admin/db/*` 浏览、备份恢复、清理、SQL |
 | 系统配置 | `/settings` | `/api/admin/site/config` 站点信息与 SEO |
 | 运行日志 | `/logs` | `/api/admin/logs` 实时日志流 |
 
 角色权限：`super_admin` / `admin` / `observer`（只读）/ `operator`（运营，需审核后发布），与旧版一致。
+
+> AI生成

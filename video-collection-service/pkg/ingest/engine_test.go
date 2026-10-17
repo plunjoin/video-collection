@@ -174,3 +174,133 @@ func TestInvalidRulesAndRequiredFields(t *testing.T) {
 		t.Fatal("missing identity accepted")
 	}
 }
+
+func TestRSSAndAtomFeedIngestion(t *testing.T) {
+	rssContent := `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+<title>AGI Hunt · AI 快讯</title>
+<link>https://agihunt.info/</link>
+<description>全天候 AI 资讯快讯</description>
+<item>
+<title>开源版 ElevenLabs 替代品爆火: 本地跑、支持 646 种语言</title>
+<link>https://agihunt.info/p/1a1484fc6653f5e6079cad75892</link>
+<guid isPermaLink="true">https://agihunt.info/p/1a1484fc6653f5e6079cad75892</guid>
+<description>一位独立开发者开源了完全本地运行的 ElevenLabs 免费替代品，GitHub 星标已达 19.4K。</description>
+<dc:creator>art_zucker</dc:creator>
+<pubDate>Sat, 17 Oct 2026 05:21:20 +0000</pubDate>
+</item>
+<item>
+<title>数据行业为何被 28 岁以下年轻人主导？业内人士给出三大原因</title>
+<link>https://agihunt.info/p/1a1485252df297180f72eae3a9a</link>
+<guid isPermaLink="true">https://agihunt.info/p/1a1485252df297180f72eae3a9a</guid>
+<description>业内人士分析数据行业比其他 AI 大市场更被年轻群体主导的三个原因。</description>
+<dc:creator>dejavucoder</dc:creator>
+<pubDate>Sat, 17 Oct 2026 05:20:44 +0000</pubDate>
+</item>
+</channel>
+</rss>`
+
+	atomContent := `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>示例 Atom 资讯源</title>
+  <link href="https://example.com/"/>
+  <updated>2026-10-17T05:00:00Z</updated>
+  <entry>
+    <title>DeepSeek V3 架构解析发布</title>
+    <id>https://example.com/p/deepseek-v3</id>
+    <link href="https://example.com/p/deepseek-v3"/>
+    <published>2026-10-17T04:30:00Z</published>
+    <summary>DeepSeek V3 采用 MLA 稀疏注意力与 MoE 架构创新。</summary>
+    <content>DeepSeek V3 采用 MLA 稀疏注意力与 MoE 架构创新，大幅降低推理成本。</content>
+    <author><name>AI Researcher</name></author>
+    <category term="模型架构"/>
+  </entry>
+</feed>`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/atom.xml" {
+			w.Header().Set("Content-Type", "application/atom+xml")
+			fmt.Fprint(w, atomContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		fmt.Fprint(w, rssContent)
+	}))
+	defer server.Close()
+
+	// 1. 测试显式 input="rss"
+	src := config.SourceConfig{
+		ID: "rss_test", Name: "AGI Hunt 快讯", Type: "pipeline", PageLimit: 1, TimeoutSec: 5,
+		API: server.URL + "/feed.xml",
+		Filter: config.FilterRule{Pipeline: &config.PipelineRule{
+			Version: 1, Input: "rss", Target: "article", KeyField: "link", Duplicate: "skip", MaxRecords: 10,
+			Fields: []config.FieldRule{
+				{Target: "title", Selector: "title", Required: true, Trim: true},
+				{Target: "content", Selector: "description", Required: true, Trim: true},
+				{Target: "summary", Selector: "summary", Trim: true},
+				{Target: "link", Selector: "link", Required: true, Trim: true},
+				{Target: "author", Selector: "creator", Trim: true},
+				{Target: "category", Selector: "category", Default: "AI快讯"},
+			},
+		}},
+	}
+	rows := collect(t, src, 10)
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 RSS items, got %d", len(rows))
+	}
+	if rows[0].Values["title"] != "开源版 ElevenLabs 替代品爆火: 本地跑、支持 646 种语言" {
+		t.Errorf("unexpected title: %q", rows[0].Values["title"])
+	}
+	if rows[0].Values["link"] != "https://agihunt.info/p/1a1484fc6653f5e6079cad75892" {
+		t.Errorf("unexpected link: %q", rows[0].Values["link"])
+	}
+	if rows[0].Values["author"] != "art_zucker" {
+		t.Errorf("unexpected author: %q", rows[0].Values["author"])
+	}
+	if rows[0].Values["category"] != "AI快讯" {
+		t.Errorf("unexpected category: %q", rows[0].Values["category"])
+	}
+	if !strings.Contains(rows[0].Values["content"], "19.4K") {
+		t.Errorf("unexpected content: %q", rows[0].Values["content"])
+	}
+
+	// 2. 测试 input="api" 自动识别 RSS XML
+	srcAuto := src
+	srcAuto.Filter.Pipeline.Input = "api"
+	rowsAuto := collect(t, srcAuto, 10)
+	if len(rowsAuto) != 2 || rowsAuto[1].Values["author"] != "dejavucoder" {
+		t.Fatalf("auto xml detection failed: %+v", rowsAuto)
+	}
+
+	// 3. 测试 Atom Feed
+	srcAtom := config.SourceConfig{
+		ID: "atom_test", Name: "Atom 资讯", Type: "pipeline", PageLimit: 1, TimeoutSec: 5,
+		API: server.URL + "/atom.xml",
+		Filter: config.FilterRule{Pipeline: &config.PipelineRule{
+			Version: 1, Input: "rss", Target: "article", KeyField: "link", Duplicate: "skip", MaxRecords: 10,
+			Fields: []config.FieldRule{
+				{Target: "title", Selector: "title", Required: true, Trim: true},
+				{Target: "content", Selector: "content", Required: true, Trim: true},
+				{Target: "summary", Selector: "summary", Trim: true},
+				{Target: "link", Selector: "link", Required: true, Trim: true},
+				{Target: "author", Selector: "author", Trim: true},
+				{Target: "category", Selector: "category", Default: "前沿动态"},
+			},
+		}},
+	}
+	atomRows := collect(t, srcAtom, 10)
+	if len(atomRows) != 1 {
+		t.Fatalf("expected 1 Atom item, got %d", len(atomRows))
+	}
+	if atomRows[0].Values["title"] != "DeepSeek V3 架构解析发布" {
+		t.Errorf("unexpected atom title: %q", atomRows[0].Values["title"])
+	}
+	if atomRows[0].Values["category"] != "模型架构" {
+		t.Errorf("unexpected atom category: %q", atomRows[0].Values["category"])
+	}
+	if atomRows[0].Values["author"] != "AI Researcher" {
+		t.Errorf("unexpected atom author: %q", atomRows[0].Values["author"])
+	}
+}
+

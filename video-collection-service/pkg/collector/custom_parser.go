@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 )
 
 // ParseCustomJsonResponse 解析任意自定义结构的 JSON API
-func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCmsResponse, error) {
+func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*Response, error) {
 	var raw any
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.UseNumber()
@@ -44,7 +44,7 @@ func ParseCustomJsonResponse(data []byte, mapping config.CustomMapping) (*MacCms
 	if rawItems == nil {
 		return nil, fmt.Errorf("列表路径 %q 未指向数组", listPath)
 	}
-	resp := &MacCmsResponse{
+	resp := &Response{
 		Code:      1,
 		Msg:       "自定义JSON解析成功",
 		Page:      1,

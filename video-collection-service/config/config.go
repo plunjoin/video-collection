@@ -21,12 +21,12 @@ type AppConfig struct {
 	Sources  []SourceConfig `yaml:"sources" json:"sources"`
 }
 
-// SourceConfig 针对单个视频采集源的完整配置 (支持 MacCMS JSON、MacCMS XML、网页 RSS 订阅、自定义通用 JSON 等多种形态)
+// SourceConfig 针对单个网络采集源的完整配置 (支持标准视频 JSON、标准视频 XML、网页 RSS 订阅、自定义通用 JSON 等多种形态)
 type SourceConfig struct {
 	ID               string            `yaml:"id" json:"id"`                               // 采集源唯一ID
 	Name             string            `yaml:"name" json:"name"`                           // 采集源名称，如 "示例数据源"
 	API              string            `yaml:"api" json:"api"`                             // 采集端点 URL
-	Type             string            `yaml:"type" json:"type"`                           // 协议类型: "json"(MacCMS JSON), "xml"(MacCMS XML), "rss"(网页RSS订阅), "custom_json"(自定义通用JSON)
+	Type             string            `yaml:"type" json:"type"`                           // 协议类型: "json"(标准视频 JSON), "xml"(标准视频 XML), "rss"(网页RSS订阅), "custom_json"(自定义通用JSON)
 	Enabled          bool              `yaml:"enabled" json:"enabled"`                     // 是否启用该采集源
 	Active           bool              `yaml:"active,omitempty" json:"active"`             // 兼容前端 active 字段
 	CollectHours     int               `yaml:"collect_hours" json:"collect_hours"`         // 采集最近几小时更新的数据 (h参数, 0表示全量, 默认24)
@@ -37,7 +37,7 @@ type SourceConfig struct {
 	Concurrency      int               `yaml:"concurrency" json:"concurrency"`             // 并发采集协程数
 	Headers          map[string]string `yaml:"headers" json:"headers"`                     // 自定义 HTTP 请求头 (如 User-Agent, Referer, Authorization, Cookie)
 	CustomParams     map[string]string `yaml:"custom_params" json:"custom_params"`         // 自定义请求附加 Query 参数 (如 token=xxx)
-	CustomMapping    CustomMapping     `yaml:"custom_mapping" json:"custom_mapping"`       // 自定义通用 JSON 字段映射 (用于非MacCMS规范接口)
+	CustomMapping    CustomMapping     `yaml:"custom_mapping" json:"custom_mapping"`       // 自定义通用 JSON 字段映射 (用于非通用规范接口)
 	CategoryMappings []CategoryMapping `yaml:"category_mappings" json:"category_mappings"` // 分类绑定规则列表
 	Filter           FilterRule        `yaml:"filter" json:"filter"`                       // 清洗与过滤规则
 }

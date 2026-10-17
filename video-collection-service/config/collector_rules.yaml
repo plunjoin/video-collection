@@ -1,4 +1,4 @@
-# 视频智能采集聚合与自动化调度服务配置文件
+# Bllii-Familiar (追番使魔) 网络采集聚合与自动化调度服务配置文件
 
 # 数据库配置可被环境变量或 .env 覆盖（DB_DRIVER / DB_DSN / DB_HOST 等，见 .env.example），生产环境建议不要在此填写真实密码
 database:
@@ -7,12 +7,12 @@ database:
   sqlite_path: "data/collection.db"
 
 sources:
-  # 采集源 1: MacCMS v10 JSON 接口示例（占位，仅用于演示配置格式）
+  # 采集源 1: 标准网络视频 JSON 接口示例（占位，仅用于演示配置格式）
   # 请仅接入你拥有版权或已获授权的数据源
   - id: "example_json"
-    name: "示例数据源 (MacCMS JSON)"
+    name: "示例数据源 (网络视频 JSON)"
     api: "https://example.com/api.php/provide/vod/"
-    type: "json" # 协议类型: "json"(MacCMS JSON), "xml"(MacCMS XML), "rss"(网页RSS/Atom), "custom_json"(自定义通用JSON)
+    type: "json" # 协议类型: "json"(标准视频 JSON), "xml"(标准视频 XML), "rss"(网页RSS/Atom), "custom_json"(自定义通用JSON)
     enabled: false
     collect_hours: 24 # 采集最近24小时内更新的数据；0 表示全量采集 (对应接口参数 h=24)
     page_limit: 5 # 限制最大采集页数；0 表示一直采集到最后一页
@@ -86,11 +86,11 @@ sources:
           is_regex: true
           replacement: ""
 
-  # 采集源 2: MacCMS XML 格式示例（占位，仅用于演示配置格式）
+  # 采集源 2: 标准网络视频 XML 格式示例（占位，仅用于演示配置格式）
   - id: "example_xml"
-    name: "示例数据源 (MacCMS XML 规范)"
+    name: "示例数据源 (网络视频 XML 规范)"
     api: "https://example.org/api.php/provide/vod/"
-    type: "xml" # 指定解析 MacCMS 标准 XML (<rss version="5.1">)
+    type: "xml" # 指定解析标准视频 XML (<rss version="5.1">)
     enabled: false
     collect_hours: 24
     page_limit: 3

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"video-collection-service/config"
-	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/collector"
 )
 
 // User 系统用户模型
@@ -33,27 +33,27 @@ type Category struct {
 
 // VideoRecord 存储在数据库中的标准视频记录（深度支持多节点聚合与双向接口规范兼容）
 type VideoRecord struct {
-	ID         int                `json:"id"`
-	Name       string             `json:"name"`
-	SubName    string             `json:"sub_name"`
-	TypeID     int                `json:"type_id"`
-	TypeName   string             `json:"type_name"`
-	Picture    string             `json:"picture"`
-	Pic        string             `json:"pic,omitempty"` // 兼容 Admin 管理后台 pic 字段
-	Actor      string             `json:"actor"`
-	Director   string             `json:"director"`
-	Area       string             `json:"area"`
-	Language   string             `json:"language"`
-	Year       string             `json:"year"`
-	Remarks    string             `json:"remarks"`
-	Content    string             `json:"content"`
-	SourceID   string             `json:"source_id"`
-	SourceIDs  []string           `json:"source_ids,omitempty"` // 所属的所有采集节点ID集合
-	Hits       int                `json:"hits"`
-	CreatedAt  time.Time          `json:"created_at"`
-	UpdatedAt  time.Time          `json:"updated_at"`
-	PlayGroups []maccms.PlayGroup `json:"play_groups"`
-	PlayRoutes []maccms.PlayGroup `json:"play_routes,omitempty"` // 兼容 Admin 管理后台 play_routes 字段
+	ID         int                   `json:"id"`
+	Name       string                `json:"name"`
+	SubName    string                `json:"sub_name"`
+	TypeID     int                   `json:"type_id"`
+	TypeName   string                `json:"type_name"`
+	Picture    string                `json:"picture"`
+	Pic        string                `json:"pic,omitempty"` // 兼容 Admin 管理后台 pic 字段
+	Actor      string                `json:"actor"`
+	Director   string                `json:"director"`
+	Area       string                `json:"area"`
+	Language   string                `json:"language"`
+	Year       string                `json:"year"`
+	Remarks    string                `json:"remarks"`
+	Content    string                `json:"content"`
+	SourceID   string                `json:"source_id"`
+	SourceIDs  []string              `json:"source_ids,omitempty"` // 所属的所有采集节点ID集合
+	Hits       int                   `json:"hits"`
+	CreatedAt  time.Time             `json:"created_at"`
+	UpdatedAt  time.Time             `json:"updated_at"`
+	PlayGroups []collector.PlayGroup `json:"play_groups"`
+	PlayRoutes []collector.PlayGroup `json:"play_routes,omitempty"` // 兼容 Admin 管理后台 play_routes 字段
 }
 
 // FillCompatFields 自动补齐各端兼容字段
@@ -81,7 +81,7 @@ func (v *VideoRecord) FillCompatFields() {
 	}
 
 	// 填充 play_routes 并格式化线路名称
-	routes := make([]maccms.PlayGroup, len(v.PlayGroups))
+	routes := make([]collector.PlayGroup, len(v.PlayGroups))
 	for i, pg := range v.PlayGroups {
 		item := pg
 		if item.SourceName == "" {
@@ -108,7 +108,7 @@ func (v *VideoRecord) FillCompatFields() {
 	}
 
 	// 针对相同展示来源及编码做读取端去重兜底，保留剧集最全的线路
-	dedupRoutes := make(map[string]maccms.PlayGroup)
+	dedupRoutes := make(map[string]collector.PlayGroup)
 	var routeKeys []string
 	for _, r := range routes {
 		key := strings.ToLower(strings.TrimSpace(r.SourceName)) + ":" + strings.ToLower(strings.TrimSpace(r.PlayerCode))
@@ -124,7 +124,7 @@ func (v *VideoRecord) FillCompatFields() {
 			routeKeys = append(routeKeys, key)
 		}
 	}
-	cleanRoutes := make([]maccms.PlayGroup, 0, len(routeKeys))
+	cleanRoutes := make([]collector.PlayGroup, 0, len(routeKeys))
 	for _, k := range routeKeys {
 		cleanRoutes = append(cleanRoutes, dedupRoutes[k])
 	}
@@ -132,7 +132,7 @@ func (v *VideoRecord) FillCompatFields() {
 	v.PlayRoutes = cleanRoutes
 }
 
-// VideoQuery 视频查询条件 (适配 MacCMS v10 输出接口与后台检索)
+// VideoQuery 视频查询条件 (适配标准输出接口与后台检索)
 type VideoQuery struct {
 	Page        int
 	PageSize    int
@@ -239,7 +239,7 @@ type Store interface {
 	GetCategoryFamilyIDs(ctx context.Context, catID int) ([]int, error) // 获取分类及其所有子孙分类ID，用于级联查询
 
 	// 视频与播放源存储
-	UpsertVideo(ctx context.Context, sourceID string, vod *maccms.CleanedVod) (int, error)
+	UpsertVideo(ctx context.Context, sourceID string, vod *collector.CleanedVod) (int, error)
 	SaveVideoManual(ctx context.Context, video *VideoRecord) (int, error)
 	QueryVideos(ctx context.Context, query VideoQuery) ([]VideoRecord, int, error)
 	GetVideoByID(ctx context.Context, id int) (*VideoRecord, error)

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"video-collection-service/config"
+	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
-	"video-collection-service/pkg/maccms"
 	"video-collection-service/pkg/store"
 )
 
-// LogItem 采集运行实时日志
+// LogItem Bllii-Familiar 使魔采集运行实时日志
 type LogItem struct {
 	ID         int64     `json:"id"`
 	Time       time.Time `json:"time"`
@@ -22,8 +22,9 @@ type LogItem struct {
 	Message    string    `json:"message"`
 }
 
-// TaskProgress 采集任务状态与进度
+// TaskProgress Bllii-Familiar 使魔采集任务状态与进度
 type TaskProgress struct {
+	TaskID       int       `json:"task_id"`
 	SourceID     string    `json:"source_id"`
 	SourceName   string    `json:"source_name"`
 	IsRunning    bool      `json:"is_running"`
@@ -52,6 +53,7 @@ type Scheduler struct {
 	logs              []LogItem
 	logIDSeq          int64
 	maxLogs           int
+	logCh             chan store.CollectionLog
 	autoEnabled       bool
 	autoIntervalHours int
 	lastAutoRun       time.Time
@@ -75,6 +77,7 @@ func NewScheduler(s store.Store) *Scheduler {
 		progress:          make(map[string]*TaskProgress),
 		logs:              make([]LogItem, 0, 500),
 		maxLogs:           500,
+		logCh:             make(chan store.CollectionLog, 2000),
 		autoEnabled:       enabledStr == "1",
 		autoIntervalHours: intervalH,
 	}
@@ -83,9 +86,38 @@ func NewScheduler(s store.Store) *Scheduler {
 		sc.nextAutoRun = time.Now().Add(time.Duration(sc.autoIntervalHours) * time.Hour)
 	}
 
+	go sc.startLogWorker()
 	go sc.startAutoCollectWorker()
 
 	return sc
+}
+
+func (sc *Scheduler) startLogWorker() {
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+
+	var batch []store.CollectionLog
+	for {
+		select {
+		case l, ok := <-sc.logCh:
+			if !ok {
+				if len(batch) > 0 {
+					_ = sc.store.BatchAddCollectionLogs(context.Background(), batch)
+				}
+				return
+			}
+			batch = append(batch, l)
+			if len(batch) >= 50 {
+				_ = sc.store.BatchAddCollectionLogs(context.Background(), batch)
+				batch = nil
+			}
+		case <-ticker.C:
+			if len(batch) > 0 {
+				_ = sc.store.BatchAddCollectionLogs(context.Background(), batch)
+				batch = nil
+			}
+		}
+	}
 }
 
 func (sc *Scheduler) startAutoCollectWorker() {
@@ -120,7 +152,7 @@ func (sc *Scheduler) startAutoCollectWorker() {
 
 			sc.AddLog("system", "系统定时计划", "INFO", fmt.Sprintf("自动定时轮询触发：正在执行全网采集源按各源配置采集 (下次执行: %s)",
 				nextRun.Format("15:04:05")))
-			_ = sc.TriggerCollectAll(-1)
+			_ = sc.TriggerCollectAllWithType(-1, "cron")
 		}
 	}
 }
@@ -170,6 +202,11 @@ func (sc *Scheduler) SetAutoCollectConfig(ctx context.Context, enabled bool, int
 
 // TriggerCollectAll 触发所有已启用的采集点执行采集
 func (sc *Scheduler) TriggerCollectAll(customHours int) error {
+	return sc.TriggerCollectAllWithType(customHours, "manual")
+}
+
+// TriggerCollectAllWithType 触发所有已启用的采集点执行采集 (区分手动/定时触发)
+func (sc *Scheduler) TriggerCollectAllWithType(customHours int, triggerType string) error {
 	ctx := context.Background()
 	sources, err := sc.store.GetSources(ctx)
 	if err != nil {
@@ -179,21 +216,19 @@ func (sc *Scheduler) TriggerCollectAll(customHours int) error {
 	triggered := 0
 	for _, src := range sources {
 		if src.Enabled {
-			if err := sc.TriggerCollect(src.ID, customHours); err == nil {
+			if err := sc.TriggerCollectWithType(src.ID, customHours, triggerType); err == nil {
 				triggered++
 			}
 		}
 	}
 
-	sc.AddLog("system", "全局采集", "INFO", fmt.Sprintf("已成功为 %d 个启用状态的采集点启动采集流水线", triggered))
+	sc.AddLog("system", "全局采集", "INFO", fmt.Sprintf("已成功为 %d 个启用状态的采集点启动采集流水线 (%s)", triggered, triggerType))
 	return nil
 }
 
-// AddLog 记录采集日志
-func (sc *Scheduler) AddLog(sourceID, sourceName, level, msg string) {
+// AddTaskLog 记录采集日志并关联到任务批次 (双流：内存环形队列 + 异步持久化)
+func (sc *Scheduler) AddTaskLog(taskID int, sourceID, sourceName, level, msg string) {
 	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
 	sc.logIDSeq++
 	item := LogItem{
 		ID:         sc.logIDSeq,
@@ -208,6 +243,26 @@ func (sc *Scheduler) AddLog(sourceID, sourceName, level, msg string) {
 		sc.logs = sc.logs[1:]
 	}
 	sc.logs = append(sc.logs, item)
+	sc.mu.Unlock()
+
+	if sc.logCh != nil {
+		select {
+		case sc.logCh <- store.CollectionLog{
+			TaskID:     taskID,
+			SourceID:   sourceID,
+			SourceName: sourceName,
+			Level:      level,
+			Message:    msg,
+			CreatedAt:  item.Time,
+		}:
+		default:
+		}
+	}
+}
+
+// AddLog 记录采集日志 (未指定具体任务批次)
+func (sc *Scheduler) AddLog(sourceID, sourceName, level, msg string) {
+	sc.AddTaskLog(0, sourceID, sourceName, level, msg)
 }
 
 // GetRecentLogs 获取最近的采集日志
@@ -237,8 +292,13 @@ func (sc *Scheduler) GetProgressList() map[string]TaskProgress {
 	return res
 }
 
-// TriggerCollect 触发单个采集源的即时采集任务 (异步执行)
+// TriggerCollect 触发单个采集源的即时采集任务 (异步执行，默认 manual 触发)
 func (sc *Scheduler) TriggerCollect(sourceID string, customHours int) error {
+	return sc.TriggerCollectWithType(sourceID, customHours, "manual")
+}
+
+// TriggerCollectWithType 触发单个采集源的即时采集任务并记录触发来源
+func (sc *Scheduler) TriggerCollectWithType(sourceID string, customHours int, triggerType string) error {
 	ctx := context.Background()
 	src, err := sc.store.GetSourceByID(ctx, sourceID)
 	if err != nil {
@@ -262,7 +322,24 @@ func (sc *Scheduler) TriggerCollect(sourceID string, customHours int) error {
 		return fmt.Errorf("采集源 [%s] 正在采集中，请勿重复触发", src.Name)
 	}
 
+	hours := src.CollectHours
+	if customHours >= 0 {
+		hours = customHours
+	}
+
+	taskID, err := sc.store.CreateCollectionTask(ctx, &store.CollectionTask{
+		SourceID:     sourceID,
+		SourceName:   src.Name,
+		TriggerType:  triggerType,
+		CollectHours: hours,
+		Status:       "running",
+	})
+	if err != nil {
+		taskID = 0
+	}
+
 	prog = &TaskProgress{
+		TaskID:     taskID,
 		SourceID:   sourceID,
 		SourceName: src.Name,
 		IsRunning:  true,
@@ -271,7 +348,7 @@ func (sc *Scheduler) TriggerCollect(sourceID string, customHours int) error {
 	sc.progress[sourceID] = prog
 	sc.mu.Unlock()
 
-	// 异步启动采集
+	// 异步启动采集流水线
 	go sc.runCollectTask(context.Background(), *src, customHours, prog)
 	return nil
 }
@@ -281,14 +358,26 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 	defer func() {
 		sc.mu.Lock()
 		prog.IsRunning = false
+		lastErr := prog.LastError
+		fetched := prog.TotalFetched
+		saved := prog.TotalSaved
+		skipped := prog.TotalSkipped
 		sc.mu.Unlock()
+
+		finalStatus := "success"
+		if lastErr != "" {
+			finalStatus = "failed"
+		}
+		if prog.TaskID > 0 {
+			_ = sc.store.FinishCollectionTask(context.Background(), prog.TaskID, finalStatus, lastErr, fetched, saved, skipped)
+		}
 	}()
 
 	if src.Type == "pipeline" {
 		sc.runPipeline(ctx, src, prog)
 		return
 	}
-	client := maccms.NewClient(src)
+	client := collector.NewClient(src)
 	isAll := customHours == 0 || (customHours < 0 && src.CollectHours == 0)
 	hours := src.CollectHours
 	if customHours >= 0 {
@@ -299,7 +388,7 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 	if isAll {
 		modeDesc = "全量采集（省略增量参数，遵守页数上限）"
 	}
-	sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("开始执行采集任务: %s", modeDesc))
+	sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "INFO", fmt.Sprintf("Bllii-Familiar 启动使魔采集任务 (任务批次 #%d): %s", prog.TaskID, modeDesc))
 
 	page := 1
 	maxPages := src.PageLimit
@@ -313,26 +402,26 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 	for page <= maxPages {
 		select {
 		case <-ctx.Done():
-			sc.AddLog(src.ID, src.Name, "WARN", "采集任务被外部取消")
+			sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "WARN", "Bllii-Familiar 使魔采集任务被外部取消")
 			return
 		default:
 		}
 
-		qParams := maccms.QueryParams{
+		qParams := collector.QueryParams{
 			Action: "detail",
 			Page:   page,
 			Hours:  hours,
 			IsAll:  isAll,
 		}
 
-		sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("正在拉取第 %d 页", page))
+		sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "INFO", fmt.Sprintf("正在拉取第 %d 页", page))
 
 		cleanedList, rawResp, err := client.CollectPage(ctx, qParams)
 		if err != nil {
 			sc.mu.Lock()
 			prog.LastError = err.Error()
 			sc.mu.Unlock()
-			sc.AddLog(src.ID, src.Name, "ERROR", fmt.Sprintf("拉取第 %d 页数据失败: %v", page, err))
+			sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "ERROR", fmt.Sprintf("拉取第 %d 页数据失败: %v", page, err))
 			return
 		}
 
@@ -348,7 +437,7 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		sc.mu.Unlock()
 
 		if len(rawResp.List) == 0 {
-			sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("第 %d 页无数据，采集流程结束", page))
+			sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "INFO", fmt.Sprintf("第 %d 页无数据，采集流程结束", page))
 			break
 		}
 
@@ -365,10 +454,10 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 			}
 			vid, err := sc.store.UpsertVideo(ctx, src.ID, &cleaned)
 			if err != nil {
-				sc.AddLog(src.ID, src.Name, "WARN", fmt.Sprintf("入库失败 [%s]: %v", cleaned.Name, err))
+				sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "WARN", fmt.Sprintf("入库失败 [%s]: %v", cleaned.Name, err))
 			} else {
 				savedThisPage++
-				sc.AddLog(src.ID, src.Name, "SUCCESS", fmt.Sprintf("入库成功 [ID:%d]: %s (播放源:%d个, 分类:%s)",
+				sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "SUCCESS", fmt.Sprintf("入库成功 [ID:%d]: %s (播放源:%d个, 分类:%s)",
 					vid, cleaned.Name, len(cleaned.PlayGroups), cleaned.TargetTypeName))
 			}
 		}
@@ -376,13 +465,20 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		sc.mu.Lock()
 		prog.TotalSaved += savedThisPage
 		prog.TotalSkipped += skippedThisPage
+		fetchedNow := prog.TotalFetched
+		savedNow := prog.TotalSaved
+		skippedNow := prog.TotalSkipped
 		sc.mu.Unlock()
 
-		sc.AddLog(src.ID, src.Name, "INFO", fmt.Sprintf("第 %d/%d 页处理完成: 抓取 %d 条, 入库 %d 条, 规则过滤 %d 条",
+		if prog.TaskID > 0 {
+			_ = sc.store.UpdateCollectionTaskProgress(ctx, prog.TaskID, fetchedNow, savedNow, skippedNow)
+		}
+
+		sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "INFO", fmt.Sprintf("第 %d/%d 页处理完成: 抓取 %d 条, 入库 %d 条, 规则过滤 %d 条",
 			page, totalPageCount, len(rawResp.List), savedThisPage, skippedThisPage))
 
 		if page >= totalPageCount {
-			sc.AddLog(src.ID, src.Name, "SUCCESS", "已到达最后一页，本次采集圆满完成")
+			sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "SUCCESS", "已到达最后一页，本次采集圆满完成")
 			break
 		}
 
@@ -398,6 +494,6 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 		}
 	}
 
-	sc.AddLog(src.ID, src.Name, "SUCCESS", fmt.Sprintf("采集汇总: 总抓取 %d 条，有效入库 %d 条，过滤 %d 条，用时 %s",
+	sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "SUCCESS", fmt.Sprintf("采集汇总: 总抓取 %d 条，有效入库 %d 条，过滤 %d 条，用时 %s",
 		prog.TotalFetched, prog.TotalSaved, prog.TotalSkipped, time.Since(prog.StartTime).Round(time.Second)))
 }

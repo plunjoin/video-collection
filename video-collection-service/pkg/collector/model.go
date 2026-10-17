@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"fmt"
@@ -33,8 +33,8 @@ func (fi FlexInt) Int() int {
 	return int(fi)
 }
 
-// MacCmsResponse MacCMS v10 标准接口响应格式
-type MacCmsResponse struct {
+// Response 标准网络视频采集接口响应格式
+type Response struct {
 	Code      FlexInt     `json:"code"`
 	Msg       string      `json:"msg"`
 	Page      FlexInt     `json:"page"`
@@ -52,7 +52,7 @@ type ClassItem struct {
 	TypeName string  `json:"type_name"`
 }
 
-// VodItem 苹果CMS v10 视频原始条目结构
+// VodItem 视频原始采集条目结构
 type VodItem struct {
 	VodID        FlexInt `json:"vod_id"`
 	VodName      string  `json:"vod_name"`

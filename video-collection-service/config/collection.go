@@ -99,7 +99,7 @@ func ValidateCollectionRule(rule CollectionRule) error {
 		return fmt.Errorf("采集规则 version 必须为 1")
 	}
 	switch rule.Format {
-	case "maccms_json", "maccms_xml", "rss", "custom_json":
+	case "video_json", "standard_json", "maccms_json", "json", "video_xml", "standard_xml", "maccms_xml", "xml", "rss", "rss_feed", "custom_json":
 	default:
 		return fmt.Errorf("不支持的响应格式 %q", rule.Format)
 	}

@@ -1,11 +1,11 @@
-package maccms
+package collector
 
 import (
 	"fmt"
 	"strings"
 )
 
-// ParsePlayGroups 解析 MacCMS v10 特有的 vod_play_from 和 vod_play_url
+// ParsePlayGroups 解析视频采集源的 vod_play_from 和 vod_play_url
 // 规则：
 // 1. 各播放源之间使用 "$$$" 分隔
 // 2. 单个源内不同集数之间使用 "#" 分隔

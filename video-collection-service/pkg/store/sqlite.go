@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 	"video-collection-service/config"
-	"video-collection-service/pkg/maccms"
+	"video-collection-service/pkg/collector"
 )
 
 type SQLiteStore struct {
@@ -655,7 +655,7 @@ func (s *SQLiteStore) matchCategorySmart(ctx context.Context, srcName string) (i
 }
 
 // UpsertVideo 写入或更新视频数据（深度支持 SQLite 智能多采集节点独立聚合存储）
-func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *maccms.CleanedVod) (int, error) {
+func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *collector.CleanedVod) (int, error) {
 	s.upsertMu.Lock()
 	defer s.upsertMu.Unlock()
 
@@ -952,7 +952,7 @@ func (s *SQLiteStore) QueryVideos(ctx context.Context, q VideoQuery) ([]VideoRec
 			defer pRows.Close()
 			for pRows.Next() {
 				var vid int
-				var pg maccms.PlayGroup
+				var pg collector.PlayGroup
 				var epJSON string
 				if err := pRows.Scan(&vid, &pg.SourceID, &pg.SourceName, &pg.PlayerCode, &pg.Server, &pg.Note, &epJSON); err == nil {
 					_ = json.Unmarshal([]byte(epJSON), &pg.Episodes)

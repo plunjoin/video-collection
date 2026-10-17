@@ -1,25 +1,25 @@
 # 可追加模板，无需修改 Go / Vue 代码。选择模板后，规则副本保存在采集源中。
-- id: maccms-json
-  name: MacCMS JSON
-  description: MacCMS v10 视频接口，支持分类、多线路及增量采集
-  aliases: [json, maccms_json]
+- id: standard-json
+  name: 标准视频 JSON
+  description: 标准网络视频接口，支持分类、多线路及增量采集
+  aliases: [json, video_json, standard_json, maccms_json]
   rule:
     version: 1
-    format: maccms_json
+    format: standard_json
     method: GET
     query: {ac: "{action}", pg: "{page}", h: "{hours}", t: "{type_id}", wd: "{keyword}", ids: "{ids}", out: json}
-- id: maccms-xml
-  name: MacCMS XML
-  description: MacCMS XML 视频接口
-  aliases: [xml, maccms_xml]
+- id: standard-xml
+  name: 标准视频 XML
+  description: 标准网络视频 XML 采集接口
+  aliases: [xml, video_xml, standard_xml, maccms_xml]
   rule:
     version: 1
-    format: maccms_xml
+    format: standard_xml
     method: GET
     query: {ac: videolist, pg: "{page}", h: "{hours}", t: "{type_id}", wd: "{keyword}", ids: "{ids}"}
 - id: rss
   name: RSS / Atom
-  description: 单页订阅源，不附加视频 CMS 参数
+  description: 单页订阅源，不附加网络采集参数
   aliases: [rss, rss_feed]
   rule:
     version: 1
@@ -45,3 +45,33 @@
       type_path: category
       pic_path: cover
       play_url_path: stream_url
+- id: tmdb-movie
+  name: TMDB 影视元数据 (The Movie Database)
+  description: 采集 TMDB 官方影视海报、评分、年份及多语言简介元数据
+  aliases: [tmdb, tmdb_movie]
+  rule:
+    version: 1
+    format: custom_json
+    method: GET
+    query: {page: "{page}", api_key: "YOUR_TMDB_API_KEY", language: "zh-CN"}
+    mapping:
+      list_path: results
+      page_path: page
+      page_count_path: total_pages
+      total_path: total_results
+      id_path: id
+      name_path: title
+      pic_path: poster_path
+      year_path: release_date
+      content_path: overview
+      remarks_path: vote_average
+- id: agihunt-ai-news
+  name: AGI Hunt · AI 实时快讯 / 日报
+  description: 实时采集 AGI Hunt 官方 AI 快讯与事件聚簇综述，自动提取标题、正文与作者
+  aliases: [agihunt, agihunt_news, ai_news]
+  rule:
+    version: 1
+    format: rss
+    method: GET
+    query: {}
+

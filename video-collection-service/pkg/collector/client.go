@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"video-collection-service/config"
 )
 
-// Client 多协议多格式智能采集客户端
+// Client Bllii-Familiar 多协议多格式智能采集客户端
 type Client struct {
 	cfg        config.SourceConfig
 	httpClient *http.Client
@@ -54,7 +54,7 @@ func NewClient(cfg config.SourceConfig) *Client {
 }
 
 // FetchRawResponse 请求接口并反序列化为统一响应格式
-func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*MacCmsResponse, error) {
+func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Response, error) {
 	if c.ruleErr != nil {
 		return nil, c.ruleErr
 	}
@@ -62,7 +62,7 @@ func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Mac
 
 	// 针对纯网页 RSS 订阅源，第二页以后无需重复拉取
 	if (protoType == "rss" || protoType == "rss_feed") && params.Page > 1 {
-		return &MacCmsResponse{
+		return &Response{
 			Code:      1,
 			Msg:       "RSS Feed 仅有首页数据",
 			Page:      FlexInt(params.Page),
@@ -151,20 +151,20 @@ func (c *Client) FetchRawResponse(ctx context.Context, params QueryParams) (*Mac
 	respBody = bytes.TrimPrefix(respBody, []byte("\xef\xbb\xbf"))
 	trimmed := bytes.TrimSpace(respBody)
 	switch protoType {
-	case "maccms_xml", "rss":
+	case "video_xml", "standard_xml", "maccms_xml", "xml", "rss", "rss_feed":
 		return ParseXmlResponse(trimmed)
 	case "custom_json":
 		return ParseCustomJsonResponse(trimmed, c.rule.Mapping)
 	}
-	var cmsResp MacCmsResponse
-	if err := json.Unmarshal(trimmed, &cmsResp); err != nil {
+	var rawResp Response
+	if err := json.Unmarshal(trimmed, &rawResp); err != nil {
 		return nil, fmt.Errorf("JSON 响应解析失败: %w", err)
 	}
-	if cmsResp.Code != 1 {
+	if rawResp.Code != 1 {
 		return nil, fmt.Errorf("上游报告采集失败")
 	}
 
-	return &cmsResp, nil
+	return &rawResp, nil
 }
 
 // GetClassList 获取采集源的所有分类 (用于配置分类映射)
@@ -177,7 +177,7 @@ func (c *Client) GetClassList(ctx context.Context) ([]ClassItem, error) {
 }
 
 // CollectPage 拉取单页数据并进行规则过滤清洗
-func (c *Client) CollectPage(ctx context.Context, params QueryParams) ([]CleanedVod, *MacCmsResponse, error) {
+func (c *Client) CollectPage(ctx context.Context, params QueryParams) ([]CleanedVod, *Response, error) {
 	if params.Action == "" {
 		params.Action = "detail"
 	}
@@ -203,7 +203,7 @@ func (c *Client) BuildURL(params QueryParams) string {
 	return u
 }
 
-// buildURL 构造符合协议规范的请求 URL (智能支持 MacCMS、XML、RSS Feed 及附加参数)
+// buildURL 构造符合协议规范的请求 URL (智能支持标准视频 JSON/XML、RSS Feed 及附加参数)
 func (c *Client) buildURL(params QueryParams) (string, error) {
 	if c.ruleErr != nil {
 		return "", c.ruleErr

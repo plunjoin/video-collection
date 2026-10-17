@@ -1,4 +1,4 @@
-package maccms
+package collector
 
 import (
 	"crypto/md5"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// MacCMS XML 根定义 (<rss version="5.1">)
+// 视频采集 XML 根定义 (<rss version="5.1">)
 type xmlRssResponse struct {
 	XMLName xml.Name      `xml:"rss"`
 	Version string        `xml:"version,attr"`
@@ -113,14 +113,14 @@ var (
 	mediaURLRegex = regexp.MustCompile(`https?://[^\s"']+\.(?:m3u8|mp4|flv|mkv|webm)(?:\?[^\s"']*)?`)
 )
 
-// ParseXmlResponse 解析 XML 格式的响应数据 (自动兼容 MacCMS XML、RSS 2.0 与 Atom Feed)
-func ParseXmlResponse(data []byte) (*MacCmsResponse, error) {
-	// 1. 尝试解析 MacCMS / RSS 2.0 格式
+// ParseXmlResponse 解析 XML 格式的响应数据 (自动兼容标准视频 XML、RSS 2.0 与 Atom Feed)
+func ParseXmlResponse(data []byte) (*Response, error) {
+	// 1. 尝试解析标准视频 XML / RSS 2.0 格式
 	var rss xmlRssResponse
 	if err := xml.Unmarshal(data, &rss); err == nil {
-		// (A) 如果包含 MacCMS 规范的 <video> 节点
+		// (A) 如果包含标准视频规范的 <video> 节点
 		if len(rss.List.Videos) > 0 || len(rss.Class) > 0 {
-			return convertMacCmsXmlToResponse(&rss), nil
+			return convertVideoXmlToResponse(&rss), nil
 		}
 
 		// (B) 如果包含标准 RSS 2.0 <item> 节点
@@ -135,12 +135,12 @@ func ParseXmlResponse(data []byte) (*MacCmsResponse, error) {
 		return convertAtomFeedToResponse(&atom), nil
 	}
 
-	return nil, fmt.Errorf("xml response does not match MacCMS XML, RSS 2.0 or Atom format")
+	return nil, fmt.Errorf("xml response does not match standard video XML, RSS 2.0 or Atom format")
 }
 
-// convertMacCmsXmlToResponse 将 MacCMS XML 转换为系统统一响应结构
-func convertMacCmsXmlToResponse(rss *xmlRssResponse) *MacCmsResponse {
-	resp := &MacCmsResponse{
+// convertVideoXmlToResponse 将标准视频 XML 转换为系统统一响应结构
+func convertVideoXmlToResponse(rss *xmlRssResponse) *Response {
+	resp := &Response{
 		Code:      1,
 		Msg:       "XML数据解析成功",
 		Page:      FlexInt(rss.List.Page),
@@ -209,8 +209,8 @@ func convertMacCmsXmlToResponse(rss *xmlRssResponse) *MacCmsResponse {
 }
 
 // convertRssChannelToResponse 将标准 RSS 2.0 Feed 转换为系统统一响应结构
-func convertRssChannelToResponse(ch *xmlRssChannel) *MacCmsResponse {
-	resp := &MacCmsResponse{
+func convertRssChannelToResponse(ch *xmlRssChannel) *Response {
+	resp := &Response{
 		Code:      1,
 		Msg:       "RSS 2.0 Feed 解析成功: " + ch.Title,
 		Page:      1,
@@ -288,8 +288,8 @@ func convertRssChannelToResponse(ch *xmlRssChannel) *MacCmsResponse {
 }
 
 // convertAtomFeedToResponse 将 Atom Feed 转换为系统统一响应结构
-func convertAtomFeedToResponse(atom *atomFeed) *MacCmsResponse {
-	resp := &MacCmsResponse{
+func convertAtomFeedToResponse(atom *atomFeed) *Response {
+	resp := &Response{
 		Code:      1,
 		Msg:       "Atom Feed 解析成功: " + atom.Title,
 		Page:      1,

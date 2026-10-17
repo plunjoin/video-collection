@@ -63,3 +63,55 @@ func TestCollectionUploadPreviewAndSave(t *testing.T) {
 	data, _ = json.Marshal(src)
 	f.request("POST", "/api/admin/sources", string(data), f.admin, http.StatusBadRequest)
 }
+
+func TestCollectionRecordsCalibrationEndpoints(t *testing.T) {
+	f := newContentFixture(t)
+
+	// 1. 注入样本数据
+	f.request("POST", "/api/admin/collection/records/sample", `{"source_id":"tmdb_test","target":"record"}`, f.admin, 200)
+
+	// 2. 查询列表
+	res := f.request("GET", "/api/admin/collection/records?source_id=tmdb_test", "", f.admin, 200)
+	var total int
+	var records []store.CollectionRecord
+	json.Unmarshal(res["total"], &total)
+	json.Unmarshal(res["data"], &records)
+	if total != 5 || len(records) != 5 {
+		t.Fatalf("unexpected sample records: total=%d, len=%d", total, len(records))
+	}
+
+	// 3. 在线校正 (PUT)
+	updatePayload := `{"source_id":"tmdb_test","target":"record","key":"tmdb_person_1892","values":{"name":"成龙大哥","actor_id":"1892","gender":"男"}}`
+	f.request("PUT", "/api/admin/collection/records", updatePayload, f.admin, 200)
+
+	// 4. 校正入库转为 Wiki 实体 (POST /to-wiki)
+	toWikiPayload := `{
+		"source_id": "tmdb_test",
+		"target": "record",
+		"key": "tmdb_person_1892",
+		"subject": {
+			"name": "成龙",
+			"original_name": "Jackie Chan",
+			"type": "person",
+			"sub_type": "actor",
+			"summary": "著名功夫巨星",
+			"infobox": {"性别": "男"}
+		}
+	}`
+	wikiRes := f.request("POST", "/api/admin/collection/records/to-wiki", toWikiPayload, f.admin, 200)
+	var sub store.WikiSubject
+	json.Unmarshal(wikiRes["data"], &sub)
+	if sub.ID <= 0 || sub.Name != "成龙" {
+		t.Fatalf("rectify to wiki failed: %+v", sub)
+	}
+
+	// 5. 删除记录 (DELETE)
+	f.request("DELETE", "/api/admin/collection/records?source_id=tmdb_test&target=record&key=tmdb_person_1892", "", f.admin, 200)
+	resAfter := f.request("GET", "/api/admin/collection/records?source_id=tmdb_test", "", f.admin, 200)
+	var totalAfter int
+	json.Unmarshal(resAfter["total"], &totalAfter)
+	if totalAfter != 4 {
+		t.Fatalf("expected 4 records after delete, got %d", totalAfter)
+	}
+}
+
