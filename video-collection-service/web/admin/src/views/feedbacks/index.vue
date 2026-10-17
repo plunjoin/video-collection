@@ -213,38 +213,38 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
       gap: 12px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 3px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
 
       .header-right {
         display: flex;
-        gap: 10px;
+        gap: 8px;
       }
     }
 
     .reply-text {
       color: #10b981;
-      font-size: 12px;
+      font-size: 11px;
     }
     .date-text {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-secondary);
     }
   }

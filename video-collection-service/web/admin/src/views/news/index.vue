@@ -300,53 +300,51 @@ onMounted(() => {
 <style scoped lang="scss">
 .news-page {
   .table-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .table-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
 
       .header-right {
         display: flex;
-        gap: 10px;
+        gap: 6px;
         flex-wrap: wrap;
       }
     }
 
     .cover-thumb {
-      width: 60px;
-      height: 42px;
-      border-radius: 6px;
+      width: 52px;
+      height: 36px;
+      border-radius: var(--radius-xs);
     }
 
     .cover-fallback {
-      width: 60px;
-      height: 42px;
-      border-radius: 6px;
-      background: var(--border-color);
+      width: 52px;
+      height: 36px;
+      border-radius: var(--radius-xs);
+      background: rgba(20, 32, 57, 0.04);
       color: var(--text-secondary);
-      font-size: 11px;
+      font-size: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -364,14 +362,14 @@ onMounted(() => {
     }
 
     .date-text {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-secondary);
     }
 
     .pagination-wrap {
       display: flex;
       justify-content: flex-end;
-      margin-top: 16px;
+      margin-top: 10px;
     }
   }
 }

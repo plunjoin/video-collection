@@ -13,11 +13,18 @@
 
 <style scoped lang="scss">
 .app-main-container {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 24px 28px 40px;
-  background-color: var(--bg-color);
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 16px 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 128, 155, 0.32) transparent;
+
+  @media (max-width: 720px) {
+    padding: 10px 10px 18px;
+  }
 }
 </style>

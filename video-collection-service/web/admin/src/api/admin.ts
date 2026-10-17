@@ -7,7 +7,7 @@ import type {
   UserInfo,
   FeedbackItem,
   ThemeInfo,
-  PlayerInfo,
+  AnalyticsOverview,
   AutoCollectStatus,
   LogEntry,
   DBInfo,
@@ -141,26 +141,9 @@ export function uploadTheme(formData: FormData) {
   })
 }
 
-// 7. 播放器管理
-export function getPlayers() {
-  return request.get<any, ApiResponse<PlayerInfo[]>>('/api/admin/players')
-}
-
-export function switchPlayer(playerId: string) {
-  return request.post<any, ApiResponse>('/api/admin/players/switch', { player_id: playerId })
-}
-
-export function updatePlayerConfig(playerId: string, config: Record<string, any>) {
-  return request.post<any, ApiResponse>('/api/admin/players/config', {
-    player_id: playerId,
-    config
-  })
-}
-
-export function uploadPlayer(formData: FormData) {
-  return request.post<any, ApiResponse<PlayerInfo>>('/api/admin/players/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+// 7. 埋点信息预览：网站 / App PV-UV 总览
+export function getAnalyticsOverview() {
+  return request.get<any, ApiResponse<AnalyticsOverview>>('/api/admin/analytics/overview')
 }
 
 // 8. 站点全局配置
@@ -242,3 +225,40 @@ export function execSQL(sql: string, confirm: boolean = false) {
     confirm
   })
 }
+
+// 12. Wiki 知识库管理
+export function getWikiSubjects(params?: { page?: number; page_size?: number; type?: string; sub_type?: string; keyword?: string }) {
+  return request.get<any, ApiResponse<any[]>>('/api/wiki/subjects', { params })
+}
+
+export function getWikiSubjectDetail(id: number) {
+  return request.get<any, ApiResponse<any>>('/api/wiki/subject', { params: { id } })
+}
+
+export function saveWikiSubject(data: any) {
+  if (data.id) {
+    return request.put<any, ApiResponse<any>>('/api/admin/wiki/subjects', data)
+  }
+  return request.post<any, ApiResponse<{ id: number }>>('/api/admin/wiki/subjects', data)
+}
+
+export function deleteWikiSubject(id: number) {
+  return request.delete<any, ApiResponse>(`/api/admin/wiki/subjects?id=${id}`)
+}
+
+export function createWikiRelation(data: { source_id: number; target_id: number; relation_type: string; role_description?: string; sort_order?: number }) {
+  return request.post<any, ApiResponse<{ id: number }>>('/api/admin/wiki/relations', data)
+}
+
+export function deleteWikiRelation(id: number) {
+  return request.delete<any, ApiResponse>(`/api/admin/wiki/relations?id=${id}`)
+}
+
+export function getWikiGraph(id: number, depth: number = 1) {
+  return request.get<any, ApiResponse<{ nodes: any[]; edges: any[] }>>('/api/wiki/graph', { params: { id, depth } })
+}
+
+export function syncVideoToWiki(videoId: number) {
+  return request.post<any, ApiResponse<{ subject: any }>>('/api/admin/wiki/sync-video', { video_id: videoId })
+}
+

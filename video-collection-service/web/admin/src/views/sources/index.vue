@@ -4,17 +4,17 @@
       <!-- 头部操作区 -->
       <div class="table-header">
         <div class="header-left">
-          <span class="page-title">采集点 / 节点配置与管理</span>
-          <span class="sub-desc">按规则配置请求与响应，支持模板、自定义映射和通用采集</span>
+          <span class="page-title">Bllii-Familiar · 使魔节点管理</span>
+          <span class="sub-desc">追番使魔多协议与自定义映射节点，支持全网新番感知与通用采集</span>
         </div>
         <div class="header-right">
-          <r-button @click="$router.push('/collection-rules')">通用采集规则工作台</r-button>
+          <r-button @click="$router.push('/collection-rules')">使魔规则工坊</r-button>
           <r-button type="primary" @click="openEditDialog()">
-            <r-icon><Plus /></r-icon>新增节点
+            <r-icon><Plus /></r-icon>新增使魔节点
           </r-button>
           <r-dropdown trigger="click" @command="handleCollectAll">
             <r-button type="success">
-              <r-icon><Refresh /></r-icon>一键全网采集<r-icon class="r-icon--right"><ArrowDown /></r-icon>
+              <r-icon><Refresh /></r-icon>一键唤醒使魔采集<r-icon class="r-icon--right"><ArrowDown /></r-icon>
             </r-button>
             <template #dropdown>
               <r-dropdown-menu>
@@ -46,7 +46,7 @@
         </r-table-column>
         <r-table-column prop="type" label="协议类型" width="100" align="center">
           <template #default="{ row }">
-            <r-tag :type="getTypeTag(row.type)">{{ row.filter?.collector?.format || row.type }}</r-tag>
+            <r-tag :type="getTypeTag(row.filter?.collector?.format || row.type)">{{ row.filter?.collector?.format || row.type }}</r-tag>
           </template>
         </r-table-column>
         <r-table-column prop="collect_hours" label="增量策略" width="110" align="center">
@@ -242,10 +242,17 @@ const formRules: FormRules = {
 const getTypeTag = (type: string) => {
   switch (type) {
     case 'json':
+    case 'video_json':
+    case 'standard_json':
+    case 'maccms_json':
       return 'primary'
     case 'xml':
+    case 'video_xml':
+    case 'standard_xml':
+    case 'maccms_xml':
       return 'success'
     case 'rss':
+    case 'rss_feed':
       return 'warning'
     default:
       return 'info'
@@ -425,9 +432,9 @@ onMounted(async () => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
@@ -435,12 +442,13 @@ onMounted(async () => {
         gap: 4px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }

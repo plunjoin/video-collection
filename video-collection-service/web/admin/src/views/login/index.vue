@@ -127,10 +127,12 @@ const handleLogin = async () => {
     width: 100%;
     max-width: 400px;
     padding: 44px 40px 32px;
-    background: var(--surface);
-    border: 1px solid var(--border-color);
+    background: var(--glass-panel-strong); // 与浮层/大面板同族玻璃材质
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-pop);
+    box-shadow: var(--shadow-pop), var(--glass-highlight);
+    backdrop-filter: var(--glass-blur-strong);
+    -webkit-backdrop-filter: var(--glass-blur-strong);
 
     .login-header {
       text-align: center;

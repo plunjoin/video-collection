@@ -109,6 +109,17 @@ function vnodeProp(node: VNode, key: string, alias?: string): unknown {
   return node.props?.[key] ?? (alias ? node.props?.[alias] : undefined)
 }
 
+function toCssUnit(val: unknown): string | undefined {
+  if (val === undefined || val === null || val === '') return undefined
+  if (typeof val === 'number') return `${val}px`
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return `${trimmed}px`
+    return trimmed
+  }
+  return undefined
+}
+
 function simpleSlot(tag: string, className: string, extraProps?: Record<string, unknown>): Component {
   return defineComponent({
     inheritAttrs: false,
@@ -207,7 +218,7 @@ const Button = defineComponent({
       class: ['r-button', `r-button--${props.type}`, props.size ? `r-button--${props.size}` : '', props.plain ? 'r-button--plain' : '', props.link ? 'r-button--link' : '', props.text ? 'r-button--text' : '', props.circle ? 'r-button--circle' : '', props.round ? 'r-button--round' : '', attrs.class],
       onClick: (event: MouseEvent) => emit('click', event),
     }, [
-      props.loading ? h('span', { class: 'r-spinner', 'aria-hidden': 'true' }) : props.icon ? typeof props.icon === 'string' ? h('span', { class: `r-button__status-icon r-button__status-icon--${props.icon}`, 'aria-hidden': 'true' }, props.icon === 'success' ? '✓' : props.icon === 'error' ? '×' : props.icon) : h(props.icon as Component, { size: 16, 'aria-hidden': 'true' }) : null,
+      props.loading ? h('span', { class: 'r-spinner', 'aria-hidden': 'true' }) : props.icon ? typeof props.icon === 'string' ? h('span', { class: `r-button__status-icon r-button__status-icon--${props.icon}`, 'aria-hidden': 'true' }, props.icon === 'success' ? '✓' : props.icon === 'error' ? '×' : props.icon) : h(props.icon as Component, { size: props.size === 'small' ? 12 : props.size === 'large' ? 16 : 13, class: 'r-button__icon', 'aria-hidden': 'true' }) : null,
       renderSlot(slots, 'default'),
     ])
   },
@@ -638,7 +649,15 @@ const Link = defineComponent({
     }, renderSlot(slots, 'default'))
   },
 })
-const Option = defineComponent({ name: 'ROption', setup: () => () => null })
+const Option = defineComponent({
+  name: 'ROption',
+  props: {
+    value: { type: [String, Number, Boolean], default: '' },
+    label: [String, Number],
+    disabled: Boolean,
+  },
+  setup: () => () => null,
+})
 
 const Pagination = defineComponent({
   name: 'RPagination',
@@ -819,8 +838,37 @@ const Segmented = defineComponent({
   },
 })
 
-const SelectOption = defineComponent({ name: 'RSelectOption', setup: () => () => null })
+const SelectOption = Option
 interface SelectEntry { id: string; value: string | number; label: string; disabled: boolean }
+
+function isOptionNode(node: VNode): boolean {
+  if (!node) return false
+  if (node.type === Option || node.type === SelectOption) return true
+  if (typeof node.type === 'object' && node.type !== null) {
+    const name = (node.type as any).name
+    if (name === 'ROption' || name === 'RSelectOption' || name === 'Option') return true
+  }
+  return false
+}
+
+function collectOptions(nodes: unknown, output: VNode[] = []): VNode[] {
+  if (Array.isArray(nodes)) {
+    for (const child of nodes) collectOptions(child, output)
+    return output
+  }
+  if (!isVNode(nodes)) return output
+  if (isOptionNode(nodes)) {
+    output.push(nodes)
+    return output
+  }
+  if (nodes.type === Fragment && Array.isArray(nodes.children)) {
+    collectOptions(nodes.children, output)
+  } else if (Array.isArray(nodes.children)) {
+    collectOptions(nodes.children, output)
+  }
+  return output
+}
+
 const Select = defineComponent({
   name: 'RSelect',
   inheritAttrs: false,
@@ -829,42 +877,84 @@ const Select = defineComponent({
     placeholder: { type: String, default: 'Select' },
     disabled: Boolean,
     clearable: Boolean,
+    filterable: Boolean,
   },
   emits: ['update:modelValue', 'change', 'clear'],
   setup(props, { attrs, emit, slots }) {
     return () => {
-      const entries: SelectEntry[] = collectVNodes(slots.default?.() ?? emptySlot())
-        .filter((node) => node.type === SelectOption)
-        .map((node, index) => ({
-          id: `r-option-${index}`,
-          value: (vnodeProp(node, 'value') ?? '') as string | number,
-          label: String(vnodeProp(node, 'label') ?? vnodeText(node)),
+      const optionNodes = collectOptions(slots.default?.() ?? emptySlot())
+      const entries: SelectEntry[] = optionNodes.map((node, index) => {
+        const rawValue = vnodeProp(node, 'value')
+        const val = rawValue !== undefined && rawValue !== null ? (rawValue as string | number) : ''
+        const rawLabel = vnodeProp(node, 'label')
+        const txt = vnodeText(node).trim()
+        const label = rawLabel !== undefined && rawLabel !== null ? String(rawLabel) : (txt || String(val))
+        return {
+          id: `r-opt-${index}`,
+          value: val,
+          label,
           disabled: Boolean(vnodeProp(node, 'disabled')),
-        }))
-      const selected = entries.find((entry) => Object.is(entry.value, props.modelValue))
+        }
+      })
+
+      const selected = entries.find((entry) => {
+        if (props.modelValue === undefined || props.modelValue === null) return false
+        if (Object.is(entry.value, props.modelValue)) return true
+        return String(entry.value) === String(props.modelValue)
+      })
+
       return primitive(RSelectRoot, {
-        modelValue: selected?.id,
+        modelValue: selected ? selected.id : undefined,
         disabled: props.disabled,
         'onUpdate:modelValue': (id: string) => {
           const entry = entries.find((candidate) => candidate.id === id)
-          if (entry) { emit('update:modelValue', entry.value); emit('change', entry.value) }
+          if (entry) {
+            emit('update:modelValue', entry.value)
+            emit('change', entry.value)
+          }
         },
       }, {
         default: () => [
-          h('span', { class: 'r-select__control' }, [
-            primitive(RSelectTrigger, { ...attrs, class: ['r-select__trigger', attrs.class], 'aria-label': attrs['aria-label'] }, {
-              default: () => [primitive(RSelectValue, { placeholder: props.placeholder }), h('span', { class: 'r-select__chevron', 'aria-hidden': 'true' }, '▾')],
+          h('span', {
+            class: ['r-select__control', attrs.class],
+            style: attrs.style,
+          }, [
+            primitive(RSelectTrigger, {
+              class: 'r-select__trigger',
+              'aria-label': (attrs['aria-label'] as string) || props.placeholder,
+              disabled: props.disabled,
+            }, {
+              default: () => [
+                primitive(RSelectValue, { placeholder: props.placeholder }, () => (selected ? selected.label : (props.placeholder || ''))),
+                h('span', { class: 'r-select__chevron', 'aria-hidden': 'true' }, '▾'),
+              ],
             }),
-            props.clearable && props.modelValue !== undefined && props.modelValue !== '' ? h('button', { type: 'button', class: 'r-select__clear', 'aria-label': 'Clear selection', onClick: (event: Event) => { event.stopPropagation(); emit('update:modelValue', ''); emit('change', ''); emit('clear') } }, '×') : null,
+            props.clearable && !props.disabled && props.modelValue !== undefined && props.modelValue !== '' ? h('button', {
+              type: 'button',
+              class: 'r-select__clear',
+              'aria-label': 'Clear selection',
+              onClick: (event: Event) => {
+                event.stopPropagation()
+                emit('update:modelValue', '')
+                emit('change', '')
+                emit('clear')
+              },
+            }, '×') : null,
           ]),
           primitive(RSelectPortal, null, {
-            default: () => primitive(RSelectContent, { class: 'r-select__content', position: 'popper', sideOffset: 4 }, {
+            default: () => primitive(RSelectContent, {
+              class: 'r-select__content',
+              position: 'popper',
+              sideOffset: 4,
+            }, {
               default: () => primitive(RSelectViewport, { class: 'r-select__viewport' }, entries.map((entry) => primitive(RSelectItem, {
                 key: entry.id,
                 value: entry.id,
                 disabled: entry.disabled,
                 class: 'r-select__item',
-              }, { default: () => primitive(RSelectItemText, null, () => entry.label) }))),
+              }, {
+                default: () => primitive(RSelectItemText, null, () => entry.label),
+              }))),
             }),
           }),
         ],
@@ -933,21 +1023,51 @@ const Switch = defineComponent({
   emits: ['update:modelValue', 'change'],
   setup(props, { attrs, emit, slots }) {
     const checked = computed(() => Object.is(props.modelValue, props.activeValue))
-    return () => primitive(RSwitchRoot, {
-      ...attrs,
-      type: 'button',
-      modelValue: checked.value,
-      disabled: props.disabled,
-      name: props.name,
-      class: ['r-switch', attrs.class],
-      'onUpdate:modelValue': (value: boolean) => {
-        const next = value ? props.activeValue : props.inactiveValue
-        emit('update:modelValue', next)
-        emit('change', next)
-      },
-    }, {
-      default: () => [primitive(RSwitchThumb, { class: 'r-switch__thumb' }), slots.default || props.activeText || props.inactiveText ? h('span', { class: 'r-switch__label' }, slots.default ? renderSlot(slots, 'default') : (checked.value ? props.activeText : props.inactiveText)) : null],
-    })
+    const toggle = () => {
+      if (props.disabled) return
+      const next = checked.value ? props.inactiveValue : props.activeValue
+      emit('update:modelValue', next)
+      emit('change', next)
+    }
+    return () => {
+      const labelText = checked.value
+        ? (props.activeText || '')
+        : (props.inactiveText || props.activeText || '')
+      const hasLabel = Boolean(slots.default || labelText)
+
+      return h('label', {
+        ...attrs,
+        class: [
+          'r-switch-wrap',
+          props.disabled ? 'is-disabled' : '',
+          checked.value ? 'is-checked' : '',
+          attrs.class,
+        ],
+        onClick: (event: MouseEvent) => {
+          if ((event.target as HTMLElement).closest('.r-switch')) return
+          event.preventDefault()
+          toggle()
+        },
+      }, [
+        primitive(RSwitchRoot, {
+          type: 'button',
+          checked: checked.value,
+          modelValue: checked.value,
+          disabled: props.disabled,
+          name: props.name,
+          class: 'r-switch',
+          'aria-checked': checked.value,
+          'onUpdate:modelValue': (value: boolean) => {
+            const next = value ? props.activeValue : props.inactiveValue
+            emit('update:modelValue', next)
+            emit('change', next)
+          },
+        }, {
+          default: () => [primitive(RSwitchThumb, { class: 'r-switch__thumb' })],
+        }),
+        hasLabel ? h('span', { class: 'r-switch__label' }, slots.default ? renderSlot(slots, 'default') : labelText) : null,
+      ])
+    }
   },
 })
 
@@ -1039,17 +1159,19 @@ const Table = defineComponent({
       return h('div', { ...attrs, class: ['r-table-wrap', attrs.class], 'aria-busy': props.loading || undefined }, [
         h('table', { class: ['r-table', props.border ? 'r-table--border' : '', props.stripe ? 'r-table--stripe' : ''] }, [
           h('thead', null, h('tr', null, columns.map((column, index) => {
-            const width = vnodeProp(column, 'width')
-            const minWidth = vnodeProp(column, 'min-width', 'minWidth')
+            const width = toCssUnit(vnodeProp(column, 'width'))
+            const minWidth = toCssUnit(vnodeProp(column, 'min-width', 'minWidth'))
             const isSelection = vnodeProp(column, 'type') === 'selection'
             return h('th', {
               key: index,
               scope: 'col',
               class: [`r-table__cell--${String(vnodeProp(column, 'align') ?? 'left')}`, vnodeProp(column, 'fixed') ? 'r-table__cell--fixed' : ''],
-              style: { width: typeof width === 'number' ? `${width}px` : width, minWidth: typeof minWidth === 'number' ? `${minWidth}px` : minWidth },
+              style: { width, minWidth },
             }, isSelection ? h('input', { type: 'checkbox', class: 'r-table__checkbox', checked: allSelected, disabled: props.loading || !props.data.length, 'aria-label': '全选当前页', onChange: (event: Event) => toggleAll((event.target as HTMLInputElement).checked) }) : [vnodeProp(column, 'label') as VNodeChild ?? ''])
           }))),
           h('tbody', null, props.data.length ? props.data.map((row, rowIndex) => h('tr', { key: rowKey(row, rowIndex) }, columns.map((column, columnIndex) => {
+            const width = toCssUnit(vnodeProp(column, 'width'))
+            const minWidth = toCssUnit(vnodeProp(column, 'min-width', 'minWidth'))
             const prop = vnodeProp(column, 'prop')
             const isSelection = vnodeProp(column, 'type') === 'selection'
             const slot = (column.children as Record<string, unknown> | null)?.default
@@ -1061,7 +1183,7 @@ const Table = defineComponent({
             return h('td', {
               key: columnIndex,
               class: [`r-table__cell--${String(vnodeProp(column, 'align') ?? 'left')}`, vnodeProp(column, 'fixed') ? 'r-table__cell--fixed' : ''],
-              style: { width: typeof vnodeProp(column, 'width') === 'number' ? `${vnodeProp(column, 'width')}px` : vnodeProp(column, 'width'), minWidth: typeof vnodeProp(column, 'min-width', 'minWidth') === 'number' ? `${vnodeProp(column, 'min-width', 'minWidth')}px` : vnodeProp(column, 'min-width', 'minWidth') },
+              style: { width, minWidth },
             }, [content as VNodeChild])
           }))) : h('tr', null, h('td', { class: 'r-table__empty', colspan: Math.max(1, columns.length) }, props.emptyText))),
         ]),
@@ -1170,6 +1292,7 @@ const componentMap: Record<string, Component> = {
   'r-scrollbar': Scrollbar,
   'r-segmented': Segmented,
   'r-select': Select,
+  'r-select-option': Option,
   'r-statistic': Statistic,
   'r-step': Step,
   'r-steps': Steps,
@@ -1197,7 +1320,7 @@ const styles = `
   --r-shadow: var(--shadow-pop, 0 12px 32px rgb(15 23 42 / 14%));
 }
 .r-button,.r-input,.r-select__trigger,.r-pagination__button,.r-segmented__item { font: inherit; }
-.r-button { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; border:1px solid var(--r-border); border-radius:var(--r-radius); padding:.55rem .9rem; background:var(--r-surface); color:var(--r-text); cursor:pointer; transition:background .16s,border-color .16s,transform .16s; }
+.r-button { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; border:1px solid var(--r-border); border-radius:var(--r-radius); padding:.55rem .9rem; background:var(--r-surface); color:var(--r-text); cursor:pointer; transition:background .16s,border-color .16s,transform .16s; white-space:nowrap; flex-shrink:0; }
 .r-button:hover:not(:disabled) { border-color:var(--r-primary); }
 .r-button:active:not(:disabled) { transform:translateY(1px); }
 .r-button:disabled,.r-radio-button:disabled { opacity:.55; cursor:not-allowed; }
@@ -1229,9 +1352,9 @@ const styles = `
 .r-dropdown__trigger { display:inline-flex; }.r-dropdown__content,.r-select__content { z-index:1100; min-width:9rem; padding:.3rem; border:1px solid var(--r-border); border-radius:var(--r-radius); background:var(--r-surface-raised); color:var(--r-text); box-shadow:var(--r-shadow); }.r-dropdown__item,.r-select__item { display:flex; align-items:center; min-height:2.2rem; padding:.45rem .65rem; border-radius:calc(var(--r-radius) - .2rem); outline:none; cursor:pointer; }.r-dropdown__item[data-highlighted],.r-select__item[data-highlighted] { background:color-mix(in srgb,var(--r-primary) 12%,var(--r-surface)); }.r-dropdown__item[data-disabled],.r-select__item[data-disabled] { opacity:.45; cursor:not-allowed; }.r-select__trigger { display:flex; align-items:center; justify-content:space-between; text-align:start; cursor:pointer; }.r-select__viewport { padding:.2rem; }.r-select__chevron { color:var(--r-muted); }
 .r-empty { display:flex; min-height:9rem; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; color:var(--r-muted); text-align:center; }.r-empty__illustration { display:grid; width:4rem; height:4rem; place-items:center; border-radius:50%; background:color-mix(in srgb,var(--r-muted) 10%,transparent); font-size:2rem; }.r-empty__description { margin:.8rem 0 0; }.r-tooltip { z-index:1200; max-width:20rem; padding:.45rem .7rem; border-radius:.4rem; background:#111827; color:#fff; font-size:.85rem; box-shadow:var(--r-shadow); }
 .r-pagination { display:flex; align-items:center; gap:.6rem; color:var(--r-text); flex-wrap:wrap; }.r-pagination__button { width:2rem; height:2rem; border:1px solid var(--r-border); border-radius:.4rem; background:var(--r-surface); color:var(--r-text); cursor:pointer; }.r-pagination__button:disabled { opacity:.45; cursor:not-allowed; }.r-pagination__total,.r-pagination__status { color:var(--r-muted); font-size:.88rem; }.r-pagination__size,.r-pagination__jumper input { min-height:2rem; padding:.25rem .45rem; border:1px solid var(--r-border); border-radius:.4rem; background:var(--r-surface); color:var(--r-text); }.r-pagination__jumper { display:inline-flex; align-items:center; gap:.35rem; font-size:.85rem; }.r-pagination__jumper input { width:3.5rem; }.r-segmented { display:inline-flex; gap:.2rem; padding:.2rem; border-radius:var(--r-radius); background:color-mix(in srgb,var(--r-muted) 10%,var(--r-surface)); }.r-segmented__item { border:0; border-radius:calc(var(--r-radius) - .2rem); padding:.45rem .8rem; background:transparent; color:var(--r-muted); cursor:pointer; }.r-segmented__item.is-active { background:var(--r-surface); color:var(--r-text); box-shadow:0 1px 3px rgb(15 23 42 / 12%); }
-.r-switch { position:relative; display:inline-flex; width:2.6rem; height:1.5rem; align-items:center; padding:.15rem; border:0; border-radius:999px; background:#cbd5e1; cursor:pointer; transition:background .15s; }.r-switch[data-state=checked] { background:var(--r-primary); }.r-switch:disabled { opacity:.55; cursor:not-allowed; }.r-switch__thumb { display:block; width:1.2rem; height:1.2rem; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0003; transition:transform .15s; }.r-switch[data-state=checked] .r-switch__thumb { transform:translateX(1.1rem); }.r-switch__label { margin-inline-start:.35rem; color:var(--r-text); white-space:nowrap; }
-.r-tabs__list { display:flex; gap:.2rem; border-bottom:1px solid var(--r-border); }.r-tabs__trigger { padding:.65rem .9rem; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--r-muted); cursor:pointer; }.r-tabs__trigger[data-state=active] { border-color:var(--r-primary); color:var(--r-primary); }.r-tabs__content { padding:1rem 0; outline:none; }.r-table-wrap { position:relative; overflow:auto; border-radius:var(--r-radius); }.r-table { width:100%; border-collapse:collapse; background:var(--r-surface); color:var(--r-text); text-align:left; }.r-table th,.r-table td { padding:.7rem .8rem; border-bottom:1px solid var(--r-border); }.r-table th { color:var(--r-muted); font-size:.85rem; font-weight:600; }.r-table--border th,.r-table--border td { border:1px solid var(--r-border); }.r-table--stripe tbody tr:nth-child(even) { background:color-mix(in srgb,var(--r-muted) 5%,var(--r-surface)); }.r-table__cell--fixed { position:sticky; right:0; z-index:1; background:var(--r-surface); }.r-table th.r-table__cell--fixed { z-index:2; }.r-table__checkbox { width:1rem; height:1rem; accent-color:var(--r-primary); cursor:pointer; }.r-table__cell--center { text-align:center; }.r-table__cell--right { text-align:right; }.r-table__empty { height:7rem; color:var(--r-muted); text-align:center; }.r-table__loading { position:absolute; inset:0; display:grid; place-items:center; background:color-mix(in srgb,var(--r-surface) 72%,transparent); }
-.r-tag { display:inline-flex; align-items:center; gap:.35rem; padding:.2rem .55rem; border:1px solid var(--r-border); border-radius:.35rem; background:var(--r-surface); color:var(--r-text); font-size:.85rem; }.r-tag--primary { border-color:color-mix(in srgb,var(--r-primary) 30%,var(--r-border)); background:color-mix(in srgb,var(--r-primary) 9%,var(--r-surface)); color:var(--r-primary); }.r-tag--success { color:#15803d; background:#f0fdf4; }.r-tag--warning { color:#b45309; background:#fffbeb; }.r-tag--danger { color:var(--r-danger); background:#fef2f2; }.r-tag__close { padding:0; border:0; background:none; color:inherit; cursor:pointer; }.r-upload { position:relative; display:inline-flex; cursor:pointer; }.r-upload.is-disabled { opacity:.55; cursor:not-allowed; }.r-upload__input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; clip-path:inset(50%); }.r-upload__trigger { display:inline-flex; align-items:center; min-height:2.4rem; padding:.45rem .8rem; border:1px dashed var(--r-border); border-radius:var(--r-radius); color:var(--r-text); }.r-upload:focus-within .r-upload__trigger { outline:2px solid var(--r-primary); outline-offset:2px; }
+.r-switch-wrap { display:inline-flex; align-items:center; cursor:pointer; user-select:none; vertical-align:middle; line-height:1; }.r-switch-wrap.is-disabled { opacity:.55; cursor:not-allowed; }.r-switch { position:relative; display:inline-flex; width:2rem; height:1.15rem; align-items:center; padding:2px; border:0; border-radius:999px; background:#cbd5e1; cursor:pointer; transition:background .15s; flex-shrink:0; }.r-switch[data-state=checked] { background:var(--r-primary); }.r-switch:disabled { opacity:.55; cursor:not-allowed; }.r-switch__thumb { display:block; width:.9rem; height:.9rem; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0003; transition:transform .15s; }.r-switch[data-state=checked] .r-switch__thumb { transform:translateX(.85rem); }.r-switch__label { margin-inline-start:.5rem; color:var(--r-text); font-size:.85rem; white-space:nowrap; }
+.r-tabs__list { display:flex; gap:.2rem; border-bottom:1px solid var(--r-border); }.r-tabs__trigger { padding:.65rem .9rem; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--r-muted); cursor:pointer; }.r-tabs__trigger[data-state=active] { border-color:var(--r-primary); color:var(--r-primary); }.r-tabs__content { padding:1rem 0; outline:none; }.r-table-wrap { position:relative; overflow:auto; border-radius:var(--r-radius); }.r-table { width:100%; border-collapse:collapse; background:var(--r-surface); color:var(--r-text); text-align:left; }.r-table th,.r-table td { padding:.7rem .8rem; border-bottom:1px solid var(--r-border); vertical-align:middle; }.r-table th { color:var(--r-muted); font-size:.85rem; font-weight:600; }.r-table--border th,.r-table--border td { border:1px solid var(--r-border); }.r-table--stripe tbody tr:nth-child(even) { background:color-mix(in srgb,var(--r-muted) 5%,var(--r-surface)); }.r-table__cell--fixed { position:sticky; right:0; z-index:1; background:var(--r-surface); box-shadow:-2px 0 6px rgba(0,0,0,0.06); }.r-table th.r-table__cell--fixed { z-index:2; }.r-table__checkbox { width:1rem; height:1rem; accent-color:var(--r-primary); cursor:pointer; }.r-table__cell--center { text-align:center; }.r-table__cell--right { text-align:right; }.r-table__empty { height:7rem; color:var(--r-muted); text-align:center; }.r-table__loading { position:absolute; inset:0; display:grid; place-items:center; background:color-mix(in srgb,var(--r-surface) 72%,transparent); }
+.r-tag { display:inline-flex; align-items:center; gap:.35rem; padding:.2rem .55rem; border:1px solid var(--r-border); border-radius:.35rem; background:var(--r-surface); color:var(--r-text); font-size:.85rem; white-space:nowrap; flex-shrink:0; }.r-tag--primary { border-color:color-mix(in srgb,var(--r-primary) 30%,var(--r-border)); background:color-mix(in srgb,var(--r-primary) 9%,var(--r-surface)); color:var(--r-primary); }.r-tag--success { color:#15803d; background:#f0fdf4; }.r-tag--warning { color:#b45309; background:#fffbeb; }.r-tag--danger { color:var(--r-danger); background:#fef2f2; }.r-tag__close { padding:0; border:0; background:none; color:inherit; cursor:pointer; }.r-upload { position:relative; display:inline-flex; cursor:pointer; }.r-upload.is-disabled { opacity:.55; cursor:not-allowed; }.r-upload__input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; clip-path:inset(50%); }.r-upload__trigger { display:inline-flex; align-items:center; min-height:2.4rem; padding:.45rem .8rem; border:1px dashed var(--r-border); border-radius:var(--r-radius); color:var(--r-text); }.r-upload:focus-within .r-upload__trigger { outline:2px solid var(--r-primary); outline-offset:2px; }
 .r-scrollbar { position:relative; overflow:hidden; }.r-scrollbar__viewport { width:100%; height:100%; border-radius:inherit; }.r-scrollbar__track { display:flex; width:.55rem; padding:.08rem; touch-action:none; user-select:none; background:transparent; }.r-scrollbar__track--horizontal { width:auto; height:.55rem; flex-direction:column; }.r-scrollbar__thumb { flex:1; border-radius:999px; background:color-mix(in srgb,var(--r-muted) 45%,transparent); }.r-descriptions__title { margin:0 0 .8rem; }.r-descriptions__grid { display:grid; grid-template-columns:repeat(var(--r-description-columns),minmax(0,1fr)); margin:0; }.r-descriptions-item { display:grid; grid-template-columns:minmax(5rem,auto) 1fr; gap:.6rem; padding:.6rem .75rem; border-bottom:1px solid var(--r-border); }.r-descriptions-item__label { color:var(--r-muted); }.r-descriptions-item__content { margin:0; color:var(--r-text); }.r-descriptions--border .r-descriptions-item { border:1px solid var(--r-border); }.r-icon { display:inline-flex; align-items:center; justify-content:center; }.r-image { display:block; max-width:100%; }.r-image--previewable { cursor:zoom-in; }.r-image--error { display:grid; place-items:center; min-width:2rem; min-height:2rem; background:var(--surface-hover); color:var(--text-secondary); }.r-image-preview__overlay { position:fixed; z-index:1300; inset:0; background:rgb(0 0 0 / 85%); }.r-image-preview { position:fixed; z-index:1301; inset:0; display:grid; width:100vw; height:100dvh; place-items:center; background:transparent; outline:0; }.r-image-preview__image { max-width:90vw; max-height:88vh; object-fit:contain; }.r-image-preview__close,.r-image-preview__previous,.r-image-preview__next { position:absolute; display:grid; width:2.8rem; height:2.8rem; place-items:center; border:1px solid rgb(255 255 255 / 25%); border-radius:50%; background:rgb(0 0 0 / 35%); color:white; font-size:1.8rem; cursor:pointer; }.r-image-preview__close { inset-block-start:1.25rem; inset-inline-end:1.5rem; }.r-image-preview__previous { inset-inline-start:2rem; }.r-image-preview__next { inset-inline-end:2rem; }.r-image-preview__count { position:absolute; inset-block-end:1.5rem; color:white; }.r-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }.r-link { color:var(--r-primary); text-decoration:underline; }.r-link--plain { text-decoration:none; }.r-link[aria-disabled=true] { color:var(--r-muted); cursor:not-allowed; }.r-statistic__title { margin-bottom:.35rem; color:var(--r-muted); font-size:.9rem; }.r-statistic__value { color:var(--r-text); font-size:1.8rem; font-weight:650; }.r-statistic__prefix,.r-statistic__suffix { margin-inline:.15rem; font-size:.65em; }.r-steps { display:flex; gap:1rem; margin:0; padding:0; list-style:none; }.r-step { display:flex; flex:1; gap:.65rem; color:var(--r-muted); }.r-step--process { color:var(--r-primary); }.r-step--finish { color:#16a34a; }.r-step__marker { display:grid; width:1.6rem; height:1.6rem; flex:none; place-items:center; border:1px solid currentColor; border-radius:50%; }.r-step__title { color:var(--r-text); }.r-step__description { margin:.25rem 0 0; font-size:.85rem; }.r-result { display:flex; flex-direction:column; align-items:center; padding:2rem; text-align:center; }.r-result__icon { display:grid; width:3.5rem; height:3.5rem; place-items:center; border-radius:50%; background:#dcfce7; color:#15803d; font-size:1.8rem; }.r-result__title { margin:1rem 0 .3rem; }.r-result__subtitle { margin:0; color:var(--r-muted); }.r-result__extra { margin-top:1rem; }.r-collapse { border-top:1px solid var(--r-border); }.r-collapse-item { border-bottom:1px solid var(--r-border); }.r-collapse-item__title { padding:.8rem .2rem; color:var(--r-text); cursor:pointer; }.r-collapse-item__content { padding:0 .2rem .9rem; color:var(--r-muted); }.r-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:r-spin .7s linear infinite; }@keyframes r-spin { to { transform:rotate(360deg); } }
 .r-loading-host { position:relative !important; }.r-loading-overlay { position:absolute; z-index:20; inset:0; display:grid; place-items:center; background:color-mix(in srgb,var(--r-surface) 76%,transparent); color:var(--r-primary); }
 @media (max-width:700px) { .r-descriptions__grid { grid-template-columns:1fr; }.r-steps { flex-direction:column; }.r-dialog { width:calc(100vw - 2rem) !important; } }

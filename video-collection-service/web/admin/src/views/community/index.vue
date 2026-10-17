@@ -389,29 +389,27 @@ onMounted(() => {
 <style scoped lang="scss">
 .community-page {
   .table-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .table-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
@@ -420,17 +418,17 @@ onMounted(() => {
     .filter-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
 
       .filter-label {
-        font-size: 13px;
+        font-size: 11px;
         color: var(--text-secondary);
       }
 
       .filter-tip {
-        font-size: 12px;
+        font-size: 10px;
         color: var(--text-secondary);
       }
     }
@@ -446,18 +444,18 @@ onMounted(() => {
     }
 
     .date-text {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-secondary);
     }
 
     .empty-tip {
-      padding: 20px 0;
+      padding: 16px 0;
     }
 
     .pagination-wrap {
       display: flex;
       justify-content: flex-end;
-      margin-top: 16px;
+      margin-top: 10px;
     }
   }
 }

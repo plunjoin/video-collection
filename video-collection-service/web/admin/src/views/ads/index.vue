@@ -142,17 +142,84 @@ async function remove(row: any) {
 onMounted(load)
 </script>
 
-<style scoped>
-.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.toolbar__left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.toolbar__tip { font-size: 12px; color: var(--text-secondary); line-height: 1.6; max-width: 640px; }
-.ad-cell { display: flex; align-items: center; gap: 10px; }
-.ad-cell__img { width: 44px; height: 58px; border-radius: 6px; flex-shrink: 0; object-fit: cover; background: var(--surface-hover); }
-.ad-cell__img--empty { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-secondary); }
-.ad-cell__meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ad-cell__title { font-size: 13px; font-weight: 600; }
-.ad-cell__link { font-size: 12px; color: var(--text-secondary); }
-.form-tip { margin-left: 10px; font-size: 12px; color: var(--text-secondary); }
-.date-range { display: flex; align-items: center; gap: 8px; }
-.date-range .r-date-picker { flex: 1; }
+<style scoped lang="scss">
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__tip {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 640px;
+  }
+}
+
+.ad-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__img {
+    width: 36px;
+    height: 48px;
+    border-radius: var(--radius-xs, 4px);
+    flex-shrink: 0;
+    object-fit: cover;
+    background: var(--surface-hover);
+
+    &--empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__link {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+}
+
+.form-tip {
+  margin-left: 8px;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .r-date-picker {
+    flex: 1;
+  }
+}
 </style>

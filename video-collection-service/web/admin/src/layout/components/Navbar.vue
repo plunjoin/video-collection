@@ -105,59 +105,76 @@ const toggleFullScreen = () => {
 
 <style scoped lang="scss">
 .topbar {
-  height: 60px;
-  flex-shrink: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-color);
   display: flex;
+  flex-shrink: 0;
+  height: 56px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px 0 12px;
+  padding: 0 14px 0 10px;
+  background: transparent;
+  border-bottom: 1px solid var(--nav-border-light, rgba(20, 32, 57, 0.05));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   user-select: none;
 
   .left-panel {
     display: flex;
-    align-items: center;
-    gap: 14px;
     min-width: 0;
+    align-items: center;
+    gap: 8px;
 
     .rail-toggle {
       display: inline-flex;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      color: var(--text-regular);
-      padding: 6px;
-      border: 0;
+      padding: 0;
+      color: var(--text-secondary);
       background: transparent;
+      border: 0;
       border-radius: var(--radius-sm);
-      transition: all 0.2s;
+      cursor: pointer;
+      outline: none;
+      transition: background 180ms ease, color 180ms ease;
+
       &:hover {
         color: var(--text-primary);
-        background: var(--surface-hover);
+        background: var(--nav-bg-subtle, rgba(255, 255, 255, 0.55));
+      }
+
+      &:focus-visible {
+        box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.45);
       }
     }
 
     .page-heading {
       display: flex;
-      align-items: baseline;
-      gap: 10px;
       min-width: 0;
+      align-items: center;
+      gap: 8px;
 
       .page-title {
-        font-size: 17px;
-        font-weight: 500;
-        color: var(--text-primary);
-        white-space: nowrap;
         overflow: hidden;
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
+
       .page-env {
-        font-size: 11px;
+        padding: 1px 6px;
         color: var(--text-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 999px;
-        padding: 1px 8px;
+        background: rgba(20, 32, 57, 0.04);
+        border: 1px solid var(--nav-border-light, rgba(20, 32, 57, 0.05));
+        border-radius: var(--radius-pill);
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 1.3;
+        text-transform: uppercase;
       }
     }
   }
@@ -165,24 +182,45 @@ const toggleFullScreen = () => {
   .right-panel {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 
     .tool-btn {
-      width: 36px;
-      height: 36px;
       display: inline-flex;
+      width: 32px;
+      height: 32px;
       align-items: center;
       justify-content: center;
-      border-radius: 999px;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 0;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      color: var(--text-regular);
-      transition: all 0.16s ease;
+      outline: none;
+      transition: background 160ms ease, color 160ms ease;
 
       &:hover {
-        background: var(--surface-hover);
         color: var(--text-primary);
+        background: var(--nav-bg-subtle, rgba(255, 255, 255, 0.55));
+      }
+
+      &:focus-visible {
+        box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.45);
       }
     }
+  }
+}
+
+html.dark .topbar {
+  border-bottom-color: var(--nav-border-light, rgba(255, 255, 255, 0.06));
+
+  .page-env {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .left-panel .rail-toggle:hover,
+  .right-panel .tool-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
   }
 }
 </style>

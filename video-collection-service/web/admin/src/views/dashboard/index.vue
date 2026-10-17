@@ -1,9 +1,9 @@
 <template>
   <div class="dashboard-container">
     <!-- 1. 核心数据指标卡片 -->
-    <r-row :gutter="16" class="stats-row">
+    <r-row :gutter="12" class="stats-row">
       <r-col :xs="12" :sm="8" :md="4" v-for="item in statCards" :key="item.key">
-        <r-card shadow="hover" class="stat-card" :body-style="{ padding: '16px' }">
+        <r-card shadow="hover" class="stat-card" :body-style="{ padding: '12px 14px' }">
           <div class="card-header">
             <span class="card-label">{{ item.label }}</span>
             <div class="card-icon" :style="{ background: item.iconBg, color: item.iconColor }">
@@ -40,7 +40,7 @@
     </r-card>
 
     <!-- 3. 采集源即时状态与图表分布 -->
-    <r-row :gutter="16" class="content-row">
+    <r-row :gutter="12" class="content-row">
       <!-- 采集点即时触发列表 -->
       <r-col :xs="24" :lg="14">
         <r-card shadow="never" class="section-card">
@@ -287,34 +287,33 @@ onMounted(() => {
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 
   .stats-row {
     .stat-card {
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      transition: all 0.25s;
+      transition: all 0.2s ease;
 
       &:hover {
-        transform: translateY(-2px);
+        transform: translateY(-1px);
+        border-color: rgba(79, 110, 242, 0.25);
       }
 
       .card-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
 
         .card-label {
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text-secondary);
           font-weight: 600;
         }
 
         .card-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: var(--radius-sm);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -324,54 +323,52 @@ onMounted(() => {
       .card-value {
         display: flex;
         align-items: baseline;
-        gap: 8px;
+        gap: 6px;
 
         .num {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 700;
           color: var(--text-primary);
+          letter-spacing: -0.02em;
         }
 
         .sub-badge {
-          font-size: 11px;
-          color: #10b981;
-          font-weight: 500;
+          font-size: 9px;
+          color: var(--success);
+          font-weight: 650;
         }
       }
     }
   }
 
   .quick-actions-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .action-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
 
       .title-wrap {
         display: flex;
         align-items: center;
-        gap: 8px;
-        color: #6366f1;
+        gap: 6px;
+        color: var(--brand);
 
         .title-icon {
-          font-size: 18px;
+          font-size: 15px;
         }
 
         .title-text {
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 12px;
+          font-weight: 650;
           color: var(--text-primary);
         }
       }
 
       .action-buttons {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
     }
@@ -379,8 +376,6 @@ onMounted(() => {
 
   .content-row {
     .section-card {
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
       height: 100%;
 
       .card-title-bar {
@@ -389,8 +384,8 @@ onMounted(() => {
         justify-content: space-between;
 
         .title {
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 12px;
+          font-weight: 650;
           color: var(--text-primary);
         }
       }
@@ -398,17 +393,23 @@ onMounted(() => {
       .source-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
 
         .source-item {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 14px;
-          background-color: rgba(148, 163, 184, 0.06);
+          padding: 8px 10px;
+          background: rgba(20, 32, 57, 0.035);
           border: 1px solid var(--border-color);
-          border-radius: 8px;
-          gap: 12px;
+          border-radius: var(--radius-sm);
+          gap: 8px;
+          transition: background 0.16s ease, border-color 0.16s ease;
+
+          &:hover {
+            background: var(--nav-bg-subtle);
+            border-color: rgba(79, 110, 242, 0.25);
+          }
 
           .source-info {
             flex: 1;
@@ -417,18 +418,18 @@ onMounted(() => {
             .name-row {
               display: flex;
               align-items: center;
-              gap: 8px;
-              margin-bottom: 4px;
+              gap: 6px;
+              margin-bottom: 2px;
 
               .name {
-                font-size: 13px;
-                font-weight: 600;
+                font-size: 12px;
+                font-weight: 650;
                 color: var(--text-primary);
               }
             }
 
             .api-url {
-              font-size: 11px;
+              font-size: 10px;
               color: var(--text-secondary);
               overflow: hidden;
               text-overflow: ellipsis;
@@ -438,7 +439,7 @@ onMounted(() => {
 
           .source-ops {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             flex-shrink: 0;
           }
         }
@@ -447,41 +448,41 @@ onMounted(() => {
       .category-summary {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 10px;
 
         .cat-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+          gap: 6px;
 
           .cat-chip {
-            padding: 8px 10px;
-            background: rgba(99, 102, 241, 0.08);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 6px;
+            padding: 5px 8px;
+            background: rgba(79, 110, 242, 0.06);
+            border: 1px solid rgba(79, 110, 242, 0.16);
+            border-radius: var(--radius-xs);
             display: flex;
             flex-direction: column;
 
             .cat-name {
-              font-size: 13px;
-              font-weight: 600;
-              color: #6366f1;
+              font-size: 11px;
+              font-weight: 650;
+              color: var(--brand);
             }
 
             .cat-id {
-              font-size: 10px;
+              font-size: 9px;
               color: var(--text-secondary);
             }
           }
         }
 
         .system-status-box {
-          border-top: 1px solid var(--border-color);
-          padding-top: 14px;
+          border-top: 1px solid var(--nav-border-light);
+          padding-top: 10px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          font-size: 12px;
+          gap: 6px;
+          font-size: 11px;
 
           .sys-item {
             display: flex;
@@ -501,9 +502,9 @@ onMounted(() => {
 
       .empty-tip {
         text-align: center;
-        padding: 30px;
+        padding: 20px;
         color: var(--text-secondary);
-        font-size: 13px;
+        font-size: 11px;
       }
     }
   }

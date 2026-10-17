@@ -229,41 +229,39 @@ onMounted(() => {
 <style scoped lang="scss">
 .users-page {
   .table-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .table-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
 
       .header-right {
         display: flex;
-        gap: 10px;
+        gap: 6px;
       }
     }
 
     .date-text {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-secondary);
     }
   }

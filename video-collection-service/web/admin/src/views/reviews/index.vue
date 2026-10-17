@@ -43,4 +43,34 @@ async function resubmit(){let payload:any;try{payload=JSON.parse(editPayload.val
  saving.value=true;try{const r:any=await request.post(paths[kind],payload);notify(r.msg, 'success');resubmitVisible.value=false;selected.value=null;status.value='pending';await load()}finally{saving.value=false}}
 onMounted(load)
 </script>
-<style scoped>.toolbar{display:flex;gap:16px;align-items:center;margin-bottom:20px}.toolbar h2{flex:1}.payload{background:var(--bg-color);padding:20px;max-height:50vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.r-pagination{margin-top:20px}</style>
+<style scoped lang="scss">
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h2 {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+  }
+}
+
+.payload {
+  background: var(--bg-color);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.r-pagination {
+  margin-top: 14px;
+}
+</style>

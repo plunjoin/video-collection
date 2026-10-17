@@ -32,19 +32,25 @@ export const routes: RouteRecordRaw[] = [
         path: 'collection-rules',
         name: 'CollectionRules',
         component: () => import('@/views/collection/index.vue'),
-        meta: { title: '采集规则工作台' }
+        meta: { title: '使魔规则工坊' }
       },
       {
         path: 'sources',
         name: 'Sources',
-        component: () => import('@/views/sources/index.vue'),
-        meta: { title: '采集节点管理' }
+        redirect: '/collection-rules',
+        meta: { title: '使魔规则工坊', hidden: true }
       },
       {
         path: 'videos',
         name: 'Videos',
         component: () => import('@/views/videos/index.vue'),
         meta: { title: '视频仓库' }
+      },
+      {
+        path: 'wiki',
+        name: 'WikiKnowledge',
+        component: () => import('@/views/wiki/index.vue'),
+        meta: { title: 'Wiki 知识库' }
       },
       {
         path: 'news',
@@ -62,7 +68,12 @@ export const routes: RouteRecordRaw[] = [
         path: 'scheduler',
         name: 'Scheduler',
         component: () => import('@/views/scheduler/index.vue'),
-        meta: { title: '定时采集调度' }
+        meta: { title: '使魔定时调度' }
+      },
+      {
+        path: 'logs',
+        name: 'CollectionLogs',
+        redirect: '/scheduler'
       },
       {
         path: 'feedbacks',
@@ -83,10 +94,10 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '客户端主题' }
       },
       {
-        path: 'players',
-        name: 'Players',
-        component: () => import('@/views/players/index.vue'),
-        meta: { title: '播放器管理' }
+        path: 'analytics',
+        name: 'Analytics',
+        component: () => import('@/views/analytics/index.vue'),
+        meta: { title: '埋点信息预览' }
       },
       {
         path: 'settings',

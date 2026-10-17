@@ -138,53 +138,51 @@ onMounted(() => {
 <style scoped lang="scss">
 .themes-page {
   .main-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .page-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
 
       .header-right {
         display: flex;
-        gap: 10px;
+        gap: 6px;
       }
     }
 
     .theme-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
 
       .theme-card {
-        border-radius: 12px;
+        border-radius: var(--radius-md);
         border: 1px solid var(--border-color);
-        transition: all 0.25s;
+        transition: all 0.2s ease;
         overflow: hidden;
 
         &.is-active {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 1px #6366f1;
+          border-color: var(--brand);
+          box-shadow: 0 0 0 1px var(--brand);
         }
 
         :deep(.r-card__body) {
@@ -192,7 +190,7 @@ onMounted(() => {
         }
 
         .card-cover-wrap {
-          height: 160px;
+          height: 140px;
           position: relative;
           background: #1e293b;
 
@@ -203,26 +201,26 @@ onMounted(() => {
 
           .active-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(16, 185, 129, 0.9);
+            top: 8px;
+            right: 8px;
+            background: rgba(47, 158, 110, 0.9);
             color: #fff;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 6px;
+            font-size: 9px;
+            font-weight: 650;
+            padding: 2px 6px;
+            border-radius: var(--radius-xs);
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
             backdrop-filter: blur(4px);
           }
         }
 
         .theme-info {
-          padding: 16px;
+          padding: 12px;
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
 
           .title-row {
             display: flex;
@@ -230,22 +228,22 @@ onMounted(() => {
             justify-content: space-between;
 
             .theme-name {
-              font-size: 15px;
-              font-weight: 700;
+              font-size: 12px;
+              font-weight: 650;
               color: var(--text-primary);
             }
           }
 
           .author-row {
-            font-size: 12px;
+            font-size: 10px;
             color: var(--text-secondary);
           }
 
           .desc-row {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-regular);
-            margin: 4px 0 10px;
-            height: 36px;
+            margin: 2px 0 8px;
+            height: 32px;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -263,8 +261,9 @@ onMounted(() => {
       .empty-tip {
         grid-column: 1 / -1;
         text-align: center;
-        padding: 40px;
+        padding: 30px;
         color: var(--text-secondary);
+        font-size: 11px;
       }
     }
   }

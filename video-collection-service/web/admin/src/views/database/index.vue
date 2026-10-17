@@ -671,50 +671,48 @@ onMounted(() => {
 .database-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 
   .table-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .table-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
 
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
 
         .page-title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
+          letter-spacing: -0.02em;
           color: var(--text-primary);
         }
         .sub-desc {
-          font-size: 12px;
+          font-size: 10px;
           color: var(--text-secondary);
         }
       }
 
       .header-right {
         display: flex;
-        gap: 10px;
+        gap: 6px;
       }
     }
   }
 
   .mono-text {
     font-family: 'JetBrains Mono', Consolas, monospace;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .date-text {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--text-secondary);
   }
 
@@ -725,8 +723,8 @@ onMounted(() => {
   .tab-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 10px;
     flex-wrap: wrap;
 
     .toolbar-tip {

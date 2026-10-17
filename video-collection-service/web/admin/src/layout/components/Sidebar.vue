@@ -2,16 +2,16 @@
   <aside class="entropy-sidebar" :class="{ 'is-collapsed': isCollapsed }" :data-collapsed="isCollapsed || undefined">
     <header class="sidebar-brand-row">
       <div v-if="!isCollapsed" class="brand-lockup" @click="goDashboard" title="返回仪表盘">
-        <span class="brand-mark" aria-hidden="true">V</span>
+        <span class="brand-mark" aria-hidden="true">B</span>
         <span class="brand-copy">
-          <strong>Video Collection</strong>
-          <small>内容运营工作台</small>
+          <strong>Bllii Studio</strong>
+          <small>动漫聚合与运营工作台</small>
         </span>
       </div>
 
       <r-tooltip v-if="isCollapsed" content="打开边栏" side="right" :delay-duration="120">
         <button class="collapsed-brand-toggle" type="button" aria-label="打开边栏" :aria-expanded="false" @click="toggleCollapsed">
-          <span class="brand-mark collapsed-mark" aria-hidden="true">V</span>
+          <span class="brand-mark collapsed-mark" aria-hidden="true">B</span>
           <span class="collapsed-toggle-icon" aria-hidden="true"><PanelLeftOpen :size="19" /></span>
         </button>
       </r-tooltip>
@@ -98,6 +98,7 @@ import { useAppStore } from '@/store/app'
 import { useUserStore } from '@/store/user'
 import { roleLabels, canVisit } from '@/utils/permissions'
 import {
+  Activity,
   Bell,
   Reading,
   Brush,
@@ -108,6 +109,7 @@ import {
   Connection,
   Document,
   Film,
+  Network,
   SwitchButton,
   Monitor,
   Odometer,
@@ -119,7 +121,6 @@ import {
   SetUp,
   TrendCharts,
   User,
-  VideoPlay,
 } from '@/components/radix/icons'
 
 const appStore = useAppStore()
@@ -141,9 +142,9 @@ const allSections = [
     title: '内容管理',
     items: [
       { path: '/videos', title: '视频库', icon: Film },
-      { path: '/sources', title: '采集节点', icon: Connection },
-      { path: '/collection-rules', title: '采集规则', icon: SetUp },
-      { path: '/scheduler', title: '定时任务', icon: Clock },
+      { path: '/wiki', title: 'Wiki 知识库', icon: Network },
+      { path: '/collection-rules', title: '使魔规则工坊', icon: SetUp },
+      { path: '/scheduler', title: '使魔调度', icon: Clock },
       { path: '/news', title: '资讯管理', icon: Bell },
       { path: '/community', title: '社区内容', icon: ChatDotRound },
       { path: '/reviews', title: '内容审核', icon: Document },
@@ -155,6 +156,7 @@ const allSections = [
     title: '用户运营',
     items: [
       { path: '/growth', title: '成长运营', icon: TrendCharts },
+      { path: '/analytics', title: '埋点统计', icon: Activity },
       { path: '/notifications', title: '消息通知', icon: Bell },
       { path: '/users', title: '用户账号', icon: User },
     ],
@@ -163,7 +165,6 @@ const allSections = [
     title: '系统工具',
     items: [
       { path: '/themes', title: '客户端主题', icon: Brush },
-      { path: '/players', title: '播放器配置', icon: VideoPlay },
       { path: '/database', title: '数据库管理', icon: Coin },
       { path: '/logs', title: '运行日志', icon: Document },
     ],
@@ -233,15 +234,15 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
 .entropy-sidebar {
   --sidebar-width: 256px;
   --sidebar-collapsed-width: 64px;
-  --nav-bg: #ffffff;
-  --nav-border: #e5e7eb;
-  --nav-border-light: #f1f5f9;
-  --nav-text-primary: #0f172a;
-  --nav-text-secondary: #64748b;
-  --nav-text-muted: #94a3b8;
-  --nav-bg-subtle: #f8fafc;
-  --nav-bg-active: #eff6ff;
-  --nav-primary: #1d68fe;
+  --nav-bg: var(--glass-panel); // 与内容区卡片同一玻璃材质
+  --nav-border: var(--border-color); // 与内容区卡片同边框色
+  --nav-border-light: rgba(20, 32, 57, 0.05);
+  --nav-text-primary: var(--text-primary);
+  --nav-text-secondary: var(--text-regular);
+  --nav-text-muted: var(--text-secondary);
+  --nav-bg-subtle: rgba(255, 255, 255, 0.55);
+  --nav-bg-active: rgba(79, 110, 242, 0.1);
+  --nav-primary: var(--brand);
 
   display: flex;
   position: relative;
@@ -254,7 +255,11 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
   overflow: hidden;
   color: var(--nav-text-primary);
   background: var(--nav-bg);
-  border-right: 1px solid var(--nav-border);
+  border: 1px solid var(--nav-border); // 与内容区卡片同款完整玻璃边框
+  border-radius: var(--radius-lg); // 与内容区卡片同圆角语言
+  box-shadow: 0 1px 2px rgba(22, 33, 58, 0.04), 0 8px 24px rgba(22, 33, 58, 0.05), var(--glass-highlight); // 更轻的浮起，与内容卡片层级一致
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1), flex-basis 300ms cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 
@@ -272,6 +277,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     gap: 8px;
     padding: 0 12px;
     border-bottom: 1px solid var(--nav-border-light);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
   .brand-lockup {
@@ -291,8 +297,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     justify-content: center;
     border-radius: 9px;
     color: #fff;
-    background: linear-gradient(135deg, #3575fe 0%, #165bf6 62%, #06b6d4 120%);
-    box-shadow: 0 2px 8px rgba(29, 104, 254, .2);
+    background: linear-gradient(135deg, #5d7af5 0%, #3d5ce0 100%);
+    box-shadow: 0 2px 8px rgba(79, 110, 242, .24);
     font-size: 14px;
     font-weight: 800;
     letter-spacing: -.04em;
@@ -335,7 +341,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     color: var(--nav-text-secondary);
     background: transparent;
     border: 0;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     outline: none;
     transition: background 180ms ease, color 180ms ease, transform 180ms ease;
@@ -346,7 +352,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     }
 
     &:focus-visible {
-      box-shadow: 0 0 0 2px #bfdbfe;
+      box-shadow: 0 0 0 2px rgba(79, 110, 242, .45);
     }
   }
 
@@ -406,15 +412,15 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     gap: 8px;
     padding: 0 9px;
     color: var(--nav-text-muted);
-    background: var(--nav-bg-subtle);
-    border: 1px solid var(--nav-border);
-    border-radius: 10px;
+    background: rgba(20, 32, 57, .04);
+    border: 1px solid var(--nav-border-light);
+    border-radius: var(--radius-md);
     transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 
     &:focus-within {
-      background: var(--nav-bg);
-      border-color: #93c5fd;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, .1);
+      background: rgba(255, 255, 255, .8);
+      border-color: rgba(79, 110, 242, .35);
+      box-shadow: 0 0 0 3px rgba(79, 110, 242, .1);
     }
 
     .search-icon { flex: 0 0 auto; }
@@ -472,7 +478,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     overflow-y: auto;
     padding: 8px 10px 14px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, .45) transparent;
+    scrollbar-color: rgba(113, 128, 155, 0.32) transparent; // 与全局滚动条一致
   }
 
   .nav-section + .nav-section { margin-top: 11px; }
@@ -503,7 +509,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     padding: 0 10px;
     color: var(--nav-text-secondary);
     text-decoration: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     outline: 0;
     font-size: 11px;
     font-weight: 500;
@@ -518,7 +524,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
       > svg { color: var(--nav-text-secondary); }
     }
 
-    &:focus-visible { box-shadow: 0 0 0 2px #bfdbfe; }
+    &:focus-visible { box-shadow: 0 0 0 2px rgba(79, 110, 242, .45); }
 
     &.is-active {
       color: var(--nav-primary);
@@ -535,7 +541,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     justify-content: center;
     margin: 3px auto;
     padding: 0;
-    border-radius: 11px;
+    border-radius: var(--radius-md);
   }
 
   .nav-label {
@@ -572,6 +578,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     flex: 0 0 auto;
     padding: 8px 10px 10px;
     border-top: 1px solid var(--nav-border-light);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   }
 
   .settings-link { margin: 0 0 5px; }
@@ -599,7 +606,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
       border-color: var(--nav-border-light);
     }
 
-    &:focus-visible { box-shadow: 0 0 0 2px #bfdbfe; }
+    &:focus-visible { box-shadow: 0 0 0 2px rgba(79, 110, 242, .45); }
   }
 
   .profile-collapsed {
@@ -620,7 +627,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     justify-content: center;
     overflow: hidden;
     color: #fff;
-    background: linear-gradient(135deg, #3575fe, #7165ed 62%, #06b6d4);
+    background: linear-gradient(135deg, #5d7af5, #3d5ce0); // 与品牌主色同族
     border: 1px solid rgba(255, 255, 255, .82);
     border-radius: 50%;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
@@ -672,18 +679,18 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
 }
 
 html.dark .entropy-sidebar {
-  --nav-bg: #131b2e;
-  --nav-border: #1e293b;
-  --nav-border-light: #243149;
-  --nav-text-primary: #f8fafc;
-  --nav-text-secondary: #94a3b8;
-  --nav-text-muted: #64748b;
-  --nav-bg-subtle: #0f172a;
-  --nav-bg-active: rgba(53, 117, 254, .16);
-  --nav-primary: #7eacff;
+  --nav-bg: var(--glass-panel); // 暗色令牌自动翻转，与暗色卡片同材质
+  --nav-border: rgba(255, 255, 255, 0.09);
+  --nav-border-light: rgba(255, 255, 255, 0.06);
+  --nav-text-primary: #f1f4fb;
+  --nav-text-secondary: #b9c2d6;
+  --nav-text-muted: #8f9cb5;
+  --nav-bg-subtle: rgba(255, 255, 255, 0.06);
+  --nav-bg-active: rgba(126, 148, 255, 0.14);
+  --nav-primary: #7e94ff;
 
-  .search-shortcut { color: #94a3b8; background: rgba(255, 255, 255, .06); border-color: rgba(148, 163, 184, .15); }
-  .search-clear:hover { color: #f8fafc; background: rgba(255, 255, 255, .08); }
-  .nav-badge { color: #c4b5fd; background: rgba(139, 92, 246, .16); }
+  .search-shortcut { color: #94a3b8; background: rgba(255, 255, 255, 0.06); border-color: rgba(148, 163, 184, 0.15); }
+  .search-clear:hover { color: #f8fafc; background: rgba(255, 255, 255, 0.08); }
+  .nav-badge { color: #c4b5fd; background: rgba(139, 92, 246, 0.16); }
 }
 </style>

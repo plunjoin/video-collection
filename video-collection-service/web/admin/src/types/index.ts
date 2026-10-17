@@ -149,14 +149,60 @@ export interface ThemeInfo {
   path?: string
 }
 
-// 播放器信息
-export interface PlayerInfo {
-  id: string
+// ========== 埋点信息预览（网站 / App PV-UV 统计） ==========
+
+// 单日或累计 PV/UV 汇总
+export interface AnalyticsSummary {
+  pv: number
+  uv: number
+  web_pv: number
+  app_pv: number
+  web_uv: number
+  app_uv: number
+}
+
+// 单日趋势点（近 30 天曲线）
+export interface AnalyticsDailyPoint {
+  day: string
+  pv: number
+  uv: number
+  web_pv: number
+  app_pv: number
+  web_uv: number
+  app_uv: number
+}
+
+// 平台维度统计
+export interface AnalyticsPlatformStats {
+  platform: 'web' | 'app'
+  pv: number
+  uv: number
+  share: number // PV 占比（百分比）
+}
+
+// 热门页面（近 7 天）
+export interface AnalyticsTopPage {
+  page: string
+  pv: number
+  avg_dwell_ms: number
+}
+
+// 埋点事件计数（近 7 天）
+export interface AnalyticsEventCount {
+  event: string
   name: string
-  version: string
-  author: string
-  is_active: boolean
-  config?: Record<string, any>
+  count: number
+}
+
+// 埋点总览
+export interface AnalyticsOverview {
+  today: AnalyticsSummary
+  yesterday: AnalyticsSummary
+  total: AnalyticsSummary
+  trend: AnalyticsDailyPoint[]
+  platforms: AnalyticsPlatformStats[]
+  top_pages: AnalyticsTopPage[]
+  events: AnalyticsEventCount[]
 }
 
 // 定时任务状态

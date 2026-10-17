@@ -1,6 +1,10 @@
 <template>
   <div class="videos-page">
-    <r-button type="primary" style="margin-bottom:16px" @click="newVideo">新增视频资料</r-button>
+    <div class="page-action-row">
+      <r-button type="primary" @click="newVideo">
+        <r-icon><Plus /></r-icon>新增视频资料
+      </r-button>
+    </div>
     <r-card shadow="never" class="filter-card">
       <r-form :inline="true" :model="queryForm" class="filter-form">
         <r-form-item label="片名搜索">
@@ -456,34 +460,35 @@ onMounted(() => {
 .videos-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+
+  .page-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
 
   .filter-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
     :deep(.r-form-item) {
       margin-bottom: 0;
     }
   }
 
   .table-card {
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-
     .batch-bar {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 8px 14px;
-      margin-bottom: 12px;
-      background: rgba(244, 63, 94, 0.1);
-      border: 1px solid rgba(244, 63, 94, 0.25);
-      border-radius: 8px;
+      gap: 10px;
+      padding: 6px 12px;
+      margin-bottom: 10px;
+      background: rgba(229, 72, 77, 0.08);
+      border: 1px solid rgba(229, 72, 77, 0.22);
+      border-radius: var(--radius-sm);
 
       .selected-text {
-        font-size: 13px;
-        color: #f43f5e;
-        font-weight: 600;
+        font-size: 11px;
+        color: var(--danger);
+        font-weight: 650;
       }
     }
 
@@ -492,40 +497,41 @@ onMounted(() => {
       flex-direction: column;
       gap: 2px;
       .main-title {
-        font-size: 13px;
+        font-size: 12px;
+        font-weight: 650;
         color: var(--text-primary);
       }
       .sub-remarks {
-        font-size: 11px;
-        color: #6366f1;
+        font-size: 10px;
+        color: var(--brand);
       }
     }
 
     .meta-tag {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-secondary);
     }
 
     .multi-node-badge {
-      font-size: 11px;
-      color: #059669;
-      background: #ecfdf5;
+      font-size: 9px;
+      color: var(--success);
+      background: rgba(47, 158, 110, 0.1);
       padding: 1px 5px;
-      border-radius: 4px;
-      margin-top: 3px;
+      border-radius: var(--radius-xs);
+      margin-top: 2px;
       display: inline-block;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .date-text {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-secondary);
     }
 
     .pagination-bar {
       display: flex;
       justify-content: flex-end;
-      margin-top: 16px;
+      margin-top: 10px;
     }
 
     .image-slot {
@@ -534,7 +540,7 @@ onMounted(() => {
       align-items: center;
       width: 100%;
       height: 100%;
-      background: rgba(148, 163, 184, 0.1);
+      background: rgba(20, 32, 57, 0.04);
       color: var(--text-secondary);
     }
   }
@@ -542,83 +548,85 @@ onMounted(() => {
   .detail-drawer-content {
     .video-meta-header {
       display: flex;
-      gap: 16px;
+      gap: 12px;
 
       .meta-texts {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 4px;
 
         .meta-title {
           margin: 0;
-          font-size: 16px;
+          font-size: 14px;
+          font-weight: 700;
           color: var(--text-primary);
         }
 
         .badges {
           display: flex;
-          gap: 6px;
+          gap: 4px;
         }
 
         .staff {
           margin: 0;
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text-regular);
         }
       }
     }
 
     .route-info {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-secondary);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
     }
 
     .episodes-list {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 8px;
-      max-height: 250px;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 6px;
+      max-height: 240px;
       overflow-y: auto;
 
       .episode-chip {
-        padding: 6px;
-        background: rgba(148, 163, 184, 0.08);
+        padding: 5px 6px;
+        background: rgba(20, 32, 57, 0.035);
         border: 1px solid var(--border-color);
-        border-radius: 6px;
+        border-radius: var(--radius-xs);
         text-align: center;
-        font-size: 12px;
+        font-size: 11px;
         display: flex;
         flex-direction: column;
         gap: 2px;
 
         .ep-name {
-          font-weight: 500;
+          font-weight: 600;
           color: var(--text-primary);
         }
 
         .ep-link {
-          font-size: 10px;
+          font-size: 9px;
+          color: var(--text-secondary);
         }
       }
     }
 
     .blurb-box {
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 11px;
+      line-height: 1.55;
       color: var(--text-regular);
-      background: rgba(148, 163, 184, 0.05);
-      padding: 12px;
-      border-radius: 8px;
+      background: rgba(20, 32, 57, 0.03);
+      padding: 10px;
+      border-radius: var(--radius-sm);
     }
 
     .empty-tip {
       text-align: center;
-      padding: 20px;
+      padding: 16px;
       color: var(--text-secondary);
-      font-size: 13px;
+      font-size: 11px;
     }
   }
 }

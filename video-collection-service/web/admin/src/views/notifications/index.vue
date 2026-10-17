@@ -22,4 +22,75 @@ async function open(n:any){if(!n.is_read){await request.post('/api/user/notifica
 async function send(){if(broadcast.value)await confirmAction('向所有正常用户发送此通知？','发送确认');busy.value=true;try{await request.post('/api/admin/notifications',{title:title.value,content:body.value,broadcast:broadcast.value,user_ids:broadcast.value?[]:recipients.value.split(/[,，\s]+/).filter(Boolean).map(Number)});sendVisible.value=false;title.value='';body.value='';notify('通知已发送', 'success');await load()}finally{busy.value=false}}
 onMounted(load)
 </script>
-<style scoped>.toolbar{display:flex;align-items:center;gap:12px}.toolbar h2{flex:1}article{padding:20px;margin:12px 0;border:1px solid var(--border-color);border-radius:10px;cursor:pointer}article.unread{border-left:4px solid #6366f1}small{float:right;opacity:.65}p{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<style scoped lang="scss">
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+
+  h2 {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+article {
+  padding: 10px 14px;
+  margin: 8px 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--nav-bg-subtle);
+  }
+
+  &.unread {
+    border-left: 3px solid var(--brand);
+    background: var(--nav-bg-subtle);
+  }
+
+  strong {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  small {
+    float: right;
+    font-size: 10px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+
+  p {
+    margin: 6px 0 8px;
+    font-size: 11px;
+    color: var(--text-regular);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+:global(html.dark) article {
+  background: rgba(255, 255, 255, 0.03);
+
+  &:hover {
+    background: rgba(126, 148, 255, 0.08);
+  }
+
+  &.unread {
+    background: rgba(126, 148, 255, 0.08);
+  }
+}
+</style>

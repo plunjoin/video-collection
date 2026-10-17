@@ -144,6 +144,71 @@
           />
         </r-form-item>
 
+        <!-- App 客户端更新与版本配置 -->
+        <r-divider content-position="left">App 客户端更新与版本配置（App 端检查更新联动）</r-divider>
+
+        <r-form-item label="App 最新版本号">
+          <r-input v-model="form.app_latest_version" placeholder="例如：1.1.0 或 v1.1.0" />
+        </r-form-item>
+
+        <r-form-item label="版本构建序号">
+          <r-input v-model="form.app_version_code" placeholder="整数，例如：2" />
+        </r-form-item>
+
+        <r-form-item label="是否强制更新">
+          <r-switch
+            v-model="form.app_force_update"
+            active-value="1"
+            inactive-value="0"
+            active-text="强制更新（不可跳过）"
+            inactive-text="普通推荐更新"
+          />
+        </r-form-item>
+
+        <r-form-item label="版本更新日志">
+          <r-input
+            v-model="form.app_changelog"
+            type="textarea"
+            :rows="4"
+            placeholder="展示在 App 更新弹窗中的更新说明，换行即可自动排版"
+          />
+        </r-form-item>
+
+        <r-form-item label="默认落地发布页">
+          <r-input
+            v-model="form.app_download_url"
+            placeholder="例如：https://github.com/plunjoin/video-collection/releases/latest"
+          />
+        </r-form-item>
+
+        <r-form-item label="Android 安装包链接">
+          <r-input
+            v-model="form.app_android_url"
+            placeholder="APK 下载直链，留空则自动按 GitHub Release 规则拼接"
+          />
+        </r-form-item>
+
+        <r-form-item label="Windows 安装包链接">
+          <r-input
+            v-model="form.app_windows_url"
+            placeholder="ZIP 绿色包下载直链，留空则自动按 GitHub Release 规则拼接"
+          />
+        </r-form-item>
+
+        <r-form-item label="macOS 安装包链接">
+          <r-input
+            v-model="form.app_macos_url"
+            placeholder="选填，如 DMG/ZIP 直链"
+          />
+        </r-form-item>
+
+        <r-form-item label="iOS 下载/安装链接">
+          <r-input
+            v-model="form.app_ios_url"
+            placeholder="选填，IPA 下载地址或 TestFlight 邀请链接"
+          />
+        </r-form-item>
+
         <r-divider />
 
         <r-form-item>
@@ -182,7 +247,17 @@ const form = reactive<Record<string, string>>({
   site_friend_links: '',
   site_contact_email: '',
   site_contact_group: '',
-  site_disclaimer: ''
+  site_disclaimer: '',
+  app_latest_version: '1.0.0',
+  app_version_code: '1',
+  app_force_update: '0',
+  app_changelog: '',
+  app_download_url: '',
+  app_android_url: '',
+  app_windows_url: '',
+  app_macos_url: '',
+  app_linux_url: '',
+  app_ios_url: ''
 })
 
 const friendLinks = ref<FriendLink[]>([])
@@ -275,28 +350,29 @@ onMounted(() => {
     .page-header {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      margin-bottom: 24px;
+      gap: 2px;
+      margin-bottom: 14px;
 
       .page-title {
-        font-size: 16px;
+        font-size: 13px;
         font-weight: 700;
+        letter-spacing: -0.02em;
         color: var(--text-primary);
       }
       .sub-desc {
-        font-size: 12px;
+        font-size: 10px;
         color: var(--text-secondary);
       }
     }
 
     .settings-form {
-      padding: 10px 0;
+      padding: 6px 0;
     }
 
     .friend-links-box {
-      margin-bottom: 24px;
-      padding-left: 20px;
-      padding-right: 20px;
+      margin-bottom: 18px;
+      padding-left: 14px;
+      padding-right: 14px;
 
       .table-actions {
         display: flex;
@@ -305,7 +381,7 @@ onMounted(() => {
         margin-bottom: 8px;
 
         .tip-text {
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text-secondary);
         }
       }
