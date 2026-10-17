@@ -239,3 +239,83 @@ func TestPenetrationStats(t *testing.T) {
 		t.Fatalf("expected favorite and rec_click features, got %+v", info.Features)
 	}
 }
+
+func TestAnalyticsOverviewPlatformPVUV(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	today := businessDay(time.Now())
+	yesterday := shiftDay(today, -1)
+
+	// 昨日：网站 2 次浏览 / 1 访客
+	for _, ev := range []AnalyticsEvent{
+		{Event: "page_view", Visitor: "w1", Day: yesterday, Platform: "web", Page: "/"},
+		{Event: "page_view", Visitor: "w1", Day: yesterday, Platform: "web", Page: "/rank"},
+	} {
+		if err := s.TrackEvent(ctx, ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 今日：网站 1 访客 2 次浏览（含停留），App 1 访客 1 次浏览；非法平台归一为 web
+	events := []AnalyticsEvent{
+		{Event: "page_view", Visitor: "w2", Day: today, Platform: "web", Page: "/"},
+		{Event: "page_leave", Visitor: "w2", Day: today, Platform: "web", Page: "/", DwellMS: 62000},
+		{Event: "page_view", Visitor: "w2", Day: today, Platform: "weird", Page: "/play/1"},
+		{Event: "page_view", Visitor: "a1", Day: today, Platform: "app", Page: "app://home"},
+		{Event: "play", Visitor: "a1", Day: today, Platform: "app", TargetID: 9},
+	}
+	for _, ev := range events {
+		if err := s.TrackEvent(ctx, ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	overview, err := s.AnalyticsOverview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 今日汇总：PV 3（web 2 + app 1），UV 2（w2 + a1）
+	if overview.Today.PV != 3 || overview.Today.WebPV != 2 || overview.Today.AppPV != 1 {
+		t.Fatalf("unexpected today PV: %+v", overview.Today)
+	}
+	if overview.Today.UV != 2 || overview.Today.WebUV != 1 || overview.Today.AppUV != 1 {
+		t.Fatalf("unexpected today UV: %+v", overview.Today)
+	}
+	// 昨日汇总
+	if overview.Yesterday.PV != 2 || overview.Yesterday.WebPV != 2 || overview.Yesterday.UV != 1 {
+		t.Fatalf("unexpected yesterday summary: %+v", overview.Yesterday)
+	}
+	// 累计
+	if overview.Total.PV != 5 || overview.Total.UV != 3 {
+		t.Fatalf("unexpected total summary: %+v", overview.Total)
+	}
+	// 趋势：30 天曲线今日点
+	if len(overview.Trend) != 30 {
+		t.Fatalf("expected 30 trend points, got %d", len(overview.Trend))
+	}
+	if got := overview.Trend[len(overview.Trend)-1]; got.Day != today || got.PV != 3 || got.UV != 2 || got.AppPV != 1 {
+		t.Fatalf("unexpected today trend point: %+v", got)
+	}
+	// 平台分布：web PV 4 / app PV 1，web 占比 80%
+	platformBy := map[string]AnalyticsPlatformStats{}
+	for _, p := range overview.Platforms {
+		platformBy[p.Platform] = p
+	}
+	if platformBy["web"].PV != 4 || platformBy["web"].UV != 2 || platformBy["web"].Share != 80 {
+		t.Fatalf("unexpected web platform stats: %+v", platformBy["web"])
+	}
+	if platformBy["app"].PV != 1 || platformBy["app"].UV != 1 || platformBy["app"].Share != 20 {
+		t.Fatalf("unexpected app platform stats: %+v", platformBy["app"])
+	}
+	// 热门页面：PV 最高的应是 “/”（2 次），平均停留 62s
+	if len(overview.TopPages) == 0 || overview.TopPages[0].Page != "/" || overview.TopPages[0].PV != 2 {
+		t.Fatalf("unexpected top pages: %+v", overview.TopPages)
+	}
+	if overview.TopPages[0].AvgDwellMS != 62000 {
+		t.Fatalf("expected avg dwell 62000, got %d", overview.TopPages[0].AvgDwellMS)
+	}
+	// 事件分布（近 7 天）：page_view 共 5 次（昨日 2 + 今日 3）居首
+	if len(overview.Events) == 0 || overview.Events[0].Event != "page_view" || overview.Events[0].Count != 5 {
+		t.Fatalf("unexpected events: %+v", overview.Events)
+	}
+}

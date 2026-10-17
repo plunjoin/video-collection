@@ -41,6 +41,7 @@ var validAdSlots = map[string]bool{
 type AnalyticsEvent struct {
 	UserID   int
 	Visitor  string
+	Platform string // web / app，仅两个合法值，为空时按 web 处理
 	Event    string
 	TargetID int
 	Page     string
@@ -106,6 +107,7 @@ type AnalyticsStore interface {
 	DeleteAd(context.Context, int) error
 	RetentionStats(context.Context) (*RetentionInfo, error)
 	PenetrationStats(context.Context) (*PenetrationInfo, error)
+	AnalyticsOverview(context.Context) (*AnalyticsOverviewData, error)
 }
 
 // 编译期断言：SQLContentStore 实现 AnalyticsStore
@@ -114,12 +116,12 @@ var _ AnalyticsStore = (*SQLContentStore)(nil)
 // migrateAnalytics 创建埋点/搜索日志/访客/广告相关表（幂等）
 func migrateAnalytics(tx *sql.Tx, id, timestamp string) error {
 	schema := fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS analytics_events(id %s,user_id INTEGER NOT NULL DEFAULT 0,event TEXT NOT NULL,target_id INTEGER NOT NULL DEFAULT 0,page TEXT NOT NULL DEFAULT '',dwell_ms INTEGER NOT NULL DEFAULT 0,day TEXT NOT NULL,created_at %s NOT NULL);
+CREATE TABLE IF NOT EXISTS analytics_events(id %s,user_id INTEGER NOT NULL DEFAULT 0,event TEXT NOT NULL,target_id INTEGER NOT NULL DEFAULT 0,page TEXT NOT NULL DEFAULT '',dwell_ms INTEGER NOT NULL DEFAULT 0,day TEXT NOT NULL,platform TEXT NOT NULL DEFAULT 'web',created_at %s NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_events_day ON analytics_events(day,event);
 CREATE INDEX IF NOT EXISTS idx_events_user ON analytics_events(user_id,event);
 CREATE TABLE IF NOT EXISTS search_logs(id %s,user_id INTEGER NOT NULL DEFAULT 0,keyword TEXT NOT NULL,day TEXT NOT NULL,created_at %s NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_search_logs_day ON search_logs(day);
-CREATE TABLE IF NOT EXISTS visitor_days(day TEXT NOT NULL,visitor TEXT NOT NULL,user_id INTEGER NOT NULL DEFAULT 0,created_at %s NOT NULL,PRIMARY KEY(day,visitor));
+CREATE TABLE IF NOT EXISTS visitor_days(day TEXT NOT NULL,visitor TEXT NOT NULL,user_id INTEGER NOT NULL DEFAULT 0,platform TEXT NOT NULL DEFAULT 'web',created_at %s NOT NULL,PRIMARY KEY(day,visitor));
 CREATE TABLE IF NOT EXISTS ads(id %s,slot TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',image TEXT NOT NULL DEFAULT '',link TEXT NOT NULL DEFAULT '',video_id INTEGER NOT NULL DEFAULT 0,sort INTEGER NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),starts_at TEXT NOT NULL DEFAULT '',ends_at TEXT NOT NULL DEFAULT '',created_at %s NOT NULL,updated_at %s NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_ads_slot ON ads(slot,active,sort);
 `, id, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
@@ -151,6 +153,10 @@ func (s *SQLContentStore) TrackEvent(ctx context.Context, ev AnalyticsEvent) err
 	if visitor == "" {
 		return ErrInvalidOperation
 	}
+	ev.Platform = strings.ToLower(strings.TrimSpace(ev.Platform))
+	if ev.Platform != "app" {
+		ev.Platform = "web"
+	}
 	ev.Page = strings.TrimSpace(ev.Page)
 	if utf8.RuneCountInString(ev.Page) > 64 {
 		ev.Page = string([]rune(ev.Page)[:64])
@@ -175,12 +181,12 @@ func (s *SQLContentStore) TrackEvent(ctx context.Context, ev AnalyticsEvent) err
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO analytics_events(user_id,event,target_id,page,dwell_ms,day,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)",
-		ev.UserID, ev.Event, ev.TargetID, ev.Page, ev.DwellMS, ev.Day, now); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO analytics_events(user_id,event,target_id,page,dwell_ms,day,platform,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+		ev.UserID, ev.Event, ev.TargetID, ev.Page, ev.DwellMS, ev.Day, ev.Platform, now); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO visitor_days(day,visitor,user_id,created_at) VALUES($1,$2,$3,$4) ON CONFLICT(day,visitor) DO NOTHING",
-		ev.Day, visitor, ev.UserID, now); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO visitor_days(day,visitor,user_id,platform,created_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(day,visitor) DO NOTHING",
+		ev.Day, visitor, ev.UserID, ev.Platform, now); err != nil {
 		return err
 	}
 	if ev.Event == "search" && ev.Keyword != "" {
@@ -500,4 +506,370 @@ func (s *SQLContentStore) PenetrationStats(ctx context.Context) (*PenetrationInf
 	}
 	sort.SliceStable(info.Features, func(i, j int) bool { return info.Features[i].Rate > info.Features[j].Rate })
 	return info, nil
+}
+
+// ---------- 埋点总览（网站 / App PV / UV） ----------
+
+// AnalyticsSummary 单日或累计 PV/UV 汇总
+type AnalyticsSummary struct {
+	PV    int `json:"pv"`
+	UV    int `json:"uv"`
+	WebPV int `json:"web_pv"`
+	AppPV int `json:"app_pv"`
+	WebUV int `json:"web_uv"`
+	AppUV int `json:"app_uv"`
+}
+
+// AnalyticsDailyPoint 单日趋势点（近 30 天曲线用）
+type AnalyticsDailyPoint struct {
+	Day   string `json:"day"`
+	PV    int    `json:"pv"`
+	UV    int    `json:"uv"`
+	WebPV int    `json:"web_pv"`
+	AppPV int    `json:"app_pv"`
+	WebUV int    `json:"web_uv"`
+	AppUV int    `json:"app_uv"`
+}
+
+// AnalyticsPlatformStats 平台维度统计（web / app）
+type AnalyticsPlatformStats struct {
+	Platform string  `json:"platform"`
+	PV       int     `json:"pv"`
+	UV       int     `json:"uv"`
+	Share    float64 `json:"share"` // PV 占比（百分比）
+}
+
+// AnalyticsTopPage 热门页面（近 7 天）
+type AnalyticsTopPage struct {
+	Page       string `json:"page"`
+	PV         int    `json:"pv"`
+	AvgDwellMS int    `json:"avg_dwell_ms"` // page_leave 平均停留毫秒数
+}
+
+// AnalyticsEventCount 埋点事件类型计数（近 7 天）
+type AnalyticsEventCount struct {
+	Event string `json:"event"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// AnalyticsOverviewData 埋点信息预览总览
+type AnalyticsOverviewData struct {
+	Today     AnalyticsSummary         `json:"today"`
+	Yesterday AnalyticsSummary         `json:"yesterday"`
+	Total     AnalyticsSummary         `json:"total"`
+	Trend     []AnalyticsDailyPoint    `json:"trend"`     // 近 30 天
+	Platforms []AnalyticsPlatformStats `json:"platforms"` // 近 30 天平台分布
+	TopPages  []AnalyticsTopPage       `json:"top_pages"` // 近 7 天热门页面
+	Events    []AnalyticsEventCount    `json:"events"`    // 近 7 天事件分布
+}
+
+// analyticsEventNames 埋点事件中文名
+var analyticsEventNames = map[string]string{
+	"page_view":     "页面浏览",
+	"page_leave":    "页面离开",
+	"play":          "播放",
+	"play_progress": "播放进度",
+	"impression":    "卡片曝光",
+	"video_click":   "卡片点击",
+	"rec_click":     "推荐点击",
+	"ad_click":      "广告点击",
+	"search":        "搜索",
+	"favorite":      "收藏",
+}
+
+// AnalyticsOverview 聚合埋点总览：今日 / 昨日 / 累计 PV-UV、近 30 天趋势、
+// 网站 / App 平台分布、近 7 天热门页面与事件分布。
+// PV = page_view 事件数；UV = visitor_days 去重访客数。
+func (s *SQLContentStore) AnalyticsOverview(ctx context.Context) (*AnalyticsOverviewData, error) {
+	overview := &AnalyticsOverviewData{
+		Trend:     []AnalyticsDailyPoint{},
+		Platforms: []AnalyticsPlatformStats{},
+		TopPages:  []AnalyticsTopPage{},
+		Events:    []AnalyticsEventCount{},
+	}
+	today := businessDay(time.Now())
+	yesterday := shiftDay(today, -1)
+	trendStart := shiftDay(today, -29)
+	detailStart := shiftDay(today, -6)
+
+	// 单日 PV（按平台分组）
+	dayPV := func(day string) (int, int, error) {
+		rows, err := s.db.QueryContext(ctx, "SELECT platform,COUNT(*) FROM analytics_events WHERE event='page_view' AND day=$1 GROUP BY platform", day)
+		if err != nil {
+			return 0, 0, err
+		}
+		defer rows.Close()
+		var web, app int
+		for rows.Next() {
+			var platform string
+			var count int
+			if err = rows.Scan(&platform, &count); err != nil {
+				return 0, 0, err
+			}
+			if platform == "app" {
+				app = count
+			} else {
+				web = count
+			}
+		}
+		return web, app, rows.Err()
+	}
+
+	// 单日 UV（按平台分组）
+	dayUV := func(day string) (int, int, error) {
+		rows, err := s.db.QueryContext(ctx, "SELECT platform,COUNT(*) FROM visitor_days WHERE day=$1 GROUP BY platform", day)
+		if err != nil {
+			return 0, 0, err
+		}
+		defer rows.Close()
+		var web, app int
+		for rows.Next() {
+			var platform string
+			var count int
+			if err = rows.Scan(&platform, &count); err != nil {
+				return 0, 0, err
+			}
+			if platform == "app" {
+				app = count
+			} else {
+				web = count
+			}
+		}
+		return web, app, rows.Err()
+	}
+
+	daySummary := func(day string) (AnalyticsSummary, error) {
+		summary := AnalyticsSummary{}
+		var err error
+		if summary.WebPV, summary.AppPV, err = dayPV(day); err != nil {
+			return summary, err
+		}
+		if summary.WebUV, summary.AppUV, err = dayUV(day); err != nil {
+			return summary, err
+		}
+		summary.PV = summary.WebPV + summary.AppPV
+		summary.UV = summary.WebUV + summary.AppUV
+		return summary, nil
+	}
+
+	var err error
+	if overview.Today, err = daySummary(today); err != nil {
+		return nil, err
+	}
+	if overview.Yesterday, err = daySummary(yesterday); err != nil {
+		return nil, err
+	}
+
+	// 累计汇总：全量 page_view 计数与全量去重访客
+	totalPVRows, err := s.db.QueryContext(ctx, "SELECT platform,COUNT(*) FROM analytics_events WHERE event='page_view' GROUP BY platform")
+	if err != nil {
+		return nil, err
+	}
+	for totalPVRows.Next() {
+		var platform string
+		var count int
+		if err = totalPVRows.Scan(&platform, &count); err != nil {
+			totalPVRows.Close()
+			return nil, err
+		}
+		if platform == "app" {
+			overview.Total.AppPV = count
+		} else {
+			overview.Total.WebPV = count
+		}
+	}
+	if err = totalPVRows.Err(); err != nil {
+		totalPVRows.Close()
+		return nil, err
+	}
+	totalPVRows.Close()
+
+	totalUVRows, err := s.db.QueryContext(ctx, "SELECT platform,COUNT(DISTINCT visitor) FROM visitor_days GROUP BY platform")
+	if err != nil {
+		return nil, err
+	}
+	for totalUVRows.Next() {
+		var platform string
+		var count int
+		if err = totalUVRows.Scan(&platform, &count); err != nil {
+			totalUVRows.Close()
+			return nil, err
+		}
+		if platform == "app" {
+			overview.Total.AppUV = count
+		} else {
+			overview.Total.WebUV = count
+		}
+	}
+	if err = totalUVRows.Err(); err != nil {
+		totalUVRows.Close()
+		return nil, err
+	}
+	totalUVRows.Close()
+	overview.Total.PV = overview.Total.WebPV + overview.Total.AppPV
+	overview.Total.UV = overview.Total.WebUV + overview.Total.AppUV
+
+	// 近 30 天趋势（PV / UV，均带平台拆分），缺失日期补零
+	type dayPlatform struct {
+		Day, Platform string
+	}
+	trendPV := make(map[dayPlatform]int)
+	rows, err := s.db.QueryContext(ctx, "SELECT day,platform,COUNT(*) FROM analytics_events WHERE event='page_view' AND day>=$1 GROUP BY day,platform", trendStart)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var key dayPlatform
+		var count int
+		if err = rows.Scan(&key.Day, &key.Platform, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		trendPV[key] = count
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	trendUV := make(map[dayPlatform]int)
+	rows, err = s.db.QueryContext(ctx, "SELECT day,platform,COUNT(*) FROM visitor_days WHERE day>=$1 GROUP BY day,platform", trendStart)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var key dayPlatform
+		var count int
+		if err = rows.Scan(&key.Day, &key.Platform, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		trendUV[key] = count
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	window := AnalyticsSummary{}
+	for i := 29; i >= 0; i-- {
+		day := shiftDay(today, -i)
+		point := AnalyticsDailyPoint{
+			Day:   day,
+			WebPV: trendPV[dayPlatform{day, "web"}],
+			AppPV: trendPV[dayPlatform{day, "app"}],
+			WebUV: trendUV[dayPlatform{day, "web"}],
+			AppUV: trendUV[dayPlatform{day, "app"}],
+		}
+		point.PV = point.WebPV + point.AppPV
+		point.UV = point.WebUV + point.AppUV
+		window.WebPV += point.WebPV
+		window.AppPV += point.AppPV
+		window.WebUV += point.WebUV
+		window.AppUV += point.AppUV
+		overview.Trend = append(overview.Trend, point)
+	}
+
+	// 平台分布（近 30 天）
+	totalWindowPV := window.WebPV + window.AppPV
+	for _, stats := range []struct {
+		platform string
+		pv, uv   int
+	}{
+		{"web", window.WebPV, window.WebUV},
+		{"app", window.AppPV, window.AppUV},
+	} {
+		share := 0.0
+		if totalWindowPV > 0 {
+			share = round1(float64(stats.pv) / float64(totalWindowPV) * 100)
+		}
+		overview.Platforms = append(overview.Platforms, AnalyticsPlatformStats{
+			Platform: stats.platform,
+			PV:       stats.pv,
+			UV:       stats.uv,
+			Share:    share,
+		})
+	}
+
+	// 近 7 天热门页面（page_view 计数 + page_leave 平均停留）
+	pagePV := make(map[string]int)
+	rows, err = s.db.QueryContext(ctx, "SELECT page,COUNT(*) FROM analytics_events WHERE event='page_view' AND day>=$1 AND page<>'' GROUP BY page ORDER BY COUNT(*) DESC LIMIT 8", detailStart)
+	if err != nil {
+		return nil, err
+	}
+	var pageOrder []string
+	for rows.Next() {
+		var page string
+		var count int
+		if err = rows.Scan(&page, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		pagePV[page] = count
+		pageOrder = append(pageOrder, page)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	dwell := make(map[string]int)
+	rows, err = s.db.QueryContext(ctx, "SELECT page,AVG(dwell_ms) FROM analytics_events WHERE event='page_leave' AND day>=$1 AND page<>'' GROUP BY page", detailStart)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var page string
+		var avg float64
+		if err = rows.Scan(&page, &avg); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if avg > 0 {
+			dwell[page] = int(avg)
+		}
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	for _, page := range pageOrder {
+		overview.TopPages = append(overview.TopPages, AnalyticsTopPage{
+			Page:       page,
+			PV:         pagePV[page],
+			AvgDwellMS: dwell[page],
+		})
+	}
+
+	// 近 7 天事件分布
+	rows, err = s.db.QueryContext(ctx, "SELECT event,COUNT(*) FROM analytics_events WHERE day>=$1 GROUP BY event ORDER BY COUNT(*) DESC", detailStart)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var event string
+		var count int
+		if err = rows.Scan(&event, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		name, ok := analyticsEventNames[event]
+		if !ok {
+			name = event
+		}
+		overview.Events = append(overview.Events, AnalyticsEventCount{Event: event, Name: name, Count: count})
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	return overview, nil
 }

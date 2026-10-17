@@ -68,6 +68,22 @@ func (srv *Server) registerAnalyticsRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/ads", auth.AdminRequired(srv.store, srv.handleAdminAds))
 	// 留存与功能渗透率看板（管理员）
 	mux.HandleFunc("/api/admin/retention", auth.AdminRequired(srv.store, srv.handleAdminRetention))
+	// 埋点信息预览：网站 / App PV-UV 总览看板（管理员）
+	mux.HandleFunc("/api/admin/analytics/overview", auth.AdminRequired(srv.store, srv.handleAdminAnalyticsOverview))
+}
+
+// resolveTrackPlatform 识别上报平台：客户端显式声明优先，
+// 否则依据 User-Agent 推断（Flutter / Dart 默认 UA 归为 App，其余为网站）。
+func resolveTrackPlatform(declared, userAgent string) string {
+	platform := strings.ToLower(strings.TrimSpace(declared))
+	if platform == "app" || platform == "web" {
+		return platform
+	}
+	ua := strings.ToLower(userAgent)
+	if strings.Contains(ua, "dart") || strings.Contains(ua, "flutter") {
+		return "app"
+	}
+	return "web"
 }
 
 // handleTrack 轻量埋点上报：页面停留、推荐点击、广告点击、搜索等
@@ -83,6 +99,7 @@ func (srv *Server) handleTrack(w http.ResponseWriter, r *http.Request) {
 		DwellMS  int    `json:"dwell_ms"`
 		Visitor  string `json:"vid"`
 		Keyword  string `json:"keyword"`
+		Platform string `json:"platform"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		errorResponse(w, http.StatusBadRequest, "参数解析失败")
@@ -99,6 +116,7 @@ func (srv *Server) handleTrack(w http.ResponseWriter, r *http.Request) {
 	ev := store.AnalyticsEvent{
 		UserID:   userID,
 		Visitor:  req.Visitor,
+		Platform: resolveTrackPlatform(req.Platform, r.UserAgent()),
 		Event:    req.Event,
 		TargetID: req.TargetID,
 		Page:     req.Page,
@@ -413,4 +431,17 @@ func (srv *Server) handleAdminRetention(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": map[string]any{"retention": retention, "penetration": penetration}})
+}
+
+// handleAdminAnalyticsOverview 埋点信息预览总览（网站 / App PV-UV 统计）
+func (srv *Server) handleAdminAnalyticsOverview(w http.ResponseWriter, r *http.Request) {
+	if !contentMethod(w, r, http.MethodGet) {
+		return
+	}
+	overview, err := srv.store.AnalyticsOverview(r.Context())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": overview})
 }
