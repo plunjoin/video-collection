@@ -176,14 +176,18 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	// 旧库升级：为埋点相关表补 platform 列（网站 / App 维度）。
+	// 旧库升级：为埋点相关表补 platform 列（网站 / App 维度），为 videos 表补 subject_id 列（Wiki 绑定）。
 	// PostgreSQL 原生幂等；SQLite 不支持 IF NOT EXISTS，重复执行报错被忽略。
 	if s.postgres {
 		_, _ = s.db.Exec("ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web'")
 		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web'")
+		_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS subject_id INTEGER DEFAULT 0")
+		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id)")
 	} else {
 		_, _ = s.db.Exec("ALTER TABLE analytics_events ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
 		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
+		_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN subject_id INTEGER DEFAULT 0")
+		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id)")
 	}
 	return nil
 }

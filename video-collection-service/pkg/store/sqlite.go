@@ -133,6 +133,7 @@ func (s *SQLiteStore) initSchema() error {
 		content TEXT DEFAULT '',
 		source_id TEXT DEFAULT '',
 		hits INTEGER DEFAULT 0,
+		subject_id INTEGER DEFAULT 0,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
 	);
@@ -198,10 +199,12 @@ func (s *SQLiteStore) initSchema() error {
 	if _, err := s.db.Exec(schema); err != nil {
 		return err
 	}
-	// 兼容迁移：如果旧数据库 videos 没有 hits 字段则尝试添加
+	// 兼容迁移：如果旧数据库 videos 没有 hits / subject_id 字段则尝试添加
 	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN hits INTEGER DEFAULT 0;")
+	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN subject_id INTEGER DEFAULT 0;")
 	// hits 索引必须在补列之后创建，否则旧库升级时会报 no such column: hits
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_hits ON videos(hits);")
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id);")
 	_, _ = s.db.Exec("ALTER TABLE user_history ADD COLUMN play_time INTEGER DEFAULT 0;")
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_id TEXT DEFAULT '';")
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_name TEXT DEFAULT '';")

@@ -184,6 +184,7 @@ func (s *PostgresStore) initSchema() error {
 		content TEXT DEFAULT '',
 		source_id VARCHAR(64) DEFAULT '',
 		hits INT DEFAULT 0,
+		subject_id INT DEFAULT 0,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		play_groups JSONB NOT NULL DEFAULT '[]'::jsonb
@@ -240,8 +241,10 @@ func (s *PostgresStore) initSchema() error {
 		return err
 	}
 	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS hits INT DEFAULT 0;")
+	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS subject_id INT DEFAULT 0;")
 	_, _ = s.db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NOT NULL DEFAULT '';")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_hits ON videos(hits DESC);")
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id);")
 	_, _ = s.db.Exec("ALTER TABLE user_history ADD COLUMN IF NOT EXISTS play_time INT DEFAULT 0;")
 	return nil
 }

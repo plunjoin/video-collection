@@ -132,10 +132,6 @@ func migrateWiki(tx *sql.Tx, id, timestamp string) error {
 		return err
 	}
 
-	// 兼容迁移：向 videos 增加 subject_id 字段建立与 Wiki 作品条目的外键绑定
-	_, _ = tx.Exec("ALTER TABLE videos ADD COLUMN subject_id INTEGER DEFAULT 0;")
-	_, _ = tx.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id);")
-
 	_, err := tx.Exec("INSERT INTO content_migrations(name) VALUES('wiki_knowledge_base_v1') ON CONFLICT(name) DO NOTHING")
 	return err
 }
