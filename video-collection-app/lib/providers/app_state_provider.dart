@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/update_model.dart';
 import '../models/video_model.dart';
 import '../services/api_service.dart';
+import '../services/update_service.dart';
 
 class PlayHistoryItem {
   final int videoId;
@@ -178,7 +180,16 @@ class AppStateProvider extends ChangeNotifier {
   SiteConfig get siteConfig => _siteConfig;
   bool get isInitialized => _isInitialized;
 
-  AppStateProvider({ApiService? api}) : _api = api ?? ApiService() {
+  final UpdateService _updateService;
+  UpdateService get updateService => _updateService;
+  bool _checkingUpdate = false;
+  bool get checkingUpdate => _checkingUpdate;
+  AppUpdateInfo? _latestUpdateInfo;
+  AppUpdateInfo? get latestUpdateInfo => _latestUpdateInfo;
+
+  AppStateProvider({ApiService? api, UpdateService? updateService})
+      : _api = api ?? ApiService(),
+        _updateService = updateService ?? UpdateService() {
     _loadFromPreferences();
   }
 
@@ -365,8 +376,12 @@ class AppStateProvider extends ChangeNotifier {
       await _saveLibrary();
     } on ApiException catch (e) {
       if (generation != _accountGeneration) return;
-      if (e.statusCode == 401) await logout(notifyServer: false);
-      _accountError = e.statusCode == 401 ? '登录已过期，请重新登录' : e.message;
+      if (e.statusCode == 401) {
+        await logout(notifyServer: false);
+        _accountError = null;
+      } else {
+        _accountError = e.message;
+      }
     } finally {
       if (_syncGeneration == generation) _syncing = false;
       notifyListeners();
@@ -387,8 +402,12 @@ class AppStateProvider extends ChangeNotifier {
       return true;
     } on ApiException catch (e) {
       if (generation != _accountGeneration) return false;
-      if (e.statusCode == 401) await logout(notifyServer: false);
-      _accountError = e.statusCode == 401 ? '登录已过期，请重新登录' : e.message;
+      if (e.statusCode == 401) {
+        await logout(notifyServer: false);
+        _accountError = null;
+      } else {
+        _accountError = e.message;
+      }
       notifyListeners();
       return false;
     }
@@ -507,6 +526,20 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> fetchSiteConfig() async {
     _siteConfig = await _api.getSiteConfig();
     notifyListeners();
+  }
+
+  /// 检查客户端更新
+  Future<AppUpdateInfo> checkAppUpdate() async {
+    _checkingUpdate = true;
+    notifyListeners();
+    try {
+      final info = await _updateService.checkUpdate(baseUrl: _apiBaseUrl);
+      _latestUpdateInfo = info;
+      return info;
+    } finally {
+      _checkingUpdate = false;
+      notifyListeners();
+    }
   }
 
   // 切换主题

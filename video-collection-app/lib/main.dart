@@ -34,7 +34,7 @@ void main() async {
         TitleBarStyle.hidden,
         windowButtonVisibility: false,
       );
-      await windowManager.setAsFrameless();
+      // 保留 WS_THICKFRAME 与 DWM 扩展区域，以启用 Windows 11 原生圆角与系统阴影，并保留窗口缩放手势
       await windowManager.show();
       await windowManager.focus();
     });

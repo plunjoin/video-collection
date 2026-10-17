@@ -229,9 +229,15 @@ class _ContentHubScreenState extends State<ContentHubScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildFeed(0), _buildFeed(1)],
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: TabBarView(
+            controller: _tabController,
+            children: [_buildFeed(0), _buildFeed(1)],
+          ),
+        ),
       ),
       floatingActionButton: isCommunity
           ? FloatingActionButton.extended(

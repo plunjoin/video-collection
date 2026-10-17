@@ -107,8 +107,9 @@ void main() {
     addTearDown(restored.dispose);
     while (!restored.isInitialized || restored.syncing) { await Future<void>.delayed(Duration.zero); }
     expect(restored.isLoggedIn, isFalse);
+    expect(restored.user, isNull);
     expect(restored.favoriteVideos, isEmpty);
-    expect(restored.accountError, contains('登录已过期'));
+    expect(restored.accountError, isNull);
   });
 
   test('Offline progress is retried on sync without reuploading cached history', () async {

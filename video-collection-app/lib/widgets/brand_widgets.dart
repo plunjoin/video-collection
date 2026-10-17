@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 export 'brand_components.dart';
+export 'brand_player_controls.dart';
 
 class BrandLogo extends StatelessWidget {
   final double width;

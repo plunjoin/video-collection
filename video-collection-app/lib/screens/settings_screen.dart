@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
+import '../services/update_service.dart';
+import '../theme/app_colors.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/desktop_window_title_bar.dart';
+import '../widgets/update_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -85,6 +88,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('搜索记录已清空')));
+  }
+
+  Future<void> _checkUpdate() async {
+    final state = context.read<AppStateProvider>();
+    if (state.checkingUpdate) return;
+    try {
+      final info = await state.checkAppUpdate();
+      if (!mounted) return;
+      await showUpdateDialog(context, info);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('检查更新失败: $e')),
+      );
+    }
   }
 
   @override
@@ -282,8 +300,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text(config.siteName),
                       if (config.siteSubtitle.isNotEmpty)
                         Text(config.siteSubtitle),
-                      const SizedBox(height: 6),
-                      const Text('客户端版本 1.0.0'),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF1B2333)
+                              : const Color(0xFFF4F7FF),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkBorder
+                                : const Color(0xFFE8EEFA),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.system_update_alt_rounded,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '客户端版本 v${UpdateService.currentVersion}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    state.latestUpdateInfo != null
+                                        ? (state.latestUpdateInfo!.hasUpdate
+                                            ? '发现新版本 v${state.latestUpdateInfo!.version}'
+                                            : '已是最新版本')
+                                        : '点击检查最新版本',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: state.latestUpdateInfo?.hasUpdate == true
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodySmall?.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton.tonal(
+                              onPressed: state.checkingUpdate ? null : _checkUpdate,
+                              child: state.checkingUpdate
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('检查更新'),
+                            ),
+                          ],
+                        ),
+                      ),
                       if (config.siteContactEmail.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(config.siteContactEmail),

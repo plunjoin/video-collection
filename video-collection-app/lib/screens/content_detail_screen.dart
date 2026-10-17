@@ -506,25 +506,36 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 24),
-                children: [_buildArticle(dark)],
+                children: [
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 860),
+                      child: _buildArticle(dark),
+                    ),
+                  ),
+                ],
               ),
             ),
       bottomNavigationBar: isCommunity && _item != null
           ? SafeArea(
               top: false,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
-                decoration: BoxDecoration(
-                  color: dark ? AppColors.darkCard : Colors.white,
-                  border: Border(
-                    top: BorderSide(
-                      color: dark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 860),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
+                    decoration: BoxDecoration(
+                      color: dark ? AppColors.darkCard : Colors.white,
+                      border: Border(
+                        top: BorderSide(
+                          color: dark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                child: Row(
+                    child: Row(
                   children: [
                     Expanded(
                       child: TextField(
@@ -566,8 +577,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   ],
                 ),
               ),
-            )
-          : null,
+            ),
+          ),
+        )
+      : null,
     );
   }
 }

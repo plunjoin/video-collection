@@ -102,13 +102,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: Responsive.gridColumns(
               context,
-              itemMinWidth: 160,
-              min: 2,
-              max: 5,
+              itemMinWidth: 140,
+              min: 3,
+              max: 6,
             ),
-            childAspectRatio: 1.25,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 12,
+            childAspectRatio: 0.65,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 14,
           ),
           itemCount: list.length,
           itemBuilder: (context, index) {
@@ -119,32 +119,51 @@ class _TimelineScreenState extends State<TimelineScreen> {
             );
           },
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+
+    Widget content = SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          const BrandPageBanner(
+            title: '今天，也有新的期待',
+            subtitle: '不错过喜欢的每一集。',
+            eyebrow: 'A NEW DAY, A NEW EPISODE',
+          ),
+          if (_today.isEmpty && _yesterday.isEmpty && _earlier.isEmpty)
+            const BrandEmpty(title: '给期待一点时间', subtitle: '暂无更新，下拉刷新试试。'),
+          _buildSection('今日新番更新', AppColors.rose, _today),
+          _buildSection('昨日连载放送', AppColors.gold, _yesterday),
+          _buildSection('更早精彩更新', AppColors.primary500, _earlier),
+        ],
+      ),
+    );
+
+    if (isDesktop) {
+      content = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: content,
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: BrandAppBar(title: const Text('新番更新')),
+      appBar: const BrandAppBar(title: Text('新番更新')),
       body: _isLoading
           ? const Center(child: BrandLoading())
           : RefreshIndicator(
               onRefresh: _loadLatest,
               color: AppColors.primary500,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    const BrandPageBanner(title: '今天，也有新的期待', subtitle: '不错过喜欢的每一集。', eyebrow: 'A NEW DAY, A NEW EPISODE'),
-                    if (_today.isEmpty && _yesterday.isEmpty && _earlier.isEmpty) const BrandEmpty(title: '给期待一点时间', subtitle: '暂无更新，下拉刷新试试。'),
-                    _buildSection('今日新番更新', AppColors.rose, _today),
-                    _buildSection('昨日连载放送', AppColors.gold, _yesterday),
-                    _buildSection('更早精彩更新', AppColors.primary500, _earlier),
-                  ],
-                ),
-              ),
+              child: content,
             ),
     );
   }

@@ -21,6 +21,7 @@ import 'player_screen.dart';
 import 'profile_edit_screen.dart';
 import 'settings_screen.dart';
 import 'timeline_screen.dart';
+import '../widgets/update_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -191,6 +192,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _checkUpdate(BuildContext context) async {
+    final state = context.read<AppStateProvider>();
+    if (state.checkingUpdate) return;
+    try {
+      final info = await state.checkAppUpdate();
+      if (!context.mounted) return;
+      await showUpdateDialog(context, info);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('检查更新失败: $e')),
+      );
+    }
+  }
+
   void _soon(String name) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('$name 还在准备中')));
@@ -236,10 +252,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final history = appState.playHistory;
         final config = appState.siteConfig;
         final user = appState.user;
+        final isLoggedIn = appState.isLoggedIn;
         final nickname = user?['nickname']?.toString().trim().isNotEmpty == true
             ? user!['nickname'].toString()
             : user?['username']?.toString() ?? '星空下的旅人';
-        final bio = user?['bio']?.toString().trim() ?? '';
+        final bio = isLoggedIn
+            ? (user?['bio']?.toString().trim().isNotEmpty == true
+                ? user!['bio'].toString().trim()
+                : '“ 喜欢动画，也喜欢生活。\n在更多的故事里，遇见更好的自己。 ”')
+            : '登录后可同步多端追番、播放历史和积分特权';
         final badge = user?['decorations']?['badge']?.toString() ?? '';
         final latest = history.isEmpty ? null : history.first;
         final wideDesktop =
@@ -263,200 +284,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     28,
                   ),
                   children: [
-                    Row(
-                      children: [
-                        _CircleIcon(
-                          icon: Icons.settings_outlined,
-                          tooltip: '设置',
-                          onTap: _openSettings,
-                        ),
-                        const Spacer(),
-                        _CircleIcon(
-                          icon: Icons.qr_code_scanner_rounded,
-                          onTap: () => _soon('扫一扫'),
-                        ),
-                        const SizedBox(width: 10),
-                        _CircleIcon(
-                          icon: Icons.notifications_none_rounded,
-                          badge: _unread > 0,
-                          onTap: () => _openGrowth(4),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            MemberAvatar(
-                              avatar: user?['avatar']?.toString() ?? '',
-                              frame:
-                                  user?['decorations']?['frame']?.toString() ??
-                                  '',
-                              size: 72,
-                            ),
-                            Positioned(
-                              right: -2,
-                              bottom: -2,
-                              child: GestureDetector(
-                                onTap: () => _openGrowth(1),
-                                child: Container(
-                                  width: 22,
-                                  height: 22,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary500,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.add_rounded,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      nickname,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        color: memberColor(
-                                          user?['decorations']?['nickname_color'],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _LevelChip(
-                                    level: appState.isLoggedIn ? _level : 1,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              if (appState.isLoggedIn)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF3D6),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.workspace_premium_rounded,
-                                        size: 14,
-                                        color: Color(0xFFE2A100),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        badge.isNotEmpty
-                                            ? badge
-                                            : (_levelName.isEmpty
-                                                  ? '初遇故事'
-                                                  : _levelName),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFFC48400),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                TextButton(
-                                  onPressed: _openAccount,
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: const Size(0, 32),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: const Text('登录 / 注册'),
-                                ),
-                              if (appState.isLoggedIn)
-                                TextButton(
-                                  onPressed: _openProfileEdit,
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: const Size(0, 28),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: const Text('编辑资料'),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    GestureDetector(
-                      onTap: appState.isLoggedIn
-                          ? _openProfileEdit
-                          : _openAccount,
-                      child: Text(
-                        bio.isNotEmpty
-                            ? bio
-                            : '“ 喜欢动画，也喜欢生活。\n在更多的故事里，遇见更好的自己。 ”',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.7,
-                          color: muted,
-                        ),
+                    if (wideDesktop)
+                      _buildDesktopHeader(
+                        context,
+                        appState,
+                        user,
+                        nickname,
+                        bio,
+                        badge,
+                        isDark,
+                        cardColor,
+                        muted,
+                        favorites,
+                        history,
+                      )
+                    else
+                      _buildMobileHeader(
+                        context,
+                        appState,
+                        user,
+                        nickname,
+                        bio,
+                        badge,
+                        isDark,
+                        cardColor,
+                        muted,
+                        favorites,
+                        history,
                       ),
-                    ),
                     const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        _Stat(
-                          value: _compact(favorites.length),
-                          label: '追番',
-                          onTap: () => _openFavorites(favorites),
-                        ),
-                        _statDivider(isDark),
-                        _Stat(
-                          value: _compact(history.length),
-                          label: '足迹',
-                          onTap: () => _openHistory(history, appState),
-                        ),
-                        _statDivider(isDark),
-                        _Stat(
-                          value: _compact(_points),
-                          label: '积分',
-                          onTap: () => _openGrowth(0),
-                        ),
-                      ],
-                    ),
-                    if (appState.accountError != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        appState.accountError!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
@@ -640,6 +496,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
+                        Text('·', style: TextStyle(color: muted)),
+                        TextButton(
+                          onPressed: () => _checkUpdate(context),
+                          child: const Text(
+                            '检查更新',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
                         if (appState.isLoggedIn) ...[
                           Text('·', style: TextStyle(color: muted)),
                           TextButton(
@@ -669,6 +533,445 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDesktopHeader(
+    BuildContext context,
+    AppStateProvider appState,
+    Map<String, dynamic>? user,
+    String nickname,
+    String bio,
+    String badge,
+    bool isDark,
+    Color cardColor,
+    Color muted,
+    List<VideoRecord> favorites,
+    List<PlayHistoryItem> history,
+  ) {
+    final isLoggedIn = appState.isLoggedIn;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    MemberAvatar(
+                      avatar: user?['avatar']?.toString() ?? '',
+                      frame: user?['decorations']?['frame']?.toString() ?? '',
+                      size: 80,
+                    ),
+                    if (isLoggedIn)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: GestureDetector(
+                          onTap: () => _openGrowth(1),
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary500,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: GestureDetector(
+                            onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+                            child: Text(
+                              nickname,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: isLoggedIn
+                                    ? memberColor(
+                                        user?['decorations']?['nickname_color'],
+                                      )
+                                    : (isDark
+                                        ? AppColors.darkTextPrimary
+                                        : AppColors.lightTextPrimary),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (isLoggedIn) ...[
+                          const SizedBox(width: 8),
+                          _LevelChip(level: _level),
+                          if (badge.isNotEmpty || _levelName.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3D6),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.workspace_premium_rounded,
+                                    size: 14,
+                                    color: Color(0xFFE2A100),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    badge.isNotEmpty
+                                        ? badge
+                                        : (_levelName.isEmpty
+                                            ? '初遇故事'
+                                            : _levelName),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFC48400),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+                      child: Text(
+                        bio,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: muted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (isLoggedIn) ...[
+                OutlinedButton.icon(
+                  onPressed: _openProfileEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('编辑资料'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _CircleIcon(
+                  icon: Icons.notifications_none_rounded,
+                  badge: _unread > 0,
+                  onTap: () => _openGrowth(4),
+                ),
+                const SizedBox(width: 6),
+                _CircleIcon(
+                  icon: Icons.settings_outlined,
+                  tooltip: '设置',
+                  onTap: _openSettings,
+                ),
+              ] else ...[
+                FilledButton.icon(
+                  onPressed: _openAccount,
+                  icon: const Icon(Icons.login_rounded, size: 18),
+                  label: const Text('立即登录'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary500,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 20),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _Stat(
+                  value: _compact(favorites.length),
+                  label: '追番',
+                  onTap: () => _openFavorites(favorites),
+                ),
+              ),
+              _statDivider(isDark),
+              Expanded(
+                child: _Stat(
+                  value: _compact(history.length),
+                  label: '足迹',
+                  onTap: () => _openHistory(history, appState),
+                ),
+              ),
+              _statDivider(isDark),
+              Expanded(
+                child: _Stat(
+                  value: _compact(_points),
+                  label: '积分',
+                  onTap: () => _openGrowth(0),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileHeader(
+    BuildContext context,
+    AppStateProvider appState,
+    Map<String, dynamic>? user,
+    String nickname,
+    String bio,
+    String badge,
+    bool isDark,
+    Color cardColor,
+    Color muted,
+    List<VideoRecord> favorites,
+    List<PlayHistoryItem> history,
+  ) {
+    final isLoggedIn = appState.isLoggedIn;
+    return Column(
+      children: [
+        Row(
+          children: [
+            _CircleIcon(
+              icon: Icons.settings_outlined,
+              tooltip: '设置',
+              onTap: _openSettings,
+            ),
+            const Spacer(),
+            _CircleIcon(
+              icon: Icons.notifications_none_rounded,
+              badge: _unread > 0,
+              onTap: () => _openGrowth(4),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                GestureDetector(
+                  onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+                  child: MemberAvatar(
+                    avatar: user?['avatar']?.toString() ?? '',
+                    frame: user?['decorations']?['frame']?.toString() ?? '',
+                    size: 72,
+                  ),
+                ),
+                if (isLoggedIn)
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: GestureDetector(
+                      onTap: () => _openGrowth(1),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary500,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: GestureDetector(
+                          onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+                          child: Text(
+                            nickname,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: isLoggedIn
+                                  ? memberColor(
+                                      user?['decorations']?['nickname_color'],
+                                    )
+                                  : (isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.lightTextPrimary),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isLoggedIn) ...[
+                        const SizedBox(width: 6),
+                        _LevelChip(level: _level),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (isLoggedIn)
+                    Row(
+                      children: [
+                        if (badge.isNotEmpty || _levelName.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3D6),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.workspace_premium_rounded,
+                                  size: 14,
+                                  color: Color(0xFFE2A100),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  badge.isNotEmpty
+                                      ? badge
+                                      : (_levelName.isEmpty
+                                          ? '初遇故事'
+                                          : _levelName),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFC48400),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        TextButton(
+                          onPressed: _openProfileEdit,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 28),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('编辑资料'),
+                        ),
+                      ],
+                    )
+                  else
+                    TextButton(
+                      onPressed: _openAccount,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('登录 / 注册'),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        GestureDetector(
+          onTap: isLoggedIn ? _openProfileEdit : _openAccount,
+          child: Text(
+            bio,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.7,
+              color: muted,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            _Stat(
+              value: _compact(favorites.length),
+              label: '追番',
+              onTap: () => _openFavorites(favorites),
+            ),
+            _statDivider(isDark),
+            _Stat(
+              value: _compact(history.length),
+              label: '足迹',
+              onTap: () => _openHistory(history, appState),
+            ),
+            _statDivider(isDark),
+            _Stat(
+              value: _compact(_points),
+              label: '积分',
+              onTap: () => _openGrowth(0),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

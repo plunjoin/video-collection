@@ -177,28 +177,53 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   Widget _buildFilterChipRow<T>({
+    required String label,
     required List<T> items,
     required T selectedItem,
     required String Function(T) labelBuilder,
     required Function(T) onSelected,
   }) {
-    return DesktopHorizontalScroll(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: items.map((item) {
-            final isSelected = item == selectedItem;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: BrandPill(
-                label: Text(labelBuilder(item)),
-                selected: isSelected,
-                onSelected: (_) => onSelected(item),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted =
+        dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: muted,
               ),
-            );
-          }).toList(),
-        ),
+            ),
+          ),
+          Expanded(
+            child: DesktopHorizontalScroll(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: items.map((item) {
+                    final isSelected = item == selectedItem;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: BrandPill(
+                        label: Text(labelBuilder(item)),
+                        selected: isSelected,
+                        onSelected: (_) => onSelected(item),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,6 +231,186 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = Responsive.isDesktop(context);
+
+    Widget content = Column(
+      children: [
+        // 顶部筛选条件区域
+        Container(
+          color: isDark ? AppColors.darkBg : AppColors.lightBg,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. 分类类型
+              if (_categories.isNotEmpty)
+                _buildFilterChipRow<Category>(
+                  label: '分类',
+                  items: _categories,
+                  selectedItem: _categories.firstWhere(
+                    (c) => c.id == _selectedTypeId,
+                    orElse: () => _categories.first,
+                  ),
+                  labelBuilder: (c) => c.name,
+                  onSelected: (c) {
+                    setState(() {
+                      _selectedTypeId = c.id;
+                    });
+                    _loadInitial();
+                  },
+                ),
+              const SizedBox(height: 6),
+
+              // 2. 题材
+              _buildFilterChipRow<String>(
+                label: '题材',
+                items: _genres,
+                selectedItem: _selectedGenre,
+                labelBuilder: (g) => g,
+                onSelected: (g) {
+                  setState(() {
+                    _selectedGenre = g;
+                  });
+                  _loadInitial();
+                },
+              ),
+              const SizedBox(height: 6),
+
+              // 3. 年份
+              _buildFilterChipRow<String>(
+                label: '年份',
+                items: _years,
+                selectedItem: _selectedYear,
+                labelBuilder: (y) => y,
+                onSelected: (y) {
+                  setState(() {
+                    _selectedYear = y;
+                  });
+                  _loadInitial();
+                },
+              ),
+              if (isDesktop) ...[
+                const SizedBox(height: 6),
+                // 4. 排序（桌面端直接可见）
+                _buildFilterChipRow<String>(
+                  label: '排序',
+                  items: const ['time', 'hits', 'score'],
+                  selectedItem: _selectedSort,
+                  labelBuilder: (s) {
+                    switch (s) {
+                      case 'hits':
+                        return '人气热播';
+                      case 'score':
+                        return '口碑精选';
+                      default:
+                        return '最新更新';
+                    }
+                  },
+                  onSelected: (s) {
+                    setState(() => _selectedSort = s);
+                    _loadInitial();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        Divider(
+          height: 1,
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+
+        // 结果列表
+        Expanded(
+          child: _isLoading
+              ? const Center(child: BrandLoading())
+              : _videos.isEmpty
+              ? BrandEmpty(
+                  title: '还没有这样的故事',
+                  subtitle: _hasMore
+                      ? '这一页没有匹配结果，继续加载后续内容。'
+                      : '换个题材或年份，说不定就遇见了。',
+                  action: _hasMore
+                      ? BrandButton(
+                          label: '继续加载',
+                          icon: Icons.expand_more_rounded,
+                          onPressed: _isLoadingMore ? null : _loadMore,
+                        )
+                      : null,
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadInitial,
+                  color: AppColors.primary500,
+                  child: GridView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: Responsive.gridColumns(
+                        context,
+                        itemMinWidth: 140,
+                        min: 3,
+                        max: 6,
+                      ),
+                      childAspectRatio: 0.65,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 14,
+                    ),
+                    itemCount: _videos.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _videos.length) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkCard
+                                : AppColors.lightBorder,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: _isLoadingMore
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                            AppColors.primary500,
+                                          ),
+                                    ),
+                                  )
+                                : IconButton(
+                                    tooltip: '加载更多',
+                                    onPressed: _loadMore,
+                                    icon: const Icon(
+                                      Icons.expand_more_rounded,
+                                      color: AppColors.primary500,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      }
+                      final video = _videos[index];
+                      return AnimePosterCard(
+                        video: video,
+                        onTap: () => _openDetail(video),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+
+    if (isDesktop) {
+      content = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: content,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: BrandAppBar(
@@ -233,148 +438,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 顶部筛选条件区域
-          Container(
-            color: isDark ? AppColors.darkBg : AppColors.lightBg,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. 分类类型
-                if (_categories.isNotEmpty)
-                  _buildFilterChipRow<Category>(
-                    items: _categories,
-                    selectedItem: _categories.firstWhere(
-                      (c) => c.id == _selectedTypeId,
-                      orElse: () => _categories.first,
-                    ),
-                    labelBuilder: (c) => c.name,
-                    onSelected: (c) {
-                      setState(() {
-                        _selectedTypeId = c.id;
-                      });
-                      _loadInitial();
-                    },
-                  ),
-                const SizedBox(height: 6),
-
-                // 2. 题材
-                _buildFilterChipRow<String>(
-                  items: _genres,
-                  selectedItem: _selectedGenre,
-                  labelBuilder: (g) => g,
-                  onSelected: (g) {
-                    setState(() {
-                      _selectedGenre = g;
-                    });
-                    _loadInitial();
-                  },
-                ),
-                const SizedBox(height: 6),
-
-                // 3. 年份
-                _buildFilterChipRow<String>(
-                  items: _years,
-                  selectedItem: _selectedYear,
-                  labelBuilder: (y) => y,
-                  onSelected: (y) {
-                    setState(() {
-                      _selectedYear = y;
-                    });
-                    _loadInitial();
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          Divider(
-            height: 1,
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-
-          // 结果列表
-          Expanded(
-            child: _isLoading
-                ? const Center(child: BrandLoading())
-                : _videos.isEmpty
-                ? BrandEmpty(
-                    title: '还没有这样的故事',
-                    subtitle: _hasMore
-                        ? '这一页没有匹配结果，继续加载后续内容。'
-                        : '换个题材或年份，说不定就遇见了。',
-                    action: _hasMore
-                        ? BrandButton(
-                            label: '继续加载',
-                            icon: Icons.expand_more_rounded,
-                            onPressed: _isLoadingMore ? null : _loadMore,
-                          )
-                        : null,
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadInitial,
-                    color: AppColors.primary500,
-                    child: GridView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: Responsive.gridColumns(
-                          context,
-                          itemMinWidth: 130,
-                          min: 3,
-                          max: 8,
-                        ),
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: _videos.length + (_hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _videos.length) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.darkCard
-                                  : AppColors.lightBorder,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: _isLoadingMore
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              AppColors.primary500,
-                                            ),
-                                      ),
-                                    )
-                                  : IconButton(
-                                      tooltip: '加载更多',
-                                      onPressed: _loadMore,
-                                      icon: const Icon(
-                                        Icons.expand_more_rounded,
-                                        color: AppColors.primary500,
-                                      ),
-                                    ),
-                            ),
-                          );
-                        }
-                        final video = _videos[index];
-                        return AnimePosterCard(
-                          video: video,
-                          onTap: () => _openDetail(video),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
+      body: content,
     );
   }
 }

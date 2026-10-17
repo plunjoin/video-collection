@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/analytics_tracker.dart';
 import '../utils/responsive.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/entropy_sidebar.dart';
@@ -27,16 +28,26 @@ class _MainScaffoldState extends State<MainScaffold> {
   late int _currentIndex;
   double _sidebarWidth = sidebarExpandedWidth;
 
+  static const List<String> _pageNames = [
+    'home',
+    'category',
+    'rank',
+    'timeline',
+    'profile',
+  ];
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    AnalyticsTracker().screen(_pageNames[_currentIndex.clamp(0, _pageNames.length - 1)]);
   }
 
   void _switchTab(int index) {
     setState(() {
       _currentIndex = index;
     });
+    AnalyticsTracker().screen(_pageNames[index.clamp(0, _pageNames.length - 1)]);
   }
 
   void _openSearch() {

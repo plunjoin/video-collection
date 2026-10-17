@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
 import '../providers/app_state_provider.dart';
+import '../services/analytics_tracker.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_widgets.dart';
@@ -48,6 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsTracker().screen('search');
     _resultsScrollController.addListener(_onResultsScroll);
     if (widget.initialKeyword != null && widget.initialKeyword!.isNotEmpty) {
       _controller.text = widget.initialKeyword!;
@@ -97,6 +99,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final query = keyword.trim();
     if (query.isEmpty) return;
 
+    AnalyticsTracker().event('search', page: 'app://search', keyword: query);
     _suggestionDebounce?.cancel();
     final requestId = ++_searchRequestId;
     FocusScope.of(context).unfocus();
@@ -178,27 +181,53 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = Responsive.isDesktop(context);
+
+    final Widget body = _isSearching
+        ? const Center(child: BrandLoading())
+        : _hasSearched
+        ? _buildSearchResults(isDark)
+        : _buildHistoryAndHot(isDark);
 
     return Scaffold(
       appBar: BrandAppBar(
-        titleSpacing: 0,
+        titleSpacing: isDesktop ? 20 : 16,
         title: Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: SearchBarWidget(
-            controller: _controller,
-            readOnly: false,
-            autoFocus: widget.initialKeyword == null,
-            onTap: () {},
-            onChanged: _onQueryChanged,
-            onSubmitted: _performSearch,
-          ),
+          child: isDesktop
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 680),
+                    child: SearchBarWidget(
+                      controller: _controller,
+                      readOnly: false,
+                      autoFocus: widget.initialKeyword == null,
+                      onTap: () {},
+                      onChanged: _onQueryChanged,
+                      onSubmitted: _performSearch,
+                    ),
+                  ),
+                )
+              : SearchBarWidget(
+                  controller: _controller,
+                  readOnly: false,
+                  autoFocus: widget.initialKeyword == null,
+                  onTap: () {},
+                  onChanged: _onQueryChanged,
+                  onSubmitted: _performSearch,
+                ),
         ),
       ),
-      body: _isSearching
-          ? const Center(child: BrandLoading())
-          : _hasSearched
-          ? _buildSearchResults(isDark)
-          : _buildHistoryAndHot(isDark),
+      body: isDesktop
+          ? Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1120),
+                child: body,
+              ),
+            )
+          : body,
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
 import '../providers/app_state_provider.dart';
+import '../services/analytics_tracker.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/anime_poster_card.dart';
@@ -29,6 +30,7 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsTracker().screen('anime', targetId: widget.videoId);
     _load();
   }
 

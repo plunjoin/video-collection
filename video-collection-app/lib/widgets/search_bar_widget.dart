@@ -27,8 +27,8 @@ class SearchBarWidget extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : AppColors.primary50,
           borderRadius: BorderRadius.circular(24),
@@ -41,7 +41,7 @@ class SearchBarWidget extends StatelessWidget {
           children: [
             const Icon(
               Icons.search_rounded,
-              size: 16,
+              size: 18,
               color: AppColors.primary500,
             ),
             const SizedBox(width: 8),
@@ -52,7 +52,7 @@ class SearchBarWidget extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: isDark
                             ? AppColors.darkTextSecondary
                             : AppColors.lightTextSecondary,
@@ -62,7 +62,7 @@ class SearchBarWidget extends StatelessWidget {
                       controller: controller,
                       autofocus: autoFocus,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: isDark
                             ? AppColors.darkTextPrimary
                             : AppColors.lightTextPrimary,
@@ -70,12 +70,17 @@ class SearchBarWidget extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: '输入番剧名称、题材关键词...',
                         hintStyle: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: isDark
                               ? AppColors.darkTextSecondary
                               : AppColors.lightTextSecondary,
                         ),
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        filled: false,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -83,6 +88,29 @@ class SearchBarWidget extends StatelessWidget {
                       onSubmitted: onSubmitted,
                     ),
             ),
+            if (!readOnly && controller != null)
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller!,
+                builder: (context, value, _) {
+                  if (value.text.isEmpty) return const SizedBox.shrink();
+                  return GestureDetector(
+                    onTap: () {
+                      controller!.clear();
+                      onChanged?.call('');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Icon(
+                        Icons.cancel_rounded,
+                        size: 16,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),

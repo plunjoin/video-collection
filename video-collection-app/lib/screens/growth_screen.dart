@@ -205,15 +205,21 @@ class _GrowthScreenState extends State<GrowthScreen>
             )
           : AbsorbPointer(
               absorbing: _busy,
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  _rewards(),
-                  _store(),
-                  _movieRequests(),
-                  _wishWall(),
-                  _inbox(),
-                ],
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 860),
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _rewards(),
+                      _store(),
+                      _movieRequests(),
+                      _wishWall(),
+                      _inbox(),
+                    ],
+                  ),
+                ),
               ),
             ),
     );
