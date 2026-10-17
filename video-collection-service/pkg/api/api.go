@@ -14,8 +14,8 @@ import (
 
 	"video-collection-service/config"
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
-	"video-collection-service/pkg/maccms"
 	"video-collection-service/pkg/player"
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
@@ -48,6 +48,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerCollectionRoutes(mux)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
+	srv.registerWikiRoutes(mux)
 	// 公开接口
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)
@@ -61,6 +62,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/rankings", srv.handleRankings)
 	mux.HandleFunc("/api/latest", srv.handleLatest)
 	mux.HandleFunc("/api/site/config", srv.handleSiteConfig)
+	mux.HandleFunc("/api/app/latest", srv.handleAppLatest)
 	mux.HandleFunc("/api/feedback", srv.handleFeedback)
 
 	// 用户播放历史与追剧收藏 (云端多设备同步)
@@ -355,19 +357,19 @@ func (srv *Server) handleTestRemoteSource(w http.ResponseWriter, r *http.Request
 	if src.TimeoutSec <= 0 {
 		src.TimeoutSec = 12
 	}
-	client := maccms.NewClient(src)
+	client := collector.NewClient(src)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
-	var classes []maccms.ClassItem
+	var classes []collector.ClassItem
 	rule, _ := config.ResolveCollectionRule(src)
-	if rule.Format == "maccms_json" || rule.Format == "maccms_xml" {
+	if rule != nil && (rule.Format == "video_json" || rule.Format == "standard_json" || rule.Format == "video_xml" || rule.Format == "standard_xml" || rule.Format == "json" || rule.Format == "xml" || rule.Format == "maccms_json" || rule.Format == "maccms_xml") {
 		classes, _ = client.GetClassList(ctx)
 	}
 
 	// 同时尝试探测抓取第一页数据验证视频解析
-	cleaned, rawResp, err := client.CollectPage(ctx, maccms.QueryParams{Action: "detail", Page: 1, Hours: 24})
+	cleaned, rawResp, err := client.CollectPage(ctx, collector.QueryParams{Action: "detail", Page: 1, Hours: 24})
 	if err != nil {
 		errorResponse(w, http.StatusBadRequest, "连接或探测失败: "+err.Error())
 		return
@@ -993,7 +995,7 @@ func (srv *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 			"site_name":                   "Bllii 动漫聚合",
 			"site_subtitle":               "追番库 • 让生活多一种可能",
 			"site_announcement":           "欢迎访问Bllii二次元番剧聚合平台！全新升级流媒体视觉、极光画质增强引擎与全站新番排行榜已全面开启！",
-			"site_keywords":               "高清动漫,番剧新番,日漫,国漫,免费在线观看,苹果CMS接口",
+			"site_keywords":               "高清动漫,番剧新番,日漫,国漫,免费在线观看,网络采集聚合",
 			"site_description":            "Bllii致力于提供全面、快速的高清二次元番剧与动漫流媒体在线观看服务与智能聚合。",
 			"site_notice_enabled":         "1",
 			"auto_collect_enabled":        "0",
@@ -1002,6 +1004,16 @@ func (srv *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 			"site_contact_email":          "contact@Bllii.com",
 			"site_contact_group":          "官方交流群: 876543210 (TG: @Bllii)",
 			"site_disclaimer":             "【免责声明】本站所有视频资源均系第三方公开网络接口与网络爬虫自动检索聚合，本站服务器不存储、不制作、不上传任何视听节目及视频文件。若相关内容无意侵犯了贵司版权或合法权益，请通过上方联系方式提供权利证明与侵权链接，我们将在收到通知后24小时内断开相关播放解析并配合清理。本站提倡支持正版影视与动漫。",
+			"app_latest_version":          "1.0.0",
+			"app_version_code":            "1",
+			"app_changelog":               "1. 全新升级流媒体播放体验\n2. 优化客户端性能与稳定性",
+			"app_force_update":            "0",
+			"app_download_url":            "https://github.com/plunjoin/video-collection/releases/latest",
+			"app_android_url":             "",
+			"app_windows_url":             "",
+			"app_macos_url":               "",
+			"app_linux_url":               "",
+			"app_ios_url":                 "",
 		}
 		for k, v := range defaults {
 			if _, exists := settings[k]; !exists {
@@ -1027,6 +1039,151 @@ func (srv *Server) handleAdminSaveSiteConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "站点配置已保存"})
+}
+
+// 检查客户端更新接口 (公开)
+func (srv *Server) handleAppLatest(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	settings, _ := srv.store.GetAllSettings(ctx)
+	if settings == nil {
+		settings = make(map[string]string)
+	}
+	latestVer := strings.TrimSpace(settings["app_latest_version"])
+	if latestVer == "" {
+		latestVer = "1.0.0"
+	}
+	versionCode, _ := strconv.Atoi(settings["app_version_code"])
+	if versionCode <= 0 {
+		versionCode = 1
+	}
+	changelog := settings["app_changelog"]
+	if changelog == "" {
+		changelog = "1. 提升播放稳定性与性能\n2. 界面细节与交互优化"
+	}
+	forceUpdate := settings["app_force_update"] == "1" || strings.EqualFold(settings["app_force_update"], "true")
+	downloadURL := strings.TrimSpace(settings["app_download_url"])
+	if downloadURL == "" {
+		downloadURL = "https://github.com/plunjoin/video-collection/releases/latest"
+	}
+
+	cleanVer := strings.TrimPrefix(strings.TrimPrefix(latestVer, "v"), "V")
+	tagVer := "v" + cleanVer
+	releaseBase := fmt.Sprintf("https://github.com/plunjoin/video-collection/releases/download/%s", tagVer)
+
+	androidURL := strings.TrimSpace(settings["app_android_url"])
+	if androidURL == "" {
+		androidURL = fmt.Sprintf("%s/bllii_for_android_%s.apk", releaseBase, tagVer)
+	}
+	windowsURL := strings.TrimSpace(settings["app_windows_url"])
+	if windowsURL == "" {
+		windowsURL = fmt.Sprintf("%s/bllii_for_windows_%s.zip", releaseBase, tagVer)
+	}
+	macosURL := strings.TrimSpace(settings["app_macos_url"])
+	if macosURL == "" {
+		macosURL = fmt.Sprintf("%s/bllii_for_mac_%s.zip", releaseBase, tagVer)
+	}
+	linuxURL := strings.TrimSpace(settings["app_linux_url"])
+	if linuxURL == "" {
+		linuxURL = fmt.Sprintf("%s/bllii_for_linux_%s.tar.gz", releaseBase, tagVer)
+	}
+	iosURL := strings.TrimSpace(settings["app_ios_url"])
+	if iosURL == "" {
+		iosURL = fmt.Sprintf("%s/bllii_for_ios_%s.ipa", releaseBase, tagVer)
+	}
+
+	platforms := map[string]string{
+		"android": androidURL,
+		"windows": windowsURL,
+		"macos":   macosURL,
+		"linux":   linuxURL,
+		"ios":     iosURL,
+	}
+
+	clientPlatform := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("platform")))
+	clientVer := strings.TrimSpace(r.URL.Query().Get("version"))
+	targetDownloadURL := downloadURL
+	if clientPlatform != "" && platforms[clientPlatform] != "" {
+		targetDownloadURL = platforms[clientPlatform]
+	}
+
+	hasUpdate := false
+	if clientVer != "" {
+		hasUpdate = compareSemver(latestVer, clientVer) > 0
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"code": 1,
+		"data": map[string]any{
+			"version":       latestVer,
+			"version_code":  versionCode,
+			"title":         fmt.Sprintf("发现新版本 v%s", cleanVer),
+			"changelog":     changelog,
+			"force_update":  forceUpdate,
+			"download_url":  targetDownloadURL,
+			"platforms":     platforms,
+			"release_url":   downloadURL,
+			"has_update":    hasUpdate,
+			"publish_time":  time.Now().Format("2006-01-02 15:04:05"),
+		},
+	})
+}
+
+func compareSemver(v1, v2 string) int {
+	clean1 := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v1), "v"), "V")
+	clean2 := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v2), "v"), "V")
+
+	p1 := strings.Split(clean1, "+")
+	p2 := strings.Split(clean2, "+")
+
+	nums1 := parseVersionInts(p1[0])
+	nums2 := parseVersionInts(p2[0])
+
+	maxLen := len(nums1)
+	if len(nums2) > maxLen {
+		maxLen = len(nums2)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		n1 := 0
+		if i < len(nums1) {
+			n1 = nums1[i]
+		}
+		n2 := 0
+		if i < len(nums2) {
+			n2 = nums2[i]
+		}
+		if n1 > n2 {
+			return 1
+		}
+		if n1 < n2 {
+			return -1
+		}
+	}
+
+	if len(p1) > 1 && len(p2) > 1 {
+		b1, _ := strconv.Atoi(p1[1])
+		b2, _ := strconv.Atoi(p2[1])
+		if b1 > b2 {
+			return 1
+		}
+		if b1 < b2 {
+			return -1
+		}
+	}
+
+	return 0
+}
+
+func parseVersionInts(s string) []int {
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '.' || r == '-'
+	})
+	res := make([]int, 0, len(parts))
+	for _, p := range parts {
+		n, _ := strconv.Atoi(p)
+		res = append(res, n)
+	}
+	return res
 }
 
 // 排行榜列表 (公开)
