@@ -1,5 +1,12 @@
 // 与服务端页面取数共用后端地址；Node 启动时可通过环境变量覆盖。
 export function getInternalApiUrl(): string {
+  if (typeof process !== 'undefined' && !process.env?.INTERNAL_API_URL && !process.env?.PUBLIC_API_URL) {
+    if (typeof process.loadEnvFile === 'function') {
+      try {
+        process.loadEnvFile();
+      } catch {}
+    }
+  }
   return process.env.INTERNAL_API_URL
     || (process.env.PUBLIC_API_URL?.startsWith('http') ? process.env.PUBLIC_API_URL : '')
     || 'http://localhost:80';
