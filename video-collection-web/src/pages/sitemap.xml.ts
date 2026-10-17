@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getVideos } from '../lib/api';
+import { getSiteOrigin } from '../lib/site';
 
-export const GET: APIRoute = async ({ site, url }) => {
-  const domain = site ? site.toString().replace(/\/$/, '') : url.origin;
+export const GET: APIRoute = async ({ site, url, request }) => {
+  const domain = getSiteOrigin(site, url, request);
   const now = new Date().toISOString();
 
   // 基础静态频道

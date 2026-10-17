@@ -9,6 +9,7 @@ import Synopsis from '../../components/Synopsis.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
 import Comments from '../../components/Comments.astro';
 import { getVideoDetail } from '../../lib/api';
+import { getSiteOrigin } from '../../lib/site';
 
 const { id } = Astro.params;
 const detail = await getVideoDetail(id || '0');
@@ -22,6 +23,7 @@ const posterImg = video.picture || '/brand/bllii-app-blue.svg';
 const tags = video.tags && video.tags.length > 0 ? video.tags : [video.type_name || '番剧'];
 const metaStr = [video.year, video.remarks, [video.area, video.language].filter(Boolean).join(' / ')].filter(Boolean).join(' | ');
 const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
+const origin = getSiteOrigin(Astro.site, Astro.url, Astro.request);
 ---
 
 <Layout 
@@ -30,7 +32,7 @@ const metaItems = [video.year, video.area, video.remarks].filter(Boolean);
   description={`${video.name}在线全集播放：${video.remarks || ''} ${video.area || ''} 高清多线路播放与讨论。`}
   image={posterImg}
   type="video.other"
-  canonical={`${Astro.site?.origin || Astro.url.origin}/play/${video.id}`}
+  canonical={`${origin}/play/${video.id}`}
 >
   <!-- 引入 Video.js 样式与核心脚本 -->
   <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />

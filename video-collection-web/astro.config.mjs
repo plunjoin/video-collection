@@ -5,8 +5,11 @@ import { loadEnv } from 'vite';
 
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
 
+const siteUrl = env.SITE_URL || env.PUBLIC_SITE_URL || process.env.SITE_URL || process.env.PUBLIC_SITE_URL;
+
 // https://astro.build/config
 export default defineConfig({
+  ...(siteUrl ? { site: siteUrl } : {}),
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   integrations: [tailwind()],

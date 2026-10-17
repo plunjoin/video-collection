@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
+import { getSiteOrigin } from '../lib/site';
 
-export const GET: APIRoute = ({ site, url }) => {
-  const domain = site ? site.toString().replace(/\/$/, '') : url.origin;
+export const GET: APIRoute = ({ site, url, request }) => {
+  const domain = getSiteOrigin(site, url, request);
   const sitemapUrl = `${domain}/sitemap.xml`;
 
   const robots = `# Bllii Robots.txt

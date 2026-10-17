@@ -8,6 +8,7 @@ import Synopsis from '../../components/Synopsis.astro';
 import RelatedAnime from '../../components/RelatedAnime.astro';
 import Comments from '../../components/Comments.astro';
 import { getVideoDetail } from '../../lib/api';
+import { getSiteOrigin } from '../../lib/site';
 
 const detail = await getVideoDetail(Astro.params.id || '0');
 if (!detail) return Astro.redirect('/404');
@@ -20,7 +21,7 @@ const pageDescription = cleanContent
   : `${video.name} - ${video.remarks || ''} ${video.area || ''} ${video.type_name || '动漫'}全集高清在线观看、最新更新与同好交流讨论。`;
 
 const pageImage = video.picture || video.pic || '/brand/bllii-app-blue.svg';
-const canonicalOrigin = Astro.site?.origin || Astro.url.origin;
+const canonicalOrigin = getSiteOrigin(Astro.site, Astro.url, Astro.request);
 const pageUrl = `${canonicalOrigin}/anime/${video.id}`;
 const playUrl = `${canonicalOrigin}/play/${video.id}`;
 
