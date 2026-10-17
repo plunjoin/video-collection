@@ -320,7 +320,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   site_subtitle: '追番库 • 让生活多一种可能',
   site_announcement: '欢迎访问Bllii二次元番剧聚合平台！全新升级流媒体视觉、极光画质增强引擎与全站新番排行榜已全面开启！',
   site_notice_enabled: '1',
-  site_keywords: '高清动漫,番剧新番,日漫,国漫,免费在线观看,苹果CMS接口',
+  site_keywords: '高清动漫,番剧新番,日漫,国漫,免费在线观看,网络采集聚合',
   site_description: 'Bllii致力于提供全面、快速的高清二次元番剧与动漫流媒体在线观看服务与智能聚合。',
   site_contact_email: '',
   site_contact_group: '',

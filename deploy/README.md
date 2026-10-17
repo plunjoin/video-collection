@@ -45,7 +45,7 @@ sudo certbot --nginx -d video.example.com -d admin.example.com   # 后台与 API
 
 ## 配置采集规则
 
-进入后台“采集点”→“新增节点”，选择模板并填写接口地址。MacCMS JSON / XML、RSS / Atom 和通用 REST JSON 都是模板。
+进入后台“采集点”→“新增节点”，选择模板并填写接口地址。网络视频 JSON / XML、RSS / Atom 和通用 REST JSON 都是模板。
 
 请求头、固定参数、请求方法、分页参数、响应字段、清洗及分类绑定都可以在后台保存。先测试样本，再按配置采集，最后开启全局调度。模板配置格式和接口说明见 [采集规则文档](../video-collection-service/docs/collection-rules.md)。网页、数据库、Excel / CSV 使用“采集规则工作台”。
 
