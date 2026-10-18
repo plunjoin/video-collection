@@ -145,6 +145,7 @@ jobs:
         working-directory: video-collection-app
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          flutter config --no-enable-swift-package-manager
           flutter pub get
           flutter build macos --release --dart-define-from-file=env/prod.json
           mkdir -p dist
