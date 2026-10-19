@@ -247,6 +247,7 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 | `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`DB_SSLMODE` | PostgreSQL 分项连接配置 | 具体示例见服务 `.env.example` |
 | `SQLITE_PATH` | SQLite 文件位置 | `data/collection.db` |
 | `CONFIG_PATH` | 采集规则配置路径 | `config/collector_rules.yaml` |
+| `WEBHOOK_ENCRYPTION_KEY` | Webhook 密钥信封加密主密钥 | 可选；缺省时由 `ADMIN_INITIAL_PASSWORD` 派生，见 [Webhook 文档](./video-collection-service/docs/webhook-api.md) |
 
 > [!NOTE]
 > **本地端口需要统一。** Admin 和 Web 的开发代理默认指向 `http://localhost:80`。直接复制 API 的 `.env.example` 会把 API 端口改为 `8080`，请将 `.env` 中的 `PORT` 改为 `80`，或同步调整各端连接配置。Linux / macOS 监听 `80` 可能需要额外权限，可使用 `8080` 并同步修改客户端地址。
@@ -277,6 +278,7 @@ Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBL
 | [内容与通知 API](./video-collection-service/docs/content-api.md) | 资讯、社区、站内通知与权限规则 |
 | [通用评论 API](./video-collection-service/docs/comments-api.md) | 多级回复、点赞、通知与内容类型扩展 |
 | [数据库管理 API](./video-collection-service/docs/database-api.md) | 数据浏览、备份恢复、维护与管理 SQL |
+| [Webhook 回调采集 API](./video-collection-service/docs/webhook-api.md) | 回调端点、HMAC 验签、防重放、原始报文留痕与密钥管理 |
 | [品牌资产说明](./bllii-brand-kit/README.md) | 标志、图标、动画与接入规范 |
 
 ## 品牌资产
