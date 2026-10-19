@@ -62,10 +62,31 @@
 
         <section v-show="step === 0">
           <h3>数据从哪里来？</h3><p class="helper">来源与内容类型独立配置。先选来源，再决定保存为什么内容。</p>
-          <div class="source-cards"><button v-for="item in sourceOptions" :key="item.value" :class="{ chosen: pipeline.input === item.value }" @click="pipeline.input = item.value"><span>{{ item.icon }}</span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></button></div>
+          <r-alert v-if="isWebhookForm" title="这是 Webhook 推送源（非主动拉取流水线）。内容类型由接收端固定为「文章 / 资讯」，请在「使魔节点管理」配置密钥与开关。" type="warning" :closable="false" show-icon class="mb-alert" />
+          <div class="source-cards">
+            <button
+              v-if="isWebhookForm"
+              class="chosen"
+              type="button"
+              disabled
+            ><span>📥</span><strong>Webhook 推送</strong><small>外部 POST · 固定入库资讯草稿</small></button>
+            <button
+              v-for="item in sourceOptions"
+              v-show="!isWebhookForm"
+              :key="item.value"
+              :class="{ chosen: pipeline.input === item.value }"
+              @click="pipeline.input = item.value"
+            ><span>{{ item.icon }}</span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></button>
+          </div>
           <r-form label-position="top" class="basics">
-            <r-form-item label="规则名称"><r-input v-model="form.name" placeholder="例如：产品资讯 / 旧站文章迁移" maxlength="100" /></r-form-item>
-            <r-form-item label="内容类型"><r-radio-group v-model="pipeline.target"><r-radio-button value="record">通用数据</r-radio-button><r-radio-button value="article">文章</r-radio-button><r-radio-button value="video">视频</r-radio-button></r-radio-group></r-form-item>
+            <r-form-item label="规则名称"><r-input v-model="form.name" placeholder="例如：产品资讯 / 旧站文章迁移" maxlength="100" :disabled="isWebhookForm" /></r-form-item>
+            <r-form-item label="内容类型">
+              <r-radio-group v-model="pipeline.target" :disabled="isWebhookForm">
+                <r-radio-button value="record">通用数据</r-radio-button>
+                <r-radio-button value="article">文章</r-radio-button>
+                <r-radio-button value="video">视频</r-radio-button>
+              </r-radio-group>
+            </r-form-item>
           </r-form>
           <r-alert :title="targetHint" type="info" :closable="false" show-icon />
         </section>
@@ -73,7 +94,14 @@
         <section v-show="step === 1">
           <h3>{{ inputLabel(pipeline.input) }}配置</h3>
           <r-form label-position="top">
-            <template v-if="pipeline.input === 'api' || pipeline.input === 'rss' || pipeline.input === 'html'">
+            <template v-if="pipeline.input === 'webhook' || isWebhookForm">
+              <r-alert title="推送地址：POST /api/webhooks/collector（需 HMAC 签名）。条目由服务端 map 为 article 并写入资讯草稿；映射表只读说明，不能改成视频。" type="info" :closable="false" />
+              <r-form-item label="源标识 / API">
+                <r-input :model-value="form.api" disabled />
+              </r-form-item>
+              <p class="helper">密钥、过期时间与启用状态请到「使魔节点管理」编辑本 Webhook 源。工坊内仅用于查看结果与说明内容类型。</p>
+            </template>
+            <template v-else-if="pipeline.input === 'api' || pipeline.input === 'rss' || pipeline.input === 'html'">
               <r-form-item :label="pipeline.input === 'rss' ? 'Feed 订阅地址 (RSS / Atom)' : pipeline.input === 'api' ? '请求地址' : '列表页地址'">
                 <r-input v-model="form.api" :placeholder="pipeline.input === 'rss' ? 'https://agihunt.info/feed.xml' : 'https://example.com/articles'" />
               </r-form-item>
@@ -109,8 +137,9 @@
         </section>
 
         <section v-show="step === 2">
-          <div class="section-title"><div><h3>字段映射与清洗</h3><p class="helper">{{ mappingHint }}</p></div><r-button @click="pipeline.fields.push(field())">添加字段</r-button></div>
-          <r-alert v-if="pipeline.target !== 'record'" :title="pipeline.target === 'article' ? '文章字段：title、content 必填；可选 summary、cover、category。文章保存为草稿。' : '视频字段：title 必填；可选 play_url (内置多集切分与多线路)、play_from、cover、content、category、year、actor、director、area、remarks。'" :closable="false" />
+          <div class="section-title"><div><h3>字段映射与清洗</h3><p class="helper">{{ mappingHint }}</p></div><r-button v-if="!isWebhookForm" @click="pipeline.fields.push(field())">添加字段</r-button></div>
+          <r-alert v-if="isWebhookForm" title="Webhook 固定入库文章/资讯：title、content、summary、cover、category、url、source_name、published_at 等由推送 JSON 映射；下方表格只读说明。" type="warning" :closable="false" />
+          <r-alert v-else-if="pipeline.target !== 'record'" :title="pipeline.target === 'article' ? '文章字段：title、content 必填；可选 summary、cover、category。文章保存为草稿。' : '视频字段：title 必填；可选 play_url (内置多集切分与多线路)、play_from、cover、content、category、year、actor、director、area、remarks。'" :closable="false" />
           <div class="mapping-table"><r-table :data="pipeline.fields" border>
             <r-table-column type="expand"><template #default="{ row }"><div class="cleaning"><div class="form-grid"><r-form-item label="空值默认值"><r-input v-model="row.default" /></r-form-item><r-form-item label="正则替换表达式（Go RE2）"><r-input v-model="row.pattern" placeholder="例如：广告词|推广词" /></r-form-item><r-form-item label="替换为"><r-input v-model="row.replacement" placeholder="留空表示删除匹配内容" /></r-form-item></div><r-checkbox v-model="row.trim">去除首尾空白</r-checkbox><r-checkbox v-model="row.strip_html">移除 HTML 标签</r-checkbox></div></template></r-table-column>
             <r-table-column label="目标字段" min-width="150"><template #default="{ row }"><r-input v-model="row.target" placeholder="title" /></template></r-table-column>
@@ -133,7 +162,7 @@
           <h3>运行策略</h3><div class="form-grid limits"><r-form-item label="每次最多记录"><r-input-number v-model="pipeline.max_records" :min="1" :max="10000" /></r-form-item><r-form-item label="每次最多页数"><r-input-number v-model="form.page_limit" :min="1" :max="100" /></r-form-item><r-form-item label="请求超时 / 秒"><r-input-number v-model="form.timeout_sec" :min="1" :max="60" /></r-form-item><r-form-item label="请求间隔 / 毫秒"><r-input-number v-model="form.interval_ms" :min="0" :max="10000" :step="100" /></r-form-item><r-form-item label="失败重试次数"><r-input-number v-model="form.retry_count" :min="0" :max="3" /></r-form-item><r-form-item label="加入全局自动调度"><r-switch v-model="form.enabled" /></r-form-item></div>
           <p class="helper">页数、重试、间隔作用于 HTTP 来源。通用规则支持在 Query 参数中使用 {hours}（增量小时）与 {page}（页码）宏变量。数据库和文件按记录上限读取。全局调度须在“定时调度”中开启。</p>
         </section>
-        <footer class="editor-footer"><r-button :disabled="step === 0" @click="step--">上一步</r-button><div class="actions"><r-button :loading="saving" @click="save">保存规则</r-button><r-button v-if="step < 3" type="primary" @click="step++">下一步</r-button><r-button v-else type="primary" :loading="running" @click="run">保存并运行</r-button></div></footer>
+        <footer class="editor-footer"><r-button :disabled="step === 0" @click="step--">上一步</r-button><div class="actions"><r-button :loading="saving" :disabled="isWebhookForm" @click="save">保存规则</r-button><r-button v-if="step < 3" type="primary" @click="step++">下一步</r-button><r-button v-else type="primary" :loading="running" :disabled="isWebhookForm" @click="run">保存并运行</r-button></div></footer>
       </main>
     </div>
     <!-- 采集结果与数据校正工作台 -->
@@ -531,10 +560,17 @@ const savedSnapshot = ref(snapshot())
 const dirty = computed(() => snapshot() !== savedSnapshot.value)
 const isSaved = computed(() => rules.value.some(r => r.id === form.value.id))
 const filteredRules = computed(() => rules.value.filter(r => r.name.toLowerCase().includes(search.value.toLowerCase())))
-const inputLabel = (input: string) => sourceOptions.find(o => o.value === input)?.label || input
+function isWebhookSource(src: any): boolean {
+  return src?.type === 'webhook' || String(src?.api || '').startsWith('webhook://')
+}
+const inputLabel = (input: string) => input === 'webhook' ? 'Webhook 推送' : (sourceOptions.find(o => o.value === input)?.label || input)
 const targetLabel = (target: string) => ({ record: '通用数据', article: '文章', video: '视频' }[target] || target)
-const targetHint = computed(() => ({ record: '保留自定义字段，保存到采集结果，适合爬虫数据与后续业务扩展。', article: '映射标题和正文，采集后生成资讯草稿，可通过资讯管理接口审核发布。', video: '映射片名、封面和播放链接，接入现有视频仓库与片名聚合逻辑。' }[pipeline.value.target]))
-const mappingHint = computed(() => pipeline.value.input === 'rss' ? '支持 title、description/content、summary、link/url、pub_date、author/creator、category、cover。' : pipeline.value.input === 'html' ? '填写 CSS 选择器；$url 表示当前页面地址。href / src 会自动补全相对地址。' : pipeline.value.input === 'api' ? '支持 data.title 等点分路径与数组下标（如 images.0.url）。' : '来源列名必须与数据库列名或文件表头完全一致，可使用中文列名。')
+const isWebhookForm = computed(() => isWebhookSource(form.value))
+const targetHint = computed(() => {
+  if (isWebhookForm.value) return 'Webhook 接收端固定写入「文章 / 资讯」草稿（Target=article），内容类型不可改为视频。密钥与开关请在「使魔节点管理」配置。'
+  return ({ record: '保留自定义字段，保存到采集结果，适合爬虫数据与后续业务扩展。', article: '映射标题和正文，采集后生成资讯草稿，可通过资讯管理接口审核发布。', video: '映射片名、封面和播放链接，接入现有视频仓库与片名聚合逻辑。' } as Record<string, string>)[pipeline.value.target]
+})
+const mappingHint = computed(() => pipeline.value.input === 'webhook' ? '字段由推送方 JSON 映射；服务端固定入库为资讯草稿，下方映射仅作说明，不可在此改写接收逻辑。' : pipeline.value.input === 'rss' ? '支持 title、description/content、summary、link/url、pub_date、author/creator、category、cover。' : pipeline.value.input === 'html' ? '填写 CSS 选择器；$url 表示当前页面地址。href / src 会自动补全相对地址。' : pipeline.value.input === 'api' ? '支持 data.title 等点分路径与数组下标（如 images.0.url）。' : '来源列名必须与数据库列名或文件表头完全一致，可使用中文列名。')
 const dsnHint = computed(() => ({ postgres: '格式：postgres://user:password@host:5432/database?sslmode=require', mysql: '格式：user:password@tcp(host:3306)/database', sqlite: '格式：file:/absolute/path/source.db?mode=ro', sqlserver: '格式：sqlserver://user:password@host:1433?database=database' }[pipeline.value.database.driver]))
 const samples = ref<Sample[]>([]), previewed = ref(false), previewing = ref(false), previewError = ref('')
 const sampleMode = ref('values')
@@ -624,6 +660,49 @@ function adaptToPipeline(src: any): PipelineSource {
   if (src.type === 'pipeline' && src.filter?.pipeline) {
     return src as PipelineSource
   }
+  // Webhook 推送源：接收端固定写入 article→资讯草稿，勿伪装成 MacCMS 视频流水线
+  if (isWebhookSource(src)) {
+    return {
+      id: src.id,
+      name: src.name + (src.type && src.type !== 'rule' ? ` (${src.type})` : ''),
+      type: 'webhook',
+      api: src.api || 'webhook://collector',
+      active: src.active !== undefined ? src.active : src.enabled !== false,
+      enabled: src.enabled !== undefined ? src.enabled : src.active !== false,
+      collect_hours: src.collect_hours ?? 0,
+      page_limit: src.page_limit || 1,
+      timeout_sec: src.timeout_sec || 15,
+      retry_count: src.retry_count || 0,
+      interval_ms: src.interval_ms || 0,
+      headers: src.headers || {},
+      custom_params: src.custom_params || {},
+      filter: {
+        pipeline: {
+          version: 1,
+          input: 'webhook',
+          target: 'article',
+          key_field: 'external_id',
+          duplicate: 'update',
+          max_records: 200,
+          request: { method: 'POST', body: '', list_path: '', page_param: '', start_page: 1 },
+          html: { item_selector: '', detail_selector: '', next_selector: '' },
+          database: { driver: 'postgres', dsn_env: '', query: '' },
+          file: { token: '', name: '', sheet: '', header_row: 1 },
+          fields: [
+            { target: 'title', selector: 'title_zh', attribute: 'text', default: '', required: true, trim: true, strip_html: true, pattern: '', replacement: '' },
+            { target: 'content', selector: 'summary_zh', attribute: 'text', default: '', required: true, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'summary', selector: 'summary_zh', attribute: 'text', default: '', required: false, trim: true, strip_html: true, pattern: '', replacement: '' },
+            { target: 'cover', selector: 'images', attribute: 'text', default: '', required: false, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'category', selector: 'category', attribute: 'text', default: '', required: false, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'url', selector: 'url', attribute: 'text', default: '', required: false, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'source_name', selector: 'source_name', attribute: 'text', default: '', required: false, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'published_at', selector: 'published_at', attribute: 'text', default: '', required: false, trim: true, strip_html: false, pattern: '', replacement: '' },
+            { target: 'external_id', selector: 'id', attribute: 'text', default: '', required: true, trim: true, strip_html: false, pattern: '', replacement: '' }
+          ]
+        }
+      }
+    }
+  }
   return {
     id: src.id,
     name: src.name + (src.type && src.type !== 'rule' ? ` (${src.type})` : ''),
@@ -690,6 +769,10 @@ function payload() {
   return data
 }
 async function save() {
+  if (isWebhookForm.value) {
+    notify('Webhook 资讯源只接收推送，内容类型固定为文章。请到「使魔节点管理」修改密钥与开关，勿在此保存为采集流水线。', 'warning')
+    return false
+  }
   if (!form.value.name.trim()) { notify('请填写规则名称', 'warning'); step.value = 0; return false }
   saving.value = true
   try { const data = payload(); await saveSource(data); form.value = data; savedSnapshot.value = snapshot(); await loadRules(); notify('规则已保存', 'success'); return true }
@@ -697,12 +780,22 @@ async function save() {
   finally { saving.value = false }
 }
 async function preview() {
+  if (isWebhookForm.value) {
+    previewError.value = 'Webhook 源无法主动预览拉取，请由推送方 POST /api/webhooks/collector 验证入库。'
+    previewed.value = true
+    samples.value = []
+    return
+  }
   previewing.value = true; previewError.value = ''; const revision = previewRevision
   try { const res = await previewCollection(payload()); if (revision === previewRevision) { samples.value = res.data || []; previewed.value = true } }
   catch (e: any) { if (revision === previewRevision) previewError.value = e.response?.data?.error || e.message || '预览失败' }
   finally { previewing.value = false }
 }
 async function run() {
+  if (isWebhookForm.value) {
+    notify('Webhook 源不能主动拉取，请等待推送方推送或到「使魔节点管理」检查配置。', 'warning')
+    return
+  }
   running.value = true
   try {
     if (await save()) {
