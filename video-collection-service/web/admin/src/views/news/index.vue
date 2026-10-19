@@ -67,6 +67,28 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </r-table-column>
+        <r-table-column prop="source_name" label="来源" width="130" align="center" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span>{{ row.source_name || '-' }}</span>
+          </template>
+        </r-table-column>
+        <r-table-column label="原文" width="90" align="center">
+          <template #default="{ row }">
+            <a
+              v-if="row.source_url"
+              :href="row.source_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="source-link"
+            >打开</a>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </r-table-column>
+        <r-table-column prop="published_at" label="原文时间" width="160" align="center">
+          <template #default="{ row }">
+            <span class="date-text">{{ formatDate(row.published_at) }}</span>
+          </template>
+        </r-table-column>
         <r-table-column prop="author_name" label="作者" width="110" align="center">
           <template #default="{ row }">
             <span>{{ row.author_name || '-' }}</span>
@@ -120,6 +142,15 @@
         </r-form-item>
         <r-form-item label="封面图" prop="cover">
           <r-input v-model="form.cover" placeholder="http(s):// 开头的图片地址，留空则不显示封面" />
+        </r-form-item>
+        <r-form-item label="来源">
+          <r-input v-model="form.source_name" placeholder="采集来源名称（Webhook 写入，可改）" />
+        </r-form-item>
+        <r-form-item label="原文链接">
+          <r-input v-model="form.source_url" placeholder="http(s):// 原文地址" />
+        </r-form-item>
+        <r-form-item label="原文时间">
+          <r-input v-model="form.published_at" placeholder="如 2026-10-18T13:00:00-04:00" />
         </r-form-item>
         <r-form-item label="摘要" prop="summary">
           <r-input
@@ -190,6 +221,9 @@ const form = reactive({
   content: '',
   cover: '',
   category: '',
+  source_url: '',
+  source_name: '',
+  published_at: '',
   status: 'published',
   pinned: false
 })
@@ -236,6 +270,9 @@ const openDialog = (row?: ContentItem) => {
     form.content = row.content
     form.cover = row.cover
     form.category = row.category
+    form.source_url = row.source_url || ''
+    form.source_name = row.source_name || ''
+    form.published_at = row.published_at || ''
     form.status = row.status
     form.pinned = row.pinned
   } else {
@@ -246,6 +283,9 @@ const openDialog = (row?: ContentItem) => {
     form.content = ''
     form.cover = ''
     form.category = ''
+    form.source_url = ''
+    form.source_name = ''
+    form.published_at = ''
     form.status = 'published'
     form.pinned = false
   }
@@ -364,6 +404,15 @@ onMounted(() => {
     .date-text {
       font-size: 10px;
       color: var(--text-secondary);
+    }
+
+    .source-link {
+      font-size: 12px;
+      color: var(--color-primary, #3b82f6);
+      text-decoration: none;
+    }
+    .source-link:hover {
+      text-decoration: underline;
     }
 
     .pagination-wrap {

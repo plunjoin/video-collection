@@ -27,6 +27,9 @@ export function saveNews(data: {
   content: string
   cover: string
   category: string
+  source_url?: string
+  source_name?: string
+  published_at?: string
   status: string
   pinned: boolean
 }) {

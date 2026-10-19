@@ -168,6 +168,45 @@ func truncateRunes(s string, max int) string {
 	return string([]rune(s)[:max])
 }
 
+
+// synthesizeCollectorContent 在 summary/text 皆空时拼可读正文，避免只落到原标题。
+func synthesizeCollectorContent(it collectorWebhookItem, title string) string {
+	if s := derefStr(it.SummaryZh); s != "" {
+		return s
+	}
+	if s := derefStr(it.TextZh); s != "" {
+		return s
+	}
+	sourceLabel := strings.TrimSpace(it.SourceLabel)
+	if sourceLabel == "" {
+		sourceLabel = strings.TrimSpace(it.SourceName)
+	}
+	if sourceLabel == "" {
+		sourceLabel = strings.TrimSpace(it.Source)
+	}
+	var lines []string
+	if sourceLabel != "" {
+		lines = append(lines, "来源："+sourceLabel)
+	}
+	if u := strings.TrimSpace(it.URL); u != "" {
+		lines = append(lines, "原文："+u)
+	}
+	orig := strings.TrimSpace(it.TitleOriginal)
+	if orig == "" {
+		orig = title
+	}
+	if orig != "" {
+		if len(lines) > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, orig)
+	}
+	if len(lines) == 0 {
+		return title
+	}
+	return strings.Join(lines, "\n")
+}
+
 func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[string]string, err error) {
 	extID := externalIDFromRaw(it.ID)
 	if extID == "" {
@@ -190,16 +229,7 @@ func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[
 	title = truncateRunes(title, 200)
 
 	summary := derefStr(it.SummaryZh)
-	content := summary
-	if content == "" {
-		content = derefStr(it.TextZh)
-	}
-	if content == "" {
-		content = strings.TrimSpace(it.TitleOriginal)
-	}
-	if content == "" {
-		content = title
-	}
+	content := synthesizeCollectorContent(it, title)
 	content = truncateRunes(content, 50000)
 	summary = truncateRunes(summary, 1000)
 	category := truncateRunes(strings.TrimSpace(it.Category), 50)

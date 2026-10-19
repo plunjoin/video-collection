@@ -26,11 +26,16 @@ POST /api/webhooks/collector
 | 资讯字段 | 来源 |
 | --- | --- |
 | `title` | `title_zh`，否则 `title_original` |
-| `content` | `summary_zh`，否则 `text_zh`，否则标题 |
-| `summary` | `summary_zh` |
+| `content` | `summary_zh`，否则 `text_zh`；都空时合成「来源 / 原文 URL / title_original」可读正文 |
+| `summary` | `summary_zh`（空时由正文截断生成） |
 | `cover` | `images[]` 中第一条远程 `http(s)` URL（忽略 `local_path`） |
 | `category` | `category` |
+| `source_url` | `url`（原文链接，写入 `content_entries.source_url`） |
+| `source_name` | `source_name`，否则 `source_label`，否则 `source` |
+| `published_at` | `published_at`（原文发布时间，原样字符串） |
 | `status` | 固定 `draft`（与其它采集器一致；已发布条目不会被覆盖） |
+
+管理后台「资讯管理」列表与编辑弹窗会展示来源、原文链接与发布时间；完整溯源仍在 `collection_records.payload`。
 
 幂等键：`record_key = source + ":" + id`（无 `source` 时仅用 `id`）。`source_id`（采集器身份）默认 `acg-news`，可用查询参数 `?collector=` 或请求头 `X-ACG-Collector-Id` / `X-Collector-Id` 指定，便于多采集器共用同一接口。
 

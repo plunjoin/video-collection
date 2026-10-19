@@ -198,14 +198,17 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			return
 		}
 		var req struct {
-			ID       int    `json:"id"`
-			Title    string `json:"title"`
-			Summary  string `json:"summary"`
-			Content  string `json:"content"`
-			Cover    string `json:"cover"`
-			Category string `json:"category"`
-			Status   string `json:"status"`
-			Pinned   *bool  `json:"pinned"`
+			ID          int    `json:"id"`
+			Title       string `json:"title"`
+			Summary     string `json:"summary"`
+			Content     string `json:"content"`
+			Cover       string `json:"cover"`
+			Category    string `json:"category"`
+			SourceURL   string `json:"source_url"`
+			SourceName  string `json:"source_name"`
+			PublishedAt string `json:"published_at"`
+			Status      string `json:"status"`
+			Pinned      *bool  `json:"pinned"`
 		}
 		if !contentBody(w, r, &req) {
 			return
@@ -214,7 +217,7 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			errorResponse(w, 403, "仅管理员可以设置状态和置顶")
 			return
 		}
-		c := store.Content{ID: req.ID, Kind: kind, Title: strings.TrimSpace(req.Title), Summary: strings.TrimSpace(req.Summary), Content: strings.TrimSpace(req.Content), Cover: strings.TrimSpace(req.Cover), Category: strings.TrimSpace(req.Category), Status: req.Status}
+		c := store.Content{ID: req.ID, Kind: kind, Title: strings.TrimSpace(req.Title), Summary: strings.TrimSpace(req.Summary), Content: strings.TrimSpace(req.Content), Cover: strings.TrimSpace(req.Cover), Category: strings.TrimSpace(req.Category), SourceURL: strings.TrimSpace(req.SourceURL), SourceName: strings.TrimSpace(req.SourceName), PublishedAt: strings.TrimSpace(req.PublishedAt), Status: req.Status}
 		if req.Pinned != nil {
 			c.Pinned = *req.Pinned
 		}
@@ -225,7 +228,7 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 				c.Status = "published"
 			}
 		}
-		if c.ID < 0 || c.Title == "" || c.Content == "" || utf8.RuneCountInString(c.Title) > 200 || utf8.RuneCountInString(c.Summary) > 1000 || utf8.RuneCountInString(c.Content) > 50000 || utf8.RuneCountInString(c.Category) > 50 || len(c.Cover) > 2048 || !validContentStatus(kind, c.Status) {
+		if c.ID < 0 || c.Title == "" || c.Content == "" || utf8.RuneCountInString(c.Title) > 200 || utf8.RuneCountInString(c.Summary) > 1000 || utf8.RuneCountInString(c.Content) > 50000 || utf8.RuneCountInString(c.Category) > 50 || utf8.RuneCountInString(c.SourceName) > 200 || utf8.RuneCountInString(c.PublishedAt) > 64 || len(c.Cover) > 2048 || len(c.SourceURL) > 2048 || !validContentStatus(kind, c.Status) {
 			errorResponse(w, 400, "标题和正文必填；标题最多200字、摘要1000字、正文50000字、分类50字，且状态必须有效")
 			return
 		}
@@ -233,6 +236,13 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			cover, err := url.Parse(c.Cover)
 			if err != nil || cover.Host == "" || (cover.Scheme != "https" && cover.Scheme != "http") {
 				errorResponse(w, 400, "封面必须为 http 或 https URL")
+				return
+			}
+		}
+		if c.SourceURL != "" {
+			su, err := url.Parse(c.SourceURL)
+			if err != nil || su.Host == "" || (su.Scheme != "https" && su.Scheme != "http") {
+				errorResponse(w, 400, "原文链接必须为 http 或 https URL")
 				return
 			}
 		}
