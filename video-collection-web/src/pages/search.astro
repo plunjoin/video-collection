@@ -65,8 +65,15 @@ const totalDbCount = total || 6686;
 
     <!-- 搜索结果卡片网格 (真实数据驱动) -->
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[300px]" id="video-grid">
-      {list.map((anime) => (
-        <a href={`/play/${anime.id}`} class="anime-item group flex flex-col card-hover-effect">
+      {list.map((anime, idx) => (
+        <a 
+          href={`/play/${anime.id}`} 
+          class="anime-item group flex flex-col card-hover-effect"
+          data-track="video_click"
+          data-track-id={anime.id}
+          data-track-rank={idx + 1}
+          data-track-expose
+        >
           <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
             <img src={anime.picture || '/brand/bllii-app-blue.svg'} alt={anime.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
             {anime.remarks && <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
@@ -250,6 +257,11 @@ const totalDbCount = total || 6686;
         if (statusEl) statusEl.classList.remove('hidden');
         if (noResultsEl) noResultsEl.classList.add('hidden');
 
+        // 上报站内搜索事件
+        if ((window as any).blliiTrack) {
+          (window as any).blliiTrack.event('search', { keyword: q });
+        }
+
         try {
           const res = await fetch(`/api/videos?type_id=4&keyword=${encodeURIComponent(q)}&page=1&page_size=48`);
           const json = await res.json();
@@ -265,8 +277,16 @@ const totalDbCount = total || 6686;
             if (noResultsEl) noResultsEl.classList.remove('hidden');
           } else {
             if (noResultsEl) noResultsEl.classList.add('hidden');
-            grid.innerHTML = items.map(anime => `
-              <a href="/play/${anime.id}" class="anime-item group flex flex-col card-hover-effect">
+            grid.innerHTML = items.map((anime, idx) => `
+              <a 
+                href="/play/${anime.id}" 
+                class="anime-item group flex flex-col card-hover-effect"
+                data-track="video_click"
+                data-track-id="${anime.id}"
+                data-track-rank="${idx + 1}"
+                data-track-keyword="${escapeHtml(q)}"
+                data-track-expose
+              >
                 <div class="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-200 shadow-sm group-hover:shadow-md transition-shadow">
                   <img 
                     src="${escapeHtml(anime.picture) || '/brand/bllii-app-blue.svg'}" 
