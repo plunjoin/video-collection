@@ -46,6 +46,8 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	// 通用采集 Webhook（推送入库 → article → content_entries/news）
+	mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
 	srv.registerWikiRoutes(mux)

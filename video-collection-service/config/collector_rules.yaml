@@ -143,3 +143,13 @@ sources:
       content_path: "summary"
     filter:
       require_play_urls: true
+
+  # 采集源 5: 外部采集器 Webhook 推送（如本机 acg-news）
+  # 仅作来源登记；enabled=false，不参与定时拉取。实际入库走 POST /api/webhooks/collector
+  - id: "acg-news"
+    name: "ACG 资讯 Webhook"
+    api: "webhook://collector"
+    type: "webhook"
+    enabled: false
+    timeout_sec: 15
+    page_limit: 1
