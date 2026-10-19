@@ -100,6 +100,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '埋点信息预览' }
       },
       {
+        path: 'webhooks',
+        name: 'Webhooks',
+        component: () => import('@/views/webhooks/index.vue'),
+        meta: { title: 'Webhook 回调采集' }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/views/settings/index.vue'),
