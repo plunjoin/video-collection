@@ -46,6 +46,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	srv.registerWebhookRoutes(mux)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
 	srv.registerWikiRoutes(mux)
