@@ -88,14 +88,23 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		if s, ok := r.Values["status"]; ok && (s == "published" || s == "draft") {
 			initialStatus = s
 		}
+		sourceURL := strings.TrimSpace(r.Values["url"])
+		sourceName := strings.TrimSpace(r.Values["source_name"])
+		if sourceName == "" {
+			sourceName = strings.TrimSpace(r.Values["source_label"])
+		}
+		if sourceName == "" {
+			sourceName = strings.TrimSpace(r.Values["source"])
+		}
+		publishedAt := strings.TrimSpace(r.Values["published_at"])
 		if id == 0 {
 			var author int
 			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role IN ('admin','super_admin') AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
 				return false, fmt.Errorf("没有可用的管理员作为文章作者")
 			}
-			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], initialStatus, now, now).Scan(&id)
+			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, now, now).Scan(&id)
 		} else {
-			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,updated_at=$6 WHERE id=$7 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], now, id)
+			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9 WHERE id=$10 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, id)
 		}
 		if err != nil {
 			return false, err

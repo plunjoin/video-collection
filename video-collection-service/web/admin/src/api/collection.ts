@@ -6,7 +6,7 @@ export interface FieldRule {
   required: boolean; trim: boolean; strip_html: boolean; pattern: string; replacement: string
 }
 export interface PipelineRule {
-  version: number; input: 'api' | 'rss' | 'html' | 'database' | 'file'; target: 'record' | 'article' | 'video'
+  version: number; input: 'api' | 'rss' | 'html' | 'database' | 'file' | 'webhook'; target: 'record' | 'article' | 'video'
   key_field: string; duplicate: 'update' | 'skip'; max_records: number
   request: { method: string; body: string; list_path: string; page_param: string; start_page: number }
   html: { item_selector: string; detail_selector: string; next_selector: string }
@@ -15,7 +15,7 @@ export interface PipelineRule {
   fields: FieldRule[]
 }
 export interface PipelineSource {
-  id: string; name: string; type: 'pipeline'; api: string; active: boolean; enabled: boolean
+  id: string; name: string; type: 'pipeline' | 'webhook'; api: string; active: boolean; enabled: boolean
   collect_hours: number; page_limit: number; timeout_sec: number; retry_count: number; interval_ms: number
   headers: Record<string, string>; custom_params: Record<string, string>; filter: { pipeline: PipelineRule }
 }

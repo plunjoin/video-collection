@@ -120,10 +120,19 @@
           </r-form-item>
           <r-form-item label="Webhook 密钥">
             <div class="webhook-secret-row">
-              <r-input v-model="webhookSecret" type="password" show-password placeholder="HMAC 验签密钥（与推送方一致）" />
+              <r-input
+                v-model="webhookSecret"
+                :type="webhookSecretVisible ? 'text' : 'password'"
+                class="webhook-secret-input"
+                placeholder="HMAC 验签密钥（与推送方一致）"
+              />
+              <r-button @click="webhookSecretVisible = !webhookSecretVisible" :disabled="!webhookSecret">
+                {{ webhookSecretVisible ? '隐藏' : '显示' }}
+              </r-button>
+              <r-button @click="copyWebhookSecret" :disabled="!webhookSecret.trim()">复制</r-button>
               <r-button @click="generateWebhookSecret">生成</r-button>
             </div>
-            <p class="config-hint">签名：X-ACG-Signature: sha256=&lt;hex(HMAC_SHA256(secret, raw_body))&gt;</p>
+            <p class="config-hint">签名：X-ACG-Signature: sha256=&lt;hex(HMAC_SHA256(secret, raw_body))&gt;。生成后会自动显示明文，便于立刻复制给推送方。</p>
           </r-form-item>
           <r-form-item label="密钥过期">
             <r-input v-model="webhookExpiresAt" placeholder="可选，RFC3339，如 2026-12-31T23:59:59Z；留空表示不过期" />
@@ -244,6 +253,7 @@ function mapJSON(value: string, label: string) {
 }
 const webhookSecret = ref('')
 const webhookExpiresAt = ref('')
+const webhookSecretVisible = ref(false)
 function isWebhookRow(row: any) {
   return row?.type === 'webhook' || String(row?.api || '').startsWith('webhook://')
 }
@@ -258,6 +268,34 @@ function generateWebhookSecret() {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
   webhookSecret.value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+  webhookSecretVisible.value = true
+}
+async function copyWebhookSecret() {
+  const secret = webhookSecret.value.trim()
+  if (!secret) {
+    notify('还没有可复制的密钥', 'warning')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(secret)
+    notify('Webhook 密钥已复制到剪贴板', 'success')
+  } catch {
+    // fallback for non-secure contexts / older browsers
+    const ta = document.createElement('textarea')
+    ta.value = secret
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      document.execCommand('copy')
+      notify('Webhook 密钥已复制到剪贴板', 'success')
+    } catch {
+      notify('复制失败，请手动选中密钥后复制', 'error')
+    } finally {
+      document.body.removeChild(ta)
+    }
+  }
 }
 function payload(): Partial<SourceConfig> {
   if (form.type === 'webhook') {
@@ -358,6 +396,7 @@ const loadData = async () => {
 const openEditDialog = (row?: any) => {
   webhookSecret.value = ''
   webhookExpiresAt.value = ''
+  webhookSecretVisible.value = false
   if (row) {
     Object.keys(form).forEach(key => delete (form as any)[key])
     Object.assign(form, JSON.parse(JSON.stringify(row)))
@@ -511,8 +550,10 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .config-hint { margin: 6px 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
-.webhook-secret-row { display: flex; gap: 8px; width: 100%; align-items: center; }
-.webhook-secret-row .r-input, .webhook-secret-row input { flex: 1; }
+.webhook-secret-row { display: flex; gap: 8px; width: 100%; align-items: center; flex-wrap: wrap; }
+.webhook-secret-row .webhook-secret-input { flex: 1; min-width: 220px; }
+.webhook-secret-row .webhook-secret-input :deep(.r-input),
+.webhook-secret-row .webhook-secret-input :deep(input) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .sources-page {
   .table-card {

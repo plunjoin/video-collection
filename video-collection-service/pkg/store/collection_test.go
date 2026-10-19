@@ -23,7 +23,7 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 	if err != nil || loaded.Filter.Pipeline.Fields[0].Selector != "标题" {
 		t.Fatalf("rule lost: %+v %v", loaded, err)
 	}
-	r := CollectionRecord{SourceID: "rule", Target: "article", Key: "external-1", Values: map[string]string{"title": "初始标题", "content": "正文"}}
+	r := CollectionRecord{SourceID: "rule", Target: "article", Key: "external-1", Values: map[string]string{"title": "初始标题", "content": "正文", "url": "https://example.com/a", "source_name": "Demo Source", "published_at": "2026-10-01T12:00:00Z"}}
 	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
 		t.Fatalf("save: %v %v", saved, err)
 	}
@@ -41,6 +41,9 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 	article, err := s.GetContent(ctx, "news", rows[0].ContentID, 0, true)
 	if err != nil || article.Title != "更新标题" || article.Status != "draft" {
 		t.Fatalf("article: %+v %v", article, err)
+	}
+	if article.SourceURL != "https://example.com/a" || article.SourceName != "Demo Source" || article.PublishedAt != "2026-10-01T12:00:00Z" {
+		t.Fatalf("provenance fields: url=%q name=%q published=%q", article.SourceURL, article.SourceName, article.PublishedAt)
 	}
 	article.Status = "published"
 	if err := s.SaveContent(ctx, article, article.AuthorID, true); err != nil {
