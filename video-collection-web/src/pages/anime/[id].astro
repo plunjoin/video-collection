@@ -44,10 +44,10 @@ const videoSchema = {
     }))
   } : {}),
   ...(video.director ? {
-    'director': {
+    'director': video.director.split(/[,/、\s]+/).filter(Boolean).map((d: string) => ({
       '@type': 'Person',
-      'name': video.director.trim()
-    }
+      'name': d.trim()
+    }))
   } : {}),
   ...(video.hits ? {
     'interactionStatistic': {

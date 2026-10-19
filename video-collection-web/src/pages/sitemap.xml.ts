@@ -2,6 +2,19 @@ import type { APIRoute } from 'astro';
 import { getVideos } from '../lib/api';
 import { getSiteOrigin } from '../lib/site';
 
+function escapeXml(str: string): string {
+  return str.replace(/[<>&'"]/g, c => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+}
+
 export const GET: APIRoute = async ({ site, url, request }) => {
   const domain = getSiteOrigin(site, url, request);
   const now = new Date().toISOString();
@@ -47,7 +60,7 @@ export const GET: APIRoute = async ({ site, url, request }) => {
     .map(
       p => `
   <url>
-    <loc>${p.loc}</loc>
+    <loc>${escapeXml(p.loc)}</loc>
     <lastmod>${now}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
@@ -58,15 +71,15 @@ export const GET: APIRoute = async ({ site, url, request }) => {
     .map(
       p => `
   <url>
-    <loc>${p.loc}</loc>
+    <loc>${escapeXml(p.loc)}</loc>
     <lastmod>${p.lastmod}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
     <video:video>
-      <video:thumbnail_loc>${p.thumb}</video:thumbnail_loc>
+      <video:thumbnail_loc>${escapeXml(p.thumb)}</video:thumbnail_loc>
       <video:title><![CDATA[${p.title}]]></video:title>
       <video:description><![CDATA[${p.desc}]]></video:description>
-      <video:player_loc allow_embed="yes">${p.loc}</video:player_loc>
+      <video:player_loc allow_embed="yes">${escapeXml(p.loc)}</video:player_loc>
     </video:video>
   </url>`
     )
