@@ -247,6 +247,7 @@ type Store interface {
 	BatchDeleteVideos(ctx context.Context, ids []int) error
 	IncrementVideoHits(ctx context.Context, id int) error
 	GetHotVideos(ctx context.Context, typeID int, limit int) ([]VideoRecord, error)
+	HasVideoByName(ctx context.Context, name string) (bool, error)
 
 	// 用户留言求片与报错反馈
 	CreateFeedback(ctx context.Context, fb *Feedback) error
@@ -259,6 +260,9 @@ type Store interface {
 
 	// 轻量埋点 / 搜索日志 / 广告位 / 留存与渗透率
 	AnalyticsStore
+
+	// Webhook 回调采集端点与投递日志
+	WebhookStore
 }
 
 func parseVodTime(raw string) time.Time {

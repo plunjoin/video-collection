@@ -173,6 +173,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = migrateCollectionTasks(tx, id, timestamp); err != nil {
 		return err
 	}
+	if err = migrateWebhooks(tx, id, timestamp); err != nil {
+		return err
+	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
