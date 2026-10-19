@@ -37,8 +37,8 @@ export const routes: RouteRecordRaw[] = [
       {
         path: 'sources',
         name: 'Sources',
-        redirect: '/collection-rules',
-        meta: { title: '使魔规则工坊', hidden: true }
+        component: () => import('@/views/sources/index.vue'),
+        meta: { title: '使魔节点管理' }
       },
       {
         path: 'videos',
