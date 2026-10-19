@@ -145,7 +145,8 @@ sources:
       require_play_urls: true
 
   # 采集源 5: 外部采集器 Webhook 推送（如本机 acg-news）
-  # 仅作来源登记；enabled=false，不参与定时拉取。实际入库走 POST /api/webhooks/collector
+  # 不参与定时拉取；入库走 POST /api/webhooks/collector。
+  # 密钥请在使魔节点管理配置 custom_params.webhook_secret（可选 webhook_secret_expires_at），并启用节点。
   - id: "acg-news"
     name: "ACG 资讯 Webhook"
     api: "webhook://collector"
@@ -153,3 +154,4 @@ sources:
     enabled: false
     timeout_sec: 15
     page_limit: 1
+    custom_params: {}

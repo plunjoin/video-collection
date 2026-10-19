@@ -39,7 +39,8 @@
         </r-table-column>
         <r-table-column prop="api" label="接口地址" min-width="260" show-overflow-tooltip>
           <template #default="{ row }">
-            <r-link :href="row.api" target="_blank" type="primary" :underline="false">
+            <span v-if="isWebhookRow(row)" class="font-mono">{{ row.api }}</span>
+            <r-link v-else :href="row.api" target="_blank" type="primary" :underline="false">
               {{ row.api }}
             </r-link>
           </template>
@@ -67,17 +68,22 @@
         </r-table-column>
         <r-table-column label="快捷采集" width="180" align="center">
           <template #default="{ row }">
-            <r-button size="small" type="primary" plain @click="handleCollect(row, row.collect_hours ?? 24)">
-              按配置
-            </r-button>
-            <r-button size="small" type="warning" plain @click="handleCollect(row, 0)">
-              全量补全
-            </r-button>
+            <template v-if="isWebhookRow(row)">
+              <r-tag type="info" size="small">仅接收推送</r-tag>
+            </template>
+            <template v-else>
+              <r-button size="small" type="primary" plain @click="handleCollect(row, row.collect_hours ?? 24)">
+                按配置
+              </r-button>
+              <r-button size="small" type="warning" plain @click="handleCollect(row, 0)">
+                全量补全
+              </r-button>
+            </template>
           </template>
         </r-table-column>
         <r-table-column label="管理操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
-            <r-button size="small" type="info" plain @click="handleTest(row)">测试</r-button>
+            <r-button v-if="!isWebhookRow(row)" size="small" type="info" plain @click="handleTest(row)">测试</r-button>
             <r-button size="small" type="primary" @click="openEditDialog(row)">编辑</r-button>
             <r-button size="small" type="danger" @click="handleDelete(row)">删除</r-button>
           </template>
@@ -96,43 +102,76 @@
         <r-form-item label="节点名称" prop="name">
           <r-input v-model="form.name" placeholder="例如：自有片库 / 已授权数据源" />
         </r-form-item>
-        <r-form-item label="规则模板">
-          <r-select v-model="templateID" placeholder="选择模板作为起点" @change="applyTemplate">
-            <r-option v-for="item in templates" :key="item.id" :label="item.name" :value="item.id" />
+        <r-form-item label="协议类型" prop="type">
+          <r-select v-model="form.type" placeholder="选择协议" @change="onProtocolChange">
+            <r-option label="规则采集 (HTTP)" value="rule" />
+            <r-option label="Webhook 推送" value="webhook" />
           </r-select>
-          <p class="config-hint">{{ templates.find(t => t.id === templateID)?.description || '现有规则可直接编辑；模板只在选择时复制。' }}</p>
+          <p class="config-hint">Webhook 与其它采集源一样在节点里配密钥；关闭节点或密钥过期即可停收。</p>
         </r-form-item>
-        <r-form-item label="API 接口地址" prop="api">
-          <r-input
-            v-model="form.api"
-            placeholder="例如：https://api.example.com/api.php/provide/vod/"
-          />
-        </r-form-item>
-        <r-form-item label="默认增量周期" prop="collect_hours">
-          <r-input-number v-model="form.collect_hours" :min="0" :max="168" />
-          <span style="margin-left: 10px; color: #94a3b8; font-size: 12px;">小时</span>
-        </r-form-item>
-        <r-form-item label="页数上限"><r-input-number v-model="form.page_limit" :min="1" :max="10000" /><span class="config-hint">全量采集也遵守此上限；旧配置 0 表示不限页数。</span></r-form-item>
-        <r-form-item label="请求超时"><r-input-number v-model="form.timeout_sec" :min="1" :max="60" /><span class="config-hint">秒</span></r-form-item>
-        <r-form-item label="失败重试"><r-input-number v-model="form.retry_count" :min="0" :max="3" /></r-form-item>
-        <r-form-item label="请求间隔"><r-input-number v-model="form.interval_ms" :min="0" :max="10000" /><span class="config-hint">毫秒</span></r-form-item>
-        <r-form-item label="请求头"><r-input v-model="headersText" type="textarea" :rows="3" placeholder='{"Authorization":"Bearer ..."}' /></r-form-item>
-        <r-form-item label="固定参数"><r-input v-model="paramsText" type="textarea" :rows="3" placeholder='{"limit":"50"}' /></r-form-item>
-        <r-form-item label="采集规则">
-          <r-input v-model="ruleText" type="textarea" :rows="12" />
-          <p class="config-hint">支持 GET / POST、body、query 和 mapping。query 支持 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}；mapping 支持 data.items、images.0.url 等路径。未配置的参数不会自动添加。</p>
-        </r-form-item>
-        <r-collapse><r-collapse-item title="分类绑定与清洗规则" name="advanced">
-          <r-form-item label="分类绑定"><r-input v-model="categoriesText" type="textarea" :rows="4" /></r-form-item>
-          <r-form-item label="过滤与清洗"><r-input v-model="filterText" type="textarea" :rows="6" /></r-form-item>
-        </r-collapse-item></r-collapse>
+
+        <template v-if="form.type === 'webhook'">
+          <r-form-item label="API 标识" prop="api">
+            <r-input v-model="form.api" placeholder="webhook://collector" />
+          </r-form-item>
+          <r-form-item label="推送地址">
+            <r-input :model-value="'/api/webhooks/collector'" disabled />
+            <p class="config-hint">对外完整 URL = 你的公网域名 + 上述路径；请求头可带 X-Collector-Id / X-ACG-Collector-Id（默认 acg-news）。</p>
+          </r-form-item>
+          <r-form-item label="Webhook 密钥">
+            <div class="webhook-secret-row">
+              <r-input v-model="webhookSecret" type="password" show-password placeholder="HMAC 验签密钥（与推送方一致）" />
+              <r-button @click="generateWebhookSecret">生成</r-button>
+            </div>
+            <p class="config-hint">签名：X-ACG-Signature: sha256=&lt;hex(HMAC_SHA256(secret, raw_body))&gt;</p>
+          </r-form-item>
+          <r-form-item label="密钥过期">
+            <r-input v-model="webhookExpiresAt" placeholder="可选，RFC3339，如 2026-12-31T23:59:59Z；留空表示不过期" />
+            <p class="config-hint">临时接收：开启节点 + 填密钥 + 可选过期时间；到期或关闭节点即停收。</p>
+          </r-form-item>
+        </template>
+
+        <template v-else>
+          <r-form-item label="规则模板">
+            <r-select v-model="templateID" placeholder="选择模板作为起点" @change="applyTemplate">
+              <r-option v-for="item in templates" :key="item.id" :label="item.name" :value="item.id" />
+            </r-select>
+            <p class="config-hint">{{ templates.find(t => t.id === templateID)?.description || '现有规则可直接编辑；模板只在选择时复制。' }}</p>
+          </r-form-item>
+          <r-form-item label="API 接口地址" prop="api">
+            <r-input
+              v-model="form.api"
+              placeholder="例如：https://api.example.com/api.php/provide/vod/"
+            />
+          </r-form-item>
+          <r-form-item label="默认增量周期" prop="collect_hours">
+            <r-input-number v-model="form.collect_hours" :min="0" :max="168" />
+            <span style="margin-left: 10px; color: #94a3b8; font-size: 12px;">小时</span>
+          </r-form-item>
+          <r-form-item label="页数上限"><r-input-number v-model="form.page_limit" :min="1" :max="10000" /><span class="config-hint">全量采集也遵守此上限；旧配置 0 表示不限页数。</span></r-form-item>
+          <r-form-item label="请求超时"><r-input-number v-model="form.timeout_sec" :min="1" :max="60" /><span class="config-hint">秒</span></r-form-item>
+          <r-form-item label="失败重试"><r-input-number v-model="form.retry_count" :min="0" :max="3" /></r-form-item>
+          <r-form-item label="请求间隔"><r-input-number v-model="form.interval_ms" :min="0" :max="10000" /><span class="config-hint">毫秒</span></r-form-item>
+          <r-form-item label="请求头"><r-input v-model="headersText" type="textarea" :rows="3" placeholder='{"Authorization":"Bearer ..."}' /></r-form-item>
+          <r-form-item label="固定参数"><r-input v-model="paramsText" type="textarea" :rows="3" placeholder='{"limit":"50"}' /></r-form-item>
+          <r-form-item label="采集规则">
+            <r-input v-model="ruleText" type="textarea" :rows="12" />
+            <p class="config-hint">支持 GET / POST、body、query 和 mapping。query 支持 {page}、{hours}、{action}、{type_id}、{keyword}、{ids}；mapping 支持 data.items、images.0.url 等路径。未配置的参数不会自动添加。</p>
+          </r-form-item>
+          <r-collapse><r-collapse-item title="分类绑定与清洗规则" name="advanced">
+            <r-form-item label="分类绑定"><r-input v-model="categoriesText" type="textarea" :rows="4" /></r-form-item>
+            <r-form-item label="过滤与清洗"><r-input v-model="filterText" type="textarea" :rows="6" /></r-form-item>
+          </r-collapse-item></r-collapse>
+        </template>
+
         <r-form-item label="启用状态">
           <r-switch v-model="form.active" />
+          <p v-if="form.type === 'webhook'" class="config-hint">关闭后推送方会收到 403「采集源已关闭」。</p>
         </r-form-item>
       </r-form>
       <template #footer>
         <r-button @click="dialogVisible = false">取消</r-button>
-        <r-button type="info" :loading="testing" @click="testCurrentForm">连通性测试</r-button>
+        <r-button v-if="form.type !== 'webhook'" type="info" :loading="testing" @click="testCurrentForm">连通性测试</r-button>
         <r-button type="primary" :loading="submitting" @click="submitForm">保存节点配置</r-button>
       </template>
     </r-dialog>
@@ -203,7 +242,47 @@ function mapJSON(value: string, label: string) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(label + ' 必须是 JSON 对象')
   return data
 }
+const webhookSecret = ref('')
+const webhookExpiresAt = ref('')
+function isWebhookRow(row: any) {
+  return row?.type === 'webhook' || String(row?.api || '').startsWith('webhook://')
+}
+function onProtocolChange(type: string) {
+  if (type === 'webhook') {
+    if (!form.api || !String(form.api).startsWith('http')) form.api = 'webhook://collector'
+    form.page_limit = form.page_limit || 1
+    form.timeout_sec = form.timeout_sec || 15
+  }
+}
+function generateWebhookSecret() {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  webhookSecret.value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
 function payload(): Partial<SourceConfig> {
+  if (form.type === 'webhook') {
+    const params: Record<string, string> = {}
+    const secret = webhookSecret.value.trim()
+    if (secret) params.webhook_secret = secret
+    const exp = webhookExpiresAt.value.trim()
+    if (exp) params.webhook_secret_expires_at = exp
+    return {
+      ...form,
+      id: form.id,
+      name: form.name,
+      api: form.api || 'webhook://collector',
+      type: 'webhook',
+      headers: {},
+      custom_params: params,
+      category_mappings: [],
+      filter: {},
+      enabled: form.active,
+      active: form.active,
+      page_limit: form.page_limit || 1,
+      timeout_sec: form.timeout_sec || 15,
+      collect_hours: 0
+    }
+  }
   const headers = mapJSON(headersText.value, '请求头'), params = mapJSON(paramsText.value, '固定参数')
   if ([...Object.values(headers), ...Object.values(params)].some(v => typeof v !== 'string')) throw new Error('请求头和固定参数的值必须为字符串')
   const categories = JSON.parse(categoriesText.value)
@@ -254,6 +333,8 @@ const getTypeTag = (type: string) => {
     case 'rss':
     case 'rss_feed':
       return 'warning'
+    case 'webhook':
+      return 'danger'
     default:
       return 'info'
   }
@@ -275,6 +356,8 @@ const loadData = async () => {
 }
 
 const openEditDialog = (row?: any) => {
+  webhookSecret.value = ''
+  webhookExpiresAt.value = ''
   if (row) {
     Object.keys(form).forEach(key => delete (form as any)[key])
     Object.assign(form, JSON.parse(JSON.stringify(row)))
@@ -282,9 +365,14 @@ const openEditDialog = (row?: any) => {
     form.id = row.id
     form.name = row.name
     form.api = row.api
-    form.type = row.type === 'custom' ? 'custom_json' : row.type
+    form.type = isWebhookRow(row) ? 'webhook' : 'rule'
     form.collect_hours = row.collect_hours ?? 24
     form.active = row.active !== undefined ? row.active : row.enabled !== false
+    if (form.type === 'webhook') {
+      const p = row.custom_params || {}
+      webhookSecret.value = p.webhook_secret || ''
+      webhookExpiresAt.value = p.webhook_secret_expires_at || ''
+    }
   } else {
     Object.keys(form).forEach(key => delete (form as any)[key])
     editingId.value = null
@@ -423,6 +511,9 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .config-hint { margin: 6px 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.webhook-secret-row { display: flex; gap: 8px; width: 100%; align-items: center; }
+.webhook-secret-row .r-input, .webhook-secret-row input { flex: 1; }
+.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .sources-page {
   .table-card {
     border-radius: 12px;

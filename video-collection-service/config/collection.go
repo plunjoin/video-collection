@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -120,7 +121,62 @@ func ValidateCollectionRule(rule CollectionRule) error {
 	return nil
 }
 
+// ParseWebhookSecretExpiry 解析 custom_params.webhook_secret_expires_at。
+// 支持 RFC3339 / RFC3339Nano，以及常见的 "2006-01-02 15:04:05"、"2006-01-02T15:04:05"、纯日期 "2006-01-02"（按当日结束 UTC）。
+func ParseWebhookSecretExpiry(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, fmt.Errorf("为空")
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	var lastErr error
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, raw)
+		if err == nil {
+			if layout == "2006-01-02" {
+				// 纯日期：视为当天 23:59:59 UTC
+				t = t.Add(24*time.Hour - time.Second)
+			}
+			return t, nil
+		}
+		lastErr = err
+	}
+	return time.Time{}, lastErr
+}
+
+// IsWebhookSource 判断是否为推送型 Webhook 采集源（不主动拉取）。
+func IsWebhookSource(src SourceConfig) bool {
+	kind := strings.ToLower(strings.TrimSpace(src.Type))
+	api := strings.ToLower(strings.TrimSpace(src.API))
+	return kind == "webhook" || strings.HasPrefix(api, "webhook://")
+}
+
 func ValidateCollectionSource(src SourceConfig) error {
+	if IsWebhookSource(src) {
+		api := strings.TrimSpace(src.API)
+		if api == "" {
+			return fmt.Errorf("Webhook 源请填写 api，例如 webhook://collector")
+		}
+		u, err := url.Parse(api)
+		if err != nil || u.Scheme != "webhook" {
+			return fmt.Errorf("Webhook 源 api 须为 webhook://... 形式")
+		}
+		if src.CustomParams != nil {
+			if exp := strings.TrimSpace(src.CustomParams["webhook_secret_expires_at"]); exp != "" {
+				if _, err := ParseWebhookSecretExpiry(exp); err != nil {
+					return fmt.Errorf("webhook_secret_expires_at 无效: %w", err)
+				}
+			}
+		}
+		return nil
+	}
 	u, err := url.Parse(src.API)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
 		return fmt.Errorf("请输入不含用户名密码的 HTTP(S) 地址")

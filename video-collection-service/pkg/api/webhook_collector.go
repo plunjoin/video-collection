@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"video-collection-service/config"
@@ -24,20 +25,20 @@ const (
 
 // collectorWebhookItem 兼容 acg-news push_webhook 字段，也接受其他采集器同类 JSON。
 type collectorWebhookItem struct {
-	ID             json.RawMessage `json:"id"`
-	Category       string          `json:"category"`
-	Source         string          `json:"source"`
-	SourceName     string          `json:"source_name"`
-	SourceLabel    string          `json:"source_label"`
-	Kind           string          `json:"kind"`
-	Lang           string          `json:"lang"`
-	TitleOriginal  string          `json:"title_original"`
-	TitleZh        *string         `json:"title_zh"`
-	SummaryZh      *string         `json:"summary_zh"`
-	TextZh         *string         `json:"text_zh"`
-	URL            string          `json:"url"`
-	PublishedAt    string          `json:"published_at"`
-	AlsoReportedBy json.RawMessage `json:"also_reported_by"`
+	ID             json.RawMessage         `json:"id"`
+	Category       string                  `json:"category"`
+	Source         string                  `json:"source"`
+	SourceName     string                  `json:"source_name"`
+	SourceLabel    string                  `json:"source_label"`
+	Kind           string                  `json:"kind"`
+	Lang           string                  `json:"lang"`
+	TitleOriginal  string                  `json:"title_original"`
+	TitleZh        *string                 `json:"title_zh"`
+	SummaryZh      *string                 `json:"summary_zh"`
+	TextZh         *string                 `json:"text_zh"`
+	URL            string                  `json:"url"`
+	PublishedAt    string                  `json:"published_at"`
+	AlsoReportedBy json.RawMessage         `json:"also_reported_by"`
 	Images         []collectorWebhookImage `json:"images"`
 }
 
@@ -68,10 +69,51 @@ func resolveCollectorSourceID(r *http.Request) string {
 	if id := strings.TrimSpace(r.URL.Query().Get("collector")); id != "" {
 		return id
 	}
+	if id := strings.TrimSpace(r.Header.Get("X-ACG-Collector-Id")); id != "" {
+		return id
+	}
 	if id := strings.TrimSpace(r.Header.Get("X-Collector-Id")); id != "" {
 		return id
 	}
 	return defaultWebhookCollectorID
+}
+
+// resolveWebhookAuth 按采集源 custom_params 优先、环境变量兜底解析验签密钥。
+// 规则：webhook 源存在且 enabled=false → 403；密钥过期 → 401；无密钥 → 503。
+func (srv *Server) resolveWebhookAuth(r *http.Request, sourceID string) (secret string, code int, msg string) {
+	src, err := srv.store.GetSourceByID(r.Context(), sourceID)
+	if err != nil {
+		return "", http.StatusInternalServerError, "读取采集源失败"
+	}
+	if src != nil && config.IsWebhookSource(*src) {
+		if !src.Enabled {
+			return "", http.StatusForbidden, "采集源已关闭"
+		}
+		params := src.CustomParams
+		if params == nil {
+			params = src.Filter.CustomParams
+		}
+		if params != nil {
+			if s := strings.TrimSpace(params["webhook_secret"]); s != "" {
+				if expRaw := strings.TrimSpace(params["webhook_secret_expires_at"]); expRaw != "" {
+					exp, perr := config.ParseWebhookSecretExpiry(expRaw)
+					if perr != nil {
+						return "", http.StatusUnauthorized, "密钥过期时间配置无效"
+					}
+					if time.Now().After(exp) {
+						return "", http.StatusUnauthorized, "Webhook 密钥已过期"
+					}
+				}
+				return s, 0, ""
+			}
+		}
+	}
+
+	// 环境变量兜底（源未配置 webhook_secret 时；源若已关闭则上一段已 403）
+	if s := collectorWebhookSecret(); s != "" {
+		return s, 0, ""
+	}
+	return "", http.StatusServiceUnavailable, "未配置 Webhook 密钥：请在使魔节点管理中设置 webhook_secret，或设置环境变量 COLLECTOR_WEBHOOK_SECRET / ACG_WEBHOOK_SECRET"
 }
 
 func derefStr(p *string) string {
@@ -218,9 +260,10 @@ func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	secret := collectorWebhookSecret()
-	if secret == "" {
-		errorResponse(w, http.StatusServiceUnavailable, "未配置 COLLECTOR_WEBHOOK_SECRET 或 ACG_WEBHOOK_SECRET")
+	sourceID := resolveCollectorSourceID(r)
+	secret, code, msg := srv.resolveWebhookAuth(r, sourceID)
+	if code != 0 {
+		errorResponse(w, code, msg)
 		return
 	}
 
@@ -259,7 +302,6 @@ func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	sourceID := resolveCollectorSourceID(r)
 	srv.ensureWebhookSource(r, sourceID)
 	batchID := strings.TrimSpace(r.Header.Get("X-ACG-Batch-Id"))
 	if batchID == "" {

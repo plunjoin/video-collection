@@ -352,6 +352,10 @@ func (srv *Server) handleTestRemoteSource(w http.ResponseWriter, r *http.Request
 	if src.Type == "" {
 		src.Type = "json"
 	}
+	if config.IsWebhookSource(src) {
+		errorResponse(w, 400, "Webhook 采集源只接收推送，无需连通性测试")
+		return
+	}
 	if err := config.ValidateCollectionSource(src); err != nil {
 		errorResponse(w, 400, err.Error())
 		return
