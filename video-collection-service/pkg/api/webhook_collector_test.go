@@ -318,3 +318,21 @@ func TestMapCollectorItemSynthesizesBodyWhenEmpty(t *testing.T) {
 		t.Fatalf("values=%v", values)
 	}
 }
+
+func TestMapCollectorItemSourceLabelAlreadyPrefixed(t *testing.T) {
+	it := collectorWebhookItem{
+		ID:            json.RawMessage(`"100"`),
+		Source:        "mal",
+		SourceLabel:   "来源：MyAnimeList News",
+		TitleOriginal: "Title Only",
+		URL:           "https://myanimelist.net/news/100",
+	}
+	_, values, err := mapCollectorItemToArticle(it)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "来源：MyAnimeList News\n原文：https://myanimelist.net/news/100\n\nTitle Only"
+	if values["content"] != want {
+		t.Fatalf("content=%q want=%q", values["content"], want)
+	}
+}

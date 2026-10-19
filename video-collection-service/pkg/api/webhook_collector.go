@@ -186,7 +186,11 @@ func synthesizeCollectorContent(it collectorWebhookItem, title string) string {
 	}
 	var lines []string
 	if sourceLabel != "" {
-		lines = append(lines, "来源："+sourceLabel)
+		if strings.HasPrefix(sourceLabel, "来源") {
+			lines = append(lines, sourceLabel)
+		} else {
+			lines = append(lines, "来源："+sourceLabel)
+		}
 	}
 	if u := strings.TrimSpace(it.URL); u != "" {
 		lines = append(lines, "原文："+u)
