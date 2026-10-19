@@ -74,6 +74,8 @@ venv/
 # ---------- 日志 / 缓存 / 临时 ----------
 *.log
 logs/
+!video-collection-service/web/admin/src/views/logs/
+!video-collection-service/web/admin/src/views/logs/**
 tmp/
 temp/
 .temp/
