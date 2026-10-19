@@ -340,6 +340,9 @@ export interface ContentItem {
   content: string
   cover: string
   category: string
+  source_url?: string
+  source_name?: string
+  published_at?: string
   status: 'published' | 'draft' | 'hidden'
   pinned: boolean
   like_count: number

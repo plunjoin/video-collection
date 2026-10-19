@@ -121,6 +121,18 @@ func TestCollectorWebhookIngestsIntoNewsPipeline(t *testing.T) {
 	if article.Cover != "https://cdn.example.com/psyren.jpg" {
 		t.Fatalf("cover=%q", article.Cover)
 	}
+	if article.SourceURL != "https://example.com/psyren" {
+		t.Fatalf("source_url=%q", article.SourceURL)
+	}
+	if article.SourceName != "Crunchyroll News" {
+		t.Fatalf("source_name=%q", article.SourceName)
+	}
+	if article.PublishedAt != "2026-10-18T13:00:00-04:00" {
+		t.Fatalf("published_at=%q", article.PublishedAt)
+	}
+	if !strings.Contains(article.Content, "第一集将于 10 月 19 日上线") {
+		t.Fatalf("content=%q", article.Content)
+	}
 
 	// 幂等更新草稿
 	body2 := []byte(`[{"id":42,"category":"动画","source":"crunchyroll","title_original":"PSYREN Dub","title_zh":"更新后的标题","summary_zh":"更新摘要","url":"https://example.com/psyren","images":[]}]`)
@@ -278,5 +290,49 @@ func TestValidateWebhookSource(t *testing.T) {
 		ID: "x", Name: "x", API: "https://example.com", Type: "webhook",
 	}); err == nil {
 		t.Fatal("expected error for https api with webhook type")
+	}
+}
+
+func TestMapCollectorItemSynthesizesBodyWhenEmpty(t *testing.T) {
+	it := collectorWebhookItem{
+		ID:            json.RawMessage(`"99"`),
+		Source:        "mal",
+		SourceName:    "MyAnimeList",
+		SourceLabel:   "MyAnimeList News",
+		TitleOriginal: "Some Anime Announcement",
+		URL:           "https://myanimelist.net/news/99",
+		PublishedAt:   "2026-10-01T00:00:00Z",
+	}
+	key, values, err := mapCollectorItemToArticle(it)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key != "mal:99" {
+		t.Fatalf("key=%s", key)
+	}
+	want := "来源：MyAnimeList News\n原文：https://myanimelist.net/news/99\n\nSome Anime Announcement"
+	if values["content"] != want {
+		t.Fatalf("content=%q want=%q", values["content"], want)
+	}
+	if values["url"] != "https://myanimelist.net/news/99" || values["published_at"] != "2026-10-01T00:00:00Z" {
+		t.Fatalf("values=%v", values)
+	}
+}
+
+func TestMapCollectorItemSourceLabelAlreadyPrefixed(t *testing.T) {
+	it := collectorWebhookItem{
+		ID:            json.RawMessage(`"100"`),
+		Source:        "mal",
+		SourceLabel:   "来源：MyAnimeList News",
+		TitleOriginal: "Title Only",
+		URL:           "https://myanimelist.net/news/100",
+	}
+	_, values, err := mapCollectorItemToArticle(it)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "来源：MyAnimeList News\n原文：https://myanimelist.net/news/100\n\nTitle Only"
+	if values["content"] != want {
+		t.Fatalf("content=%q want=%q", values["content"], want)
 	}
 }
