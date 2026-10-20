@@ -67,6 +67,26 @@ go build -o video-collection-service .
 
 前端开发模式（热更新）也可独立运行：`cd web/admin && pnpm dev`（默认 3000 端口，`/api` 代理到 `API_PROXY_TARGET`，默认 `http://localhost:8080`）。
 
+## 基础配置（SQLite bootstrap）
+
+SQLite 不再是 PostgreSQL 故障时的数据兜底库，而是**基础配置的存储位置**——数据库连接、Redis 连接、初始管理员账号密码、Webhook 加密主密钥等启动引导信息，全部持久化在本地 SQLite 文件（默认 `data/collection.db`）的 `bootstrap_config` 表中，可在管理后台「基础配置」页（`/admin/bootstrap`）维护。
+
+| 配置项 | 键 | 说明 |
+| :--- | :--- | :--- |
+| 数据库驱动 | `db.driver` | `postgres` / `sqlite`（单文件模式，非兜底） |
+| 数据库连接 | `db.dsn` 或 `db.host` / `db.port` / `db.user` / `db.password` / `db.name` / `db.sslmode` | PostgreSQL 连接信息，支持保存前「测试连通性」 |
+| Redis | `redis.addr` / `redis.password` / `redis.db` / `redis.prefix` | 可选；未配置则内存会话 + 无缓存 |
+| 初始管理员 | `admin.username` / `admin.password` | 仅在数据库无用户时首次初始化生效；未配置时随机生成并写回 |
+| Webhook 主密钥 | `webhook.encryption_key` | 可选；未配置时由管理员初始密码派生 |
+
+解析优先级：**环境变量 / 容器注入 > 基础配置（bootstrap SQLite）> `config/collector_rules.yaml` > 内置默认值**。
+
+行为变化：
+
+- PostgreSQL 连接失败时服务**直接退出**并给出修正指引（不再静默降级写另一套 SQLite 数据，避免数据漂移）；原 `DB_REQUIRE_PRIMARY` 开关随之废弃。
+- 首次启动若检测到本地 SQLite 已有业务数据且未配置任何数据库，会一次性显式切换为 SQLite 单文件模式并把 `db.driver=sqlite` 写入基础配置（有记录、可审计，而非静默兜底）。
+- `GET /api/admin/bootstrap` 返回掩码后的配置与每一项的生效来源；`PUT` 保存时敏感字段传 `********` 表示不修改；数据库/Redis 连接信息保存后需重启生效。
+
 ## radix 重构说明
 
 ### 分布式会话（pkg/auth）
@@ -136,6 +156,7 @@ docker compose --env-file deploy/.env up -d --build
 | **Analytics - 留存看板** | `GET /api/admin/retention` | 近14天新增访客留存、今日新增与回访，以及功能渗透率 |
 | **Analytics - 埋点总览** | `GET /api/admin/analytics/overview` | 网站 / App 的今日、昨日、累计 PV-UV、近30天趋势、平台分布、热门页面与事件分布 |
 | **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
+| **Admin - Bootstrap** | `GET /api/admin/bootstrap`<br>`PUT /api/admin/bootstrap`<br>`POST /api/admin/bootstrap/test-db` | 基础配置读写：数据库连接、Redis、初始管理员、Webhook 主密钥；保存前可测试数据库连通性 |
 
 ## 管理后台模块
 
@@ -159,6 +180,7 @@ Liquid Glass 玻璃风侧边导航 → 路由 → 后端接口对照：
 | 用户账号 | `/users` | `/api/admin/users` 角色授权、密码重置 |
 | 客户端主题 | `/themes` | `/api/admin/themes` 切换与 ZIP 上传 |
 | 数据库 | `/database` | `/api/admin/db/*` 浏览、备份恢复、清理、SQL |
+| 基础配置 | `/bootstrap` | `/api/admin/bootstrap` 数据库 / Redis / 初始管理员等启动引导信息 |
 | 系统配置 | `/settings` | `/api/admin/site/config` 站点信息与 SEO |
 | 运行日志 | `/logs` | `/api/admin/logs` 实时日志流 |
 

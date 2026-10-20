@@ -40,7 +40,7 @@ AIGC:
 
 ## 库信息与表统计
 
-`GET /api/admin/db/info` 返回当前引擎（PostgreSQL 为主，连接失败自动降级 SQLite 时为 sqlite）、数据库版本、连接目标、库整体体积、业务表数量、备份目录与服务器时间。
+`GET /api/admin/db/info` 返回当前引擎（`postgres`，或显式配置的 `sqlite` 单文件模式）、数据库版本、连接目标、库整体体积、业务表数量、备份目录与服务器时间。
 
 `GET /api/admin/db/tables` 每张表包含：
 
