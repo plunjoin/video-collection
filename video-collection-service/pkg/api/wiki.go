@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -133,6 +134,9 @@ func (srv *Server) handleAdminWikiSubjects(w http.ResponseWriter, r *http.Reques
 			errorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if srv.rag != nil {
+			srv.rag.IndexWikiSubjectAsync(ctx, id)
+		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
 			"msg":  "词条创建成功",
@@ -149,6 +153,9 @@ func (srv *Server) handleAdminWikiSubjects(w http.ResponseWriter, r *http.Reques
 			errorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if srv.rag != nil {
+			srv.rag.IndexWikiSubjectAsync(ctx, sub.ID)
+		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
 			"msg":  "词条更新成功",
@@ -163,6 +170,9 @@ func (srv *Server) handleAdminWikiSubjects(w http.ResponseWriter, r *http.Reques
 		if err := srv.store.DeleteWikiSubject(ctx, id); err != nil {
 			errorResponse(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if srv.rag != nil {
+			go func() { _ = srv.rag.RemoveWikiSubject(context.Background(), id) }()
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -189,6 +199,9 @@ func (srv *Server) handleAdminWikiRelations(w http.ResponseWriter, r *http.Reque
 			errorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if srv.rag != nil {
+			srv.rag.IndexWikiSubjects(ctx, rel.SourceID, rel.TargetID)
+		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
 			"msg":  "关系关联成功",
@@ -201,9 +214,16 @@ func (srv *Server) handleAdminWikiRelations(w http.ResponseWriter, r *http.Reque
 			errorResponse(w, http.StatusBadRequest, "缺少有效 id 参数")
 			return
 		}
+		var srcID, tgtID int
+		if rel, _ := srv.store.GetWikiRelationByID(ctx, id); rel != nil {
+			srcID, tgtID = rel.SourceID, rel.TargetID
+		}
 		if err := srv.store.DeleteWikiRelation(ctx, id); err != nil {
 			errorResponse(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if srv.rag != nil && (srcID > 0 || tgtID > 0) {
+			srv.rag.IndexWikiSubjects(ctx, srcID, tgtID)
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -234,6 +254,9 @@ func (srv *Server) handleAdminWikiSyncVideo(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, "同步到 Wiki 知识库失败: "+err.Error())
 		return
+	}
+	if srv.rag != nil && subject != nil && subject.ID > 0 {
+		srv.rag.IndexWikiSubjectAsync(r.Context(), subject.ID)
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{

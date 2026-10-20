@@ -16,6 +16,7 @@ import (
 	"video-collection-service/pkg/auth"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
+	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/player"
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
@@ -28,6 +29,7 @@ type Server struct {
 	themeManager  *theme.Manager
 	playerManager *player.Manager
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
+	rag           *rag.Service
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager) *Server {
@@ -36,6 +38,9 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 		scheduler:     sc,
 		themeManager:  tm,
 		playerManager: pm,
+	}
+	if cs, ok := s.(store.ContentStore); ok {
+		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
 	}
 	// 默认不透传任何 Redis：命名空间全部为 nil（serveCached 自动降级直连数据库），
 	// 接入 Redis 后由 UseCache 覆盖。
@@ -52,6 +57,7 @@ mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
 	srv.registerWikiRoutes(mux)
+	srv.registerRAGRoutes(mux)
 	// 公开接口
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)

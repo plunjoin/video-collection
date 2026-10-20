@@ -79,6 +79,7 @@ type ContentStore interface {
 	CollectionStore
 	CommentStore
 	WikiStore
+	RAGStore
 	TaskStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
@@ -173,6 +174,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		return err
 	}
 	if err = migrateWiki(tx, id, timestamp); err != nil {
+		return err
+	}
+	if err = migrateRAG(tx, id, timestamp); err != nil {
 		return err
 	}
 	if err = migrateCollectionTasks(tx, id, timestamp); err != nil {

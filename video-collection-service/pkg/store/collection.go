@@ -116,7 +116,13 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if err != nil {
 		return false, err
 	}
-	return true, tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	if r.Target == "article" && r.ContentID > 0 {
+		notifyRAGContentIngest(ctx, "news", r.ContentID)
+	}
+	return true, nil
 }
 
 func (s *SQLContentStore) ListCollectionRecords(ctx context.Context, source string, page, size int) ([]CollectionRecord, int, error) {
