@@ -20,7 +20,7 @@
       <r-descriptions v-if="info" :column="3" border>
         <r-descriptions-item label="存储引擎">
           <r-tag :type="info.engine === 'postgres' ? 'primary' : 'warning'" effect="plain">
-            {{ info.engine === 'postgres' ? 'PostgreSQL' : 'SQLite（降级模式）' }}
+            {{ info.engine === 'postgres' ? 'PostgreSQL' : 'SQLite（单文件模式）' }}
           </r-tag>
         </r-descriptions-item>
         <r-descriptions-item label="数据库版本">

@@ -112,6 +112,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '系统配置' }
       },
       {
+        path: 'bootstrap',
+        name: 'Bootstrap',
+        component: () => import('@/views/bootstrap/index.vue'),
+        meta: { title: '基础配置' }
+      },
+      {
         path: 'database',
         name: 'Database',
         component: () => import('@/views/database/index.vue'),
