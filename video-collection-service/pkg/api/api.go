@@ -14,6 +14,7 @@ import (
 
 	"video-collection-service/config"
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
 	"video-collection-service/pkg/player"
@@ -27,15 +28,17 @@ type Server struct {
 	scheduler     *scheduler.Scheduler
 	themeManager  *theme.Manager
 	playerManager *player.Manager
+	bootstrap     *bootstrap.Store
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 }
 
-func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager) *Server {
+func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
 	srv := &Server{
 		store:         s,
 		scheduler:     sc,
 		themeManager:  tm,
 		playerManager: pm,
+		bootstrap:     bs,
 	}
 	// 默认不透传任何 Redis：命名空间全部为 nil（serveCached 自动降级直连数据库），
 	// 接入 Redis 后由 UseCache 覆盖。
@@ -47,6 +50,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
 	srv.registerWebhookRoutes(mux)
+	srv.registerBootstrapRoutes(mux)
 	// 通用采集 Webhook（推送入库 → article → content_entries/news）
 mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)

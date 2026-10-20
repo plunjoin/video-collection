@@ -13,6 +13,7 @@ import (
 	"video-collection-service/config"
 	"video-collection-service/pkg/api"
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/cache"
 	"video-collection-service/pkg/openapi"
 	"video-collection-service/pkg/player"
@@ -60,33 +61,69 @@ func main() {
 	dsnSource := config.ApplyEnvOverrides(cfg)
 	fmt.Printf("[*] 数据库配置来源: %s\n", dsnSource)
 
-	if cfg.Database.Driver != "postgres" && cfg.Database.Driver != "sqlite" {
-		log.Fatalf("[FATAL] 不支持的数据库驱动: %s", cfg.Database.Driver)
+	// 1.5 打开 bootstrap 基础配置（SQLite）：数据库/Redis/初始管理员等启动引导信息
+	// 注意：SQLite 不再是 PostgreSQL 故障时的数据兜底库，而是基础配置的存储位置。
+	sqlitePath := resolveSQLitePath(cfg)
+	bsStore, bsErr := bootstrap.Open(sqlitePath)
+	if bsErr != nil {
+		log.Printf("[WARN] 打开基础配置 SQLite (%s) 失败，仅使用环境变量/YAML 配置: %v", sqlitePath, bsErr)
 	}
-	// 2. 初始化持久化存储 (优先连接 PostgreSQL，失败则平滑降级至 SQLite 保证系统高可用)
-	var dbStore store.Store
-	if strings.ToLower(cfg.Database.Driver) == "postgres" {
-		fmt.Printf("[*] 正在连接 PostgreSQL 数据库: %s\n", config.MaskDSN(cfg.Database.DSN))
-		pgStore, pgErr := store.NewPostgresStore(cfg.Database.DSN)
-		if pgErr == nil {
-			dbStore = pgStore
-			fmt.Println("[OK] PostgreSQL 数据库连接成功！已开启原生 JSONB 与高并发支持。")
+	var bsCfg *bootstrap.Config
+	if bsStore != nil {
+		defer bsStore.Close()
+		loaded, err := bootstrap.Load(bsStore)
+		if err != nil {
+			log.Printf("[WARN] 读取基础配置失败: %v", err)
 		} else {
-			if os.Getenv("DB_REQUIRE_PRIMARY") == "true" {
-				log.Fatalf("[FATAL] PostgreSQL 不可用，已禁止降级: %v", pgErr)
-			}
-			log.Printf("[WARN] 连接 PostgreSQL 失败 (%v)，正在平滑降级至本地 SQLite 模式...", pgErr)
+			bsCfg = loaded
 		}
 	}
 
-	if dbStore == nil {
-		sqlitePath := cfg.Database.SQLitePath
+	// 历史降级数据一次性迁移：无任何数据库配置但本地 SQLite 已有业务数据时，
+	// 显式切换为 SQLite 单文件模式并记录到基础配置。
+	maybeMigrateLegacySQLite(cfg, bsStore, bsCfg, sqlitePath)
+
+	// 从未配置数据库时开箱使用 SQLite 单文件模式；显式配置过 PostgreSQL 则连接失败即退出
+	maybeDefaultToSQLite(cfg, bsCfg)
+
+	// 环境变量 > bootstrap SQLite > YAML
+	dbSource := applyBootstrapDatabase(cfg, bsCfg)
+	if dbSource != "环境变量 / YAML 配置" {
+		fmt.Printf("[*] 数据库配置来源: %s\n", dbSource)
+	}
+	// 初始管理员账号密码 / Webhook 加密主密钥由 bootstrap 注入环境变量读取点
+	applyBootstrapRuntime(bsStore, bsCfg)
+
+	if cfg.Database.Driver != "postgres" && cfg.Database.Driver != "sqlite" {
+		log.Fatalf("[FATAL] 不支持的数据库驱动: %s", cfg.Database.Driver)
+	}
+
+	// 2. 初始化持久化存储（SQLite 仅作为显式配置的单文件模式，不再作为 PostgreSQL 的兜底）
+	var dbStore store.Store
+	switch strings.ToLower(cfg.Database.Driver) {
+	case "postgres":
+		fmt.Printf("[*] 正在连接 PostgreSQL 数据库: %s\n", config.MaskDSN(cfg.Database.DSN))
+		pgStore, pgErr := store.NewPostgresStore(cfg.Database.DSN)
+		if pgErr != nil {
+			log.Fatalf(`[FATAL] PostgreSQL 连接失败（系统不再自动降级到 SQLite 兜底）: %v
+
+  请通过以下任一方式修正数据库配置后重启：
+  1) 管理后台「基础配置」页面 / API： GET|PUT /api/admin/bootstrap
+     （配置持久化在 %s 的 bootstrap_config 表中）
+  2) 环境变量：DB_DSN 或 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME
+  3) 若确需 SQLite 单文件模式，将 db.driver 显式设为 sqlite`, pgErr, sqlitePath)
+		}
+		dbStore = pgStore
+		fmt.Println("[OK] PostgreSQL 数据库连接成功！已开启原生 JSONB 与高并发支持。")
+	case "sqlite":
 		sqStore, sqErr := store.NewSQLiteStore(sqlitePath)
 		if sqErr != nil {
-			log.Fatalf("[FATAL] 初始化本地 SQLite 数据库也失败: %v", sqErr)
+			log.Fatalf("[FATAL] 初始化 SQLite 单文件模式失败: %v", sqErr)
 		}
 		dbStore = sqStore
-		fmt.Printf("[OK] 已启动本地 SQLite 数据库引擎: %s\n", sqlitePath)
+		fmt.Printf("[OK] 已启动 SQLite 单文件模式: %s（基础配置与业务数据同库）\n", sqlitePath)
+	default:
+		log.Fatalf("[FATAL] 不支持的数据库驱动: %s", cfg.Database.Driver)
 	}
 
 	// 3. 初始采集源同步
@@ -107,9 +144,15 @@ func main() {
 	sc := scheduler.NewScheduler(dbStore)
 
 	// 5. 接入 radix (Redis)：启用分布式会话与公开读接口缓存
-	// 未配置 REDIS_ADDR 或连接失败时自动降级为内存会话 + 无缓存，不影响主流程
+	// 配置来源：环境变量 > bootstrap 基础配置（管理后台「基础配置」可维护）
+	// 未配置或连接失败时降级为内存会话 + 无缓存，不影响主流程
+	redisCfg := cache.ConfigFromEnv()
+	if redisCfg.Addr == "" {
+		addr, password, db, prefix := bsRedisValues(bsCfg)
+		redisCfg = cache.ConfigFromValues(addr, password, db, prefix)
+	}
 	var cacheClient *cache.Client
-	if c, cacheErr := cache.Connect(context.Background(), cache.ConfigFromEnv()); cacheErr != nil {
+	if c, cacheErr := cache.Connect(context.Background(), redisCfg); cacheErr != nil {
 		log.Printf("[WARN] Redis 未接入，会话与缓存降级为本地模式: %v", cacheErr)
 	} else if c != nil {
 		cacheClient = c
@@ -142,7 +185,7 @@ func main() {
 	mux.Handle("/api/rss", rssHandler)
 
 	// (C) 系统 RESTful API 服务 (包含数据采集、检索、用户、管理等纯 JSON 接口)
-	apiServer := api.NewServer(dbStore, sc, themeManager, playerManager)
+	apiServer := api.NewServer(dbStore, sc, themeManager, playerManager, bsStore)
 	if cacheClient != nil {
 		apiServer.UseCache(cacheClient, 0)
 	}
@@ -195,6 +238,10 @@ func main() {
 			"openapi_url": "/openapi.json",
 			"redoc_url":   "/redoc",
 			"cache":       cacheStatus(cacheClient),
+			"database": map[string]any{
+				"driver":         cfg.Database.Driver,
+				"bootstrap_path": sqlitePath,
+			},
 			"apis": map[string]string{
 				"videos":     "/api/videos",
 				"categories": "/api/categories",

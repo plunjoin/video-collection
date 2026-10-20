@@ -8,7 +8,7 @@ import (
 
 func TestM3U8ProxyRoutesRemoved(t *testing.T) {
 	mux := http.NewServeMux()
-	NewServer(nil, nil, nil, nil).RegisterRoutes(mux)
+	NewServer(nil, nil, nil, nil, nil).RegisterRoutes(mux)
 	for _, path := range []string{"/api/m3u8", "/api/m3u8/clean"} {
 		for _, method := range []string{http.MethodGet, http.MethodOptions} {
 			rec := httptest.NewRecorder()

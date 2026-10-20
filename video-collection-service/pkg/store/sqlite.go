@@ -228,7 +228,7 @@ func (s *SQLiteStore) InitDefaultAdmin(ctx context.Context) error {
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO users (username, password_hash, nickname, role, status)
 		VALUES (?, ?, ?, ?, ?)
-	`, "admin", string(hash), "超级管理员", "super_admin", 1)
+	`, initialAdminUsername(), string(hash), "超级管理员", "super_admin", 1)
 	return err
 }
 

@@ -50,7 +50,7 @@ func newContentFixture(t *testing.T) *contentFixture {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	f := &contentFixture{t: t, s: s, mux: http.NewServeMux(), tokens: make(map[int]string)}
-	NewServer(s, nil, nil, nil).RegisterRoutes(f.mux)
+	NewServer(s, nil, nil, nil, nil).RegisterRoutes(f.mux)
 	f.admin, err = s.GetUserByUsername(context.Background(), "admin")
 	if err != nil {
 		t.Fatal(err)
