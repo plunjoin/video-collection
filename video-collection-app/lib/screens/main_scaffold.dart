@@ -8,12 +8,12 @@ import '../widgets/entropy_sidebar.dart';
 import '../widgets/brand_widgets.dart';
 import 'account_screen.dart';
 import 'category_screen.dart';
+import 'content_hub_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'rank_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
-import 'timeline_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   final int initialIndex;
@@ -32,7 +32,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     'home',
     'category',
     'rank',
-    'timeline',
+    'news',
     'profile',
   ];
 
@@ -88,7 +88,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       HomeScreen(onSwitchTab: _switchTab),
       const CategoryScreen(),
       const RankScreen(),
-      const TimelineScreen(),
+      const ContentHubScreen(),
       const ProfileScreen(),
     ];
 

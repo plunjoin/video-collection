@@ -15,8 +15,8 @@ const { latest, rankings } = Astro.props;
     {rankings.slice(0, 5).map((video, index) => <a class="rank-row" href={`/anime/${video.id}`}><span>{index + 1}</span><strong>{video.name}</strong><small>{video.remarks}</small></a>)}
     {!rankings.length && <p class="brand-empty">暂无排行</p>}
   </div>
-  <a class="brand-promo" href="/follow">
-    <div><p class="brand-eyebrow">YOUR LITTLE HAPPY PLACE</p><h2>bllii · 我的追番</h2><p>收藏每一份心动<br />和喜欢的故事更近一步</p><span class="brand-button">开启追番之旅 →</span></div>
+  <a class="brand-promo" href="/news">
+    <div><p class="brand-eyebrow">STORIES &amp; UPDATES</p><h2>bllii · 资讯速递</h2><p>新番情报、制作动态<br />以及更多站内精选</p><span class="brand-button">去看资讯 →</span></div>
     <img src="/brand/bllii-symbol.svg" alt="" />
   </a>
 </section>

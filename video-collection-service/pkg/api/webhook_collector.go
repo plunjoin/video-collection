@@ -168,7 +168,6 @@ func truncateRunes(s string, max int) string {
 	return string([]rune(s)[:max])
 }
 
-
 // synthesizeCollectorContent 在 summary/text 皆空时拼可读正文，避免只落到原标题。
 func synthesizeCollectorContent(it collectorWebhookItem, title string) string {
 	if s := derefStr(it.SummaryZh); s != "" {
@@ -212,6 +211,10 @@ func synthesizeCollectorContent(it collectorWebhookItem, title string) string {
 }
 
 func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[string]string, err error) {
+	return mapCollectorItem(it, true)
+}
+
+func mapCollectorItem(it collectorWebhookItem, requireTitle bool) (key string, values map[string]string, err error) {
 	extID := externalIDFromRaw(it.ID)
 	if extID == "" {
 		return "", nil, fmt.Errorf("缺少 id")
@@ -227,7 +230,7 @@ func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[
 	if title == "" {
 		title = strings.TrimSpace(it.TitleOriginal)
 	}
-	if title == "" {
+	if title == "" && requireTitle {
 		return "", nil, fmt.Errorf("条目 %s 缺少标题", key)
 	}
 	title = truncateRunes(title, 200)
@@ -285,7 +288,7 @@ func (srv *Server) ensureWebhookSource(r *http.Request, sourceID string) {
 	})
 }
 
-// handleCollectorWebhook 通用采集 Webhook：验签后写入既有 article→news 采集链路。
+// handleCollectorWebhook 验签后按绑定源的业务类型写入，默认 article→news。
 // POST /api/webhooks/collector
 func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -337,35 +340,79 @@ func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request
 	}
 
 	srv.ensureWebhookSource(r, sourceID)
+	target, sourceName := "article", sourceID
+	source, err := srv.store.GetSourceByID(r.Context(), sourceID)
+	if err != nil {
+		errorResponse(w, 500, "读取采集源失败")
+		return
+	}
+	if source != nil {
+		sourceName = source.Name
+		if source.Filter.Pipeline != nil && source.Filter.Pipeline.Target != "" {
+			target = source.Filter.Pipeline.Target
+		}
+	}
+	businessType, err := srv.store.GetBusinessType(r.Context(), target)
+	if err != nil {
+		errorResponse(w, 400, "未知业务类型: "+target)
+		return
+	}
 	batchID := strings.TrimSpace(r.Header.Get("X-ACG-Batch-Id"))
 	if batchID == "" {
 		batchID = strings.TrimSpace(r.Header.Get("X-Collector-Batch-Id"))
 	}
 
+	// Preserve custom mapped fields (including numbers, booleans and JSON),
+	// while keeping the existing translated article/video normalization intact.
+	var rawItems []map[string]json.RawMessage
+	if err := json.Unmarshal(body, &rawItems); err != nil {
+		errorResponse(w, 400, "JSON 必须是对象数组")
+		return
+	}
 	inserted, updated := 0, 0
 	for i, it := range items {
-		key, values, mapErr := mapCollectorItemToArticle(it)
+		key, values, mapErr := mapCollectorItem(it, false)
 		if mapErr != nil {
 			errorResponse(w, http.StatusBadRequest, fmt.Sprintf("第 %d 条: %v", i+1, mapErr))
+			return
+		}
+		for name, raw := range rawItems[i] {
+			if string(raw) == "null" {
+				continue
+			}
+			// Keep translated article/video fields from the established normalization,
+			// and accept additional fields such as play_url and custom schema fields.
+			if businessType.IsSystem && values[name] != "" {
+				continue
+			}
+			var value string
+			if json.Unmarshal(raw, &value) != nil {
+				value = string(raw)
+			}
+			values[name] = value
+		}
+
+		if _, err := store.ValidateBusinessValues(businessType, values); err != nil {
+			errorResponse(w, 400, fmt.Sprintf("第 %d 条: %v", i+1, err))
 			return
 		}
 		if batchID != "" {
 			values["batch_id"] = batchID
 		}
-		existed, err := srv.store.HasCollectionRecord(r.Context(), sourceID, "article", key)
+		existed, err := srv.store.HasCollectionRecord(r.Context(), sourceID, target, key)
 		if err != nil {
 			errorResponse(w, http.StatusInternalServerError, "查询采集记录失败")
 			return
 		}
 		rec := store.CollectionRecord{
 			SourceID: sourceID,
-			Target:   "article",
+			Target:   target,
 			Key:      key,
 			Values:   values,
 		}
-		saved, err := srv.store.SaveCollectionRecord(r.Context(), rec, false)
+		saved, err := store.WriteBusinessRecord(r.Context(), srv.store, rec, false, sourceName)
 		if err != nil {
-			errorResponse(w, http.StatusInternalServerError, "写入资讯失败: "+err.Error())
+			errorResponse(w, http.StatusInternalServerError, "写入业务内容失败: "+err.Error())
 			return
 		}
 		if !saved {

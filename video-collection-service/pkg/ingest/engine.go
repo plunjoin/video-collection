@@ -29,13 +29,14 @@ type Sample struct {
 var fieldName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,63}$`)
 var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 
-func Validate(src config.SourceConfig) error {
+func Validate(src config.SourceConfig, lookups ...TargetLookup) error {
 	p := src.Filter.Pipeline
 	if src.Type != "pipeline" || p == nil || p.Version != 1 {
 		return fmt.Errorf("需要 version=1 的通用采集规则")
 	}
-	if p.Target != "record" && p.Target != "article" && p.Target != "video" {
-		return fmt.Errorf("请选择通用数据、文章或视频")
+	schema, err := targetSchema(p.Target, lookups)
+	if err != nil {
+		return fmt.Errorf("未知业务类型 %q: %w", p.Target, err)
 	}
 	if p.Duplicate != "update" && p.Duplicate != "skip" {
 		return fmt.Errorf("请选择重复记录更新或跳过")
@@ -69,12 +70,12 @@ func Validate(src config.SourceConfig) error {
 	if !seen[p.KeyField] {
 		return fmt.Errorf("去重字段必须是已配置的目标字段")
 	}
-	if p.Target != "record" && !seen["title"] {
-		return fmt.Errorf("文章和视频必须映射 title 字段")
+	for _, name := range schema.RequiredFields {
+		if !seen[name] {
+			return fmt.Errorf("业务类型 %s 必须映射 %s 字段", p.Target, name)
+		}
 	}
-	if p.Target == "article" && !seen["content"] {
-		return fmt.Errorf("文章必须映射 content 字段")
-	}
+
 	switch p.Input {
 	case "api", "rss", "html":
 		if err := validURL(src.API); err != nil {
@@ -202,7 +203,7 @@ func MapRecord(p *config.PipelineRule, raw map[string]string) Sample {
 }
 
 func requiredTitle(target string) string {
-	if target != "record" {
+	if target == "article" || target == "video" {
 		return "title"
 	}
 	return ""
@@ -216,11 +217,30 @@ func requiredContent(target string) string {
 
 // Run emits rows in order; preview uses the same extraction and cleaning path.
 // Errors stop the run, while row validation failures are returned on each sample.
-func Run(ctx context.Context, src config.SourceConfig, limit int, emit func(Sample) error) error {
-	if err := Validate(src); err != nil {
+func Run(ctx context.Context, src config.SourceConfig, limit int, emit func(Sample) error, lookups ...TargetLookup) error {
+	if err := Validate(src, lookups...); err != nil {
 		return err
 	}
 	p := src.Filter.Pipeline
+	schema, err := targetSchema(p.Target, lookups)
+	if err != nil {
+		return err
+	}
+	originalEmit := emit
+	emit = func(sample Sample) error {
+		if schema.ValidateValues != nil {
+			if err := schema.ValidateValues(sample.Values); err != nil {
+				sample.Errors = append(sample.Errors, err.Error())
+			}
+		} else {
+			for _, name := range schema.RequiredFields {
+				if strings.TrimSpace(sample.Values[name]) == "" {
+					sample.Errors = append(sample.Errors, name+": 必填字段为空")
+				}
+			}
+		}
+		return originalEmit(sample)
+	}
 	if limit <= 0 || limit > p.MaxRecords {
 		limit = p.MaxRecords
 	}
@@ -756,4 +776,3 @@ func parseFeed(body []byte) ([]any, error) {
 
 	return nil, fmt.Errorf("未识别到有效的 RSS、Atom 或 XML 数据条目")
 }
-

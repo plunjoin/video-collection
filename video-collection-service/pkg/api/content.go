@@ -27,6 +27,7 @@ func (srv *Server) registerContentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/user/notifications/unread-count", srv.handleUnreadNotifications)
 	mux.HandleFunc("/api/user/notifications/read", srv.handleReadNotifications)
 	mux.HandleFunc("/api/admin/news", auth.AdminRequired(srv.store, srv.contentHandler("news", true)))
+	mux.HandleFunc("/api/admin/news/batch", srv.adminWrite(srv.handleNewsBatch))
 	mux.HandleFunc("/api/admin/community/posts", auth.AdminRequired(srv.store, srv.contentHandler("post", true)))
 	mux.HandleFunc("/api/admin/community/comments", auth.AdminRequired(srv.store, srv.commentsHandler(true)))
 	mux.HandleFunc("/api/admin/notifications", auth.AdminRequired(srv.store, srv.handleSendNotification))
@@ -45,7 +46,7 @@ func contentMethod(w http.ResponseWriter, r *http.Request, methods ...string) bo
 
 func contentError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidComment):
+	case errors.Is(err, store.ErrInvalidComment), errors.Is(err, store.ErrInvalidNewsBatch):
 		errorResponse(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, store.ErrContentNotFound):
 		errorResponse(w, http.StatusNotFound, err.Error())
@@ -119,6 +120,26 @@ func contentListResponse(w http.ResponseWriter, items any, total, page, size int
 
 func validContentStatus(kind, status string) bool {
 	return status == "published" || (kind == "news" && status == "draft") || (kind == "post" && status == "hidden")
+}
+
+func (srv *Server) handleNewsBatch(w http.ResponseWriter, r *http.Request) {
+	if !contentMethod(w, r, http.MethodPost) {
+		return
+	}
+	var req struct {
+		IDs    []int  `json:"ids"`
+		Action string `json:"action"`
+	}
+	if !contentBody(w, r, &req) {
+		return
+	}
+	count, err := srv.store.BatchNews(r.Context(), req.IDs, req.Action)
+	if err != nil {
+		contentError(w, err)
+		return
+	}
+	srv.logSystem(r, "info", "content", "资讯批量操作 "+req.Action, map[string]any{"action": req.Action, "count": count})
+	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "批量操作成功", "data": map[string]any{"count": count, "action": req.Action}})
 }
 
 func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {

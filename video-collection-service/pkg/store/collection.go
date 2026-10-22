@@ -24,7 +24,9 @@ type CollectionRecord struct {
 type CollectionStore interface {
 	SaveCollectionRecord(context.Context, CollectionRecord, bool) (bool, error)
 	ListCollectionRecords(context.Context, string, int, int) ([]CollectionRecord, int, error)
+	ListCollectionRecordsByTarget(context.Context, string, int, int) ([]CollectionRecord, int, error)
 	HasCollectionRecord(context.Context, string, string, string) (bool, error)
+	GetCollectionRecord(context.Context, string, string, string) (*CollectionRecord, error)
 	UpdateCollectionRecord(ctx context.Context, sourceID, target, key string, values map[string]string) error
 	DeleteCollectionRecord(ctx context.Context, sourceID, target, key string) error
 	RectifyCollectionRecordToWiki(ctx context.Context, sourceID, target, key string, subject WikiSubject) (*WikiSubject, error)
@@ -37,6 +39,18 @@ func (s *SQLContentStore) HasCollectionRecord(ctx context.Context, source, targe
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, source, target, key).Scan(&n)
 	return n > 0, err
+}
+
+func (s *SQLContentStore) GetCollectionRecord(ctx context.Context, source, target, key string) (*CollectionRecord, error) {
+	r := &CollectionRecord{SourceID: source, Target: target, Key: key}
+	var payload string
+	if err := s.db.QueryRowContext(ctx, `SELECT payload,content_id,updated_at FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, source, target, key).Scan(&payload, &r.ContentID, &r.UpdatedAt); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(payload), &r.Values); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // Article and provenance are committed together. Reimports update drafts only;
@@ -54,6 +68,14 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		return false, err
 	}
 	defer tx.Rollback()
+	b, err := getBusinessType(ctx, tx, r.Target)
+	if err != nil {
+		return false, fmt.Errorf("未知业务类型 %q: %w", r.Target, err)
+	}
+	if _, err = ValidateBusinessValues(b, r.Values); err != nil {
+		return false, err
+	}
+
 	var id int
 	err = tx.QueryRowContext(ctx, `SELECT content_id FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, r.SourceID, r.Target, r.Key).Scan(&id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -62,7 +84,13 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if err == nil && skip {
 		return false, nil
 	}
-	if r.Target == "article" {
+	if b.Writer == "table" {
+		r.ContentID, err = upsertBusinessRow(ctx, tx, b, r)
+		if err != nil {
+			return false, err
+		}
+	}
+	if b.Writer == "article" {
 		if id > 0 {
 			var status string
 			err = tx.QueryRowContext(ctx, `SELECT status FROM content_entries WHERE id=$1 AND kind='news'`, id).Scan(&status)
@@ -97,14 +125,19 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 			sourceName = strings.TrimSpace(r.Values["source"])
 		}
 		publishedAt := strings.TrimSpace(r.Values["published_at"])
+		publishedTime, validPublishedTime := parseCollectionPublishedAt(publishedAt)
 		if id == 0 {
+			createdAt := now
+			if validPublishedTime {
+				createdAt = publishedTime
+			}
 			var author int
 			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role IN ('admin','super_admin') AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
 				return false, fmt.Errorf("没有可用的管理员作为文章作者")
 			}
-			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, now, now).Scan(&id)
+			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, createdAt, now).Scan(&id)
 		} else {
-			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9 WHERE id=$10 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, id)
+			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9,created_at=COALESCE($10,created_at) WHERE id=$11 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, sql.NullTime{Time: publishedTime, Valid: validPublishedTime}, id)
 		}
 		if err != nil {
 			return false, err
@@ -116,7 +149,34 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if err != nil {
 		return false, err
 	}
-	return true, tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	if r.Target == "article" && r.ContentID > 0 {
+		notifyRAGContentIngest(ctx, "news", r.ContentID)
+	}
+	return true, nil
+}
+
+func parseCollectionPublishedAt(raw string) (time.Time, bool) {
+	// RFC3339Nano also accepts RFC3339. Timestamps without a zone use UTC.
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05Z0700",
+		"2006-01-02 15:04:05Z07:00",
+		"2006-01-02 15:04:05Z0700",
+		"2006-01-02T15:04:05",
+		time.DateTime,
+		"2006-01-02 15:04",
+		time.DateOnly,
+		time.RFC1123Z,
+		time.RFC1123,
+	} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 func (s *SQLContentStore) ListCollectionRecords(ctx context.Context, source string, page, size int) ([]CollectionRecord, int, error) {
@@ -145,10 +205,52 @@ func (s *SQLContentStore) ListCollectionRecords(ctx context.Context, source stri
 	return result, total, rows.Err()
 }
 
+func (s *SQLContentStore) ListCollectionRecordsByTarget(ctx context.Context, target string, page, size int) ([]CollectionRecord, int, error) {
+	size, offset := contentPage(page, size)
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_records WHERE target=$1`, target).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT source_id,target,record_key,payload,content_id,updated_at FROM collection_records WHERE target=$1 ORDER BY updated_at DESC,record_key LIMIT $2 OFFSET $3`, target, size, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	result := []CollectionRecord{}
+	for rows.Next() {
+		var r CollectionRecord
+		var payload string
+		if err := rows.Scan(&r.SourceID, &r.Target, &r.Key, &payload, &r.ContentID, &r.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		if err := json.Unmarshal([]byte(payload), &r.Values); err != nil {
+			return nil, 0, err
+		}
+		result = append(result, r)
+	}
+	return result, total, rows.Err()
+}
+
 func (s *SQLContentStore) UpdateCollectionRecord(ctx context.Context, sourceID, target, key string, values map[string]string) error {
 	if sourceID == "" || key == "" {
 		return fmt.Errorf("记录缺少来源或唯一标识")
 	}
+	b, err := s.GetBusinessType(ctx, target)
+	if err != nil {
+		return err
+	}
+	if b.Writer == "table" {
+		exists, err := s.HasCollectionRecord(ctx, sourceID, target, key)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("未找到对应采集记录")
+		}
+		_, err = s.SaveCollectionRecord(ctx, CollectionRecord{SourceID: sourceID, Target: target, Key: key, Values: values}, false)
+		return err
+	}
+
 	data, err := json.Marshal(values)
 	if err != nil {
 		return err
@@ -166,15 +268,39 @@ func (s *SQLContentStore) UpdateCollectionRecord(ctx context.Context, sourceID, 
 }
 
 func (s *SQLContentStore) DeleteCollectionRecord(ctx context.Context, sourceID, target, key string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, target, key)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	affected, err := res.RowsAffected()
-	if err == nil && affected == 0 {
+	defer tx.Rollback()
+	b, err := getBusinessType(ctx, tx, target)
+	if err != nil {
+		return err
+	}
+	if err = deleteCollectionRecord(ctx, tx, b, sourceID, key); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func deleteCollectionRecord(ctx context.Context, tx *sql.Tx, b *BusinessType, sourceID, key string) error {
+	if b.Writer == "table" {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE source_id=$1 AND record_key=$2", sourceID, businessRecordKey(sourceID, key)); err != nil {
+			return err
+		}
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, b.Slug, key)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
 		return fmt.Errorf("未找到对应采集记录")
 	}
-	return err
+	return nil
 }
 
 func (s *SQLContentStore) RectifyCollectionRecordToWiki(ctx context.Context, sourceID, target, key string, subject WikiSubject) (*WikiSubject, error) {
@@ -565,4 +691,3 @@ func (s *SQLContentStore) BatchRectifyCollectionRecords(ctx context.Context, sou
 	}
 	return rectifiedCount, nil
 }
-

@@ -45,9 +45,9 @@ class _EntropySidebarState extends State<EntropySidebar> {
     ),
     _NavEntry(
       3,
-      Icons.calendar_month_outlined,
-      Icons.calendar_month_rounded,
-      '更新时间表',
+      Icons.article_outlined,
+      Icons.article_rounded,
+      '资讯',
     ),
     _NavEntry(4, Icons.person_outline_rounded, Icons.person_rounded, '个人中心'),
   ];

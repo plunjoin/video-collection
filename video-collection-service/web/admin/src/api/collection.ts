@@ -6,7 +6,7 @@ export interface FieldRule {
   required: boolean; trim: boolean; strip_html: boolean; pattern: string; replacement: string
 }
 export interface PipelineRule {
-  version: number; input: 'api' | 'rss' | 'html' | 'database' | 'file' | 'webhook'; target: 'record' | 'article' | 'video'
+  version: number; input: 'api' | 'rss' | 'html' | 'database' | 'file' | 'webhook'; target: string
   key_field: string; duplicate: 'update' | 'skip'; max_records: number
   request: { method: string; body: string; list_path: string; page_param: string; start_page: number }
   html: { item_selector: string; detail_selector: string; next_selector: string }

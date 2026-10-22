@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"video-collection-service/config"
-	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
 	"video-collection-service/pkg/store"
 )
@@ -48,58 +47,8 @@ func (sc *Scheduler) runPipeline(ctx context.Context, src config.SourceConfig, p
 		}
 		v := sample.Values
 		r := store.CollectionRecord{SourceID: src.ID, Target: p.Target, Key: v[p.KeyField], Values: v}
-		if p.Target == "video" {
-			if p.Duplicate == "skip" {
-				exists, err := sc.store.HasCollectionRecord(ctx, src.ID, p.Target, r.Key)
-				if err != nil {
-					return err
-				}
-				if exists {
-					sc.mu.Lock()
-					prog.TotalSkipped++
-					sc.mu.Unlock()
-					return nil
-				}
-			}
-			vod := collector.CleanedVod{
-				SourceID:       src.ID,
-				SourceName:     src.Name,
-				Name:           v["title"],
-				SubName:        v["sub_name"],
-				Content:        v["content"],
-				Picture:        v["cover"],
-				TargetTypeName: v["category"],
-				Year:           v["year"],
-				Actor:          v["actor"],
-				Director:       v["director"],
-				Area:           v["area"],
-				Remarks:        v["remarks"],
-			}
-			vod.SourceTypeName = v["category"]
-			playURL := v["play_url"]
-			if playURL != "" {
-				playFrom := v["play_from"]
-				if playFrom == "" {
-					playFrom = "m3u8"
-				}
-				groups := collector.ParsePlayGroups(playFrom, v["play_server"], v["play_note"], playURL)
-				for i := range groups {
-					if groups[i].SourceID == "" {
-						groups[i].SourceID = src.ID
-					}
-					if groups[i].SourceName == "" {
-						groups[i].SourceName = src.Name
-					}
-				}
-				vod.PlayGroups = groups
-			}
-			id, err := sc.store.UpsertVideo(ctx, src.ID, &vod)
-			if err != nil {
-				return err
-			}
-			r.ContentID = id
-		}
-		saved, err := sc.store.SaveCollectionRecord(ctx, r, p.Duplicate == "skip")
+
+		saved, err := store.WriteBusinessRecord(ctx, sc.store, r, p.Duplicate == "skip", src.Name)
 		if err != nil {
 			return err
 		}
@@ -120,7 +69,7 @@ func (sc *Scheduler) runPipeline(ctx context.Context, src config.SourceConfig, p
 		}
 
 		return nil
-	})
+	}, ingest.RegistryLookup(ctx, sc.store))
 	if err != nil {
 		sc.mu.Lock()
 		prog.LastError = err.Error()

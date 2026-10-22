@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../widgets/brand_controls.dart';
@@ -16,9 +18,10 @@ import '../widgets/leaderboard_card.dart';
 import '../widgets/quick_nav.dart';
 import '../widgets/search_bar_widget.dart';
 import 'anime_detail_screen.dart';
-import 'content_hub_screen.dart';
+import 'content_detail_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
+import 'timeline_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int tabIndex) onSwitchTab;
@@ -36,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<VideoRecord> _airingList = [];
   List<VideoRecord> _recommendList = [];
   List<VideoRecord> _rankings = [];
+  List<Map<String, dynamic>> _latestNews = [];
   String _recommendGenre = '全部';
 
   @override
@@ -55,6 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _apiService.getVideos(page: 1, pageSize: 18, typeId: 4),
         _apiService.getRankings(),
         _apiService.getVideos(page: 1, pageSize: 12, typeId: 4, sort: 'hits'),
+        _apiService
+            .getContentFeed(kind: 'news', page: 1, pageSize: 5)
+            .catchError((_) => <String, dynamic>{
+                  'list': <Map<String, dynamic>>[],
+                }),
         if (isLoggedIn) _apiService.getPersonalizedRecommendations(),
       ];
       final results = await Future.wait(requests);
@@ -62,10 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final videoData = results[0] as Map<String, dynamic>;
       final rankData = results[1] as Map<String, List<VideoRecord>>;
       final popularData = results[2] as Map<String, dynamic>;
+      final newsData = results[3] as Map<String, dynamic>;
       final list = (videoData['list'] as List<VideoRecord>?) ?? [];
       final popular = (popularData['list'] as List<VideoRecord>?) ?? [];
       final personal = isLoggedIn
-          ? results[3] as Map<String, dynamic>
+          ? results[4] as Map<String, dynamic>
           : <String, dynamic>{};
       final personalList = (personal['list'] as List<VideoRecord>?) ?? [];
       final ranks = rankData['anime'] ?? rankData['top'] ?? [];
@@ -80,6 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ? personalList.take(12).toList()
             : popular.take(12).toList();
         _rankings = ranks.take(5).toList();
+        _latestNews =
+            (newsData['list'] as List<Map<String, dynamic>>? ?? [])
+                .take(5)
+                .toList();
         _isLoading = false;
       });
     } catch (_) {
@@ -94,11 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AnimeDetailScreen(videoId: video.id)),
     );
-  }
-
-  void _openContentHub() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ContentHubScreen()));
   }
 
   void _openPlayer(VideoRecord video) {
@@ -136,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   icon: const Icon(Icons.forum_outlined),
                   tooltip: '资讯与社区',
-                  onPressed: _openContentHub,
+                  onPressed: () => widget.onSwitchTab(3),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
@@ -170,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   icon: const Icon(Icons.forum_outlined),
                   tooltip: '资讯与社区',
-                  onPressed: _openContentHub,
+                  onPressed: () => widget.onSwitchTab(3),
                 ),
               ],
             ),
@@ -193,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 _buildHeroBanner(),
                                 _buildQuickNav(),
+                                _buildLatestNewsSection(isDark),
                                 _buildAiringSection(
                                   isDark,
                                   Responsive.gridColumns(
@@ -231,6 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildHeroBanner(),
                           _buildQuickNav(),
+                          _buildLatestNewsSection(isDark),
                           _buildAiringSection(
                             isDark,
                             Responsive.gridColumns(
@@ -265,7 +276,140 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuickNav() {
     return QuickNavWidget(
       onNavTap: (tabIndex) => widget.onSwitchTab(tabIndex),
+      onTimelineTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TimelineScreen()),
+      ),
       onHistoryTap: () => widget.onSwitchTab(4),
+    );
+  }
+
+  Widget _buildLatestNewsSection(bool isDark) {
+    if (_latestNews.isEmpty) return const SizedBox.shrink();
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('最新资讯',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                TextButton(
+                  onPressed: () => widget.onSwitchTab(3),
+                  child: const Text('更多 →'),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 250,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _latestNews.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final item = _latestNews[index];
+                final cover = item['cover']?.toString() ?? '';
+                final date = (DateTime.tryParse(
+                          item['published_at']?.toString() ?? '',
+                        ) ??
+                        DateTime.tryParse(item['created_at']?.toString() ?? ''))
+                    ?.toLocal();
+                const placeholder = Center(
+                  child: Icon(Icons.article_outlined,
+                      color: AppColors.primary500),
+                );
+                return SizedBox(
+                  width: 264,
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    color: isDark ? AppColors.darkCard : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () {
+                        final id = int.tryParse(item['id']?.toString() ?? '') ?? 0;
+                        if (id <= 0) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ContentDetailScreen(
+                              kind: 'news',
+                              contentId: id,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            height: 96,
+                            child: cover.isEmpty
+                                ? placeholder
+                                : CachedNetworkImage(
+                                    imageUrl: cover,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, _) => placeholder,
+                                    errorWidget: (_, _, _) => placeholder,
+                                  ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['title']?.toString() ?? '未命名资讯',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 14, fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item['summary']?.toString() ?? '',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: muted),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    date == null
+                                        ? ''
+                                        : DateFormat('yyyy/MM/dd').format(date),
+                                    style: TextStyle(fontSize: 10, color: muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 

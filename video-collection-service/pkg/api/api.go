@@ -18,6 +18,7 @@ import (
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
 	"video-collection-service/pkg/player"
+	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
 	"video-collection-service/pkg/theme"
@@ -30,6 +31,7 @@ type Server struct {
 	playerManager *player.Manager
 	bootstrap     *bootstrap.Store
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
+	rag           *rag.Service
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
@@ -40,6 +42,9 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 		playerManager: pm,
 		bootstrap:     bs,
 	}
+	if cs, ok := s.(store.ContentStore); ok {
+		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
+	}
 	// 默认不透传任何 Redis：命名空间全部为 nil（serveCached 自动降级直连数据库），
 	// 接入 Redis 后由 UseCache 覆盖。
 	srv.UseCache(nil, 0)
@@ -49,13 +54,18 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	srv.registerSystemLogRoutes(mux)
+	mux.HandleFunc("/api/admin/business-types", srv.adminWrite(srv.handleBusinessTypes))
+	mux.HandleFunc("/api/admin/business-types/", srv.adminWrite(srv.handleBusinessTypes))
+	mux.HandleFunc("/api/admin/schema/", srv.adminWrite(srv.handleSchemaRows))
 	srv.registerWebhookRoutes(mux)
 	srv.registerBootstrapRoutes(mux)
-	// 通用采集 Webhook（推送入库 → article → content_entries/news）
-mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
+	// 通用采集 Webhook（按注册业务类型写入，默认 article → news）
+	mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
 	srv.registerWikiRoutes(mux)
+	srv.registerRAGRoutes(mux)
 	// 公开接口
 	mux.HandleFunc("/api/login", srv.handleLogin)
 	mux.HandleFunc("/api/register", srv.handleRegister)
@@ -158,22 +168,33 @@ func (srv *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := srv.store.GetUserByUsername(r.Context(), req.Username)
 	if err != nil || user == nil {
+		srv.logSystemActor(r, 0, req.Username, "warn", "auth", "登录失败：用户不存在", map[string]any{"username": req.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	if user.Status != 1 {
+		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：账号已禁用", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusForbidden, "该账号已被禁用封禁")
 		return
 	}
 
 	if !auth.CheckPassword(user.PasswordHash, req.Password) {
+		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：密码错误", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	token := auth.DefaultSessionManager.CreateSession(user)
 	auth.SetAuthCookie(w, token)
+
+	actorName := strings.TrimSpace(user.Nickname)
+	if actorName == "" {
+		actorName = user.Username
+	}
+	if user.Role == "admin" || user.Role == "super_admin" || user.Role == "observer" || user.Role == "operator" {
+		srv.logSystemActor(r, user.ID, actorName, "info", "auth", "管理员登录成功", map[string]any{"username": user.Username, "role": user.Role})
+	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code":  1,
@@ -261,8 +282,14 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 		if src.ID == "" {
 			src.ID = "src_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 		}
+		if config.IsWebhookSource(src) && src.Filter.Pipeline != nil && src.Filter.Pipeline.Target != "" {
+			if _, err := srv.store.GetBusinessType(r.Context(), src.Filter.Pipeline.Target); err != nil {
+				errorResponse(w, 400, "未知业务类型")
+				return
+			}
+		}
 		if src.Type == "pipeline" {
-			if err := ingest.Validate(src); err != nil {
+			if err := ingest.Validate(src, ingest.RegistryLookup(r.Context(), srv.store)); err != nil {
 				errorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
@@ -340,6 +367,10 @@ func (srv *Server) handleTriggerCollect(w http.ResponseWriter, r *http.Request) 
 	if req.Hours > 0 {
 		modeStr = strconv.Itoa(req.Hours) + "小时增量采集"
 	}
+	srv.logSystem(r, "info", "collect", "触发采集："+req.SourceID+"（"+modeStr+"）", map[string]any{
+		"source_id": req.SourceID,
+		"hours":     req.Hours,
+	})
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code": 1,
 		"msg":  "已在后台启动 " + modeStr + " 任务",
@@ -412,6 +443,8 @@ func (srv *Server) handleTestRemoteSource(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// handleAdminLogs 兼容旧路径：返回调度器内存中的「采集」日志。
+// 正式采集日志请用 GET /api/admin/collection/logs；系统审计日志请用 GET /api/admin/system-logs。
 func (srv *Server) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit <= 0 {

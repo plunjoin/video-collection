@@ -89,6 +89,7 @@ type WikiStore interface {
 
 	CreateWikiRelation(ctx context.Context, r *WikiRelation) (int, error)
 	DeleteWikiRelation(ctx context.Context, id int) error
+	GetWikiRelationByID(ctx context.Context, id int) (*WikiRelation, error)
 	ListWikiRelations(ctx context.Context, subjectID int) ([]WikiRelation, error)
 	GetWikiGraph(ctx context.Context, rootID int, depth int) (*WikiGraphData, error)
 
@@ -434,6 +435,26 @@ func (s *SQLContentStore) CreateWikiRelation(ctx context.Context, r *WikiRelatio
 func (s *SQLContentStore) DeleteWikiRelation(ctx context.Context, id int) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM wiki_relations WHERE id = $1", id)
 	return err
+}
+
+func (s *SQLContentStore) GetWikiRelationByID(ctx context.Context, id int) (*WikiRelation, error) {
+	if id <= 0 {
+		return nil, errors.New("无效的关系 ID")
+	}
+	var rel WikiRelation
+	var relCreated string
+	err := s.db.QueryRowContext(ctx, `SELECT id, source_id, target_id, relation_type, role_description, sort_order, created_at
+		FROM wiki_relations WHERE id=$1`, id).Scan(
+		&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.RoleDescription, &rel.SortOrder, &relCreated,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	rel.CreatedAt, _ = time.Parse(time.RFC3339Nano, relCreated)
+	return &rel, nil
 }
 
 func (s *SQLContentStore) ListWikiRelations(ctx context.Context, subjectID int) ([]WikiRelation, error) {

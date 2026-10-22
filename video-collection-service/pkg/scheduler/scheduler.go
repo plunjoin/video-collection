@@ -311,7 +311,7 @@ func (sc *Scheduler) TriggerCollectWithType(sourceID string, customHours int, tr
 		return fmt.Errorf("Webhook 采集源只接收推送，不能主动拉取")
 	}
 	if src.Type == "pipeline" {
-		if err := ingest.Validate(*src); err != nil {
+		if err := ingest.Validate(*src, ingest.RegistryLookup(ctx, sc.store)); err != nil {
 			return err
 		}
 	} else if err := config.ValidateCollectionSource(*src); err != nil {

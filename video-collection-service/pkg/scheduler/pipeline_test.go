@@ -124,3 +124,31 @@ func TestPipelineExecution_MultiEpisodeSplitting(t *testing.T) {
 		t.Errorf("unexpected ep 1: %+v", group.Episodes[1])
 	}
 }
+
+func TestPipelineCustomBusinessType(t *testing.T) {
+	t.Setenv("COLLECTION_UPLOAD_DIR", t.TempDir())
+	ctx := context.Background()
+	s, err := store.NewSQLiteStore(filepath.Join(t.TempDir(), "custom.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err = s.CreateBusinessType(ctx, store.BusinessType{Slug: "demo_item", Name: "Demo", Fields: []store.BusinessTypeField{{Name: "score", DataType: "integer", Required: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	token, err := ingest.SaveUpload("scores.csv", strings.NewReader("id,score\n1,7\n2,nope\n3,\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := config.SourceConfig{ID: "custom", Name: "Custom", Type: "pipeline", PageLimit: 1, TimeoutSec: 2, Filter: config.FilterRule{Pipeline: &config.PipelineRule{Version: 1, Input: "file", Target: "demo_item", KeyField: "id", Duplicate: "update", MaxRecords: 100, File: config.ImportFileRule{Token: token, HeaderRow: 1}, Fields: []config.FieldRule{{Target: "id", Selector: "id"}, {Target: "score", Selector: "score"}}}}}
+	sc := &Scheduler{store: s, progress: map[string]*TaskProgress{}, maxLogs: 100}
+	prog := &TaskProgress{StartTime: time.Now(), IsRunning: true}
+	sc.runCollectTask(ctx, src, 0, prog)
+	if prog.TotalSaved != 1 || prog.TotalSkipped != 2 || prog.LastError != "" {
+		t.Fatalf("custom pipeline: %+v", prog)
+	}
+	rows, total, err := s.ListCollectionRecords(ctx, src.ID, 1, 10)
+	if err != nil || total != 1 || rows[0].ContentID == 0 || rows[0].Target != "demo_item" || rows[0].Values["score"] != "7" {
+		t.Fatalf("audit: %+v %v", rows, err)
+	}
+}

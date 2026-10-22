@@ -304,3 +304,38 @@ func TestRSSAndAtomFeedIngestion(t *testing.T) {
 	}
 }
 
+func TestRegisteredBusinessTargetValidation(t *testing.T) {
+	src := testSource("api")
+	src.API = "https://example.com"
+	src.Filter.Pipeline.Target = "demo_item"
+	lookup := func(slug string) (TargetSchema, error) {
+		if slug != "demo_item" {
+			return TargetSchema{}, fmt.Errorf("unknown")
+		}
+		return TargetSchema{RequiredFields: []string{"score"}}, nil
+	}
+	if err := Validate(src, lookup); err == nil {
+		t.Fatal("missing schema mapping accepted")
+	}
+	src.Filter.Pipeline.Fields = append(src.Filter.Pipeline.Fields, config.FieldRule{Target: "score"})
+	if err := Validate(src, lookup); err != nil {
+		t.Fatal(err)
+	}
+	src.Filter.Pipeline.Target = "missing"
+	if err := Validate(src, lookup); err == nil {
+		t.Fatal("unknown target accepted")
+	}
+	src.Filter.Pipeline.Target = "demo_item"
+	if err := Validate(src); err == nil {
+		t.Fatal("unregistered standalone target accepted")
+	}
+	// Custom types need not contain title.
+	src.Filter.Pipeline.Fields = []config.FieldRule{{Target: "score"}}
+	src.Filter.Pipeline.KeyField = "score"
+	if err := Validate(src, lookup); err != nil {
+		t.Fatal(err)
+	}
+	if s := MapRecord(src.Filter.Pipeline, map[string]string{"score": "7"}); len(s.Errors) > 0 {
+		t.Fatal(s.Errors)
+	}
+}

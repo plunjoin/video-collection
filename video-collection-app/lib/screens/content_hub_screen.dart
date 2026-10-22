@@ -266,7 +266,9 @@ class _ContentFeedCard extends StatelessWidget {
   String _text(String key) => item[key]?.toString() ?? '';
 
   String _dateLabel() {
-    final date = DateTime.tryParse(_text('created_at'))?.toLocal();
+    final date = (DateTime.tryParse(_text('published_at')) ??
+            DateTime.tryParse(_text('created_at')))
+        ?.toLocal();
     return date == null ? '' : DateFormat('yyyy/MM/dd').format(date);
   }
 

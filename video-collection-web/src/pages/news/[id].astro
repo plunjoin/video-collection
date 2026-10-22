@@ -29,7 +29,7 @@ function fmtDate(d: string): string {
       <h1>{item.title}</h1>
       <div class="news-meta">
         {item.author_name && <MemberIdentity name={item.author_name} avatar={item.author_avatar} frame={item.author_frame} badge={item.author_badge} color={item.author_color} />}
-        <time>{fmtDate(item.created_at)}</time>
+        <time>{fmtDate(item.published_at || item.created_at)}</time>
         {item.like_count > 0 && <span><BrandIcon name="heart" size={14} /> {item.like_count}</span>}
       </div>
 

@@ -373,6 +373,9 @@ export interface ContentItem {
   like_count: number;
   comment_count: number;
   liked: boolean;
+  published_at?: string;
+  source_url?: string;
+  source_name?: string;
   created_at: string;
   updated_at: string;
 }
