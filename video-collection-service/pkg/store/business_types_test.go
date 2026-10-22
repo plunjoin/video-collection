@@ -119,6 +119,30 @@ func TestBusinessTypesRegistryAndSchema(t *testing.T) {
 	if _, err = s.db.Exec(`SELECT enabled FROM biz_demo_item`); err == nil {
 		t.Fatal("column not dropped")
 	}
+	// Edits and deletes must update the physical row, even if rectification has
+	// repointed the audit content_id to a Wiki/video entity.
+	if err = s.UpdateCollectionRecord(ctx, "test", b.Slug, "1", map[string]string{"title": "Edited", "score": "12"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.db.QueryRow(`SELECT score FROM biz_demo_item WHERE source_id='test'`).Scan(&score); err != nil || score != 12 {
+		t.Fatalf("edit: %d %v", score, err)
+	}
+	if _, err = s.db.Exec(`UPDATE collection_records SET content_id=999 WHERE source_id='test'`); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.DeleteCollectionRecord(ctx, "test", b.Slug, "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM biz_demo_item`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("delete: %d %v", count, err)
+	}
+	if err = s.DeleteCollectionRecord(ctx, "second", b.Slug, "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.DeleteBusinessType(ctx, b.Slug); err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func TestBusinessTypeControlledDDLAndDeletion(t *testing.T) {
@@ -164,5 +188,27 @@ func TestBusinessTypeControlledDDLAndDeletion(t *testing.T) {
 	// Reopening runs the seed migration again and preserves custom system fields.
 	if err = s.SQLContentStore.initSchema(false); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBusinessRowRollsBackWithAudit(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "atomic.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err = s.CreateBusinessType(ctx, BusinessType{Slug: "atomic_item", Name: "Atomic"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec(`CREATE TRIGGER reject_audit BEFORE INSERT ON collection_records BEGIN SELECT RAISE(ABORT,'audit rejected'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.SaveCollectionRecord(ctx, CollectionRecord{SourceID: "test", Target: "atomic_item", Key: "1", Values: map[string]string{"x": "value"}}, false); err == nil {
+		t.Fatal("expected audit failure")
+	}
+	var n int
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM biz_atomic_item`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("orphan row: %d %v", n, err)
 	}
 }

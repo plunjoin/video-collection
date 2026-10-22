@@ -31,6 +31,7 @@ func TestBusinessTypeAdminAPI(t *testing.T) {
 	f.request("PUT", "/api/admin/business-types/demo_item/fields/extra", `{"name":"renamed"}`, f.admin, 400)
 	f.request("DELETE", "/api/admin/business-types/demo_item/fields/extra", "", f.admin, 200)
 	f.request("POST", "/api/admin/business-types/article/fields", `{"name":"extra","data_type":"text"}`, f.admin, 200)
+	f.request("PUT", "/api/admin/business-types/article/fields/title", `{"label":"标题"}`, f.admin, 200)
 	f.request("DELETE", "/api/admin/business-types/article/fields/title", "", f.admin, 400)
 	f.request("PUT", "/api/admin/business-types/article/fields/title", `{"name":"title","data_type":"integer","required":true}`, f.admin, 400)
 	f.request("DELETE", "/api/admin/business-types/article", "", f.admin, 400)
@@ -112,4 +113,62 @@ func TestSavePipelineRegisteredTarget(t *testing.T) {
 	src.Filter.Pipeline.Target = "missing"
 	body, _ = json.Marshal(src)
 	f.request("POST", "/api/admin/sources", string(body), f.admin, 400)
+}
+
+func TestCollectorWebhookCustomFieldsWithoutTitle(t *testing.T) {
+	s, mux := newWebhookMux(t)
+	ctx := context.Background()
+	const secret = "custom-fields"
+	err := s.CreateBusinessType(ctx, store.BusinessType{Slug: "demo_item", Name: "Demo", Fields: []store.BusinessTypeField{{Name: "score", DataType: "integer", Required: true}, {Name: "details", DataType: "json"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saveWebhookSource(t, s, "acg-news", secret, "", true)
+	src, err := s.GetSourceByID(ctx, "acg-news")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src.Filter.Pipeline = &config.PipelineRule{Target: "demo_item"}
+	if err = s.SaveSource(ctx, *src); err != nil {
+		t.Fatal(err)
+	}
+	w := postCollector(mux, []byte(`[{"id":1,"score":7,"details":{"tag":"demo"}}]`), secret, http.Header{})
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	rows, total, err := s.ListCollectionRecords(ctx, "acg-news", 1, 10)
+	if err != nil || total != 1 || rows[0].Values["score"] != "7" || rows[0].Values["details"] != `{"tag":"demo"}` {
+		t.Fatalf("custom webhook: %+v %v", rows, err)
+	}
+	w = postCollector(mux, []byte(`[{"id":2,"score":"invalid"}]`), secret, http.Header{})
+	if w.Code != 400 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+}
+
+func TestCollectorWebhookVideoPlaybackFields(t *testing.T) {
+	s, mux := newWebhookMux(t)
+	ctx := context.Background()
+	const secret = "video-fields"
+	saveWebhookSource(t, s, "acg-news", secret, "", true)
+	src, err := s.GetSourceByID(ctx, "acg-news")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src.Filter.Pipeline = &config.PipelineRule{Target: "video"}
+	if err = s.SaveSource(ctx, *src); err != nil {
+		t.Fatal(err)
+	}
+	w := postCollector(mux, []byte(`[{"id":1,"title_original":"Video","play_url":"第01集$https://example.com/1.m3u8","play_from":"m3u8"}]`), secret, http.Header{})
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	rows, _, err := s.ListCollectionRecords(ctx, "acg-news", 1, 10)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("records: %+v %v", rows, err)
+	}
+	video, err := s.GetVideoByID(ctx, rows[0].ContentID)
+	if err != nil || len(video.PlayGroups) != 1 || len(video.PlayGroups[0].Episodes) != 1 {
+		t.Fatalf("playback: %+v %v", video, err)
+	}
 }

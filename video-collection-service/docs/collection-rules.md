@@ -1,6 +1,6 @@
 # Bllii-Familiar 使魔采集规则
 
-后台 `/sources` 使用规则模板配置使魔采集源；`/collection-rules` 提供网页、JSON、数据库、Excel / CSV 的通用工作台。标准网络视频是规则模板之一。
+后台 `/sources` 使用规则模板配置使魔采集源；`/collection-rules` 提供网页、JSON、数据库、Excel / CSV 的通用工作台。标准网络视频是规则模板之一。通用工坊的内容类型从 [业务类型注册表](business-types.md) 加载，可选择系统或自定义类型。
 
 ## 模板与保存
 

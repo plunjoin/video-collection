@@ -81,11 +81,38 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 	case len(parts) == 3 && parts[1] == "fields":
 		switch r.Method {
 		case http.MethodPut:
-			var f store.BusinessTypeField
-			if !decode(&f) {
+			var req struct {
+				Name     string `json:"name"`
+				Label    string `json:"label"`
+				DataType string `json:"data_type"`
+				Required *bool  `json:"required"`
+			}
+			if !decode(&req) {
 				return
 			}
-			err = srv.store.UpdateBusinessTypeField(r.Context(), slug, parts[2], f)
+			var b *store.BusinessType
+			b, err = srv.store.GetBusinessType(r.Context(), slug)
+			if err == nil {
+				err = sql.ErrNoRows
+				for _, old := range b.Fields {
+					if old.Name == parts[2] {
+						field := old
+						if req.Name != "" {
+							field.Name = req.Name
+						}
+						if req.DataType != "" {
+							field.DataType = req.DataType
+						}
+						field.Label = req.Label
+						if req.Required != nil {
+							field.Required = *req.Required
+						}
+						err = srv.store.UpdateBusinessTypeField(r.Context(), slug, parts[2], field)
+						break
+					}
+				}
+			}
+
 		case http.MethodDelete:
 			err = srv.store.DeleteBusinessTypeField(r.Context(), slug, parts[2])
 		default:

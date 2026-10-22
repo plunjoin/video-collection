@@ -448,8 +448,8 @@ func upsertBusinessRow(ctx context.Context, tx *sql.Tx, b *BusinessType, r Colle
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	// Namespacing by source preserves collection_records' (source,target,key)
 	// identity even when two sources send the same external key.
-	identity, _ := json.Marshal([]string{r.SourceID, r.Key})
-	args := []any{string(identity), r.SourceID, string(payload), now, now}
+	identity := businessRecordKey(r.SourceID, r.Key)
+	args := []any{identity, r.SourceID, string(payload), now, now}
 	cols := []string{"record_key", "source_id", "payload", "created_at", "updated_at"}
 	updates := []string{"payload=excluded.payload", "updated_at=excluded.updated_at"}
 	for i, f := range b.Fields {
@@ -467,4 +467,10 @@ func upsertBusinessRow(ctx context.Context, tx *sql.Tx, b *BusinessType, r Colle
 	// TODO(RAG): custom business rows need an explicit source_type/index adapter;
 	// keep existing news/post and wiki indexing hooks unchanged until then.
 	return id, err
+}
+
+// Encode the source namespace without ambiguous delimiters in external keys.
+func businessRecordKey(source, key string) string {
+	encoded, _ := json.Marshal([]string{source, key})
+	return string(encoded)
 }

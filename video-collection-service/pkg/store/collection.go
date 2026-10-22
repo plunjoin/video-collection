@@ -45,13 +45,6 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if r.SourceID == "" || r.Key == "" {
 		return false, fmt.Errorf("记录缺少来源或唯一标识")
 	}
-	b, err := s.GetBusinessType(ctx, r.Target)
-	if err != nil {
-		return false, fmt.Errorf("未知业务类型 %q: %w", r.Target, err)
-	}
-	if _, err = ValidateBusinessValues(b, r.Values); err != nil {
-		return false, err
-	}
 	data, err := json.Marshal(r.Values)
 	if err != nil {
 		return false, err
@@ -61,6 +54,14 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		return false, err
 	}
 	defer tx.Rollback()
+	b, err := getBusinessType(ctx, tx, r.Target)
+	if err != nil {
+		return false, fmt.Errorf("未知业务类型 %q: %w", r.Target, err)
+	}
+	if _, err = ValidateBusinessValues(b, r.Values); err != nil {
+		return false, err
+	}
+
 	var id int
 	err = tx.QueryRowContext(ctx, `SELECT content_id FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, r.SourceID, r.Target, r.Key).Scan(&id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -237,7 +238,7 @@ func (s *SQLContentStore) DeleteCollectionRecord(ctx context.Context, sourceID, 
 		return err
 	}
 	if b.Writer == "table" {
-		if _, err = tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE id=(SELECT content_id FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3)", sourceID, target, key); err != nil {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE source_id=$1 AND record_key=$2", sourceID, businessRecordKey(sourceID, key)); err != nil {
 			return err
 		}
 	}

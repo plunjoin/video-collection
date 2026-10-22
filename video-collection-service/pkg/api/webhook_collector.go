@@ -211,6 +211,10 @@ func synthesizeCollectorContent(it collectorWebhookItem, title string) string {
 }
 
 func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[string]string, err error) {
+	return mapCollectorItem(it, true)
+}
+
+func mapCollectorItem(it collectorWebhookItem, requireTitle bool) (key string, values map[string]string, err error) {
 	extID := externalIDFromRaw(it.ID)
 	if extID == "" {
 		return "", nil, fmt.Errorf("缺少 id")
@@ -226,7 +230,7 @@ func mapCollectorItemToArticle(it collectorWebhookItem) (key string, values map[
 	if title == "" {
 		title = strings.TrimSpace(it.TitleOriginal)
 	}
-	if title == "" {
+	if title == "" && requireTitle {
 		return "", nil, fmt.Errorf("条目 %s 缺少标题", key)
 	}
 	title = truncateRunes(title, 200)
@@ -348,7 +352,8 @@ func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request
 			target = source.Filter.Pipeline.Target
 		}
 	}
-	if _, err := srv.store.GetBusinessType(r.Context(), target); err != nil {
+	businessType, err := srv.store.GetBusinessType(r.Context(), target)
+	if err != nil {
 		errorResponse(w, 400, "未知业务类型: "+target)
 		return
 	}
@@ -357,11 +362,38 @@ func (srv *Server) handleCollectorWebhook(w http.ResponseWriter, r *http.Request
 		batchID = strings.TrimSpace(r.Header.Get("X-Collector-Batch-Id"))
 	}
 
+	// Preserve custom mapped fields (including numbers, booleans and JSON),
+	// while keeping the existing translated article/video normalization intact.
+	var rawItems []map[string]json.RawMessage
+	if err := json.Unmarshal(body, &rawItems); err != nil {
+		errorResponse(w, 400, "JSON 必须是对象数组")
+		return
+	}
 	inserted, updated := 0, 0
 	for i, it := range items {
-		key, values, mapErr := mapCollectorItemToArticle(it)
+		key, values, mapErr := mapCollectorItem(it, false)
 		if mapErr != nil {
 			errorResponse(w, http.StatusBadRequest, fmt.Sprintf("第 %d 条: %v", i+1, mapErr))
+			return
+		}
+		for name, raw := range rawItems[i] {
+			if string(raw) == "null" {
+				continue
+			}
+			// Keep translated article/video fields from the established normalization,
+			// and accept additional fields such as play_url and custom schema fields.
+			if businessType.IsSystem && values[name] != "" {
+				continue
+			}
+			var value string
+			if json.Unmarshal(raw, &value) != nil {
+				value = string(raw)
+			}
+			values[name] = value
+		}
+
+		if _, err := store.ValidateBusinessValues(businessType, values); err != nil {
+			errorResponse(w, 400, fmt.Sprintf("第 %d 条: %v", i+1, err))
 			return
 		}
 		if batchID != "" {
