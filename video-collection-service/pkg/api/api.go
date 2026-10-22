@@ -17,8 +17,8 @@ import (
 	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
-	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/player"
+	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
 	"video-collection-service/pkg/theme"
@@ -54,10 +54,12 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	mux.HandleFunc("/api/admin/business-types", srv.adminWrite(srv.handleBusinessTypes))
+	mux.HandleFunc("/api/admin/business-types/", srv.adminWrite(srv.handleBusinessTypes))
 	srv.registerWebhookRoutes(mux)
 	srv.registerBootstrapRoutes(mux)
-	// 通用采集 Webhook（推送入库 → article → content_entries/news）
-mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
+	// 通用采集 Webhook（按注册业务类型写入，默认 article → news）
+	mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)
 	srv.registerAnalyticsRoutes(mux)
 	srv.registerWikiRoutes(mux)
@@ -267,8 +269,14 @@ func (srv *Server) handleAdminSources(w http.ResponseWriter, r *http.Request) {
 		if src.ID == "" {
 			src.ID = "src_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 		}
+		if config.IsWebhookSource(src) && src.Filter.Pipeline != nil && src.Filter.Pipeline.Target != "" {
+			if _, err := srv.store.GetBusinessType(r.Context(), src.Filter.Pipeline.Target); err != nil {
+				errorResponse(w, 400, "未知业务类型")
+				return
+			}
+		}
 		if src.Type == "pipeline" {
-			if err := ingest.Validate(src); err != nil {
+			if err := ingest.Validate(src, ingest.RegistryLookup(r.Context(), srv.store)); err != nil {
 				errorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}

@@ -5,7 +5,7 @@ package config
 type PipelineRule struct {
 	Version    int                `json:"version" yaml:"version"`
 	Input      string             `json:"input" yaml:"input"`   // api, html, database, file
-	Target     string             `json:"target" yaml:"target"` // record, article, video
+	Target     string             `json:"target" yaml:"target"` // registered business type slug
 	KeyField   string             `json:"key_field" yaml:"key_field"`
 	Duplicate  string             `json:"duplicate" yaml:"duplicate"` // update, skip
 	MaxRecords int                `json:"max_records" yaml:"max_records"`
