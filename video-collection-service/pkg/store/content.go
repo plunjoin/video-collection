@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ var (
 	ErrContentNotFound  = errors.New("内容不存在或不可访问")
 	ErrContentForbidden = errors.New("无权操作此内容")
 	ErrInvalidRecipient = errors.New("接收用户不存在或已被禁用")
+	ErrInvalidNewsBatch = errors.New("每批须包含1–100个正整数ID，action须为publish、draft或delete")
 )
 
 // Content contains plain text, not trusted HTML. Kind is news or post.
@@ -85,6 +87,7 @@ type ContentStore interface {
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
 	SaveContent(context.Context, *Content, int, bool) error
 	DeleteContent(context.Context, string, int, int, bool) error
+	BatchNews(context.Context, []int, string) (int, error)
 	ListComments(context.Context, int, int, int, bool) ([]CommunityComment, int, error)
 	CreateComment(context.Context, *CommunityComment) error
 	DeleteComment(context.Context, int, int, bool) error
@@ -388,20 +391,78 @@ func (s *SQLContentStore) DeleteContent(ctx context.Context, kind string, id, ac
 	if !admin && owner != actor {
 		return ErrContentForbidden
 	}
-	if err = DeleteTargetComments(ctx, tx, kind, id); err != nil {
+	if err = deleteContentTx(ctx, tx, kind, id); err != nil {
 		return err
-	}
-	// Explicit cleanup also supports existing SQLite connections without FK enforcement.
-	for _, query := range []string{"DELETE FROM community_comments WHERE post_id=$1", "DELETE FROM community_likes WHERE post_id=$1", "DELETE FROM content_entries WHERE id=$1"} {
-		if _, err = tx.ExecContext(ctx, query, id); err != nil {
-			return err
-		}
 	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
 	notifyRAGContentIngest(ctx, kind, id)
 	return nil
+}
+
+func deleteContentTx(ctx context.Context, tx *sql.Tx, kind string, id int) error {
+	if err := DeleteTargetComments(ctx, tx, kind, id); err != nil {
+		return err
+	}
+	// Explicit cleanup also supports existing SQLite connections without FK enforcement.
+	for _, query := range []string{"DELETE FROM community_comments WHERE post_id=$1", "DELETE FROM community_likes WHERE post_id=$1", "DELETE FROM content_entries WHERE id=$1"} {
+		if _, err := tx.ExecContext(ctx, query, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// BatchNews applies an administrator's action atomically, preserving article metadata.
+// Duplicate IDs count once; missing IDs (including community posts) abort the batch.
+func (s *SQLContentStore) BatchNews(ctx context.Context, ids []int, action string) (int, error) {
+	if len(ids) == 0 || len(ids) > 100 || (action != "publish" && action != "draft" && action != "delete") {
+		return 0, ErrInvalidNewsBatch
+	}
+	unique := make(map[int]bool, len(ids))
+	keys := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id < 1 {
+			return 0, ErrInvalidNewsBatch
+		}
+		if !unique[id] {
+			unique[id] = true
+			keys = append(keys, id)
+		}
+	}
+	// Consistent lock order avoids deadlocks between overlapping batches.
+	sort.Ints(keys)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	now := time.Now().UTC()
+	status := "draft"
+	if action == "publish" {
+		status = "published"
+	}
+	for _, id := range keys {
+		if _, _, err = lockContent(ctx, tx, "news", id); err != nil {
+			return 0, err
+		}
+		if action == "delete" {
+			err = deleteContentTx(ctx, tx, "news", id)
+		} else {
+			_, err = tx.ExecContext(ctx, "UPDATE content_entries SET status=$1,updated_at=$2 WHERE id=$3 AND kind='news'", status, now, id)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	for _, id := range keys {
+		notifyRAGContentIngest(ctx, "news", id)
+	}
+	return len(keys), nil
 }
 
 func (s *SQLContentStore) ListComments(ctx context.Context, postID, page, size int, admin bool) ([]CommunityComment, int, error) {

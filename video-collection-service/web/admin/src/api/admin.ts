@@ -1,5 +1,11 @@
 import request from '@/utils/request'
 
+export type NewsBatchAction = 'publish' | 'draft' | 'delete'
+
+export function batchNews(ids: number[], action: NewsBatchAction) {
+  return request.post<any, ApiResponse<{ count: number; action: NewsBatchAction }>>('/api/admin/news/batch', { ids, action })
+}
+
 export interface RAGChunk {
   id: number
   source_type: string

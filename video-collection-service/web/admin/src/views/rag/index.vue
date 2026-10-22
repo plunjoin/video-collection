@@ -10,7 +10,7 @@
           重建全部索引
         </r-button>
       </div>
-      <p v-if="rebuildNote" role="status">{{ rebuildNote }}</p>
+      <p class="muted" role="status">{{ rebuildNote || '索引随内容自动更新。本页暂无重建记录，可先搜索或提问。' }}</p>
       <div class="filters">
         <label for="rag-top-k">检索数量</label>
         <r-input-number id="rag-top-k" v-model="topK" :min="1" :max="50" />
@@ -31,7 +31,11 @@
         <r-input v-model="searchQuery" aria-label="检索内容" placeholder="输入关键词或问题" clearable @keyup.enter="search" />
         <r-button type="primary" :loading="searching" :disabled="!searchQuery.trim() || rebuilding" @click="search">搜索</r-button>
       </div>
-      <r-table :data="hits" v-loading="searching" border stripe style="width: 100%">
+      <div class="examples">
+        <span class="muted">试试关键词：</span>
+        <r-button v-for="example in examples" :key="example" size="small" plain :disabled="searching || rebuilding" @click="searchQuery = example">{{ example }}</r-button>
+      </div>
+      <r-table :data="hits" v-loading="searching" border stripe style="width: 100%" :empty-text="searching ? '正在检索资料…' : searched ? '没有匹配资料，可以调整关键词、来源或重建索引后重试。' : '输入关键词后点搜索才会出结果，不是坏了。也可以点击上方示例填入关键词。'">
         <r-table-column label="文本片段" min-width="300">
           <template #default="{ row }">
             <details><summary class="snippet">{{ row.text.slice(0, 160) }}</summary><p class="chunk-text">{{ row.text }}</p></details>
@@ -43,11 +47,14 @@
         <r-table-column prop="source_type" label="来源类型" width="150" />
         <r-table-column prop="source_id" label="来源 ID" width="100" />
       </r-table>
-      <p v-if="searched && !hits.length && !searching" class="muted">没有匹配资料。可以调整来源或重建索引后重试。</p>
     </r-card>
 
     <r-card shadow="never">
       <h3>知识问答</h3>
+      <div class="examples">
+        <span class="muted">试试问题：</span>
+        <r-button v-for="example in examples" :key="example" size="small" plain :disabled="readOnly || asking || rebuilding" @click="question = `介绍一下${example}`">介绍一下{{ example }}</r-button>
+      </div>
       <r-input v-model="question" type="textarea" :rows="4" aria-label="知识库问题" placeholder="输入问题，回答将附上检索资料引用" />
       <div class="ask-actions">
         <r-button type="primary" :loading="asking" :disabled="readOnly || !question.trim() || rebuilding" @click="ask">提问</r-button>
@@ -81,6 +88,7 @@ import { notify } from '@/components/radix/feedback'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
+const examples = ['流浪地球', '英伟达', 'OpenAI']
 const readOnly = computed(() => userStore.userInfo?.role === 'observer')
 const topK = ref(5)
 const sourceType = ref('')
@@ -97,10 +105,9 @@ const answer = ref<RAGAskResponse>()
 async function rebuild() {
   if (rebuilding.value || readOnly.value) return
   rebuilding.value = true
-  rebuildNote.value = ''
   try {
     const result = await ragRebuild()
-    rebuildNote.value = `重建完成：${result.chunks_indexed} 个文本块，嵌入模型 ${result.embedder}`
+    rebuildNote.value = `本页上次重建：${new Date().toLocaleString('zh-CN')} · ${result.chunks_indexed} 个文本块 · 嵌入模型：${result.embedder}`
     hits.value = []
     searched.value = false
     notify(rebuildNote.value, 'success')
@@ -140,6 +147,7 @@ async function ask() {
 .filters { margin-top: 16px; flex-wrap: wrap; }
 .search-row { margin-bottom: 16px; }
 .ask-actions { margin: 16px 0; }
+.examples { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 h2, h3 { margin: 0 0 12px; }
 .muted { color: var(--text-secondary); font-size: 13px; }
 .answer-text, .chunk-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
