@@ -146,6 +146,7 @@ const allSections = [
       { path: '/wiki', title: 'Wiki 知识库', icon: Network },
       { path: '/rag', title: 'RAG 知识库', icon: Search },
       { path: '/sources', title: '使魔节点管理', icon: SetUp },
+      { path: '/business-types', title: '业务类型', icon: Document },
       { path: '/collection-rules', title: '使魔规则工坊', icon: SetUp },
       { path: '/scheduler', title: '使魔调度', icon: Clock },
       { path: '/news', title: '资讯管理', icon: Bell },

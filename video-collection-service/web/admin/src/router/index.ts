@@ -18,6 +18,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/layout/index.vue'),
     redirect: '/dashboard',
     children: [
+      { path: 'business-types', name: 'BusinessTypes', component: () => import('@/views/business-types/index.vue'), meta: { title: '业务类型' } },
       { path: 'reviews', name: 'Reviews', component: () => import('@/views/reviews/index.vue'), meta: { title: '内容审核中心' } },
       { path: 'growth', name: 'Growth', component: () => import('@/views/growth/index.vue'), meta: { title: '日活与积分运营' } },
       { path: 'ads', name: 'Ads', component: () => import('@/views/ads/index.vue'), meta: { title: '广告位管理' } },
