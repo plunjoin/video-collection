@@ -21,7 +21,6 @@ import {
 } from 'vue'
 import {
   CheckboxGroupRoot as RCheckboxGroupRoot,
-  CheckboxIndicator as RCheckboxIndicator,
   CheckboxRoot as RCheckboxRoot,
   DialogClose as RDialogClose,
   DialogContent as RDialogContent,
@@ -34,7 +33,6 @@ import {
   DropdownMenuPortal as RDropdownMenuPortal,
   DropdownMenuRoot as RDropdownMenuRoot,
   DropdownMenuTrigger as RDropdownMenuTrigger,
-  RadioGroupIndicator as RRadioGroupIndicator,
   RadioGroupItem as RRadioGroupItem,
   RadioGroupRoot as RRadioGroupRoot,
   ScrollAreaCorner as RScrollAreaCorner,
@@ -256,7 +254,8 @@ const Checkbox = defineComponent({
         emit('change', value)
       },
     }, {
-      default: () => [primitive(RCheckboxIndicator, { class: 'r-checkbox__indicator' }, () => '✓'),
+      // 指示器始终渲染：reka 的 CheckboxIndicator 未选中时不挂载，会导致未勾选时看不到方框
+      default: () => [h('span', { class: 'r-checkbox__indicator', 'aria-hidden': 'true' }, '✓'),
         h('span', { class: 'r-checkbox__label' }, slots.default ? renderSlot(slots, 'default') : props.label)],
     })
   },
@@ -333,9 +332,13 @@ function createNativeInput(name: string, defaultType: string, valueType: 'string
       }
       const clear = () => { emit('update:modelValue', valueType === 'number' ? 0 : ''); emit('clear') }
       return () => {
+        // 需要包裹（前后缀 / 清除 / 字数统计）时，width 等样式必须落在包裹层上，
+        // 否则内层 input 被撑成 100%、外层 .r-input-wrap 独占一行，工具栏会被挤成多行。
+        const wrapped = Boolean(slots.prefix || slots.suffix || props.clearable || props.showWordLimit)
+        const controlAttrs: Record<string, unknown> = wrapped ? { ...attrs, style: undefined } : { ...attrs }
         const control = props.type === 'textarea'
           ? h('textarea', {
-              ...attrs,
+              ...controlAttrs,
               class: ['r-input', 'r-input--textarea', attrs.class],
               rows: props.rows,
               value: props.modelValue,
@@ -347,7 +350,7 @@ function createNativeInput(name: string, defaultType: string, valueType: 'string
               onBlur: (event: FocusEvent) => emit('blur', event),
             })
           : h('input', {
-              ...attrs,
+              ...controlAttrs,
               class: ['r-input', attrs.class],
               type: props.type,
               value: props.modelValue,
@@ -358,9 +361,12 @@ function createNativeInput(name: string, defaultType: string, valueType: 'string
               onFocus: (event: FocusEvent) => emit('focus', event),
               onBlur: (event: FocusEvent) => emit('blur', event),
             })
-        if (!slots.prefix && !slots.suffix && !props.clearable && !props.showWordLimit) return control
+        if (!wrapped) return control
         const valueLength = String(props.modelValue ?? '').length
-        return h('span', { class: ['r-input-wrap', props.type === 'textarea' ? 'r-input-wrap--textarea' : ''] }, [
+        return h('span', {
+          class: ['r-input-wrap', props.type === 'textarea' ? 'r-input-wrap--textarea' : ''],
+          style: attrs.style as any,
+        }, [
           slots.prefix ? h('span', { class: 'r-input__prefix' }, renderSlot(slots, 'prefix')) : null,
           control,
           slots.suffix ? h('span', { class: 'r-input__suffix' }, renderSlot(slots, 'suffix')) : null,
@@ -735,7 +741,8 @@ const Radio = defineComponent({
   setup(props, { attrs, emit, slots }) {
     const inGroup = inject<boolean>(radioGroupContext, false)
     const item = () => primitive(RRadioGroupItem, { ...attrs, value: props.value, disabled: props.disabled, class: ['r-radio', attrs.class] }, {
-      default: () => [primitive(RRadioGroupIndicator, { class: 'r-radio__indicator' }, () => '●'), h('span', { class: 'r-radio__label' }, slots.default ? renderSlot(slots, 'default') : props.label)],
+      // 同上：未选中时也需要圆环，故使用静态指示器，由 CSS 控制选中态
+      default: () => [h('span', { class: 'r-radio__indicator', 'aria-hidden': 'true' }), h('span', { class: 'r-radio__label' }, slots.default ? renderSlot(slots, 'default') : props.label)],
     })
     return () => inGroup ? item() : primitive(RRadioGroupRoot, {
       modelValue: props.modelValue,
@@ -1124,7 +1131,7 @@ const Table = defineComponent({
     stripe: Boolean,
     loading: Boolean,
     rowKey: { type: [String, Function] as PropType<string | ((row: unknown) => string | number)>, default: 'id' },
-    emptyText: { type: String, default: 'No data' },
+    emptyText: { type: String, default: '暂无数据' },
   },
   emits: ['selection-change', 'select', 'select-all'],
   setup(props, { attrs, slots, emit }) {
