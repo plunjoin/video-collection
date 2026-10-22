@@ -26,6 +26,7 @@ type CollectionStore interface {
 	ListCollectionRecords(context.Context, string, int, int) ([]CollectionRecord, int, error)
 	ListCollectionRecordsByTarget(context.Context, string, int, int) ([]CollectionRecord, int, error)
 	HasCollectionRecord(context.Context, string, string, string) (bool, error)
+	GetCollectionRecord(context.Context, string, string, string) (*CollectionRecord, error)
 	UpdateCollectionRecord(ctx context.Context, sourceID, target, key string, values map[string]string) error
 	DeleteCollectionRecord(ctx context.Context, sourceID, target, key string) error
 	RectifyCollectionRecordToWiki(ctx context.Context, sourceID, target, key string, subject WikiSubject) (*WikiSubject, error)
@@ -38,6 +39,18 @@ func (s *SQLContentStore) HasCollectionRecord(ctx context.Context, source, targe
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, source, target, key).Scan(&n)
 	return n > 0, err
+}
+
+func (s *SQLContentStore) GetCollectionRecord(ctx context.Context, source, target, key string) (*CollectionRecord, error) {
+	r := &CollectionRecord{SourceID: source, Target: target, Key: key}
+	var payload string
+	if err := s.db.QueryRowContext(ctx, `SELECT payload,content_id,updated_at FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, source, target, key).Scan(&payload, &r.ContentID, &r.UpdatedAt); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(payload), &r.Values); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // Article and provenance are committed together. Reimports update drafts only;
@@ -264,12 +277,19 @@ func (s *SQLContentStore) DeleteCollectionRecord(ctx context.Context, sourceID, 
 	if err != nil {
 		return err
 	}
+	if err = deleteCollectionRecord(ctx, tx, b, sourceID, key); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func deleteCollectionRecord(ctx context.Context, tx *sql.Tx, b *BusinessType, sourceID, key string) error {
 	if b.Writer == "table" {
-		if _, err = tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE source_id=$1 AND record_key=$2", sourceID, businessRecordKey(sourceID, key)); err != nil {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE source_id=$1 AND record_key=$2", sourceID, businessRecordKey(sourceID, key)); err != nil {
 			return err
 		}
 	}
-	res, err := tx.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, target, key)
+	res, err := tx.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, b.Slug, key)
 	if err != nil {
 		return err
 	}
@@ -280,7 +300,7 @@ func (s *SQLContentStore) DeleteCollectionRecord(ctx context.Context, sourceID, 
 	if n == 0 {
 		return fmt.Errorf("未找到对应采集记录")
 	}
-	return tx.Commit()
+	return nil
 }
 
 func (s *SQLContentStore) RectifyCollectionRecordToWiki(ctx context.Context, sourceID, target, key string, subject WikiSubject) (*WikiSubject, error) {

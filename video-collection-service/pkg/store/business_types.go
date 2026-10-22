@@ -1,12 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -30,18 +32,47 @@ type BusinessType struct {
 }
 
 type BusinessTypeField struct {
-	Name      string `json:"name"`
-	Label     string `json:"label"`
-	DataType  string `json:"data_type"`
-	Required  bool   `json:"required"`
-	IsSystem  bool   `json:"is_system"`
-	SortOrder int    `json:"sort_order"`
+	Name          string   `json:"name"`
+	Label         string   `json:"label"`
+	DataType      string   `json:"data_type"`
+	Required      bool     `json:"required"`
+	IsSystem      bool     `json:"is_system"`
+	SortOrder     int      `json:"sort_order"`
+	Filterable    bool     `json:"filterable"`
+	Options       []string `json:"options,omitempty"`
+	filterableSet bool
+}
+
+// Track omission separately from false so administrators can disable filters.
+func (f *BusinessTypeField) UnmarshalJSON(data []byte) error {
+	type field BusinessTypeField
+	var decoded struct {
+		*field
+		Filterable *bool `json:"filterable"`
+	}
+	var value field
+	decoded.field = &value
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&decoded); err != nil {
+		return err
+	}
+	*f = BusinessTypeField(value)
+	if decoded.Filterable != nil {
+		f.Filterable = *decoded.Filterable
+		f.filterableSet = true
+	}
+	return nil
 }
 
 type BusinessTypeStore interface {
 	ListBusinessTypes(context.Context) ([]BusinessType, error)
 	GetBusinessType(context.Context, string) (*BusinessType, error)
 	ListBusinessTypeRows(context.Context, string, int, int) ([]map[string]any, int, error)
+	ListBusinessTypeRowsFiltered(context.Context, string, int, int, map[string]string) ([]map[string]any, int, error)
+	GetBusinessTypeRow(context.Context, string, int) (map[string]any, error)
+	SaveBusinessTypeRow(context.Context, string, int, string, string, map[string]string) (int, error)
+	BatchDeleteBusinessTypeRows(context.Context, string, []int) error
 	DeleteBusinessTypeRow(context.Context, string, int) error
 	CreateBusinessType(context.Context, BusinessType) error
 	UpdateBusinessType(context.Context, string, string, string) error
@@ -55,6 +86,10 @@ type BusinessTypeStore interface {
 // Values are normalized to JSON-friendly values so the admin API can expose
 // them without knowing the database driver in use.
 func (s *SQLContentStore) ListBusinessTypeRows(ctx context.Context, slug string, page, size int) ([]map[string]any, int, error) {
+	return s.ListBusinessTypeRowsFiltered(ctx, slug, page, size, nil)
+}
+
+func (s *SQLContentStore) ListBusinessTypeRowsFiltered(ctx context.Context, slug string, page, size int, filters map[string]string) ([]map[string]any, int, error) {
 	b, err := s.GetBusinessType(ctx, slug)
 	if err != nil {
 		return nil, 0, err
@@ -62,11 +97,35 @@ func (s *SQLContentStore) ListBusinessTypeRows(ctx context.Context, slug string,
 	if b.Writer != "table" {
 		return nil, 0, fmt.Errorf("业务类型 %q 不支持通用数据浏览", slug)
 	}
-	size, offset := contentPage(page, size)
-	var total int
-	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+quoteIdent(b.TableName)).Scan(&total); err != nil {
+	where, args, err := businessRowFilters(b, filters)
+	if err != nil {
 		return nil, 0, err
 	}
+	size, offset := contentPage(page, size)
+	var total int
+	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+quoteIdent(b.TableName)+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	columns := businessRowColumns(b)
+	query := "SELECT " + strings.Join(columns, ",") + " FROM " + quoteIdent(b.TableName) + where + fmt.Sprintf(" ORDER BY updated_at DESC, id DESC LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	args = append(args, size, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	result := make([]map[string]any, 0)
+	for rows.Next() {
+		item, err := scanBusinessRow(b, rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		result = append(result, item)
+	}
+	return result, total, rows.Err()
+}
+
+func businessRowColumns(b *BusinessType) []string {
 	columns := []string{"id", "record_key", "source_id", "payload", "created_at", "updated_at"}
 	for _, f := range b.Fields {
 		columns = append(columns, f.Name)
@@ -75,45 +134,229 @@ func (s *SQLContentStore) ListBusinessTypeRows(ctx context.Context, slug string,
 	for i, column := range columns {
 		quoted[i] = quoteIdent(column)
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT "+strings.Join(quoted, ",")+" FROM "+quoteIdent(b.TableName)+" ORDER BY updated_at DESC, id DESC LIMIT $1 OFFSET $2", size, offset)
-	if err != nil {
-		return nil, 0, err
+	return quoted
+}
+
+func scanBusinessRow(b *BusinessType, row interface{ Scan(...any) error }) (map[string]any, error) {
+	columns := []string{"id", "record_key", "source_id", "payload", "created_at", "updated_at"}
+	for _, f := range b.Fields {
+		columns = append(columns, f.Name)
 	}
-	defer rows.Close()
-	result := make([]map[string]any, 0)
-	for rows.Next() {
-		values := make([]any, len(columns))
-		dest := make([]any, len(columns))
-		for i := range values {
-			dest[i] = &values[i]
+	values := make([]any, len(columns))
+	dest := make([]any, len(columns))
+	for i := range values {
+		dest[i] = &values[i]
+	}
+	if err := row.Scan(dest...); err != nil {
+		return nil, err
+	}
+	item := make(map[string]any, len(columns))
+	for i, column := range columns {
+		item[column] = businessRowValue(values[i])
+	}
+	if payload, ok := item["payload"].(string); ok {
+		var parsed any
+		if json.Unmarshal([]byte(payload), &parsed) == nil {
+			item["payload"] = parsed
 		}
-		if err = rows.Scan(dest...); err != nil {
-			return nil, 0, err
+	}
+	for _, f := range b.Fields {
+		if f.DataType != "json" {
+			continue
 		}
-		item := make(map[string]any, len(columns))
-		for i, column := range columns {
-			item[column] = businessRowValue(values[i])
-		}
-		if payload, ok := item["payload"].(string); ok {
+		if raw, ok := item[f.Name].(string); ok {
 			var parsed any
-			if json.Unmarshal([]byte(payload), &parsed) == nil {
-				item["payload"] = parsed
+			if json.Unmarshal([]byte(raw), &parsed) == nil {
+				item[f.Name] = parsed
 			}
 		}
-		for _, f := range b.Fields {
-			if f.DataType != "json" {
+	}
+	return item, nil
+}
+
+// Every identifier comes from registered schema metadata; values are parameters.
+func businessRowFilters(b *BusinessType, filters map[string]string) (string, []any, error) {
+	fields := make(map[string]BusinessTypeField, len(b.Fields))
+	for _, f := range b.Fields {
+		fields[f.Name] = f
+	}
+	keys := make([]string, 0, len(filters))
+	for key := range filters {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var clauses []string
+	var args []any
+	add := func(column, operator string, value any) {
+		args = append(args, value)
+		clauses = append(clauses, quoteIdent(column)+operator+fmt.Sprintf("$%d", len(args)))
+	}
+	for _, key := range keys {
+		value := filters[key]
+		switch key {
+		case "created_at_min", "updated_at_min":
+			add(strings.TrimSuffix(key, "_min"), ">=", value)
+			continue
+		case "created_at_max", "updated_at_max":
+			add(strings.TrimSuffix(key, "_max"), "<=", value)
+			continue
+		}
+		if key == "source_id" {
+			add("source_id", "=", value)
+			continue
+		}
+		if key == "q" {
+			if value == "" {
 				continue
 			}
-			if raw, ok := item[f.Name].(string); ok {
-				var parsed any
-				if json.Unmarshal([]byte(raw), &parsed) == nil {
-					item[f.Name] = parsed
+			var search []string
+			for _, f := range b.Fields {
+				if f.Filterable && f.DataType == "text" {
+					search = append(search, quoteIdent(f.Name)+fmt.Sprintf(" LIKE $%d", len(args)+1))
+				}
+			}
+			if len(search) == 0 {
+				clauses = append(clauses, "1=0")
+			} else {
+				args = append(args, "%"+value+"%")
+				clauses = append(clauses, "("+strings.Join(search, " OR ")+")")
+			}
+			continue
+		}
+		f, ok := fields[key]
+		operator := "="
+		if !ok {
+			for suffix, op := range map[string]string{"_min": ">=", "_max": "<="} {
+				if strings.HasSuffix(key, suffix) {
+					f, ok = fields[strings.TrimSuffix(key, suffix)]
+					operator = op
+					break
 				}
 			}
 		}
-		result = append(result, item)
+		if !ok || !f.Filterable || f.DataType == "json" {
+			return "", nil, fmt.Errorf("未知或不可筛选的字段: %s", key)
+		}
+		if operator != "=" && f.DataType != "integer" && f.DataType != "real" {
+			return "", nil, fmt.Errorf("字段不支持范围筛选: %s", key)
+		}
+		var typed any = value
+		var err error
+		switch f.DataType {
+		case "integer":
+			typed, err = strconv.ParseInt(value, 10, 64)
+		case "real":
+			var n float64
+			n, err = strconv.ParseFloat(value, 64)
+			if math.IsNaN(n) || math.IsInf(n, 0) {
+				err = fmt.Errorf("须为有限数值")
+			}
+			typed = n
+		case "boolean":
+			if value != "true" && value != "false" {
+				err = fmt.Errorf("须为 true 或 false")
+			} else {
+				typed = value == "true"
+			}
+		case "enum":
+			if !businessEnumOption(f.Options, value) {
+				err = fmt.Errorf("不在枚举选项中")
+			}
+		}
+		if err != nil {
+			return "", nil, fmt.Errorf("筛选参数 %s 无效: %w", key, err)
+		}
+		add(f.Name, operator, typed)
 	}
-	return result, total, rows.Err()
+	if len(clauses) == 0 {
+		return "", args, nil
+	}
+	return " WHERE " + strings.Join(clauses, " AND "), args, nil
+}
+
+func (s *SQLContentStore) GetBusinessTypeRow(ctx context.Context, slug string, id int) (map[string]any, error) {
+	b, err := s.GetBusinessType(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if b.Writer != "table" {
+		return nil, fmt.Errorf("业务类型 %q 不支持通用行读取", slug)
+	}
+	return scanBusinessRow(b, s.db.QueryRowContext(ctx, "SELECT "+strings.Join(businessRowColumns(b), ",")+" FROM "+quoteIdent(b.TableName)+" WHERE id=$1", id))
+}
+
+func (s *SQLContentStore) SaveBusinessTypeRow(ctx context.Context, slug string, id int, sourceID, key string, values map[string]string) (int, error) {
+	b, err := s.GetBusinessType(ctx, slug)
+	if err != nil {
+		return 0, err
+	}
+	if b.Writer != "table" || id < 0 {
+		return 0, fmt.Errorf("业务类型或行 id 无效")
+	}
+	if id > 0 {
+		var encodedKey string
+		if err = s.db.QueryRowContext(ctx, "SELECT record_key FROM "+quoteIdent(b.TableName)+" WHERE id=$1", id).Scan(&encodedKey); err != nil {
+			return 0, err
+		}
+		var identity []string
+		if err = json.Unmarshal([]byte(encodedKey), &identity); err != nil || len(identity) != 2 {
+			return 0, fmt.Errorf("业务行身份无效")
+		}
+		sourceID, key = identity[0], identity[1]
+	} else {
+		if sourceID == "" {
+			sourceID = "manual"
+		}
+		if key == "" {
+			key = fmt.Sprintf("manual-%d", time.Now().UnixNano())
+		}
+	}
+	if _, err = s.SaveCollectionRecord(ctx, CollectionRecord{SourceID: sourceID, Target: slug, Key: key, Values: values}, false); err != nil {
+		return 0, err
+	}
+	err = s.db.QueryRowContext(ctx, "SELECT id FROM "+quoteIdent(b.TableName)+" WHERE record_key=$1", businessRecordKey(sourceID, key)).Scan(&id)
+	return id, err
+}
+
+// Resolve and delete each row within one transaction, including its audit record.
+func (s *SQLContentStore) BatchDeleteBusinessTypeRows(ctx context.Context, slug string, ids []int) error {
+	if len(ids) == 0 {
+		return fmt.Errorf("请选择要删除的行")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	b, err := getBusinessType(ctx, tx, slug)
+	if err != nil {
+		return err
+	}
+	if b.Writer != "table" {
+		return fmt.Errorf("业务类型 %q 不支持批量删除", slug)
+	}
+	seen := make(map[int]bool, len(ids))
+	for _, id := range ids {
+		if id < 1 {
+			return fmt.Errorf("id 必须为正整数")
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		var encodedKey string
+		if err = tx.QueryRowContext(ctx, "SELECT record_key FROM "+quoteIdent(b.TableName)+" WHERE id=$1", id).Scan(&encodedKey); err != nil {
+			return err
+		}
+		var identity []string
+		if err = json.Unmarshal([]byte(encodedKey), &identity); err != nil || len(identity) != 2 {
+			return fmt.Errorf("业务行身份无效")
+		}
+		if err = deleteCollectionRecord(ctx, tx, b, identity[0], identity[1]); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func businessRowValue(value any) any {
@@ -147,7 +390,7 @@ func (s *SQLContentStore) DeleteBusinessTypeRow(ctx context.Context, slug string
 
 var businessName = regexp.MustCompile(`^[a-z][a-z0-9_]{1,47}$`)
 var businessColumn = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
-var businessSQLTypes = map[string]string{"text": "TEXT", "integer": "BIGINT", "real": "DOUBLE PRECISION", "boolean": "BOOLEAN", "json": "TEXT"}
+var businessSQLTypes = map[string]string{"text": "TEXT", "integer": "BIGINT", "real": "DOUBLE PRECISION", "boolean": "BOOLEAN", "json": "TEXT", "enum": "TEXT"}
 var businessReservedColumns = map[string]bool{"id": true, "record_key": true, "source_id": true, "payload": true, "created_at": true, "updated_at": true}
 
 func migrateBusinessTypes(tx *sql.Tx) error {
@@ -163,6 +406,37 @@ func migrateBusinessTypes(tx *sql.Tx) error {
  sort_order INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(type_slug,name)
  );`)
 	if err != nil {
+		return err
+	}
+	// Inspect columns before ALTER: a failed ALTER would abort a PostgreSQL
+	// transaction, while SQLite does not support ADD COLUMN IF NOT EXISTS.
+	rows, err := tx.Query(`SELECT * FROM business_type_fields WHERE 1=0`)
+	if err != nil {
+		return err
+	}
+	columns, err := rows.Columns()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	has := make(map[string]bool, len(columns))
+	for _, column := range columns {
+		has[column] = true
+	}
+	if !has["options"] {
+		if _, err = tx.Exec(`ALTER TABLE business_type_fields ADD COLUMN options TEXT NOT NULL DEFAULT '[]'`); err != nil {
+			return err
+		}
+	}
+	if !has["filterable"] {
+		if _, err = tx.Exec(`ALTER TABLE business_type_fields ADD COLUMN filterable BOOLEAN NOT NULL DEFAULT TRUE`); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE business_type_fields SET filterable=(data_type <> 'json')`); err != nil {
+			return err
+		}
+	}
+	if _, err = tx.Exec(`UPDATE business_type_fields SET options='[]' WHERE options IS NULL`); err != nil {
 		return err
 	}
 	seeds := []BusinessType{
@@ -203,16 +477,21 @@ func getBusinessType(ctx context.Context, q businessQuerier, slug string) (*Busi
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT name,label,data_type,required,is_system,sort_order FROM business_type_fields WHERE type_slug=$1 ORDER BY sort_order,name`, slug)
+	rows, err := q.QueryContext(ctx, `SELECT name,label,data_type,required,is_system,sort_order,filterable,COALESCE(options,'[]') FROM business_type_fields WHERE type_slug=$1 ORDER BY sort_order,name`, slug)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var f BusinessTypeField
-		if err = rows.Scan(&f.Name, &f.Label, &f.DataType, &f.Required, &f.IsSystem, &f.SortOrder); err != nil {
+		var options string
+		if err = rows.Scan(&f.Name, &f.Label, &f.DataType, &f.Required, &f.IsSystem, &f.SortOrder, &f.Filterable, &options); err != nil {
 			return nil, err
 		}
+		if err = json.Unmarshal([]byte(options), &f.Options); err != nil {
+			return nil, err
+		}
+		f.filterableSet = true
 		b.Fields = append(b.Fields, f)
 	}
 	return b, rows.Err()
@@ -260,6 +539,24 @@ func validBusinessField(f *BusinessTypeField) error {
 	}
 	if _, ok := businessSQLTypes[f.DataType]; !ok {
 		return fmt.Errorf("不支持的字段类型: %s", f.DataType)
+	}
+	if !f.filterableSet && !f.Filterable {
+		f.Filterable = f.DataType != "json"
+	}
+	if f.DataType == "json" && f.Filterable {
+		return fmt.Errorf("JSON 字段不能启用筛选")
+	}
+	if f.DataType == "enum" {
+		if len(f.Options) == 0 {
+			return fmt.Errorf("枚举字段必须提供非空 options")
+		}
+		for _, option := range f.Options {
+			if strings.TrimSpace(option) == "" {
+				return fmt.Errorf("枚举选项不能为空")
+			}
+		}
+	} else {
+		f.Options = nil
 	}
 	if f.Label == "" {
 		f.Label = f.Name
@@ -321,7 +618,15 @@ func (s *SQLContentStore) CreateBusinessType(ctx context.Context, b BusinessType
 }
 
 func insertBusinessField(ctx context.Context, tx *sql.Tx, slug string, f BusinessTypeField) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order) VALUES($1,$2,$3,$4,$5,FALSE,$6)`, slug, f.Name, f.Label, f.DataType, f.Required, f.SortOrder)
+	options := "[]"
+	if len(f.Options) > 0 {
+		encoded, err := json.Marshal(f.Options)
+		if err != nil {
+			return err
+		}
+		options = string(encoded)
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order,filterable,options) VALUES($1,$2,$3,$4,$5,FALSE,$6,$7,$8)`, slug, f.Name, f.Label, f.DataType, f.Required, f.SortOrder, f.Filterable, options)
 	return err
 }
 func (s *SQLContentStore) UpdateBusinessType(ctx context.Context, slug, name, description string) error {
@@ -454,7 +759,20 @@ func (s *SQLContentStore) UpdateBusinessTypeField(ctx context.Context, slug, nam
 			if f.Label == "" {
 				f.Label = old.Label
 			}
-			_, err = tx.ExecContext(ctx, `UPDATE business_type_fields SET label=$1,required=$2 WHERE type_slug=$3 AND name=$4`, f.Label, f.Required, slug, name)
+			f.Name, f.DataType = old.Name, old.DataType
+			f.filterableSet = true
+			if err = validBusinessField(&f); err != nil {
+				return err
+			}
+			options := "[]"
+			if len(f.Options) > 0 {
+				encoded, marshalErr := json.Marshal(f.Options)
+				if marshalErr != nil {
+					return marshalErr
+				}
+				options = string(encoded)
+			}
+			_, err = tx.ExecContext(ctx, `UPDATE business_type_fields SET label=$1,required=$2,filterable=$3,options=$4 WHERE type_slug=$5 AND name=$6`, f.Label, f.Required, f.Filterable, options, slug, name)
 			if err != nil {
 				return err
 			}
@@ -523,6 +841,10 @@ func ValidateBusinessValues(b *BusinessType, values map[string]string) ([]any, e
 			if !json.Valid([]byte(v)) {
 				err = fmt.Errorf("JSON 无效")
 			}
+		case "enum":
+			if !businessEnumOption(f.Options, v) {
+				err = fmt.Errorf("不在枚举选项中")
+			}
 		}
 		if err != nil {
 			return nil, fmt.Errorf("%s (%s): %w", f.Name, f.DataType, err)
@@ -530,6 +852,15 @@ func ValidateBusinessValues(b *BusinessType, values map[string]string) ([]any, e
 		result = append(result, value)
 	}
 	return result, nil
+}
+
+func businessEnumOption(options []string, value string) bool {
+	for _, option := range options {
+		if value == option {
+			return true
+		}
+	}
+	return false
 }
 
 func upsertBusinessRow(ctx context.Context, tx *sql.Tx, b *BusinessType, r CollectionRecord) (int, error) {

@@ -147,10 +147,12 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
 			var req struct {
-				Name     string `json:"name"`
-				Label    string `json:"label"`
-				DataType string `json:"data_type"`
-				Required *bool  `json:"required"`
+				Name       string    `json:"name"`
+				Label      string    `json:"label"`
+				DataType   string    `json:"data_type"`
+				Required   *bool     `json:"required"`
+				Filterable *bool     `json:"filterable"`
+				Options    *[]string `json:"options"`
 			}
 			if !decode(&req) {
 				return
@@ -171,6 +173,12 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 						field.Label = req.Label
 						if req.Required != nil {
 							field.Required = *req.Required
+						}
+						if req.Filterable != nil {
+							field.Filterable = *req.Filterable
+						}
+						if req.Options != nil {
+							field.Options = *req.Options
 						}
 						err = srv.store.UpdateBusinessTypeField(r.Context(), slug, parts[2], field)
 						break

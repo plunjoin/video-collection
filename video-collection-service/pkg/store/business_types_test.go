@@ -3,10 +3,46 @@ package store
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"video-collection-service/config"
 )
+
+func TestValidateBusinessValuesEnum(t *testing.T) {
+	b := &BusinessType{Fields: []BusinessTypeField{{Name: "status", DataType: "enum", Required: true, Options: []string{"draft", "live"}}}}
+	for _, tc := range []struct {
+		value string
+		valid bool
+	}{
+		{"draft", true}, {"live", true}, {"", false}, {"LIVE", false}, {"other", false},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			values, err := ValidateBusinessValues(b, map[string]string{"status": tc.value})
+			if tc.valid {
+				if err != nil || len(values) != 1 || values[0] != tc.value {
+					t.Fatalf("enum value: %v, %v", values, err)
+				}
+			} else if err == nil {
+				t.Fatalf("accepted invalid enum %q", tc.value)
+			}
+		})
+	}
+}
+
+func TestBusinessRowSystemTimeFilters(t *testing.T) {
+	// System time bounds work without schema fields, and even SQL-like input
+	// remains a string argument rather than becoming part of the query.
+	const min = "2026-01-01T00:00:00Z' OR 1=1 --"
+	where, args, err := businessRowFilters(&BusinessType{}, map[string]string{
+		"created_at_min": min, "created_at_max": "2026-12-31",
+		"updated_at_min": "2026-02-01", "updated_at_max": "2026-11-30",
+	})
+	want := ` WHERE "created_at"<=$1 AND "created_at">=$2 AND "updated_at"<=$3 AND "updated_at">=$4`
+	if err != nil || where != want || !reflect.DeepEqual(args, []any{"2026-12-31", min, "2026-11-30", "2026-02-01"}) {
+		t.Fatalf("time filters: %q, %v, %v", where, args, err)
+	}
+}
 
 func TestBusinessTypesRegistryAndSchema(t *testing.T) {
 	ctx := context.Background()

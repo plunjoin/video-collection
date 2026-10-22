@@ -56,6 +56,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerCollectionRoutes(mux)
 	mux.HandleFunc("/api/admin/business-types", srv.adminWrite(srv.handleBusinessTypes))
 	mux.HandleFunc("/api/admin/business-types/", srv.adminWrite(srv.handleBusinessTypes))
+	mux.HandleFunc("/api/admin/schema/", srv.adminWrite(srv.handleSchemaRows))
 	srv.registerWebhookRoutes(mux)
 	srv.registerBootstrapRoutes(mux)
 	// 通用采集 Webhook（按注册业务类型写入，默认 article → news）
