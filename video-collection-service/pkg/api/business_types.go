@@ -51,6 +51,9 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 			err = srv.store.CreateBusinessType(r.Context(), store.BusinessType{Slug: req.Slug, Name: req.Name, Description: req.Description, Fields: req.Fields})
 			if err == nil {
 				data, err = srv.store.GetBusinessType(r.Context(), req.Slug)
+				if err == nil {
+					srv.logSystem(r, "info", "admin", "创建业务类型 "+req.Slug, map[string]any{"slug": req.Slug, "name": req.Name})
+				}
 			}
 		default:
 			errorResponse(w, 405, "Method Not Allowed")
@@ -133,6 +136,9 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 			err = srv.store.UpdateBusinessType(r.Context(), slug, req.Name, req.Description)
 		case http.MethodDelete:
 			err = srv.store.DeleteBusinessType(r.Context(), slug)
+			if err == nil {
+				srv.logSystem(r, "warn", "admin", "删除业务类型 "+slug, map[string]any{"slug": slug})
+			}
 		default:
 			errorResponse(w, 405, "Method Not Allowed")
 			return

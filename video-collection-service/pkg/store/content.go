@@ -84,6 +84,7 @@ type ContentStore interface {
 	WikiStore
 	RAGStore
 	TaskStore
+	SystemLogStore
 	ListContent(context.Context, ContentQuery) ([]Content, int, error)
 	GetContent(context.Context, string, int, int, bool) (*Content, error)
 	SaveContent(context.Context, *Content, int, bool) error
@@ -187,6 +188,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		return err
 	}
 	if err = migrateCollectionTasks(tx, id, timestamp); err != nil {
+		return err
+	}
+	if err = migrateSystemLogs(tx, id, timestamp); err != nil {
 		return err
 	}
 	if err = migrateWebhooks(tx, postgres, id, timestamp); err != nil {

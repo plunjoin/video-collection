@@ -171,7 +171,7 @@ const allSections = [
       { path: '/themes', title: '客户端主题', icon: Brush },
       { path: '/bootstrap', title: '基础配置', icon: SetUp },
       { path: '/database', title: '数据库管理', icon: Coin },
-      { path: '/logs', title: '运行日志', icon: Document },
+      { path: '/system-logs', title: '系统日志', icon: Document },
     ],
   },
 ]

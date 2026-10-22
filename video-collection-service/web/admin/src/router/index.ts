@@ -136,10 +136,10 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '数据库管理' }
       },
       {
-        path: 'logs',
-        name: 'Logs',
+        path: 'system-logs',
+        name: 'SystemLogs',
         component: () => import('@/views/logs/index.vue'),
-        meta: { title: '运行日志' }
+        meta: { title: '系统日志' }
       }
     ]
   },

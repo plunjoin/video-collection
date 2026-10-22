@@ -54,6 +54,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
+	srv.registerSystemLogRoutes(mux)
 	mux.HandleFunc("/api/admin/business-types", srv.adminWrite(srv.handleBusinessTypes))
 	mux.HandleFunc("/api/admin/business-types/", srv.adminWrite(srv.handleBusinessTypes))
 	mux.HandleFunc("/api/admin/schema/", srv.adminWrite(srv.handleSchemaRows))
@@ -167,22 +168,33 @@ func (srv *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := srv.store.GetUserByUsername(r.Context(), req.Username)
 	if err != nil || user == nil {
+		srv.logSystemActor(r, 0, req.Username, "warn", "auth", "登录失败：用户不存在", map[string]any{"username": req.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	if user.Status != 1 {
+		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：账号已禁用", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusForbidden, "该账号已被禁用封禁")
 		return
 	}
 
 	if !auth.CheckPassword(user.PasswordHash, req.Password) {
+		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：密码错误", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	token := auth.DefaultSessionManager.CreateSession(user)
 	auth.SetAuthCookie(w, token)
+
+	actorName := strings.TrimSpace(user.Nickname)
+	if actorName == "" {
+		actorName = user.Username
+	}
+	if user.Role == "admin" || user.Role == "super_admin" || user.Role == "observer" || user.Role == "operator" {
+		srv.logSystemActor(r, user.ID, actorName, "info", "auth", "管理员登录成功", map[string]any{"username": user.Username, "role": user.Role})
+	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code":  1,
@@ -355,6 +367,10 @@ func (srv *Server) handleTriggerCollect(w http.ResponseWriter, r *http.Request) 
 	if req.Hours > 0 {
 		modeStr = strconv.Itoa(req.Hours) + "小时增量采集"
 	}
+	srv.logSystem(r, "info", "collect", "触发采集："+req.SourceID+"（"+modeStr+"）", map[string]any{
+		"source_id": req.SourceID,
+		"hours":     req.Hours,
+	})
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code": 1,
 		"msg":  "已在后台启动 " + modeStr + " 任务",
@@ -427,6 +443,8 @@ func (srv *Server) handleTestRemoteSource(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// handleAdminLogs 兼容旧路径：返回调度器内存中的「采集」日志。
+// 正式采集日志请用 GET /api/admin/collection/logs；系统审计日志请用 GET /api/admin/system-logs。
 func (srv *Server) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit <= 0 {

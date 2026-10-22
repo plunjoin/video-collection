@@ -3,7 +3,7 @@
     <header class="studio-header">
       <div><span class="eyebrow">BLLII-FAMILIAR STUDIO</span><h1>使魔规则工坊</h1><p>全网番剧与内容感知，一套规则，精准入库。</p></div>
       <div class="actions">
-        <r-button @click="$router.push('/scheduler')"><r-icon><Activity /></r-icon>使魔调度与日志</r-button>
+        <r-button @click="$router.push('/scheduler')"><r-icon><Activity /></r-icon>使魔调度</r-button>
         <r-dropdown trigger="click" @command="handleCollectAll">
           <r-button type="warning">
             <r-icon><Refresh /></r-icon>一键唤醒采集<r-icon class="r-icon--right"><ArrowDown /></r-icon>

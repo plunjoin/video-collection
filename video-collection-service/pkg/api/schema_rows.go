@@ -52,6 +52,7 @@ func (srv *Server) handleSchemaRows(w http.ResponseWriter, r *http.Request) {
 			schemaRowsError(w, err)
 			return
 		}
+		srv.logSystem(r, "warn", "admin", "批量删除业务行 "+slug, map[string]any{"slug": slug, "count": len(req.IDs)})
 		jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "删除成功"})
 		return
 	}

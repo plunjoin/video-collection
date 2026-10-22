@@ -56,6 +56,7 @@ import type {
   AnalyticsOverview,
   AutoCollectStatus,
   LogEntry,
+  SystemLogEntry,
   DBInfo,
   DBTableInfo,
   TableBrowseResult,
@@ -203,11 +204,22 @@ export function saveSiteConfig(data: Record<string, string>) {
   return request.post<any, ApiResponse>('/api/admin/site/config', data)
 }
 
-// 9. 运行审计日志
+// 9. 采集日志兼容别名（内存调度日志）；正式采集日志见 collection.ts
 export function getLogs(limit: number = 100) {
   return request.get<any, ApiResponse<LogEntry[]>>('/api/admin/logs', {
     params: { limit }
   })
+}
+
+
+export function getSystemLogs(params?: {
+  page?: number
+  page_size?: number
+  level?: string
+  category?: string
+  q?: string
+}) {
+  return request.get<any, ApiResponse<SystemLogEntry[]>>('/api/admin/system-logs', { params })
 }
 
 // 10. 数据库管理

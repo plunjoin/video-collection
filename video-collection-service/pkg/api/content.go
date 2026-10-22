@@ -138,6 +138,7 @@ func (srv *Server) handleNewsBatch(w http.ResponseWriter, r *http.Request) {
 		contentError(w, err)
 		return
 	}
+	srv.logSystem(r, "info", "content", "资讯批量操作 "+req.Action, map[string]any{"action": req.Action, "count": count})
 	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "msg": "批量操作成功", "data": map[string]any{"count": count, "action": req.Action}})
 }
 
