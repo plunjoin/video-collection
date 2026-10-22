@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
 );
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_list ON webhook_deliveries(webhook_id, created_at DESC, id DESC);
 `, timestamp, timestamp, id, timestamp)
-	if _, err := tx.Exec(schema); err != nil {
+	if err := execScript(tx, schema); err != nil {
 		return err
 	}
 	// 旧库升级：补充 tolerance_sec / events / secret_hint 列（幂等，失败可忽略）。

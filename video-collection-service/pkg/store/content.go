@@ -150,7 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Exec(schema); err != nil {
+	if err = execScript(tx, schema); err != nil {
 		return err
 	}
 	if err = migrateComments(tx, postgres, id, timestamp); err != nil {

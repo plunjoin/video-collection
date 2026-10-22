@@ -34,7 +34,7 @@ func migrateDanmaku(tx *sql.Tx, id, timestamp string) error {
 );
 CREATE INDEX IF NOT EXISTS idx_danmaku_lookup ON danmaku(video_id, episode_key, play_time_ms, id);
 CREATE INDEX IF NOT EXISTS idx_danmaku_user_time ON danmaku(user_id, created_at);`, id, timestamp)
-	_, err := tx.Exec(schema)
+	err := execScript(tx, schema)
 	return err
 }
 

@@ -96,7 +96,7 @@ func (s *SQLContentStore) PointsBalance(ctx context.Context, user int) (int, err
 }
 
 func migrateGrowth(tx *sql.Tx, id string) error {
-	_, err := tx.Exec(fmt.Sprintf(`
+	err := execScript(tx, fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS admin_operations(id %s,actor_id INTEGER NOT NULL,method TEXT NOT NULL,path TEXT NOT NULL,status INTEGER NOT NULL,created_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS governance_guard(id INTEGER PRIMARY KEY);
  INSERT INTO governance_guard(id) VALUES(1) ON CONFLICT(id) DO NOTHING;

@@ -123,7 +123,7 @@ func (s *SQLContentStore) commentTarget(ctx context.Context, tx *sql.Tx, kind st
 // Run once, transactionally. Old IDs are retained so clients' references survive
 // upgrade; a migration marker prevents deleted comments reappearing on restart.
 func migrateComments(tx *sql.Tx, postgres bool, id, timestamp string) error {
-	_, err := tx.Exec(fmt.Sprintf(`
+	err := execScript(tx, fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS content_migrations (name TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS comments (
  id %s, target_type TEXT NOT NULL, target_id INTEGER NOT NULL,

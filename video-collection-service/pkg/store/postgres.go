@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -98,6 +100,11 @@ func ensureDatabaseExists(dsn string) error {
 	if dbName == "" || dbName == "postgres" {
 		return nil
 	}
+	// 库名必须是合法标识符：连接串写错时（例如把主机写成 //host/:port/db）
+	// 这里会得到带斜杠的垃圾库名，绝不能拿它去 CREATE DATABASE。
+	if !pgIdentRe.MatchString(dbName) {
+		return fmt.Errorf("数据库名不合法: %q（连接串格式应为 postgres://用户:密码@主机:端口/库名?sslmode=disable）", dbName)
+	}
 
 	// 临时修改连接到 postgres 默认管理库
 	adminURL := *u
@@ -111,16 +118,22 @@ func ensureDatabaseExists(dsn string) error {
 
 	var exists bool
 	checkSQL := "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)"
-	if err := adminDB.QueryRow(checkSQL, dbName).Scan(&exists); err == nil && !exists {
-		// 创建数据库
-		createSQL := fmt.Sprintf(`CREATE DATABASE "%s"`, dbName)
+	if err := adminDB.QueryRow(checkSQL, dbName).Scan(&exists); err != nil {
+		// 管理库连不上（账号无权限等）不阻断启动：主连接会给出更准确的错误
+		log.Printf("[WARN] 检查数据库 %s 是否存在失败，跳过自动建库: %v", dbName, err)
+		return nil
+	}
+	if !exists {
+		createSQL := fmt.Sprintf(`CREATE DATABASE "%s"`, strings.ReplaceAll(dbName, `"`, `""`))
 		if _, err := adminDB.Exec(createSQL); err != nil {
 			return fmt.Errorf("create database %s failed: %w", dbName, err)
 		}
 	}
-
 	return nil
 }
+
+// pgIdentRe 合法数据库名（PostgreSQL 标识符的保守子集）
+var pgIdentRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$-]*$`)
 
 func (s *PostgresStore) initSchema() error {
 	schema := `
@@ -237,7 +250,7 @@ func (s *PostgresStore) initSchema() error {
 	);
 	CREATE INDEX IF NOT EXISTS idx_user_fav_uid ON user_favorites(user_id, created_at DESC);
 	`
-	if _, err := s.db.Exec(schema); err != nil {
+	if err := execScript(s.db, schema); err != nil {
 		return err
 	}
 	_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS hits INT DEFAULT 0;")

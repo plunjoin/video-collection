@@ -124,8 +124,8 @@ CREATE INDEX IF NOT EXISTS idx_search_logs_day ON search_logs(day);
 CREATE TABLE IF NOT EXISTS visitor_days(day TEXT NOT NULL,visitor TEXT NOT NULL,user_id INTEGER NOT NULL DEFAULT 0,platform TEXT NOT NULL DEFAULT 'web',created_at %s NOT NULL,PRIMARY KEY(day,visitor));
 CREATE TABLE IF NOT EXISTS ads(id %s,slot TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',image TEXT NOT NULL DEFAULT '',link TEXT NOT NULL DEFAULT '',video_id INTEGER NOT NULL DEFAULT 0,sort INTEGER NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),starts_at TEXT NOT NULL DEFAULT '',ends_at TEXT NOT NULL DEFAULT '',created_at %s NOT NULL,updated_at %s NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_ads_slot ON ads(slot,active,sort);
-`, id, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
-	_, err := tx.Exec(schema)
+	`, id, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
+	err := execScript(tx, schema)
 	return err
 }
 

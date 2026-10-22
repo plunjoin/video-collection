@@ -196,7 +196,7 @@ func (s *SQLiteStore) initSchema() error {
 	);
 	CREATE INDEX IF NOT EXISTS idx_user_fav_uid ON user_favorites(user_id, created_at DESC);
 	`
-	if _, err := s.db.Exec(schema); err != nil {
+	if err := execScript(s.db, schema); err != nil {
 		return err
 	}
 	// 兼容迁移：如果旧数据库 videos 没有 hits / subject_id 字段则尝试添加

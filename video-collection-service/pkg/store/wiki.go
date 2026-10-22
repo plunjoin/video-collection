@@ -128,7 +128,7 @@ func migrateWiki(tx *sql.Tx, id, timestamp string) error {
 	CREATE INDEX IF NOT EXISTS idx_wiki_relations_tgt ON wiki_relations(target_id);
 	CREATE INDEX IF NOT EXISTS idx_wiki_relations_type ON wiki_relations(relation_type);
 	`, id, timestamp, timestamp, id, timestamp)
-	if _, err := tx.Exec(schema); err != nil {
+	if err := execScript(tx, schema); err != nil {
 		return err
 	}
 

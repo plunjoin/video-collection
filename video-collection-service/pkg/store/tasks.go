@@ -107,7 +107,7 @@ func migrateCollectionTasks(tx *sql.Tx, id, timestamp string) error {
 	CREATE INDEX IF NOT EXISTS idx_collection_logs_level ON collection_logs(level);
 	`, id, timestamp, timestamp, timestamp, timestamp, id, timestamp)
 
-	if _, err := tx.Exec(schema); err != nil {
+	if err := execScript(tx, schema); err != nil {
 		return err
 	}
 
