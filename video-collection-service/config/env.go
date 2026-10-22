@@ -91,13 +91,34 @@ func ApplyEnvOverrides(cfg *AppConfig) string {
 func MaskDSN(dsn string) string {
 	parsed, err := url.Parse(dsn)
 	if err != nil || parsed.User == nil {
-		return dsn
+		// url.Parse 失败（密码含未转义字符）时不能直接原样返回，否则明文密码会进日志
+		return maskRawDSN(dsn)
 	}
 	if _, hasPassword := parsed.User.Password(); !hasPassword {
 		return dsn
 	}
 	parsed.User = url.UserPassword(parsed.User.Username(), "******")
 	return strings.Replace(parsed.String(), "%2A%2A%2A%2A%2A%2A", "******", 1)
+}
+
+// maskRawDSN 字符串级脱敏：连接串无法被 url.Parse 解析时兜底，
+// 按「最后一个 @ 之前是账号密码」切分，把密码段替换为 ******。
+func maskRawDSN(raw string) string {
+	schemeEnd := strings.Index(raw, "://")
+	if schemeEnd < 0 {
+		return raw
+	}
+	head, rest := raw[:schemeEnd+3], raw[schemeEnd+3:]
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return raw
+	}
+	userinfo := rest[:at]
+	colon := strings.Index(userinfo, ":")
+	if colon < 0 {
+		return raw
+	}
+	return head + userinfo[:colon+1] + "******" + rest[at:]
 }
 
 func buildPostgresDSN() string {
@@ -157,12 +178,32 @@ func NormalizeDSN(dsn string) (string, []string) {
 		// key=value 形式或空串：不做改写
 		return trimmed, nil
 	}
-	u, err := url.Parse(trimmed)
-	if err != nil {
-		return trimmed, nil
-	}
 
-	var warnings []string
+	// 第一层：字符串级修补，不依赖 url.Parse。
+	// 之前只走 url.Parse，一旦密码里含未转义的特殊字符（% @ # 等）解析就会直接失败，
+	// 斜杠写法永远修不掉——线上表现为「DSN 原样不变、也没有任何 WARN」，等于静默跳过。
+	repaired, warnings := repairSlashAuthority(trimmed)
+
+	u, err := url.Parse(repaired)
+	if err != nil {
+		// 常见原因：密码里有未转义的 %。补成 %25 再试一次，
+		// 否则 lib/pq 拿到的仍是解析不了的串，报错信息会指向主机/库名，越查越偏。
+		if escaped, changed := escapeInvalidPercent(repaired); changed {
+			if retry, retryErr := url.Parse(escaped); retryErr == nil {
+				u, err = retry, nil
+				repaired = escaped
+				warnings = append(warnings, "连接串密码含未转义的 % 字符，已按 %25 编码")
+			}
+		}
+	}
+	if err != nil {
+		// 仍然解析不了：不再静默返回原文，
+		// 至少把修补结果交给后续校验，报错信息里能看出改成了什么。
+		warnings = append(warnings, fmt.Sprintf(
+			"连接串无法按标准 URL 解析（%v），已按字符串修补结果使用；"+
+				"若密码含 @ : / # ? %% 等字符请做百分号编码", err))
+		return repaired, warnings
+	}
 
 	// 情形一：host 为空但路径里塞了 "//host/:port/db"
 	if strings.TrimSpace(u.Host) == "" && strings.HasPrefix(u.Path, "//") {
@@ -201,6 +242,82 @@ func NormalizeDSN(dsn string) (string, []string) {
 	}
 
 	return u.String(), warnings
+}
+
+// repairSlashAuthority 在字符串层面把 "@//主机/:端口/库名" 这类写法修成标准形式。
+//
+// 之所以不复用 url.Parse：net/url 遇到密码里未转义的 % @ # 会直接报错，
+// 那条修复分支就再也走不到了。这里按「最后一个 @ 之前是账号密码、之后是主机」的
+// 规则切分，密码里含 @ 也不会切错。
+func repairSlashAuthority(raw string) (string, []string) {
+	scheme, rest, ok := strings.Cut(raw, "://")
+	if !ok {
+		return raw, nil
+	}
+	body, suffix := rest, ""
+	if idx := strings.Index(rest, "?"); idx >= 0 {
+		body, suffix = rest[:idx], rest[idx:]
+	}
+	userinfo := ""
+	if idx := strings.LastIndex(body, "@"); idx >= 0 {
+		userinfo, body = body[:idx+1], body[idx+1:]
+	}
+
+	// 只处理两类可疑写法：主机段以 "//" 开头，或端口被斜杠隔开（host/:5432/db）。
+	// 不碰 postgres:///dbname 这类 unix socket 写法。
+	if !strings.HasPrefix(body, "//") && !strings.Contains(body, "/:") {
+		return raw, nil
+	}
+
+	cleaned := strings.TrimLeft(body, "/")
+	if idx := strings.Index(cleaned, "/:"); idx >= 0 {
+		cleaned = cleaned[:idx] + ":" + cleaned[idx+2:]
+	}
+	repaired := scheme + "://" + userinfo + cleaned + suffix
+	if repaired == raw {
+		return raw, nil
+	}
+	return repaired, []string{fmt.Sprintf("连接串主机名/端口写法异常（写成了 %s），已自动修正为 %s",
+		MaskDSN(raw), MaskDSN(repaired))}
+}
+
+// escapeInvalidPercent 把密码段里不构成合法百分号转义的 "%" 改写成 "%25"。
+// 返回是否发生了改写。
+func escapeInvalidPercent(raw string) (string, bool) {
+	schemeEnd := strings.Index(raw, "://")
+	if schemeEnd < 0 {
+		return raw, false
+	}
+	head, rest := raw[:schemeEnd+3], raw[schemeEnd+3:]
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return raw, false
+	}
+	userinfo := rest[:at]
+	colon := strings.Index(userinfo, ":")
+	if colon < 0 {
+		return raw, false
+	}
+	password := userinfo[colon+1:]
+
+	var b strings.Builder
+	changed := false
+	for i := 0; i < len(password); i++ {
+		if password[i] == '%' && (i+2 >= len(password) || !isHexDigit(password[i+1]) || !isHexDigit(password[i+2])) {
+			b.WriteString("%25")
+			changed = true
+			continue
+		}
+		b.WriteByte(password[i])
+	}
+	if !changed {
+		return raw, false
+	}
+	return head + userinfo[:colon+1] + b.String() + rest[at:], true
+}
+
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
 // parseAuthorityLikePath 解析 "//host/:port/db"、"//host/db"、"//host:port/db" 三种写法

@@ -75,6 +75,13 @@ func TestMaskDSN(t *testing.T) {
 	if got != "postgres://u:******@h:5432/d?sslmode=disable" {
 		t.Errorf("MaskDSN = %q", got)
 	}
+	// 密码含未转义字符时 url.Parse 会失败，必须走字符串兜底脱敏，绝不能把明文写进日志
+	raw := "postgres://u:p%ss@//h/:5432/d?sslmode=disable"
+	if masked := MaskDSN(raw); strings.Contains(masked, "p%ss") {
+		t.Errorf("密码明文泄漏: %q", masked)
+	} else if masked != "postgres://u:******@//h/:5432/d?sslmode=disable" {
+		t.Errorf("MaskDSN = %q", masked)
+	}
 }
 
 func TestNormalizeDSNRepairsSlashHost(t *testing.T) {
@@ -126,6 +133,44 @@ func TestNormalizeDSNRepairsSlashHost(t *testing.T) {
 			}
 			if !tc.warned && len(warnings) != 0 {
 				t.Fatalf("不应产生提示，实际: %v", warnings)
+			}
+			if err := ValidatePostgresDSN(got); err != nil {
+				t.Fatalf("修正后应通过校验，实际: %v", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeDSNRepairsEvenWhenURLParseFails(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "密码含未转义的百分号（url.Parse 会直接失败）",
+			in:   "postgres://x21_admin:p%ss@//1panel-postgresql-hi3r/:5432/videodb?sslmode=disable",
+			want: "postgres://x21_admin:p%25ss@1panel-postgresql-hi3r:5432/videodb?sslmode=disable",
+		},
+		{
+			name: "密码里含 @（按最后一个 @ 切分，不切错主机）",
+			in:   "postgres://x21_admin:p@ss@//pg-host/:5432/videodb",
+			want: "postgres://x21_admin:p%40ss@pg-host:5432/videodb",
+		},
+		{
+			name: "主机正常但端口被斜杠隔开",
+			in:   "postgres://u:p@pg-host/:5432/videodb",
+			want: "postgres://u:p@pg-host:5432/videodb",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, warnings := NormalizeDSN(tc.in)
+			if got != tc.want {
+				t.Fatalf("NormalizeDSN = %q, want %q", got, tc.want)
+			}
+			if len(warnings) == 0 {
+				t.Fatalf("修正后应产生提示")
 			}
 			if err := ValidatePostgresDSN(got); err != nil {
 				t.Fatalf("修正后应通过校验，实际: %v", err)
