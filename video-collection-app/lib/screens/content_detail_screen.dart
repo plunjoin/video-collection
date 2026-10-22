@@ -255,7 +255,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final cover = item['cover']?.toString() ?? '';
     final category = item['category']?.toString() ?? '';
     final author = item['author_name']?.toString() ?? '';
-    final createdAt = _date(item['created_at']);
+    final publishedAt = _isNews ? _date(item['published_at']) : '';
+    final createdAt = publishedAt.isNotEmpty
+        ? publishedAt
+        : _date(item['created_at']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
