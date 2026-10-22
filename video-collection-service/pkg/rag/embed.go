@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"unicode"
 	"time"
 )
 
@@ -83,12 +84,44 @@ func (f *FakeEmbeddingProvider) Embed(ctx context.Context, texts []string) ([][]
 }
 
 func hashEmbedding(text string, dim int) []float32 {
+	// Feature-hashing over tokens and unicode bigrams so lexical overlap
+	// yields higher cosine similarity (useful when remote embeddings are unavailable).
 	vec := make([]float32, dim)
-	h := sha256.Sum256([]byte(text))
-	for i := 0; i < dim; i++ {
-		// 用哈希字节循环填充并映射到 [-1,1]
-		b := h[i%len(h)]
-		vec[i] = (float32(int(b)-128)) / 128.0
+	add := func(tok string, weight float32) {
+		if tok == "" {
+			return
+		}
+		sum := sha256.Sum256([]byte(tok))
+		idx := int(binary.BigEndian.Uint32(sum[:4])) % dim
+		if sum[4]%2 == 0 {
+			vec[idx] += weight
+		} else {
+			vec[idx] -= weight
+		}
+	}
+	lower := strings.ToLower(text)
+	for _, tok := range strings.FieldsFunc(lower, func(r rune) bool {
+		return !(unicode.IsLetter(r) || unicode.IsNumber(r))
+	}) {
+		add(tok, 1)
+		runes := []rune(tok)
+		for i := 0; i+1 < len(runes); i++ {
+			add(string(runes[i:i+2]), 0.5)
+		}
+	}
+	runes := []rune(lower)
+	for i := 0; i+1 < len(runes); i++ {
+		if unicode.IsSpace(runes[i]) || unicode.IsSpace(runes[i+1]) {
+			continue
+		}
+		add(string(runes[i:i+2]), 0.35)
+	}
+	if len(runes) == 0 {
+		h := sha256.Sum256([]byte(text))
+		for i := 0; i < dim; i++ {
+			b := h[i%len(h)]
+			vec[i] = (float32(int(b)-128)) / 128.0
+		}
 	}
 	normalize(vec)
 	return vec

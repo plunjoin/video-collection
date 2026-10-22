@@ -327,7 +327,11 @@ func (s *SQLContentStore) SaveContent(ctx context.Context, c *Content, actor int
 	if err = saveContentTx(ctx, tx, c, actor, admin); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	notifyRAGContentIngest(ctx, c.Kind, c.ID)
+	return nil
 }
 
 func saveContentTx(ctx context.Context, tx *sql.Tx, c *Content, actor int, admin bool) error {
@@ -393,7 +397,11 @@ func (s *SQLContentStore) DeleteContent(ctx context.Context, kind string, id, ac
 			return err
 		}
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	notifyRAGContentIngest(ctx, kind, id)
+	return nil
 }
 
 func (s *SQLContentStore) ListComments(ctx context.Context, postID, page, size int, admin bool) ([]CommunityComment, int, error) {

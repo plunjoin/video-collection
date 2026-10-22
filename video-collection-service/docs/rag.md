@@ -22,6 +22,10 @@ Wiki 词条变更、关系变更、`sync-video`、采集 `article` 入库后会 
 | `OPENAI_API_KEY` | 空 | 未设置时即使 `provider=openai` 也会回退 `fake` |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | 嵌入模型名 |
 | `OPENAI_BASE_URL` | OpenAI 官方 | 可指向兼容网关 |
+| `RAG_CHAT_MODEL` | `gemini-3.6-flash` | 问答用的 OpenAI 兼容 chat 模型 |
+| `RAG_CHAT_TIMEOUT_SEC` | `60` | chat 请求超时秒数 |
+| `RAG_CHAT_MAX_TOKENS` | 空/0 | 可选；>0 时传给上游 `max_tokens` |
+| `RAG_CHAT_SYSTEM_PROMPT` | 内置中文约束提示 | 可覆盖默认 system prompt |
 
 无需付费云向量库；检索在应用层对 `rag_chunks` 做余弦相似度（适合中小规模）。后续可替换为 pgvector 实现。
 
@@ -73,10 +77,25 @@ cd video-collection-service
 go test ./pkg/rag/... ./pkg/api/... -run 'RAG|Wiki' -count=1
 ```
 
-## 与 LLM 集成（后续）
 
-1. 用户提问 → `POST /api/admin/rag/search`（或未来公开只读检索接口）取 top-k `text`。
-2. 对 `subject_id` 调用 `/api/wiki/graph` 补充结构化邻居。
-3. 将块文本与图谱摘要拼入 system/user prompt，调用外部 LLM。
+### RAG 问答（检索 + LLM）
 
-现有 Wiki CRUD 与图谱 API **未改动契约**，仅增加索引钩子与管理端 RAG 接口。
+```bash
+curl -s -X POST "http://localhost/api/admin/rag/ask" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"q":"流浪地球","top_k":5,"source_type":""}'
+```
+
+`data` 字段：`answer`、`citations[]`（同检索结果，含 `similarity` / `source_*` / `text`）、`query`、`model`、`embedder`、`top_k`、可选 `graph_note`（一层 Wiki 图谱摘要）。
+
+流程：提问 → 向量检索 top-k → 对命中 `subject_id`（最多 3 个）拉一层图谱 → 拼 prompt → `POST {OPENAI_BASE_URL}/v1/chat/completions`。chat 失败返回 **502**（错误包装为 `RAG chat failed`）。
+
+## 增量索引钩子
+
+Wiki 词条/关系变更、`sync-video`、资讯/帖子保存与审核通过、采集 article 入库后会 **异步增量索引**；索引失败只打日志，不阻断主写入。管理员仍可随时全量 `rebuild`。
+
+## 管理后台
+
+内嵌 SPA 路由：`/admin/rag`（侧栏「RAG 知识库」）。支持重建索引、试搜、试问。
+

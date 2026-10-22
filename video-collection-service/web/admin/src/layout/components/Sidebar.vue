@@ -144,6 +144,7 @@ const allSections = [
     items: [
       { path: '/videos', title: '视频库', icon: Film },
       { path: '/wiki', title: 'Wiki 知识库', icon: Network },
+      { path: '/rag', title: 'RAG 知识库', icon: Search },
       { path: '/sources', title: '使魔节点管理', icon: SetUp },
       { path: '/collection-rules', title: '使魔规则工坊', icon: SetUp },
       { path: '/scheduler', title: '使魔调度', icon: Clock },

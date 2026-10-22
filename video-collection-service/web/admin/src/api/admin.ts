@@ -1,4 +1,44 @@
 import request from '@/utils/request'
+
+export interface RAGChunk {
+  id: number
+  source_type: string
+  source_id: string
+  subject_id: number
+  chunk_index: number
+  text: string
+  similarity: number
+  metadata: Record<string, unknown>
+}
+
+export interface RAGAskResponse {
+  query: string
+  answer: string
+  citations: RAGChunk[]
+  model: string
+  embedder: string
+  top_k: number
+  graph_note?: string
+}
+
+export interface RAGQuery {
+  q?: string
+  query?: string
+  top_k?: number
+  source_type?: string
+}
+
+export function ragRebuild() {
+  return request.post<any, { code: number; chunks_indexed: number; embedder: string }>('/api/admin/rag/rebuild', {}, { timeout: 0 })
+}
+
+export function ragSearch(params: RAGQuery) {
+  return request.get<any, ApiResponse<{ query: string; top_k: number; results: RAGChunk[] }>>('/api/admin/rag/search', { params, timeout: 0 })
+}
+
+export function ragAsk(data: RAGQuery) {
+  return request.post<any, ApiResponse<RAGAskResponse>>('/api/admin/rag/ask', data, { timeout: 0 })
+}
 import type {
   ApiResponse,
   AdminStats,

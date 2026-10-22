@@ -308,7 +308,13 @@ func (s *SQLContentStore) DecideReview(ctx context.Context, id, actor int, appro
 	if err = insertNotification(ctx, tx, &Notification{UserID: v.SubmitterID, ActorID: actor, Type: "system", Title: "内容审核结果：" + statusLabel, Content: note, TargetType: "review", TargetID: id}); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	if approve && (v.Kind == "news" || v.Kind == "post") {
+		notifyRAGContentIngest(ctx, v.Kind, v.TargetID)
+	}
+	return nil
 }
 
 func (s *SQLContentStore) SaveVideoAtomic(ctx context.Context, v *VideoRecord) (int, error) {

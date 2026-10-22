@@ -36,3 +36,14 @@ type SearchResponse struct {
 	TopK    int           `json:"top_k"`
 	Results []StoredChunk `json:"results"`
 }
+
+// AskResponse includes the exact retrieved chunks used as numbered citations.
+type AskResponse struct {
+	Query     string        `json:"query"`
+	Answer    string        `json:"answer"`
+	Citations []StoredChunk `json:"citations"`
+	Model     string        `json:"model"`
+	Embedder  string        `json:"embedder"`
+	TopK      int           `json:"top_k"`
+	GraphNote string        `json:"graph_note,omitempty"`
+}

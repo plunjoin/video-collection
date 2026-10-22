@@ -253,9 +253,6 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			contentError(w, err)
 			return
 		}
-		if srv.rag != nil && c.Status == "published" {
-			srv.rag.IndexContentAsync(r.Context(), kind, c.ID)
-		}
 		item, err := srv.store.GetContent(r.Context(), kind, c.ID, u.ID, true)
 		if err != nil {
 			contentError(w, err)

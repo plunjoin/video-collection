@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -154,7 +153,7 @@ func (srv *Server) handleAdminWikiSubjects(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		if srv.rag != nil {
-			srv.rag.IndexWikiSubjectAsync(ctx, sub.ID)
+			srv.rag.IndexWikiNeighborhoodAsync(sub.ID)
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -167,12 +166,22 @@ func (srv *Server) handleAdminWikiSubjects(w http.ResponseWriter, r *http.Reques
 			errorResponse(w, http.StatusBadRequest, "缺少有效 id 参数")
 			return
 		}
+		var neighbors []int
+		if srv.rag != nil {
+			if graph, err := srv.store.GetWikiGraph(ctx, id, 1); err == nil && graph != nil {
+				for _, node := range graph.Nodes {
+					if node.ID != id {
+						neighbors = append(neighbors, node.ID)
+					}
+				}
+			}
+		}
 		if err := srv.store.DeleteWikiSubject(ctx, id); err != nil {
 			errorResponse(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		if srv.rag != nil {
-			go func() { _ = srv.rag.RemoveWikiSubject(context.Background(), id) }()
+			srv.rag.RemoveWikiSubjectAsync(id, neighbors...)
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -200,7 +209,7 @@ func (srv *Server) handleAdminWikiRelations(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		if srv.rag != nil {
-			srv.rag.IndexWikiSubjects(ctx, rel.SourceID, rel.TargetID)
+			srv.rag.IndexWikiSubjectsAsync(rel.SourceID, rel.TargetID)
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -223,7 +232,7 @@ func (srv *Server) handleAdminWikiRelations(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		if srv.rag != nil && (srcID > 0 || tgtID > 0) {
-			srv.rag.IndexWikiSubjects(ctx, srcID, tgtID)
+			srv.rag.IndexWikiSubjectsAsync(srcID, tgtID)
 		}
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
@@ -256,7 +265,7 @@ func (srv *Server) handleAdminWikiSyncVideo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if srv.rag != nil && subject != nil && subject.ID > 0 {
-		srv.rag.IndexWikiSubjectAsync(r.Context(), subject.ID)
+		srv.rag.IndexWikiNeighborhoodAsync(subject.ID)
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{

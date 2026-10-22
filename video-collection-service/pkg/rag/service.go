@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -22,6 +23,7 @@ type Indexer interface {
 
 // WikiReader 读取 Wiki 与内容用于分块。
 type WikiReader interface {
+	GetWikiGraph(ctx context.Context, rootID, depth int) (*store.WikiGraphData, error)
 	GetWikiSubjectByID(ctx context.Context, id int) (*store.WikiSubjectDetail, error)
 	ListWikiSubjects(ctx context.Context, q store.WikiSubjectQuery) ([]store.WikiSubject, int, error)
 	GetContent(ctx context.Context, kind string, id int, viewer int, admin bool) (*store.Content, error)
@@ -33,6 +35,7 @@ type Service struct {
 	indexer  Indexer
 	wiki     WikiReader
 	embedder EmbeddingProvider
+	chat     *OpenAIChatClient
 	logMu    sync.Mutex
 }
 
@@ -40,7 +43,7 @@ func NewService(indexer Indexer, wiki WikiReader, embedder EmbeddingProvider) *S
 	if embedder == nil {
 		embedder = NewEmbeddingProviderFromEnv()
 	}
-	svc := &Service{indexer: indexer, wiki: wiki, embedder: embedder}
+	svc := &Service{indexer: indexer, wiki: wiki, embedder: embedder, chat: NewChatClientFromEnv()}
 	store.SetRAGContentIngestHook(func(ctx context.Context, kind string, id int) {
 		svc.IndexContentAsync(ctx, kind, id)
 	})
@@ -146,12 +149,48 @@ func (s *Service) IndexWikiSubjects(ctx context.Context, ids ...int) {
 	}
 }
 
+func (s *Service) IndexWikiSubjectsAsync(ids ...int) {
+	go s.IndexWikiSubjects(context.Background(), ids...)
+}
+
+// IndexWikiNeighborhoodAsync also indexes people and relations created by sync-video.
+func (s *Service) IndexWikiNeighborhoodAsync(subjectID int) {
+	go func() {
+		ctx := context.Background()
+		ids := []int{subjectID}
+		graph, err := s.wiki.GetWikiGraph(ctx, subjectID, 1)
+		if err != nil {
+			s.logf("wiki neighborhood %d: %v", subjectID, err)
+		} else if graph != nil {
+			for _, node := range graph.Nodes {
+				if node.ID != subjectID {
+					ids = append(ids, node.ID)
+				}
+			}
+		}
+		s.IndexWikiSubjects(ctx, ids...)
+	}()
+}
+
+func (s *Service) RemoveWikiSubjectAsync(subjectID int, neighbors ...int) {
+	go func() {
+		ctx := context.Background()
+		if err := s.RemoveWikiSubject(ctx, subjectID); err != nil {
+			s.logf("remove wiki %d: %v", subjectID, err)
+		}
+		s.IndexWikiSubjects(ctx, neighbors...)
+	}()
+}
+
 // IndexContent 索引资讯或帖子正文。
 func (s *Service) IndexContent(ctx context.Context, kind string, contentID int) (int, error) {
 	if contentID <= 0 || s.indexer == nil {
 		return 0, nil
 	}
 	c, err := s.wiki.GetContent(ctx, kind, contentID, 0, true)
+	if errors.Is(err, store.ErrContentNotFound) {
+		return 0, s.indexer.DeleteRAGChunksBySource(ctx, kind, fmt.Sprintf("%d", contentID))
+	}
 	if err != nil || c == nil {
 		return 0, err
 	}

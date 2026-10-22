@@ -53,6 +53,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'Wiki 知识库' }
       },
       {
+        path: 'rag',
+        name: 'RagKnowledge',
+        component: () => import('@/views/rag/index.vue'),
+        meta: { title: 'RAG 知识库' }
+      },
+      {
         path: 'news',
         name: 'News',
         component: () => import('@/views/news/index.vue'),

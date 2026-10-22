@@ -2,15 +2,58 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/rag"
 )
 
 func (srv *Server) registerRAGRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/rag/rebuild", auth.AdminRequired(srv.store, srv.handleAdminRAGRebuild))
 	mux.HandleFunc("/api/admin/rag/search", auth.AdminRequired(srv.store, srv.handleAdminRAGSearch))
+	mux.HandleFunc("/api/admin/rag/ask", auth.AdminRequired(srv.store, srv.handleAdminRAGAsk))
+}
+
+func (srv *Server) handleAdminRAGAsk(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return
+	}
+	if srv.rag == nil {
+		errorResponse(w, http.StatusServiceUnavailable, "RAG 服务未启用")
+		return
+	}
+	var req struct {
+		Q          string `json:"q"`
+		Query      string `json:"query"`
+		TopK       int    `json:"top_k"`
+		SourceType string `json:"source_type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "参数解析失败")
+		return
+	}
+	query := strings.TrimSpace(req.Query)
+	if query == "" {
+		query = strings.TrimSpace(req.Q)
+	}
+	if query == "" {
+		errorResponse(w, http.StatusBadRequest, "查询文本不能为空")
+		return
+	}
+	result, err := srv.rag.Ask(r.Context(), query, req.TopK, req.SourceType)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, rag.ErrChat) {
+			status = http.StatusBadGateway
+		}
+		errorResponse(w, status, "RAG 问答失败: "+err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": result})
 }
 
 func (srv *Server) handleAdminRAGRebuild(w http.ResponseWriter, r *http.Request) {
