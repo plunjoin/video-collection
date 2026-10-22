@@ -24,6 +24,7 @@ type CollectionRecord struct {
 type CollectionStore interface {
 	SaveCollectionRecord(context.Context, CollectionRecord, bool) (bool, error)
 	ListCollectionRecords(context.Context, string, int, int) ([]CollectionRecord, int, error)
+	ListCollectionRecordsByTarget(context.Context, string, int, int) ([]CollectionRecord, int, error)
 	HasCollectionRecord(context.Context, string, string, string) (bool, error)
 	UpdateCollectionRecord(ctx context.Context, sourceID, target, key string, values map[string]string) error
 	DeleteCollectionRecord(ctx context.Context, sourceID, target, key string) error
@@ -172,6 +173,32 @@ func (s *SQLContentStore) ListCollectionRecords(ctx context.Context, source stri
 		return nil, 0, err
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT source_id,target,record_key,payload,content_id,updated_at FROM collection_records WHERE source_id=$1 ORDER BY updated_at DESC,record_key LIMIT $2 OFFSET $3`, source, size, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	result := []CollectionRecord{}
+	for rows.Next() {
+		var r CollectionRecord
+		var payload string
+		if err := rows.Scan(&r.SourceID, &r.Target, &r.Key, &payload, &r.ContentID, &r.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		if err := json.Unmarshal([]byte(payload), &r.Values); err != nil {
+			return nil, 0, err
+		}
+		result = append(result, r)
+	}
+	return result, total, rows.Err()
+}
+
+func (s *SQLContentStore) ListCollectionRecordsByTarget(ctx context.Context, target string, page, size int) ([]CollectionRecord, int, error) {
+	size, offset := contentPage(page, size)
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_records WHERE target=$1`, target).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT source_id,target,record_key,payload,content_id,updated_at FROM collection_records WHERE target=$1 ORDER BY updated_at DESC,record_key LIMIT $2 OFFSET $3`, target, size, offset)
 	if err != nil {
 		return nil, 0, err
 	}

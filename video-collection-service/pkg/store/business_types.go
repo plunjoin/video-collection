@@ -41,12 +41,108 @@ type BusinessTypeField struct {
 type BusinessTypeStore interface {
 	ListBusinessTypes(context.Context) ([]BusinessType, error)
 	GetBusinessType(context.Context, string) (*BusinessType, error)
+	ListBusinessTypeRows(context.Context, string, int, int) ([]map[string]any, int, error)
+	DeleteBusinessTypeRow(context.Context, string, int) error
 	CreateBusinessType(context.Context, BusinessType) error
 	UpdateBusinessType(context.Context, string, string, string) error
 	DeleteBusinessType(context.Context, string) error
 	AddBusinessTypeField(context.Context, string, BusinessTypeField) error
 	UpdateBusinessTypeField(context.Context, string, string, BusinessTypeField) error
 	DeleteBusinessTypeField(context.Context, string, string) error
+}
+
+// ListBusinessTypeRows returns the schema-defined rows for a custom table.
+// Values are normalized to JSON-friendly values so the admin API can expose
+// them without knowing the database driver in use.
+func (s *SQLContentStore) ListBusinessTypeRows(ctx context.Context, slug string, page, size int) ([]map[string]any, int, error) {
+	b, err := s.GetBusinessType(ctx, slug)
+	if err != nil {
+		return nil, 0, err
+	}
+	if b.Writer != "table" {
+		return nil, 0, fmt.Errorf("业务类型 %q 不支持通用数据浏览", slug)
+	}
+	size, offset := contentPage(page, size)
+	var total int
+	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+quoteIdent(b.TableName)).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	columns := []string{"id", "record_key", "source_id", "payload", "created_at", "updated_at"}
+	for _, f := range b.Fields {
+		columns = append(columns, f.Name)
+	}
+	quoted := make([]string, len(columns))
+	for i, column := range columns {
+		quoted[i] = quoteIdent(column)
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT "+strings.Join(quoted, ",")+" FROM "+quoteIdent(b.TableName)+" ORDER BY updated_at DESC, id DESC LIMIT $1 OFFSET $2", size, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	result := make([]map[string]any, 0)
+	for rows.Next() {
+		values := make([]any, len(columns))
+		dest := make([]any, len(columns))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		if err = rows.Scan(dest...); err != nil {
+			return nil, 0, err
+		}
+		item := make(map[string]any, len(columns))
+		for i, column := range columns {
+			item[column] = businessRowValue(values[i])
+		}
+		if payload, ok := item["payload"].(string); ok {
+			var parsed any
+			if json.Unmarshal([]byte(payload), &parsed) == nil {
+				item["payload"] = parsed
+			}
+		}
+		for _, f := range b.Fields {
+			if f.DataType != "json" {
+				continue
+			}
+			if raw, ok := item[f.Name].(string); ok {
+				var parsed any
+				if json.Unmarshal([]byte(raw), &parsed) == nil {
+					item[f.Name] = parsed
+				}
+			}
+		}
+		result = append(result, item)
+	}
+	return result, total, rows.Err()
+}
+
+func businessRowValue(value any) any {
+	if raw, ok := value.([]byte); ok {
+		return string(raw)
+	}
+	return value
+}
+
+// DeleteBusinessTypeRow resolves the table identity back to the collection
+// record and uses the same transactional deletion path as other admin APIs.
+func (s *SQLContentStore) DeleteBusinessTypeRow(ctx context.Context, slug string, id int) error {
+	b, err := s.GetBusinessType(ctx, slug)
+	if err != nil {
+		return err
+	}
+	if b.Writer != "table" {
+		return fmt.Errorf("业务类型 %q 不支持删除表格行", slug)
+	}
+	var sourceID, encodedKey string
+	err = s.db.QueryRowContext(ctx, "SELECT source_id,record_key FROM "+quoteIdent(b.TableName)+" WHERE id=$1", id).Scan(&sourceID, &encodedKey)
+	if err != nil {
+		return err
+	}
+	var identity []string
+	if err = json.Unmarshal([]byte(encodedKey), &identity); err != nil || len(identity) != 2 {
+		return fmt.Errorf("业务行身份无效")
+	}
+	return s.DeleteCollectionRecord(ctx, sourceID, slug, identity[1])
 }
 
 var businessName = regexp.MustCompile(`^[a-z][a-z0-9_]{1,47}$`)

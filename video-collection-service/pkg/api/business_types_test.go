@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -10,6 +11,40 @@ import (
 	"video-collection-service/pkg/auth"
 	"video-collection-service/pkg/store"
 )
+
+func TestBusinessTypeRowsAdminAPI(t *testing.T) {
+	f := newContentFixture(t)
+	ctx := context.Background()
+	f.request("POST", "/api/admin/business-types", `{"slug":"row_item","name":"Rows","fields":[{"name":"title","label":"标题","required":true},{"name":"meta","data_type":"json"}]}`, f.admin, 200)
+	if _, err := f.s.SaveCollectionRecord(ctx, store.CollectionRecord{SourceID: "source-a", Target: "row_item", Key: "external-1", Values: map[string]string{"title": "第一条", "meta": `{"ok":true}`}}, false); err != nil {
+		t.Fatal(err)
+	}
+	result := f.request("GET", "/api/admin/business-types/row_item/rows?page=1&page_size=10", "", f.admin, 200)
+	rows := decodeContentData[[]map[string]any](t, result)
+	if len(rows) != 1 || rows[0]["source_id"] != "source-a" || rows[0]["title"] != "第一条" {
+		t.Fatalf("rows: %+v", rows)
+	}
+	rowID, ok := rows[0]["id"].(float64)
+	if !ok || rowID < 1 {
+		t.Fatalf("row id: %+v", rows[0]["id"])
+	}
+	f.request("DELETE", fmt.Sprintf("/api/admin/business-types/row_item/rows?id=%d", int(rowID)), "", f.admin, 200)
+	result = f.request("GET", "/api/admin/business-types/row_item/rows", "", f.admin, 200)
+	if string(result["total"]) != "0" {
+		t.Fatalf("row was not deleted: %s", result)
+	}
+	if _, err := f.s.SaveCollectionRecord(ctx, store.CollectionRecord{SourceID: "source-r", Target: "record", Key: "record-1", Values: map[string]string{"name": "通用"}}, false); err != nil {
+		t.Fatal(err)
+	}
+	result = f.request("GET", "/api/admin/business-types/record/rows", "", f.admin, 200)
+	records := decodeContentData[[]map[string]any](t, result)
+	if len(records) != 1 || records[0]["key"] != "record-1" || records[0]["target"] != "record" {
+		t.Fatalf("record rows: %+v", records)
+	}
+	f.request("DELETE", "/api/admin/business-types/record/rows?source_id=source-r&key=record-1", "", f.admin, 200)
+	f.request("GET", "/api/admin/business-types/article/rows", "", f.admin, 400)
+	f.request("GET", "/api/admin/business-types/missing/rows", "", f.admin, 404)
+}
 
 func TestBusinessTypeAdminAPI(t *testing.T) {
 	f := newContentFixture(t)

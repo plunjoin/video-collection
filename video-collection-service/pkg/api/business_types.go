@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"video-collection-service/pkg/store"
@@ -19,6 +20,8 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 	}
 	var data any
 	var err error
+	var total int
+	var page, pageSize int
 	decode := func(dst any) bool {
 		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 		// Reject table/writer/is_system and other routing properties. These belong
@@ -51,6 +54,68 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			errorResponse(w, 405, "Method Not Allowed")
+			return
+		}
+	case len(parts) == 2 && parts[1] == "rows":
+		switch r.Method {
+		case http.MethodGet:
+			page, pageSize, _ = contentPagination(w, r)
+			if page == 0 {
+				return
+			}
+			var b *store.BusinessType
+			b, err = srv.store.GetBusinessType(r.Context(), slug)
+			if err == nil {
+				switch b.Writer {
+				case "article", "video":
+					err = errors.New("系统业务类型请使用专用资讯或视频页面")
+				case "record":
+					var records []store.CollectionRecord
+					records, total, err = srv.store.ListCollectionRecordsByTarget(r.Context(), "record", page, pageSize)
+					data = make([]map[string]any, 0, len(records))
+					for _, record := range records {
+						data = append(data.([]map[string]any), map[string]any{
+							"source_id":  record.SourceID,
+							"target":     record.Target,
+							"key":        record.Key,
+							"record_key": record.Key,
+							"values":     record.Values,
+							"payload":    record.Values,
+							"content_id": record.ContentID,
+							"updated_at": record.UpdatedAt,
+						})
+					}
+				default:
+					data, total, err = srv.store.ListBusinessTypeRows(r.Context(), slug, page, pageSize)
+				}
+			}
+		case http.MethodDelete:
+			b, getErr := srv.store.GetBusinessType(r.Context(), slug)
+			if getErr != nil {
+				err = getErr
+				break
+			}
+			if b.Writer == "record" {
+				sourceID := strings.TrimSpace(r.URL.Query().Get("source_id"))
+				key := strings.TrimSpace(r.URL.Query().Get("key"))
+				if sourceID == "" || key == "" {
+					errorResponse(w, http.StatusBadRequest, "删除通用数据需要 source_id 和 key")
+					return
+				}
+				err = srv.store.DeleteCollectionRecord(r.Context(), sourceID, "record", key)
+			} else if b.Writer == "article" || b.Writer == "video" {
+				errorResponse(w, http.StatusBadRequest, "系统业务类型请使用专用资讯或视频页面")
+				return
+			} else {
+				id, parseErr := strconv.Atoi(r.URL.Query().Get("id"))
+				if parseErr != nil || id < 1 {
+					errorResponse(w, http.StatusBadRequest, "id 必须为正整数")
+					return
+				}
+				err = srv.store.DeleteBusinessTypeRow(r.Context(), slug, id)
+			}
+		default:
+			errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
 			return
 		}
 	case len(parts) == 1:
@@ -131,5 +196,11 @@ func (srv *Server) handleBusinessTypes(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, status, err.Error())
 		return
 	}
-	jsonResponse(w, 200, map[string]any{"code": 1, "data": data})
+	response := map[string]any{"code": 1, "data": data}
+	if page > 0 {
+		response["total"] = total
+		response["page"] = page
+		response["page_size"] = pageSize
+	}
+	jsonResponse(w, 200, response)
 }
