@@ -190,13 +190,15 @@ type UserFavoriteItem struct {
 
 // StatsInfo 仪表盘统计数据
 type StatsInfo struct {
-	TotalSources   int `json:"total_sources"`
-	ActiveSources  int `json:"active_sources"`
-	TotalVideos    int `json:"total_videos"`
-	TodayUpdated   int `json:"today_updated"`
-	TotalPlayCount int `json:"total_play_groups"`
-	TotalUsers     int `json:"total_users"`
-	TotalFeedbacks int `json:"total_feedbacks"`
+	TotalSources        int `json:"total_sources"`
+	ActiveSources       int `json:"active_sources"`
+	TotalVideos         int `json:"total_videos"`
+	TotalNews           int `json:"total_news"`
+	TotalBusinessTypes  int `json:"total_business_types"`
+	TodayUpdated        int `json:"today_updated"`
+	TotalPlayCount      int `json:"total_play_groups"`
+	TotalUsers          int `json:"total_users"`
+	TotalFeedbacks      int `json:"total_feedbacks"`
 }
 
 // Store 统一存储接口

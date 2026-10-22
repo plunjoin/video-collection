@@ -50,6 +50,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('bllii'), findsOneWidget);
     expect(find.text('首页'), findsOneWidget);
+    expect(find.text('资讯'), findsOneWidget);
+    await tester.tap(find.text('资讯'));
+    expect(selected, 3);
     expect(find.text('登录 / 注册'), findsOneWidget);
     expect(find.text('Ctrl+K'), findsOneWidget);
     expect(width, sidebarExpandedWidth);

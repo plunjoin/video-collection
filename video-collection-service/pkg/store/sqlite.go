@@ -1188,6 +1188,8 @@ func (s *SQLiteStore) GetStats(ctx context.Context) (*StatsInfo, error) {
 		Scan(&stats.TotalSources, &stats.ActiveSources)
 
 	_ = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM videos").Scan(&stats.TotalVideos)
+	_ = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM content_entries WHERE kind = 'news'").Scan(&stats.TotalNews)
+	_ = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM business_types").Scan(&stats.TotalBusinessTypes)
 
 	todayStart := time.Now().Truncate(24 * time.Hour)
 	_ = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM videos WHERE updated_at >= ?", todayStart).

@@ -4,10 +4,12 @@ import '../theme/app_colors.dart';
 
 class QuickNavWidget extends StatelessWidget {
   final Function(int targetTab) onNavTap;
+  final VoidCallback onTimelineTap;
   final VoidCallback onHistoryTap;
   const QuickNavWidget({
     super.key,
     required this.onNavTap,
+    required this.onTimelineTap,
     required this.onHistoryTap,
   });
   @override
@@ -15,7 +17,7 @@ class QuickNavWidget extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final items = [
       ('番剧', Icons.live_tv_rounded, AppColors.primary500, () => onNavTap(1)),
-      ('新番', Icons.video_library_rounded, AppColors.rose, () => onNavTap(3)),
+      ('新番', Icons.video_library_rounded, AppColors.rose, onTimelineTap),
       ('排行榜', Icons.star_rounded, AppColors.primary500, () => onNavTap(2)),
       ('我的追番', Icons.favorite_rounded, AppColors.purple, () => onNavTap(4)),
       ('观看历史', Icons.history_rounded, AppColors.rose, onHistoryTap),

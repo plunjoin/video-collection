@@ -1,9 +1,28 @@
 <template>
   <div class="dashboard-container">
-    <!-- 1. 核心数据指标卡片 -->
+    <r-card shadow="never" class="section-card welcome-card">
+      <div class="welcome-row">
+        <div class="welcome-copy">
+          <span class="eyebrow">内容运营工作台</span>
+          <h1>视频、资讯与业务数据，一站管理</h1>
+          <p>资源库按类型浏览；使魔负责采集入库；系统日志记录登录与关键操作。</p>
+        </div>
+        <div class="welcome-actions">
+          <r-button type="primary" @click="$router.push('/resources')">进入资源库</r-button>
+          <r-button @click="$router.push('/business-types')">业务类型</r-button>
+          <r-button @click="$router.push('/scheduler')">使魔调度</r-button>
+        </div>
+      </div>
+    </r-card>
+
     <r-row :gutter="12" class="stats-row">
       <r-col :xs="12" :sm="8" :md="4" v-for="item in statCards" :key="item.key">
-        <r-card shadow="hover" class="stat-card" :body-style="{ padding: '12px 14px' }">
+        <r-card
+          shadow="hover"
+          class="stat-card is-clickable"
+          :body-style="{ padding: '12px 14px' }"
+          @click="item.to && $router.push(item.to)"
+        >
           <div class="card-header">
             <span class="card-label">{{ item.label }}</span>
             <div class="card-icon" :style="{ background: item.iconBg, color: item.iconColor }">
@@ -18,28 +37,55 @@
       </r-col>
     </r-row>
 
-    <!-- 2. 快捷操作栏 & 采集调度状态 -->
-    <r-card shadow="never" class="section-card quick-actions-card">
+    <r-card shadow="never" class="section-card shortcuts-card">
       <div class="action-header">
         <div class="title-wrap">
           <r-icon class="title-icon"><Lightning /></r-icon>
-          <span class="title-text">快速调度与即时操作</span>
+          <span class="title-text">常用入口</span>
+          <span class="title-aux">按内容类型快速跳转</span>
+        </div>
+      </div>
+      <div class="shortcut-grid">
+        <button
+          v-for="item in shortcuts"
+          :key="item.path"
+          type="button"
+          class="shortcut-item"
+          @click="$router.push(item.path)"
+        >
+          <div class="shortcut-icon" :style="{ background: item.iconBg, color: item.iconColor }">
+            <r-icon><component :is="item.icon" /></r-icon>
+          </div>
+          <div class="shortcut-copy">
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.desc }}</span>
+          </div>
+          <span class="shortcut-arrow">→</span>
+        </button>
+      </div>
+    </r-card>
+
+    <r-card shadow="never" class="section-card quick-actions-card">
+      <div class="action-header">
+        <div class="title-wrap">
+          <r-icon class="title-icon"><Refresh /></r-icon>
+          <span class="title-text">使魔即时采集</span>
+          <span class="title-aux">可按业务类型入库到视频 / 资讯 / 自定义表</span>
         </div>
         <div class="action-buttons">
           <r-button type="primary" :loading="collectingAll" @click="handleCollectAll(24)">
-            <r-icon><Refresh /></r-icon>全网近24小时增量采集
+            <r-icon><Refresh /></r-icon>近 24 小时增量
           </r-button>
           <r-button type="warning" plain :loading="collectingAll" @click="handleCollectAll(0)">
-            <r-icon><Download /></r-icon>全网历史全量采集
+            <r-icon><Download /></r-icon>历史全量
           </r-button>
           <r-button @click="$router.push('/sources')">
-            <r-icon><Plus /></r-icon>添加采集点
+            <r-icon><Plus /></r-icon>管理使魔节点
           </r-button>
         </div>
       </div>
     </r-card>
 
-    <!-- 2.5 埋点流量概览（网站 + App 上报汇总） -->
     <r-card shadow="never" class="section-card analytics-card">
       <div class="analytics-header">
         <div class="title-wrap">
@@ -93,22 +139,20 @@
       </div>
     </r-card>
 
-    <!-- 3. 采集源即时状态与图表分布 -->
     <r-row :gutter="12" class="content-row">
-      <!-- 采集点即时触发列表 -->
       <r-col :xs="24" :lg="14">
         <r-card shadow="never" class="section-card">
           <template #header>
             <div class="card-title-bar">
-              <span class="title">活跃采集点与即时触发</span>
+              <span class="title">活跃使魔节点</span>
               <r-button link type="primary" @click="$router.push('/sources')">
-                管理采集点 &rarr;
+                管理节点 &rarr;
               </r-button>
             </div>
           </template>
 
           <div v-loading="loadingSources" class="source-list">
-            <div v-if="sources.length === 0" class="empty-tip">暂无配置采集源</div>
+            <div v-if="sources.length === 0" class="empty-tip">暂无配置采集源，可先添加使魔节点</div>
             <div v-for="src in sources" :key="src.id" class="source-item">
               <div class="source-info">
                 <div class="name-row">
@@ -128,7 +172,7 @@
                   :loading="triggeringId === src.id + '_24'"
                   @click="handleTrigger(src.id, 24)"
                 >
-                  增量采集
+                  增量
                 </r-button>
                 <r-button
                   size="small"
@@ -137,7 +181,7 @@
                   :loading="triggeringId === src.id + '_0'"
                   @click="handleTrigger(src.id, 0)"
                 >
-                  全量补全
+                  全量
                 </r-button>
               </div>
             </div>
@@ -145,40 +189,43 @@
         </r-card>
       </r-col>
 
-      <!-- 系统状态与分类概览 -->
       <r-col :xs="24" :lg="10">
         <r-card shadow="never" class="section-card">
           <template #header>
             <div class="card-title-bar">
-              <span class="title">分类视频分布概览</span>
-              <r-button link type="primary" @click="$router.push('/videos')">
-                视频仓库 &rarr;
+              <span class="title">内容库速览</span>
+              <r-button link type="primary" @click="$router.push('/resources')">
+                打开资源库 &rarr;
               </r-button>
             </div>
           </template>
 
-          <div v-loading="loadingCategories" class="category-summary">
-            <div v-if="categories.length === 0" class="empty-tip">暂无分类数据</div>
-            <div class="cat-grid">
-              <div v-for="cat in categories.slice(0, 8)" :key="cat.id ?? cat.type_id" class="cat-chip">
-                <span class="cat-name">{{ cat.name ?? cat.type_name }}</span>
-                <span class="cat-id">ID: {{ cat.id ?? cat.type_id }}</span>
+          <div class="content-overview">
+            <button
+              v-for="item in contentOverview"
+              :key="item.path"
+              type="button"
+              class="overview-item"
+              @click="$router.push(item.path)"
+            >
+              <div class="overview-top">
+                <span class="overview-label">{{ item.label }}</span>
+                <span class="overview-count">{{ item.count }}</span>
               </div>
-            </div>
-            <div class="system-status-box">
-              <div class="sys-item">
-                <span class="label">服务端架构：</span>
-                <span class="val">Go 1.24 + Gin/Net.HTTP 纯 RESTful</span>
+              <p>{{ item.desc }}</p>
+            </button>
+
+            <div v-loading="loadingCategories" class="category-summary">
+              <div class="cat-head">
+                <span>视频分类</span>
+                <r-button link type="primary" @click="$router.push('/resources/video')">查看 →</r-button>
               </div>
-              <div class="sys-item">
-                <span class="label">数据库支持：</span>
-                <span class="val">PostgreSQL JSONB / SQLite 本地降级</span>
-              </div>
-              <div class="sys-item">
-                <span class="label">OpenAPI 规范：</span>
-                <r-link type="primary" href="/openapi.json" target="_blank">
-                  v3.0.0 规范 JSON
-                </r-link>
+              <div v-if="categories.length === 0" class="empty-tip">暂无分类数据</div>
+              <div v-else class="cat-grid">
+                <div v-for="cat in categories.slice(0, 6)" :key="cat.id ?? cat.type_id" class="cat-chip">
+                  <span class="cat-name">{{ cat.name ?? cat.type_name }}</span>
+                  <span class="cat-id">ID: {{ cat.id ?? cat.type_id }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -199,19 +246,21 @@ import {
 } from '@/api/admin'
 import { getCategories } from '@/api/videos'
 import type { AdminStats, AnalyticsOverview, SourceConfig, Category } from '@/types'
-import { notify }  from '@/components/radix/feedback'
+import { notify } from '@/components/radix/feedback'
 import {
   Connection,
   Film,
   Calendar,
-  Share,
   User,
-  ChatDotRound,
   Lightning,
   Refresh,
   Download,
   Plus,
-  TrendCharts
+  TrendCharts,
+  Document,
+  Reading,
+  Clock,
+  SetUp
 } from '@/components/radix/icons'
 
 const stats = ref<Partial<AdminStats>>({})
@@ -222,13 +271,11 @@ const loadingCategories = ref(false)
 const collectingAll = ref(false)
 const triggeringId = ref('')
 
-// 埋点流量概览
 const analytics = ref<AnalyticsOverview | null>(null)
 const loadingAnalytics = ref(false)
 
 const formatNumber = (value?: number) => (value ?? 0).toLocaleString('zh-CN')
 
-// 今日 vs 昨日变化率；昨日为 0 时返回 null（无基准）
 const pctDelta = (current?: number, previous?: number): number | null => {
   if (!previous) return null
   return (((current ?? 0) - previous) / previous) * 100
@@ -271,9 +318,7 @@ const analyticsMetrics = computed(() => {
 })
 
 const trendWindow = computed(() => (analytics.value?.trend || []).slice(-7))
-
 const trendMax = computed(() => Math.max(0, ...trendWindow.value.map((point) => point.pv)))
-
 const trendBars = computed(() => {
   const max = Math.max(1, trendMax.value)
   return trendWindow.value.map((point) => ({
@@ -290,56 +335,134 @@ const loadAnalytics = async () => {
   try {
     const res = await getAnalyticsOverview()
     analytics.value = res.data ?? null
-  } catch (e) {
+  } catch {
     analytics.value = null
   } finally {
     loadingAnalytics.value = false
   }
 }
 
-const statCards = computed(() => [
+const shortcuts = [
   {
-    key: 'total_sources' as const,
-    label: '采集源数量',
-    icon: Connection,
-    iconBg: 'rgba(99, 102, 241, 0.15)',
-    iconColor: '#6366f1',
-    sub: `启用 ${stats.value.active_sources ?? 0}`
-  },
-  {
-    key: 'total_videos' as const,
-    label: '已入库总视频',
+    path: '/resources/video',
+    title: '视频资源',
+    desc: '番剧与点播内容',
     icon: Film,
     iconBg: 'rgba(16, 185, 129, 0.15)',
     iconColor: '#10b981'
   },
   {
-    key: 'today_updated' as const,
-    label: '今日更新数据',
-    icon: Calendar,
-    iconBg: 'rgba(245, 158, 11, 0.15)',
-    iconColor: '#f59e0b'
+    path: '/resources/news',
+    title: '资讯文章',
+    desc: '发布与维护站内资讯',
+    icon: Reading,
+    iconBg: 'rgba(59, 130, 246, 0.15)',
+    iconColor: '#3b82f6'
   },
   {
-    key: 'total_play_groups' as const,
-    label: '聚合播放线路',
-    icon: Share,
+    path: '/business-types',
+    title: '业务类型',
+    desc: '自定义字段与入库结构',
+    icon: Document,
     iconBg: 'rgba(139, 92, 246, 0.15)',
     iconColor: '#8b5cf6'
   },
   {
-    key: 'total_users' as const,
-    label: '系统用户数',
-    icon: User,
-    iconBg: 'rgba(14, 165, 233, 0.15)',
-    iconColor: '#0ea5e9'
+    path: '/resources',
+    title: '资源库总览',
+    desc: '视频 / 资讯 / 业务数据',
+    icon: SetUp,
+    iconBg: 'rgba(99, 102, 241, 0.15)',
+    iconColor: '#6366f1'
   },
   {
-    key: 'total_feedbacks' as const,
-    label: '求片留言反馈',
-    icon: ChatDotRound,
-    iconBg: 'rgba(244, 63, 94, 0.15)',
+    path: '/scheduler',
+    title: '使魔调度',
+    desc: '定时采集与任务进度',
+    icon: Clock,
+    iconBg: 'rgba(245, 158, 11, 0.15)',
+    iconColor: '#f59e0b'
+  },
+  {
+    path: '/system-logs',
+    title: '系统日志',
+    desc: '登录、业务与操作记录',
+    icon: Document,
+    iconBg: 'rgba(244, 63, 94, 0.12)',
     iconColor: '#f43f5e'
+  }
+]
+
+const contentOverview = computed(() => [
+  {
+    path: '/resources/video',
+    label: '视频',
+    count: formatNumber(stats.value.total_videos),
+    desc: '资源库 · 视频页'
+  },
+  {
+    path: '/resources/news',
+    label: '资讯',
+    count: formatNumber(stats.value.total_news),
+    desc: '资源库 · 资讯页'
+  },
+  {
+    path: '/business-types',
+    label: '业务类型',
+    count: formatNumber(stats.value.total_business_types),
+    desc: '含系统内置与自定义'
+  }
+])
+
+const statCards = computed(() => [
+  {
+    key: 'total_videos' as const,
+    label: '视频库存',
+    icon: Film,
+    iconBg: 'rgba(16, 185, 129, 0.15)',
+    iconColor: '#10b981',
+    to: '/resources/video'
+  },
+  {
+    key: 'total_news' as const,
+    label: '资讯文章',
+    icon: Reading,
+    iconBg: 'rgba(59, 130, 246, 0.15)',
+    iconColor: '#3b82f6',
+    to: '/resources/news'
+  },
+  {
+    key: 'total_business_types' as const,
+    label: '业务类型',
+    icon: Document,
+    iconBg: 'rgba(139, 92, 246, 0.15)',
+    iconColor: '#8b5cf6',
+    to: '/business-types'
+  },
+  {
+    key: 'total_sources' as const,
+    label: '使魔节点',
+    icon: Connection,
+    iconBg: 'rgba(99, 102, 241, 0.15)',
+    iconColor: '#6366f1',
+    sub: `启用 ${stats.value.active_sources ?? 0}`,
+    to: '/sources'
+  },
+  {
+    key: 'today_updated' as const,
+    label: '今日视频更新',
+    icon: Calendar,
+    iconBg: 'rgba(245, 158, 11, 0.15)',
+    iconColor: '#f59e0b',
+    to: '/resources/video'
+  },
+  {
+    key: 'total_users' as const,
+    label: '系统用户',
+    icon: User,
+    iconBg: 'rgba(14, 165, 233, 0.15)',
+    iconColor: '#0ea5e9',
+    to: '/users'
   }
 ])
 
@@ -349,7 +472,7 @@ const loadStats = async () => {
     if (res.code === 1 && res.data) {
       stats.value = res.data
     }
-  } catch (e) {}
+  } catch {}
 }
 
 const loadSources = async () => {
@@ -359,7 +482,7 @@ const loadSources = async () => {
     if (res.code === 1 && res.data) {
       sources.value = res.data
     }
-  } catch (e) {
+  } catch {
   } finally {
     loadingSources.value = false
   }
@@ -372,7 +495,7 @@ const loadCategoriesData = async () => {
     if (res.code === 1 && res.data) {
       categories.value = res.data
     }
-  } catch (e) {
+  } catch {
   } finally {
     loadingCategories.value = false
   }
@@ -387,7 +510,7 @@ const handleTrigger = async (sourceId: string, hours: number) => {
       notify(res.msg || '采集任务已在后台启动', 'success')
       loadStats()
     }
-  } catch (e) {
+  } catch {
   } finally {
     triggeringId.value = ''
   }
@@ -401,7 +524,7 @@ const handleCollectAll = async (hours: number) => {
       notify(res.msg || '全网并发采集任务已启动', 'success')
       loadStats()
     }
-  } catch (e) {
+  } catch {
   } finally {
     collectingAll.value = false
   }
@@ -421,9 +544,59 @@ onMounted(() => {
   flex-direction: column;
   gap: 12px;
 
+  .welcome-card {
+    .welcome-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .welcome-copy {
+      min-width: 0;
+      max-width: 720px;
+
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: 6px;
+        color: var(--brand);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.35;
+      }
+
+      p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+    }
+
+    .welcome-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  }
+
   .stats-row {
     .stat-card {
       transition: all 0.2s ease;
+
+      &.is-clickable {
+        cursor: pointer;
+      }
 
       &:hover {
         transform: translateY(-1px);
@@ -473,6 +646,7 @@ onMounted(() => {
     }
   }
 
+  .shortcuts-card,
   .quick-actions-card {
     .action-header {
       display: flex;
@@ -486,6 +660,7 @@ onMounted(() => {
         align-items: center;
         gap: 6px;
         color: var(--brand);
+        min-width: 0;
 
         .title-icon {
           font-size: 15px;
@@ -495,6 +670,13 @@ onMounted(() => {
           font-size: 12px;
           font-weight: 650;
           color: var(--text-primary);
+          white-space: nowrap;
+        }
+
+        .title-aux {
+          font-size: 10px;
+          color: var(--text-secondary);
+          white-space: nowrap;
         }
       }
 
@@ -506,7 +688,68 @@ onMounted(() => {
     }
   }
 
-  /* 埋点流量概览 */
+  .shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .shortcut-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: rgba(20, 32, 57, 0.03);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+
+    &:hover {
+      border-color: rgba(79, 110, 242, 0.28);
+      background: var(--nav-bg-subtle);
+      transform: translateY(-1px);
+    }
+
+    .shortcut-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .shortcut-copy {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      strong {
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      span {
+        color: var(--text-secondary);
+        font-size: 10px;
+        line-height: 1.4;
+      }
+    }
+
+    .shortcut-arrow {
+      color: var(--text-secondary);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+  }
+
   .analytics-card {
     .analytics-header {
       display: flex;
@@ -776,10 +1019,71 @@ onMounted(() => {
         }
       }
 
-      .category-summary {
+      .content-overview {
         display: flex;
         flex-direction: column;
         gap: 10px;
+
+        .overview-item {
+          display: block;
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          background: rgba(20, 32, 57, 0.03);
+          text-align: left;
+          cursor: pointer;
+          transition: border-color 0.16s ease, background 0.16s ease;
+
+          &:hover {
+            border-color: rgba(79, 110, 242, 0.28);
+            background: var(--nav-bg-subtle);
+          }
+
+          .overview-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 2px;
+          }
+
+          .overview-label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+          }
+
+          .overview-count {
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+          }
+
+          p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 10px;
+          }
+        }
+      }
+
+      .category-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 4px;
+
+        .cat-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          color: var(--text-primary);
+          font-size: 11px;
+          font-weight: 650;
+        }
 
         .cat-grid {
           display: grid;
@@ -806,29 +1110,6 @@ onMounted(() => {
             }
           }
         }
-
-        .system-status-box {
-          border-top: 1px solid var(--nav-border-light);
-          padding-top: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          font-size: 11px;
-
-          .sys-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            .label {
-              color: var(--text-secondary);
-            }
-            .val {
-              color: var(--text-primary);
-              font-weight: 500;
-            }
-          }
-        }
       }
 
       .empty-tip {
@@ -837,6 +1118,18 @@ onMounted(() => {
         color: var(--text-secondary);
         font-size: 11px;
       }
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .shortcut-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .shortcut-grid {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

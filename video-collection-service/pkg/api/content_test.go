@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/store"
 )
 
@@ -136,6 +137,116 @@ func TestNewsPublicationAndPagination(t *testing.T) {
 	}
 	f.request("DELETE", fmt.Sprintf("/api/admin/news?id=%d", draft.ID), "", f.admin, 200)
 	f.request("GET", fmt.Sprintf("/api/news?id=%d", draft.ID), "", nil, 404)
+}
+
+func TestNewsBatchPublicationAndDelete(t *testing.T) {
+	t.Setenv("RAG_EMBEDDING_PROVIDER", "fake")
+	f := newContentFixture(t)
+	// Run the usual indexing hook synchronously to verify results without racing
+	// the background worker or closing the fixture while it is still indexing.
+	svc := rag.NewService(f.s, f.s, rag.NewEmbeddingProviderFromEnv())
+	store.SetRAGContentIngestHook(func(ctx context.Context, kind string, id int) {
+		if _, err := svc.IndexContent(ctx, kind, id); err != nil {
+			t.Errorf("index %s:%d: %v", kind, id, err)
+		}
+	})
+	t.Cleanup(func() { store.SetRAGContentIngestHook(nil) })
+	admin := f.staff("admin")
+	first := decodeContentData[store.Content](t, f.request("POST", "/api/admin/news", `{"title":"采集草稿","content":"正文","summary":"摘要","status":"draft","pinned":true,"source_name":"采集源","source_url":"https://example.com/news","published_at":"2026-10-18T13:00:00-04:00"}`, admin, 200))
+	second := decodeContentData[store.Content](t, f.request("POST", "/api/admin/news", `{"title":"第二篇","content":"正文","status":"draft"}`, admin, 200))
+	batch := func(action string) {
+		t.Helper()
+		res := f.request("POST", "/api/admin/news/batch", fmt.Sprintf(`{"ids":[%d,%d,%d],"action":%q}`, second.ID, first.ID, first.ID, action), admin, 200)
+		data := decodeContentData[struct {
+			Count  int    `json:"count"`
+			Action string `json:"action"`
+		}](t, res)
+		if string(res["code"]) != "1" || len(res["msg"]) == 0 || data.Count != 2 || data.Action != action {
+			t.Fatalf("bad batch response: %s", res)
+		}
+	}
+	assertChunks := func(want int) {
+		t.Helper()
+		chunks, err := f.s.ListRAGChunksForSearch(context.Background(), "news")
+		if err != nil || len(chunks) != want {
+			t.Fatalf("RAG news chunks=%d want=%d err=%v", len(chunks), want, err)
+		}
+	}
+	assertChunks(0)
+	batch("publish")
+	assertChunks(2)
+	for _, original := range []store.Content{first, second} {
+		current := decodeContentData[store.Content](t, f.request("GET", fmt.Sprintf("/api/news?id=%d", original.ID), "", nil, 200))
+		if current.Status != "published" || current.AuthorID != original.AuthorID || current.Title != original.Title || current.Content != original.Content || current.Summary != original.Summary || current.SourceName != original.SourceName || current.SourceURL != original.SourceURL || current.PublishedAt != original.PublishedAt || current.Pinned != original.Pinned || !current.CreatedAt.Equal(original.CreatedAt) || current.UpdatedAt.Before(original.UpdatedAt) {
+			t.Fatalf("batch changed metadata: before=%+v after=%+v", original, current)
+		}
+	}
+	// Publishing already published entries is valid and still counts unique articles.
+	batch("publish")
+	batch("draft")
+	assertChunks(0)
+	for _, id := range []int{first.ID, second.ID} {
+		f.request("GET", fmt.Sprintf("/api/news?id=%d", id), "", nil, 404)
+		current := decodeContentData[store.Content](t, f.request("GET", fmt.Sprintf("/api/admin/news?id=%d", id), "", admin, 200))
+		if current.Status != "draft" {
+			t.Fatalf("expected draft: %+v", current)
+		}
+	}
+	batch("publish")
+	f.request("POST", "/api/comments", fmt.Sprintf(`{"target_type":"news","target_id":%d,"content":"评论"}`, first.ID), f.alice, 200)
+	batch("delete")
+	assertChunks(0)
+	for _, id := range []int{first.ID, second.ID} {
+		f.request("GET", fmt.Sprintf("/api/admin/news?id=%d", id), "", admin, 404)
+	}
+	notifications, total, _, err := f.s.ListNotifications(context.Background(), store.NotificationQuery{UserID: admin.ID})
+	if err != nil || total != 1 || notifications[0].Content != "" {
+		t.Fatalf("deleted news comment must be redacted in notifications: %+v total=%d err=%v", notifications, total, err)
+	}
+}
+
+func TestNewsBatchValidationPermissionsAndRollback(t *testing.T) {
+	f := newContentFixture(t)
+	draft := decodeContentData[store.Content](t, f.request("POST", "/api/admin/news", `{"title":"草稿","content":"正文"}`, f.admin, 200))
+	post := f.post()
+	body := fmt.Sprintf(`{"ids":[%d],"action":"publish"}`, draft.ID)
+	for _, user := range []*store.User{nil, f.alice, f.disabled} {
+		f.request("POST", "/api/admin/news/batch", body, user, 401)
+	}
+	for _, role := range []string{"observer", "operator"} {
+		user := f.staff(role)
+		for _, action := range []string{"publish", "draft", "delete"} {
+			f.request("POST", "/api/admin/news/batch", fmt.Sprintf(`{"ids":[%d],"action":%q}`, draft.ID, action), user, 403)
+		}
+	}
+	f.request("GET", "/api/admin/news/batch", "", f.admin, 405)
+	f.request("DELETE", "/api/admin/news/batch", body, f.admin, 405)
+	for _, body := range []string{
+		`{`, `null`, `{}`, `{"ids":[],"action":"publish"}`, `{"ids":null,"action":"publish"}`,
+		`{"ids":[0],"action":"publish"}`, `{"ids":[-1],"action":"publish"}`,
+		`{"ids":[1.5],"action":"publish"}`, `{"ids":["1"],"action":"publish"}`,
+		`{"ids":[1],"action":"published"}`, `{"ids":[1],"action":"publish","extra":true}`,
+		`{"ids":[1],"action":"publish"} {}`,
+		`{"ids":[` + strings.Repeat("1,", 100) + `1],"action":"publish"}`,
+	} {
+		res := f.request("POST", "/api/admin/news/batch", body, f.admin, 400)
+		if string(res["code"]) != "0" {
+			t.Fatalf("invalid request succeeded: %s", res)
+		}
+	}
+	for _, action := range []string{"publish", "draft", "delete"} {
+		for _, invalidID := range []int{post.ID, post.ID + 1000} {
+			res := f.request("POST", "/api/admin/news/batch", fmt.Sprintf(`{"ids":[%d,%d],"action":%q}`, draft.ID, invalidID, action), f.admin, 404)
+			if string(res["code"]) != "0" {
+				t.Fatal("missing news did not fail batch")
+			}
+			current := decodeContentData[store.Content](t, f.request("GET", fmt.Sprintf("/api/admin/news?id=%d", draft.ID), "", f.admin, 200))
+			if current.Status != "draft" || !current.UpdatedAt.Equal(draft.UpdatedAt) {
+				t.Fatalf("failed batch must roll back: %+v", current)
+			}
+			f.request("GET", fmt.Sprintf("/api/community/posts?id=%d", post.ID), "", nil, 200)
+		}
+	}
 }
 
 func TestCommunityPermissionsModerationAndNotifications(t *testing.T) {

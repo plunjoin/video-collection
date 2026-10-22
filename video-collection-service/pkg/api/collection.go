@@ -42,7 +42,7 @@ func (srv *Server) handleCollectionPreview(w http.ResponseWriter, r *http.Reques
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
 	rows := []ingest.Sample{}
-	err := ingest.Run(ctx, src, 10, func(s ingest.Sample) error { rows = append(rows, s); return nil })
+	err := ingest.Run(ctx, src, 10, func(s ingest.Sample) error { rows = append(rows, s); return nil }, ingest.RegistryLookup(ctx, srv.store))
 	if err != nil {
 		errorResponse(w, 400, err.Error())
 		return
@@ -393,4 +393,3 @@ func (srv *Server) handleClearCollectionLogs(w http.ResponseWriter, r *http.Requ
 		"data": map[string]any{"deleted": deleted},
 	})
 }
-

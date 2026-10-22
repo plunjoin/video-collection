@@ -25,7 +25,7 @@
             @keyup.enter="handleFilterChange"
             @clear="handleFilterChange"
           />
-          <r-button type="primary" @click="openDialog()">
+          <r-button v-if="!readOnly" type="primary" @click="openDialog()">
             <r-icon><Plus /></r-icon>新增资讯
           </r-button>
           <r-button @click="loadData" :loading="loading">
@@ -34,7 +34,16 @@
         </div>
       </div>
 
-      <r-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+      <div v-if="canBatch && selectedIds.length" class="batch-bar">
+        <span>已选中 {{ selectedIds.length }} 条资讯（当前页）</span>
+        <r-button type="primary" size="small" :disabled="loading || batching" @click="handleBatch('publish')">批量发布</r-button>
+        <r-button size="small" :disabled="loading || batching" @click="handleBatch('draft')">批量设为草稿</r-button>
+        <r-button type="danger" size="small" :disabled="loading || batching" @click="handleBatch('delete')">批量删除</r-button>
+        <span v-if="batching" role="status">正在处理…</span>
+      </div>
+
+      <r-table :key="tableKey" :data="tableData" v-loading="loading || batching" border stripe style="width: 100%" @selection-change="handleSelectionChange">
+        <r-table-column v-if="canBatch" type="selection" width="50" align="center" />
         <r-table-column prop="id" label="ID" width="70" align="center" />
         <r-table-column label="封面" width="90" align="center">
           <template #default="{ row }">
@@ -107,10 +116,10 @@
             <span class="date-text">{{ formatDate(row.created_at) }}</span>
           </template>
         </r-table-column>
-        <r-table-column label="操作" width="160" align="center" fixed="right">
+        <r-table-column v-if="!readOnly" label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
             <r-button size="small" type="primary" plain @click="openDialog(row)">编辑</r-button>
-            <r-button size="small" type="danger" plain @click="handleDelete(row)">删除</r-button>
+            <r-button v-if="canBatch" size="small" type="danger" plain @click="handleDelete(row)">删除</r-button>
           </template>
         </r-table-column>
       </r-table>
@@ -194,6 +203,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { getNewsList, saveNews, deleteNews } from '@/api/content'
+import { batchNews } from '@/api/admin'
+import type { NewsBatchAction } from '@/api/admin'
 import type { ContentItem } from '@/types'
 import { notify, confirmAction } from '@/components/radix/feedback'
 import type { FormInstance, FormRules }  from '@/components/radix/types'
@@ -202,6 +213,11 @@ import { Plus, RefreshRight } from '@/components/radix/icons'
 const loading = ref(false)
 const userStore = useUserStore()
 const isOperator = computed(() => userStore.userInfo?.role === 'operator')
+const readOnly = computed(() => userStore.userInfo?.role === 'observer')
+const canBatch = computed(() => ['admin', 'super_admin'].includes(userStore.userInfo?.role || ''))
+const selectedIds = ref<number[]>([])
+const batching = ref(false)
+const tableKey = ref(0)
 const tableData = ref<ContentItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -239,6 +255,8 @@ const formatDate = (val?: string) => {
 }
 
 const loadData = async () => {
+  selectedIds.value = []
+  tableKey.value++
   loading.value = true
   try {
     const res = await getNewsList({
@@ -249,11 +267,42 @@ const loadData = async () => {
     })
     if (res.code === 1 && res.data) {
       tableData.value = res.data
-      total.value = res.total || res.data.length
+      total.value = res.total ?? res.data.length
+      const lastPage = Math.max(1, Math.ceil(total.value / pageSize))
+      if (page.value > lastPage) {
+        page.value = lastPage
+        await loadData()
+      }
     }
   } finally {
     loading.value = false
   }
+}
+
+const handleSelectionChange = (rows: ContentItem[]) => {
+  selectedIds.value = rows.map(row => row.id)
+}
+
+const handleBatch = async (action: NewsBatchAction) => {
+  if (!canBatch.value || batching.value || loading.value || !selectedIds.value.length) return
+  const ids = [...selectedIds.value]
+  const label = { publish: '发布', draft: '设为草稿', delete: '删除' }[action]
+  batching.value = true
+  try {
+    if (action === 'delete') {
+      try {
+        await confirmAction(`确定删除选中的 ${ids.length} 条资讯吗？删除后无法恢复。`, '批量删除确认', {
+          confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error'
+        })
+      } catch { return }
+    }
+    const res = await batchNews(ids, action)
+    if (res.code === 1 && res.data) {
+      notify(`已${label} ${res.data.count} 条资讯`, 'success')
+      await loadData()
+    }
+  } catch { /* Request interceptor displays the error. */ }
+  finally { batching.value = false }
 }
 
 const handleFilterChange = () => {
@@ -262,6 +311,7 @@ const handleFilterChange = () => {
 }
 
 const openDialog = (row?: ContentItem) => {
+  if (readOnly.value) return
   if (row) {
     editingId.value = row.id
     form.id = row.id
@@ -293,7 +343,7 @@ const openDialog = (row?: ContentItem) => {
 }
 
 const submitForm = async () => {
-  if (!formRef.value) return
+  if (readOnly.value || !formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     if (form.cover && !/^https?:\/\/.+/.test(form.cover)) {
@@ -317,6 +367,7 @@ const submitForm = async () => {
 }
 
 const handleDelete = (row: ContentItem) => {
+  if (!canBatch.value) return
   confirmAction(`确定要删除资讯 [${row.title}] 吗？删除后前台将不可见。`, '删除确认', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
@@ -339,6 +390,17 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .news-page {
+  .batch-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-hover);
+    font-size: 12px;
+  }
   .table-card {
     .table-header {
       display: flex;

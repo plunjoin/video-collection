@@ -55,7 +55,7 @@ function fmtDate(d: string): string {
               <div class="editorial-card__placeholder"><img src="/brand/bllii-symbol.svg" alt="" /></div>
             )}
             <div>
-              <time>{fmtDate(item.created_at)}</time>
+              <time>{fmtDate(item.published_at || item.created_at)}</time>
               {item.category && <span class="editorial-label">{item.category}</span>}
               <h2>{item.title}</h2>
               <p>{item.summary || '点击查看详情'}</p>

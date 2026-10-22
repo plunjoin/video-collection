@@ -4,21 +4,21 @@
       <!-- 头部操作区 -->
       <header class="wiki-header">
         <div class="header-left">
-          <span class="eyebrow">UNIVERSAL KNOWLEDGE GRAPH STUDIO</span>
+          <span class="eyebrow">词条与人物关系管理</span>
           <div class="title-row">
-            <h1 class="page-title">Wiki 知识库 · 泛文娱图谱工坊</h1>
+            <h1 class="page-title">Wiki 知识库</h1>
             <div class="stats-pills">
               <span class="stat-pill"><r-icon :size="12"><Film /></r-icon> 总词条 <strong>{{ total }}</strong></span>
-              <span class="stat-pill primary"><r-icon :size="12"><Network /></r-icon> 特摄 / 演职 / 声优 / 虚构纪元</span>
+              <span class="stat-pill primary"><r-icon :size="12"><Network /></r-icon> 作品 / 人物 / 角色 / 机构</span>
             </div>
           </div>
-          <p class="sub-desc">跨越作品、人物（特摄/皮套/武指/声优）、虚拟角色与纪元时间线，编织网状知识宇宙</p>
+          <p class="sub-desc">整理作品和人物资料，补充主演、导演等关系，供知识库检索与问答使用。</p>
         </div>
         <div class="header-right">
-          <r-button type="success" plain @click="openSyncDialog">
-            <r-icon><Film /></r-icon>从视频库冷启动同步
+          <r-button v-if="!readOnly" type="success" plain @click="openSyncDialog">
+            <r-icon><Film /></r-icon>从视频库同步
           </r-button>
-          <r-button type="primary" @click="openEditDialog()">
+          <r-button v-if="!readOnly" type="primary" @click="openEditDialog()">
             <r-icon><Plus /></r-icon>新增 Wiki 词条
           </r-button>
           <r-button :loading="loading" @click="loadData">
@@ -26,6 +26,16 @@
           </r-button>
         </div>
       </header>
+
+      <r-collapse class="usage-guide">
+        <r-collapse-item title="怎么用 · 三步整理知识库" name="how-to">
+          <ol>
+            <li>新增词条或从视频库同步，先准备作品、人物等基础资料。</li>
+            <li>打开词条的「关系网」，填写人物名称，选择主演（演员/出演）、导演等关系。</li>
+            <li>保存后，词条和关系会进入 RAG 知识库，可到「RAG 知识库」搜索或提问。</li>
+          </ol>
+        </r-collapse-item>
+      </r-collapse>
 
       <!-- 检索与多维分类过滤卡片 -->
       <div class="filter-bar">
@@ -67,7 +77,7 @@
       </div>
 
       <!-- 词条展示表格 -->
-      <r-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
+      <r-table v-if="loading || tableData.length" :data="tableData" v-loading="loading" border stripe style="width: 100%">
         <r-table-column prop="id" label="ID" width="60" align="center">
           <template #default="{ row }">
             <span class="cell-id">#{{ row.id }}</span>
@@ -139,12 +149,21 @@
               <r-button size="small" type="info" plain @click="openRelationsDialog(row)">
                 关系网 <span class="rel-badge">{{ row.relation_count || 0 }}</span>
               </r-button>
-              <r-button size="small" type="primary" link @click="openEditDialog(row)">编辑</r-button>
-              <r-button size="small" type="danger" link @click="handleDelete(row)">删除</r-button>
+              <r-button v-if="!readOnly" size="small" type="primary" link @click="openEditDialog(row)">编辑</r-button>
+              <r-button v-if="!readOnly" size="small" type="danger" link @click="handleDelete(row)">删除</r-button>
             </div>
           </template>
         </r-table-column>
       </r-table>
+      <r-empty v-else :description="hasFilters ? '没有符合条件的词条，试试调整筛选或重置。' : '还没有词条。先新增一个词条，或从视频库同步已有作品，再补充主演、导演等关系。'">
+        <template #footer>
+          <div class="empty-actions">
+            <r-button v-if="hasFilters" @click="resetFilters">重置筛选</r-button>
+            <r-button v-if="!readOnly" type="primary" @click="openEditDialog()">新增词条</r-button>
+            <r-button v-if="!readOnly" @click="openSyncDialog">从视频库同步</r-button>
+          </div>
+        </template>
+      </r-empty>
 
       <!-- 分页栏 -->
       <div class="pagination-bar">
@@ -265,10 +284,11 @@
         </div>
 
         <!-- 快捷新增关系表单 -->
-        <div class="relation-add-bar">
+        <p class="relation-guide">例如：在作品词条中输入主演姓名，选择「演员/出演」，再点击「添加关系」。保存后会进入 RAG，用于检索和问答。</p>
+        <div v-if="!readOnly" class="relation-add-bar">
           <div class="add-bar-header">
-            <h4>建立新关联连线</h4>
-            <span class="sub-note">若目标词条尚不存在，系统将自动创建基础词条并建立拓扑边</span>
+            <h4>添加人物或作品关系</h4>
+            <span class="sub-note">目标词条不存在时，会自动创建基础词条并建立关系</span>
           </div>
           <div class="relation-form-row">
             <r-input v-model="relationTargetName" placeholder="目标词条名称 (如: 富永研司 / 假面骑士极狐)" style="width: 220px;" />
@@ -284,7 +304,7 @@
               <r-option label="制作公司 (studio)" value="studio" />
             </r-select>
             <r-input v-model="relationRoleDesc" placeholder="职能/角色说明 (如: 空我全形态皮套演职)" style="flex: 1;" />
-            <r-button type="primary" :loading="savingRelation" @click="addRelation">添加连线</r-button>
+            <r-button type="primary" :loading="savingRelation" @click="addRelation">添加关系</r-button>
           </div>
         </div>
 
@@ -313,7 +333,7 @@
             </r-table-column>
             <r-table-column label="操作" width="90" align="center">
               <template #default="{ row }">
-                <r-button size="small" type="danger" link @click="removeRelation(row.id)">解除</r-button>
+                <r-button v-if="!readOnly" size="small" type="danger" link @click="removeRelation(row.id)">解除</r-button>
               </template>
             </r-table-column>
           </r-table>
@@ -344,7 +364,7 @@
             </r-table-column>
             <r-table-column label="操作" width="90" align="center">
               <template #default="{ row }">
-                <r-button size="small" type="danger" link @click="removeRelation(row.id)">解除</r-button>
+                <r-button v-if="!readOnly" size="small" type="danger" link @click="removeRelation(row.id)">解除</r-button>
               </template>
             </r-table-column>
           </r-table>
@@ -523,7 +543,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
+import { useUserStore } from '@/store/user'
 import { Plus, RefreshCw, Film, Network, Search } from '@/components/radix/icons'
 import { notify, confirmAction } from '@/components/radix/feedback'
 import {
@@ -536,6 +557,10 @@ import {
   getWikiGraph,
   syncVideoToWiki
 } from '@/api/admin'
+
+const userStore = useUserStore()
+const readOnly = computed(() => userStore.userInfo?.role === 'observer')
+const hasFilters = computed(() => Boolean(searchQuery.value.trim() || filterType.value || filterSubType.value))
 
 const typeLabels: Record<string, string> = {
   work: '🎬 作品',
@@ -679,6 +704,7 @@ function resetFilters() {
 }
 
 function openEditDialog(row?: any) {
+  if (readOnly.value) return
   if (row) {
     editingId.value = row.id
     form.name = row.name || ''
@@ -704,6 +730,7 @@ function openEditDialog(row?: any) {
 }
 
 async function submitSubject() {
+  if (readOnly.value) return
   if (!form.name.trim()) {
     notify('词条主名称不能为空', 'warning')
     return
@@ -738,6 +765,7 @@ async function submitSubject() {
 }
 
 async function handleDelete(row: any) {
+  if (readOnly.value) return
   try {
     await confirmAction(`确定彻底删除词条【${row.name}】吗？删除后相关关联关系将同步解除。`, '确认删除', {
       type: 'danger',
@@ -769,6 +797,7 @@ async function loadSubjectDetail(id: number) {
 }
 
 async function addRelation() {
+  if (readOnly.value) return
   if (!relationTargetName.value.trim()) {
     notify('请输入目标词条名称', 'warning')
     return
@@ -804,6 +833,7 @@ async function addRelation() {
 }
 
 async function removeRelation(relId: number) {
+  if (readOnly.value) return
   try {
     await deleteWikiRelation(relId)
     notify('关系已解除', 'success')
@@ -849,11 +879,13 @@ function getNodeName(id: number) {
 }
 
 function openSyncDialog() {
+  if (readOnly.value) return
   syncVideoId.value = null
   syncDialogVisible.value = true
 }
 
 async function handleSyncVideo() {
+  if (readOnly.value) return
   if (!syncVideoId.value || syncVideoId.value <= 0) {
     notify('请输入合法的视频 ID', 'warning')
     return
@@ -875,6 +907,14 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.usage-guide {
+  margin-bottom: 14px;
+  font-size: 12px;
+
+  ol { margin: 0; padding-left: 20px; line-height: 1.8; color: var(--text-secondary); }
+}
+.empty-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
 .wiki-page {
   padding: 16px;
   min-height: 100%;
@@ -1209,6 +1249,8 @@ onMounted(() => {
 
 <!-- 独立顶层样式：专门作用于被 Teleport 传送至 document.body 的各种弹窗内容 -->
 <style lang="scss">
+.relation-guide { font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
+
 /* 1. 词条编辑弹窗内部 */
 .wiki-form {
   .form-row-grid {

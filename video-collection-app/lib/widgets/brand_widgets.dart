@@ -157,19 +157,19 @@ class BrandBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    const labels = ['首页', '发现', '排行', '更新', '我的'];
+    const labels = ['首页', '发现', '排行', '资讯', '我的'];
     const icons = [
       Icons.home_outlined,
       Icons.explore_outlined,
       Icons.star_outline_rounded,
-      Icons.calendar_month_outlined,
+      Icons.article_outlined,
       Icons.person_outline_rounded,
     ];
     const activeIcons = [
       Icons.home_rounded,
       Icons.explore_rounded,
       Icons.star_rounded,
-      Icons.calendar_month_rounded,
+      Icons.article_rounded,
       Icons.person_rounded,
     ];
     return Container(

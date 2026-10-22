@@ -35,6 +35,8 @@ export interface AdminStats {
   total_sources: number
   active_sources: number
   total_videos: number
+  total_news: number
+  total_business_types: number
   today_updated: number
   total_play_groups: number
   total_users: number
@@ -214,12 +216,24 @@ export interface AutoCollectStatus {
   running: boolean
 }
 
-// 审计日志条目
+// 调度器内存采集日志（旧 /api/admin/logs）
 export interface LogEntry {
   time: string
   level: 'info' | 'warn' | 'error'
   module: string
   message: string
+}
+
+// 系统审计日志
+export interface SystemLogEntry {
+  id: number
+  level: 'info' | 'warn' | 'error' | string
+  category: string
+  message: string
+  actor_id: number
+  actor_name: string
+  meta?: Record<string, unknown>
+  created_at: string
 }
 
 // ========== 数据库管理 ==========

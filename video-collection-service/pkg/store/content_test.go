@@ -130,6 +130,7 @@ func TestPostgresContentStore(t *testing.T) {
 	if err = s.initSchema(true); err != nil {
 		t.Fatal(err)
 	}
+	exerciseWebhookAndRAGMigrations(t, s, true)
 	ctx := context.Background()
 	post := &Content{Kind: "post", Title: "PostgreSQL", Content: "正文", Status: "published"}
 	if err = s.SaveContent(ctx, post, 1, false); err != nil {

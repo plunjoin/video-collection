@@ -133,7 +133,7 @@
       <template #header>
         <div class="runs-card-header">
           <div class="runs-title-group">
-            <span class="card-title">采集进程记录与运行日志中心</span>
+            <span class="card-title">采集进程记录与采集日志中心</span>
             <span v-if="runningCount > 0" class="running-indicator">
               <r-icon class="rotating-icon" :size="13"><Refresh /></r-icon>
               {{ runningCount }} 个采集任务正在进行中
@@ -276,7 +276,7 @@
         </r-tab-pane>
 
         <!-- Tab 2: 实时与历史采集日志控制台 -->
-        <r-tab-pane label="实时与全量日志控制台" name="logs">
+        <r-tab-pane label="实时与全量采集日志" name="logs">
           <div class="logs-console-toolbar">
             <div class="toolbar-left">
               <r-select v-model="logLevelFilter" placeholder="日志级别 (全部)" style="width: 130px;" clearable @change="loadLogs">
