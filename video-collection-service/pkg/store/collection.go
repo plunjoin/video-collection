@@ -97,14 +97,19 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 			sourceName = strings.TrimSpace(r.Values["source"])
 		}
 		publishedAt := strings.TrimSpace(r.Values["published_at"])
+		publishedTime, validPublishedTime := parseCollectionPublishedAt(publishedAt)
 		if id == 0 {
+			createdAt := now
+			if validPublishedTime {
+				createdAt = publishedTime
+			}
 			var author int
 			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role IN ('admin','super_admin') AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
 				return false, fmt.Errorf("没有可用的管理员作为文章作者")
 			}
-			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, now, now).Scan(&id)
+			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, createdAt, now).Scan(&id)
 		} else {
-			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9 WHERE id=$10 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, id)
+			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9,created_at=COALESCE($10,created_at) WHERE id=$11 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, sql.NullTime{Time: publishedTime, Valid: validPublishedTime}, id)
 		}
 		if err != nil {
 			return false, err
@@ -123,6 +128,27 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		notifyRAGContentIngest(ctx, "news", r.ContentID)
 	}
 	return true, nil
+}
+
+func parseCollectionPublishedAt(raw string) (time.Time, bool) {
+	// RFC3339Nano also accepts RFC3339. Timestamps without a zone use UTC.
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05Z0700",
+		"2006-01-02 15:04:05Z07:00",
+		"2006-01-02 15:04:05Z0700",
+		"2006-01-02T15:04:05",
+		time.DateTime,
+		"2006-01-02 15:04",
+		time.DateOnly,
+		time.RFC1123Z,
+		time.RFC1123,
+	} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 func (s *SQLContentStore) ListCollectionRecords(ctx context.Context, source string, page, size int) ([]CollectionRecord, int, error) {
@@ -571,4 +597,3 @@ func (s *SQLContentStore) BatchRectifyCollectionRecords(ctx context.Context, sou
 	}
 	return rectifiedCount, nil
 }
-

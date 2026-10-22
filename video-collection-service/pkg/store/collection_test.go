@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"video-collection-service/config"
 )
@@ -45,11 +47,16 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 	if article.SourceURL != "https://example.com/a" || article.SourceName != "Demo Source" || article.PublishedAt != "2026-10-01T12:00:00Z" {
 		t.Fatalf("provenance fields: url=%q name=%q published=%q", article.SourceURL, article.SourceName, article.PublishedAt)
 	}
+	wantCreatedAt := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+	if !article.CreatedAt.Equal(wantCreatedAt) {
+		t.Fatalf("created_at = %v, want %v", article.CreatedAt, wantCreatedAt)
+	}
 	article.Status = "published"
 	if err := s.SaveContent(ctx, article, article.AuthorID, true); err != nil {
 		t.Fatal(err)
 	}
 	r.Values["title"] = "不可覆盖"
+	r.Values["published_at"] = "2026-10-02T12:00:00Z"
 	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || saved {
 		t.Fatalf("published overwritten: %v %v", saved, err)
 	}
@@ -57,10 +64,101 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 	if err != nil || article.Title != "更新标题" {
 		t.Fatalf("editorial change lost: %+v %v", article, err)
 	}
+	if !article.CreatedAt.Equal(wantCreatedAt) || article.PublishedAt != "2026-10-01T12:00:00Z" {
+		t.Fatalf("published article timestamps overwritten: %+v", article)
+	}
 	r.SourceID = "other"
 	r.Target = "record"
 	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
 		t.Fatal("other source identity collided", err)
+	}
+}
+
+func TestCollectionArticleCreatedAtFromPublishedAt(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "timestamps.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	want := time.Date(2026, time.October, 1, 12, 34, 56, 0, time.UTC)
+	baseline := time.Date(2025, time.January, 2, 3, 4, 5, 0, time.UTC)
+	tests := []struct {
+		name        string
+		publishedAt string
+		want        time.Time
+		omit        bool
+	}{
+		{name: "RFC3339", publishedAt: "2026-10-01T12:34:56Z", want: want},
+		{name: "RFC3339Nano", publishedAt: "2026-10-01T12:34:56.123456789Z", want: want.Add(123456789 * time.Nanosecond)},
+		{name: "positive_offset", publishedAt: "2026-10-01T20:34:56+08:00", want: want},
+		{name: "negative_offset", publishedAt: "2026-10-01T08:34:56-04:00", want: want},
+		{name: "compact_offset", publishedAt: "2026-10-01T20:34:56+0800", want: want},
+		{name: "space_with_offset", publishedAt: "2026-10-01 20:34:56+08:00", want: want},
+		{name: "space_with_compact_offset", publishedAt: "2026-10-01 20:34:56+0800", want: want},
+		{name: "datetime", publishedAt: "2026-10-01 12:34:56", want: want},
+		{name: "datetime_fraction", publishedAt: "2026-10-01 12:34:56.123456789", want: want.Add(123456789 * time.Nanosecond)},
+		{name: "ISO_without_zone", publishedAt: "2026-10-01T12:34:56", want: want},
+		{name: "minutes", publishedAt: "2026-10-01 12:34", want: want.Truncate(time.Minute)},
+		{name: "date", publishedAt: "2026-10-01", want: want.Truncate(24 * time.Hour)},
+		{name: "RFC1123Z", publishedAt: "Thu, 01 Oct 2026 20:34:56 +0800", want: want},
+		{name: "RFC1123", publishedAt: "Thu, 01 Oct 2026 12:34:56 GMT", want: want},
+		{name: "whitespace", publishedAt: " \t2026-10-01T12:34:56Z\n", want: want},
+		{name: "missing", omit: true},
+		{name: "empty"},
+		{name: "whitespace_only", publishedAt: " \t\n"},
+		{name: "invalid", publishedAt: "not a date"},
+		{name: "invalid_date", publishedAt: "2026-02-30T12:34:56Z"},
+		{name: "invalid_time", publishedAt: "2026-10-01T25:34:56Z"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, operation := range []string{"insert", "update"} {
+				t.Run(operation, func(t *testing.T) {
+					r := CollectionRecord{SourceID: "timestamps", Target: "article", Key: t.Name(), Values: map[string]string{"title": "Timestamp test", "content": "Body"}}
+					if operation == "update" {
+						r.Values["published_at"] = baseline.Format(time.RFC3339)
+						if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
+							t.Fatalf("seed draft: saved=%v err=%v", saved, err)
+						}
+					}
+					if tt.omit {
+						delete(r.Values, "published_at")
+					} else {
+						r.Values["published_at"] = tt.publishedAt
+					}
+					before := time.Now().UTC()
+					if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
+						t.Fatalf("save: saved=%v err=%v", saved, err)
+					}
+					after := time.Now().UTC()
+
+					var createdAt, updatedAt time.Time
+					var publishedAt string
+					if err := s.db.QueryRowContext(ctx, `SELECT c.created_at,c.updated_at,c.published_at FROM content_entries c JOIN collection_records r ON r.content_id=c.id WHERE r.source_id=$1 AND r.target=$2 AND r.record_key=$3`, r.SourceID, r.Target, r.Key).Scan(&createdAt, &updatedAt, &publishedAt); err != nil {
+						t.Fatal(err)
+					}
+					expected := tt.want
+					if expected.IsZero() && operation == "update" {
+						expected = baseline
+					}
+					if expected.IsZero() {
+						if createdAt.Before(before) || createdAt.After(after) {
+							t.Fatalf("fallback created_at = %v, want between %v and %v", createdAt, before, after)
+						}
+					} else if !createdAt.Equal(expected) {
+						t.Fatalf("created_at = %v, want %v", createdAt, expected)
+					}
+					if publishedAt != strings.TrimSpace(tt.publishedAt) {
+						t.Fatalf("published_at = %q, want %q", publishedAt, strings.TrimSpace(tt.publishedAt))
+					}
+					if updatedAt.Before(before) || updatedAt.After(after) {
+						t.Fatalf("updated_at = %v, want ingestion time between %v and %v", updatedAt, before, after)
+					}
+				})
+			}
+		})
 	}
 }
 
@@ -87,8 +185,8 @@ func TestCollectionRecordRectificationAndCalibration(t *testing.T) {
 	// 3. 在线校正字段
 	targetKey := "tmdb_person_1892"
 	newValues := map[string]string{
-		"actor_id": "1892",
-		"name":     "成龙 (Jackie Chan)",
+		"actor_id":  "1892",
+		"name":      "成龙 (Jackie Chan)",
 		"biography": "华语功夫电影巨星",
 	}
 	if err := s.UpdateCollectionRecord(ctx, "rule_demo", "record", targetKey, newValues); err != nil {
@@ -130,4 +228,3 @@ func TestCollectionRecordRectificationAndCalibration(t *testing.T) {
 		t.Fatalf("Delete failed, total=%d", totalAfter)
 	}
 }
-
