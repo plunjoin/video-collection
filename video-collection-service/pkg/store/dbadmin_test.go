@@ -332,3 +332,105 @@ func TestDBAdminSQLHelpers(t *testing.T) {
 		t.Fatal("ClassifySQL misclassifies statements")
 	}
 }
+
+func TestDBAdminDeleteRowsAndClearTable(t *testing.T) {
+	s := newDBAdminFixture(t)
+	ctx := context.Background()
+
+	ids := make([]int, 0, 3)
+	for _, name := range []string{"待删一", "待删二", "保留"} {
+		id, err := s.SaveVideoManual(ctx, &VideoRecord{Name: name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+
+	// 浏览结果需返回主键，供前端定位删除目标
+	browse, err := s.BrowseTable(ctx, TableBrowseQuery{Table: "videos", Page: 1, PageSize: 10, OrderBy: "id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(browse.PrimaryKey) != 1 || browse.PrimaryKey[0] != "id" {
+		t.Fatalf("bad primary key: %+v", browse.PrimaryKey)
+	}
+
+	// 按主键删除两行
+	res, err := s.DeleteRows(ctx, DeleteRowsQuery{
+		Table: "videos",
+		Rows:  []map[string]any{{"id": ids[0]}, {"id": ids[1]}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Deleted != 2 {
+		t.Fatalf("deleted = %d, want 2", res.Deleted)
+	}
+	if total := mustCount(t, s, "videos"); total != 1 {
+		t.Fatalf("videos rows = %d, want 1", total)
+	}
+
+	// 缺少主键字段 / 空行 / 无主键表 / 未知表 均应报错
+	if _, err := s.DeleteRows(ctx, DeleteRowsQuery{Table: "videos", Rows: []map[string]any{{"name": "x"}}}); err == nil {
+		t.Fatal("want error for missing primary key field")
+	}
+	if _, err := s.DeleteRows(ctx, DeleteRowsQuery{Table: "videos"}); err == nil {
+		t.Fatal("want error for empty rows")
+	}
+	if _, err := s.DeleteRows(ctx, DeleteRowsQuery{Table: "no_such_table", Rows: []map[string]any{{"id": 1}}}); err == nil {
+		t.Fatal("want error for unknown table")
+	}
+
+	// 清空表
+	cleared, err := s.ClearTable(ctx, "videos")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.Deleted != 1 {
+		t.Fatalf("cleared = %d, want 1", cleared.Deleted)
+	}
+	if total := mustCount(t, s, "videos"); total != 0 {
+		t.Fatalf("videos rows = %d, want 0", total)
+	}
+	if _, err := s.ClearTable(ctx, "users"); err == nil {
+		t.Fatal("clearing users table should be rejected")
+	}
+}
+
+func TestDBAdminDeleteRowsKeepsSuperAdmin(t *testing.T) {
+	s := newDBAdminFixture(t)
+	ctx := context.Background()
+
+	var superID int
+	users, err := s.BrowseTable(ctx, TableBrowseQuery{Table: "users", Page: 1, PageSize: 10, OrderBy: "id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range users.Rows {
+		if row["role"] == "super_admin" {
+			if id, ok := row["id"].(int64); ok {
+				superID = int(id)
+			}
+		}
+	}
+	if superID == 0 {
+		t.Fatalf("no super admin in fixture: %+v", users.Rows)
+	}
+
+	// 删除最后一个超级管理员必须被拒绝并回滚
+	if _, err := s.DeleteRows(ctx, DeleteRowsQuery{Table: "users", Rows: []map[string]any{{"id": superID}}}); err == nil {
+		t.Fatal("deleting the last super admin should be rejected")
+	}
+	if total := mustCount(t, s, "users"); total != int64(len(users.Rows)) {
+		t.Fatalf("users rows changed after rejected delete: %d", total)
+	}
+}
+
+func mustCount(t *testing.T, s *SQLiteStore, table string) int64 {
+	t.Helper()
+	var n int64
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM " + quoteIdent(table)).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}

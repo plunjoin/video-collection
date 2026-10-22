@@ -125,6 +125,9 @@ mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	mux.HandleFunc("/api/admin/db/restore", srv.adminWrite(srv.handleDBRestore))
 	mux.HandleFunc("/api/admin/db/cleanup", srv.adminWrite(srv.handleDBCleanup))
 	mux.HandleFunc("/api/admin/db/sql", srv.adminWrite(srv.handleDBSQL))
+	// 数据删除 / 清空（不可逆，仅超级管理员）
+	mux.HandleFunc("/api/admin/db/table/rows/delete", srv.superAdminWrite(srv.handleDBDeleteRows))
+	mux.HandleFunc("/api/admin/db/table/clear", srv.superAdminWrite(srv.handleDBClearTable))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, data any) {

@@ -20,6 +20,8 @@ type DBAdmin interface {
 	GetDBInfo(ctx context.Context) (*DBInfo, error)
 	ListDBTables(ctx context.Context) ([]DBTableInfo, error)
 	BrowseTable(ctx context.Context, q TableBrowseQuery) (*TableBrowseResult, error)
+	DeleteRows(ctx context.Context, q DeleteRowsQuery) (*DeleteRowsResult, error)
+	ClearTable(ctx context.Context, table string) (*ClearTableResult, error)
 	BackupDatabase(ctx context.Context, opts BackupOptions) (*BackupResult, error)
 	ListBackups(ctx context.Context) ([]BackupMeta, error)
 	DeleteBackup(ctx context.Context, filename string) error
@@ -72,12 +74,34 @@ type TableBrowseQuery struct {
 
 // TableBrowseResult 表数据浏览结果
 type TableBrowseResult struct {
-	Columns  []TableColumn    `json:"columns"`
-	Rows     []map[string]any `json:"rows"`
-	Total    int64            `json:"total"`
-	Page     int              `json:"page"`
-	PageSize int              `json:"page_size"`
+	Columns    []TableColumn    `json:"columns"`
+	Rows       []map[string]any `json:"rows"`
+	Total      int64            `json:"total"`
+	Page       int              `json:"page"`
+	PageSize   int              `json:"page_size"`
+	PrimaryKey []string         `json:"primary_key"` // 主键字段，前端据此定位待删除的行
 }
+
+// DeleteRowsQuery 按主键删除表数据（一次最多 maxDeleteRows 行）
+type DeleteRowsQuery struct {
+	Table string           `json:"table"`
+	Rows  []map[string]any `json:"rows"` // 每行需包含全部主键字段
+}
+
+// DeleteRowsResult 行删除结果
+type DeleteRowsResult struct {
+	Table   string `json:"table"`
+	Deleted int64  `json:"deleted"`
+}
+
+// ClearTableResult 清空表结果
+type ClearTableResult struct {
+	Table   string `json:"table"`
+	Deleted int64  `json:"deleted"`
+}
+
+// maxDeleteRows 单次按行删除的条数上限，避免超长 SQL 与长时间锁表
+const maxDeleteRows = 500
 
 // BackupOptions 备份选项
 type BackupOptions struct {
@@ -384,7 +408,16 @@ func (h *dbAdminHelper) BrowseTable(ctx context.Context, q TableBrowseQuery) (*T
 		return nil, err
 	}
 	if len(cols) == 0 {
-		return &TableBrowseResult{Columns: []TableColumn{}, Rows: []map[string]any{}, Page: q.Page, PageSize: q.PageSize}, nil
+		return &TableBrowseResult{Columns: []TableColumn{}, Rows: []map[string]any{}, Page: q.Page, PageSize: q.PageSize, PrimaryKey: []string{}}, nil
+	}
+
+	// 主键用于前端定位待删除行；无主键的表（如关联表）返回空数组，前端禁用删除
+	pk, err := h.primaryKey(ctx, q.Table)
+	if err != nil {
+		pk = []string{}
+	}
+	if pk == nil {
+		pk = []string{}
 	}
 
 	quoted := quoteIdent(q.Table)
@@ -448,11 +481,12 @@ func (h *dbAdminHelper) BrowseTable(ctx context.Context, q TableBrowseQuery) (*T
 		colNames[i] = c.Name
 	}
 	result := &TableBrowseResult{
-		Columns:  cols,
-		Rows:     []map[string]any{},
-		Total:    total,
-		Page:     q.Page,
-		PageSize: q.PageSize,
+		Columns:    cols,
+		Rows:       []map[string]any{},
+		Total:      total,
+		Page:       q.Page,
+		PageSize:   q.PageSize,
+		PrimaryKey: pk,
 	}
 	for rows.Next() {
 		vals := make([]any, len(colNames))
@@ -473,6 +507,200 @@ func (h *dbAdminHelper) BrowseTable(ctx context.Context, q TableBrowseQuery) (*T
 		result.Rows = append(result.Rows, rowMap)
 	}
 	return result, rows.Err()
+}
+
+// primaryKey 返回表的主键字段（按主键定义顺序）；无主键返回空切片
+func (h *dbAdminHelper) primaryKey(ctx context.Context, table string) ([]string, error) {
+	keys := []string{}
+	if h.engine == "postgres" {
+		rows, err := h.db.QueryContext(ctx, `
+			SELECT a.attname
+			FROM pg_constraint c
+			JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+			WHERE c.contype = 'p' AND c.conrelid = $1::regclass
+			ORDER BY a.attnum`, quoteIdent(table))
+		if err != nil {
+			return keys, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				return keys, err
+			}
+			keys = append(keys, name)
+		}
+		return keys, rows.Err()
+	}
+
+	rows, err := h.db.QueryContext(ctx, "PRAGMA table_info("+quoteIdent(table)+")")
+	if err != nil {
+		return keys, err
+	}
+	defer rows.Close()
+	type pkCol struct {
+		order int
+		name  string
+	}
+	var cols []pkCol
+	for rows.Next() {
+		var (
+			cid     int
+			name    string
+			ctype   string
+			notnull int
+			dflt    any
+			pk      int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return keys, err
+		}
+		if pk > 0 {
+			cols = append(cols, pkCol{order: pk, name: name})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return keys, err
+	}
+	sort.Slice(cols, func(i, j int) bool { return cols[i].order < cols[j].order })
+	for _, c := range cols {
+		keys = append(keys, c.name)
+	}
+	return keys, nil
+}
+
+// DeleteRows 按主键删除选中行（事务内执行，失败整体回滚）
+func (h *dbAdminHelper) DeleteRows(ctx context.Context, q DeleteRowsQuery) (*DeleteRowsResult, error) {
+	table := strings.TrimSpace(q.Table)
+	if table == "" {
+		return nil, fmt.Errorf("缺少表名")
+	}
+	exists, err := h.tableExists(ctx, table)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("表不存在: %s", table)
+	}
+	if len(q.Rows) == 0 {
+		return nil, fmt.Errorf("未选择任何数据行")
+	}
+	if len(q.Rows) > maxDeleteRows {
+		return nil, fmt.Errorf("单次最多删除 %d 行，请分批操作", maxDeleteRows)
+	}
+	pk, err := h.primaryKey(ctx, table)
+	if err != nil {
+		return nil, err
+	}
+	if len(pk) == 0 {
+		return nil, fmt.Errorf("表 %s 没有主键，无法按行删除（可改用「清空表」或备份恢复）", table)
+	}
+	colNames, err := h.tableColumnNames(ctx, table)
+	if err != nil {
+		return nil, err
+	}
+	valid := make(map[string]bool, len(colNames))
+	for _, c := range colNames {
+		valid[c] = true
+	}
+	for _, k := range pk {
+		if !valid[k] {
+			return nil, fmt.Errorf("主键字段异常: %s", k)
+		}
+	}
+
+	placeholder := func(n int) string {
+		if h.engine == "postgres" {
+			return fmt.Sprintf("$%d", n)
+		}
+		return "?"
+	}
+
+	var (
+		clauses []string
+		args    []any
+	)
+	for _, row := range q.Rows {
+		var parts []string
+		for _, k := range pk {
+			v, ok := row[k]
+			if !ok {
+				return nil, fmt.Errorf("数据行缺少主键字段 %s，无法定位", k)
+			}
+			args = append(args, v)
+			parts = append(parts, quoteIdent(k)+" = "+placeholder(len(args)))
+		}
+		clauses = append(clauses, "("+strings.Join(parts, " AND ")+")")
+	}
+	stmt := "DELETE FROM " + quoteIdent(table) + " WHERE " + strings.Join(clauses, " OR ")
+
+	tx, err := h.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return nil, fmt.Errorf("删除失败: %w", err)
+	}
+	if err := h.guardUsersTable(ctx, tx, table); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	deleted, _ := res.RowsAffected()
+	return &DeleteRowsResult{Table: table, Deleted: deleted}, nil
+}
+
+// ClearTable 清空整表数据（事务内执行；用户表禁止整表清空）
+func (h *dbAdminHelper) ClearTable(ctx context.Context, table string) (*ClearTableResult, error) {
+	table = strings.TrimSpace(table)
+	if table == "" {
+		return nil, fmt.Errorf("缺少表名")
+	}
+	exists, err := h.tableExists(ctx, table)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("表不存在: %s", table)
+	}
+	if table == "users" {
+		return nil, fmt.Errorf("用户表不支持整表清空，请按行删除并保留至少一个超级管理员")
+	}
+
+	tx, err := h.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(table))
+	if err != nil {
+		return nil, fmt.Errorf("清空失败: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	deleted, _ := res.RowsAffected()
+	return &ClearTableResult{Table: table, Deleted: deleted}, nil
+}
+
+// guardUsersTable 删除用户后必须仍有启用状态的超级管理员，否则回滚整个事务
+func (h *dbAdminHelper) guardUsersTable(ctx context.Context, tx *sql.Tx, table string) error {
+	if table != "users" {
+		return nil
+	}
+	var remaining int
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE role = 'super_admin' AND status = 1").Scan(&remaining); err != nil {
+		return err
+	}
+	if remaining == 0 {
+		return fmt.Errorf("操作已取消：系统至少需要保留一个启用状态的超级管理员")
+	}
+	return nil
 }
 
 // BackupDatabase 导出全部（或指定）业务表为 JSON 备份文件

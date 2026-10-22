@@ -255,3 +255,21 @@ func AdminRequired(s store.Store, next http.HandlerFunc) http.HandlerFunc {
 		next(w, r.WithContext(ctx))
 	}
 }
+
+// SuperAdminRequired 仅允许超级管理员访问的路由中间件（破坏性操作专用）。
+// 在 AdminRequired 的基础上追加角色校验，并保持管理操作审计。
+func SuperAdminRequired(s store.Store, next http.HandlerFunc) http.HandlerFunc {
+	return AdminRequired(s, func(w http.ResponseWriter, r *http.Request) {
+		user := GetCurrentUser(r, s)
+		if user == nil || user.Role != "super_admin" {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code":  0,
+				"error": "该操作仅限超级管理员执行",
+			})
+			return
+		}
+		next(w, r)
+	})
+}

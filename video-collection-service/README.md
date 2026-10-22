@@ -155,7 +155,7 @@ docker compose --env-file deploy/.env up -d --build
 | **Analytics - 广告位** | `GET /api/ads`<br>`GET/POST/DELETE /api/admin/ads` | 按位置（banner / home_recommend / detail）拉取广告；后台维护物料、排期与上下架 |
 | **Analytics - 留存看板** | `GET /api/admin/retention` | 近14天新增访客留存、今日新增与回访，以及功能渗透率 |
 | **Analytics - 埋点总览** | `GET /api/admin/analytics/overview` | 网站 / App 的今日、昨日、累计 PV-UV、近30天趋势、平台分布、热门页面与事件分布 |
-| **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护与 SQL 执行器 |
+| **Admin - Database** | `GET /api/admin/db/info`<br>`GET /api/admin/db/tables`<br>`GET /api/admin/db/table`<br>`POST /api/admin/db/backup`<br>`GET/DELETE /api/admin/db/backups`<br>`POST /api/admin/db/restore`<br>`POST /api/admin/db/cleanup`<br>`POST /api/admin/db/sql`<br>`POST /api/admin/db/table/rows/delete`<br>`POST /api/admin/db/table/clear` | 数据库引擎信息、表统计与数据浏览、备份恢复、清理维护、SQL 执行器与超管删除/清空数据 |
 | **Admin - Bootstrap** | `GET /api/admin/bootstrap`<br>`PUT /api/admin/bootstrap`<br>`POST /api/admin/bootstrap/test-db` | 基础配置读写：数据库连接、Redis、初始管理员、Webhook 主密钥；保存前可测试数据库连通性 |
 
 ## 管理后台模块
@@ -179,7 +179,7 @@ Liquid Glass 玻璃风侧边导航 → 路由 → 后端接口对照：
 | 消息通知 | `/notifications` | `/api/admin/notifications` 定向/广播发送 |
 | 用户账号 | `/users` | `/api/admin/users` 角色授权、密码重置 |
 | 客户端主题 | `/themes` | `/api/admin/themes` 切换与 ZIP 上传 |
-| 数据库 | `/database` | `/api/admin/db/*` 浏览、备份恢复、清理、SQL |
+| 数据库 | `/database` | `/api/admin/db/*` 浏览、备份恢复、清理、SQL；超管可删除选中行与清空表 |
 | 基础配置 | `/bootstrap` | `/api/admin/bootstrap` 数据库 / Redis / 初始管理员等启动引导信息 |
 | 系统配置 | `/settings` | `/api/admin/site/config` 站点信息与 SEO |
 | 运行日志 | `/logs` | `/api/admin/logs` 实时日志流 |

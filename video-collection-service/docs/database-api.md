@@ -29,6 +29,8 @@ AIGC:
 | `/api/admin/db/restore` | POST | 从备份恢复数据；`dry_run=true` 预览，正式执行需 `confirm=true` |
 | `/api/admin/db/cleanup` | POST | 执行数据清理维护动作，需 `confirm=true`，返回逐项影响行数 |
 | `/api/admin/db/sql` | POST | 执行单条管理 SQL；写语句与 DDL 需 `confirm=true` |
+| `/api/admin/db/table/rows/delete` | POST | 按主键删除选中行（**仅超级管理员**），单次最多 500 行 |
+| `/api/admin/db/table/clear` | POST | 清空指定表全部数据（**仅超级管理员**），需 `confirm=true` |
 
 业务表指库中全部用户表：PostgreSQL 为 `public` schema 下的普通表，SQLite 为除 `sqlite_%` 外的全部表。空列表返回 `[]`。
 
@@ -64,7 +66,32 @@ AIGC:
 | `order_desc` | `1`/`true`，或 `order_dir=desc` 时按降序 |
 | `keyword` | 全列模糊搜索，`%` 与 `_` 按字面匹配，不作为通配符 |
 
-响应 `data` 含 `columns`（字段名与类型）、`rows`（每行为 字段名→值 的对象）、`total`（命中总行数）与分页信息。`total` 为精确计数。
+响应 `data` 含 `columns`（字段名与类型）、`rows`（每行为 字段名→值 的对象）、`total`（命中总行数）、`primary_key`（主键字段，无主键表为空数组）与分页信息。`total` 为精确计数。`primary_key` 供前端标记待删除行，缺少主键的表只能清空或走备份恢复。
+
+## 删除与清空数据
+
+两个接口均要求 **超级管理员**（`super_admin`），普通管理员与其他角色返回 403；操作会写入管理操作审计，并失效接口缓存。
+
+按主键删除选中行：
+
+```json
+POST /api/admin/db/table/rows/delete
+{"table": "videos", "rows": [{"id": 12}, {"id": 15}]}
+```
+
+- 每行必须携带全部主键字段，服务端据此拼装 `WHERE (pk1=… AND pk2=…) OR …` 并在单个事务内执行。
+- 单次最多 500 行，超出返回 400；表无主键时返回 400 并提示改用清空或备份恢复。
+- 删除 `users` 表数据后若不再有启用状态的超级管理员，整个事务回滚并返回 400，避免后台失去可登录账号。
+
+清空整表：
+
+```json
+POST /api/admin/db/table/clear
+{"table": "collection_logs", "confirm": true}
+```
+
+- 缺少 `confirm=true` 返回 400；`users` 表禁止整表清空。
+- 返回 `{"table": "...", "deleted": N}`，`deleted` 为实际删除行数。
 
 ## 备份管理
 
