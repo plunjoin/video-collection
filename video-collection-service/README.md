@@ -87,6 +87,26 @@ SQLite 不再是 PostgreSQL 故障时的数据兜底库，而是**基础配置�
 - 首次启动若检测到本地 SQLite 已有业务数据且未配置任何数据库，会一次性显式切换为 SQLite 单文件模式并把 `db.driver=sqlite` 写入基础配置（有记录、可审计，而非静默兜底）。
 - `GET /api/admin/bootstrap` 返回掩码后的配置与每一项的生效来源；`PUT` 保存时敏感字段传 `********` 表示不修改；数据库/Redis 连接信息保存后需重启生效。
 
+### 连接串格式（DB_DSN）
+
+```
+postgres://用户名:密码@主机:端口/库名?sslmode=disable
+# 例：postgres://x21_admin:PASS@1panel-postgresql-hi3r:5432/videodb?sslmode=disable
+```
+
+主机名**不能带斜杠**。写成 `postgres://user:pw@//my-pg/:5432/videodb` 时，URL 解析后主机为空、库名变成 `/my-pg/:5432/videodb`，驱动会连到本机 `:5432`，甚至用这个非法库名去 `CREATE DATABASE`，最终表现为莫名的建表失败。
+
+启动时会自动修正这类斜杠写法并打印 `[WARN]`，修正不了则直接拒绝启动并给出正确格式。容器部署请用**服务名/容器名**（如 `1panel-postgresql-hi3r`），不要用 `127.0.0.1`。
+
+常见启动失败原因：
+
+| 现象 | 原因 | 处理 |
+| :--- | :--- | :--- |
+| `dial tcp: lookup xxx: no such host` | 主机名不可解析 | 确认应用容器与数据库在同一 Docker 网络，用服务名/容器名 |
+| `permission denied for schema public` | PostgreSQL 15+ 默认收回 `public` 建表权限 | 超管执行 `GRANT ALL ON SCHEMA public TO <用户>;` 或把库 owner 改为该用户 |
+| `第 N 条语句执行失败: ...` | 建表脚本具体哪一条失败（会打印该语句） | 按提示修正；旧库升级时多为某列缺失导致的索引创建失败 |
+| `database "xxx" does not exist` 且库名很怪 | DSN 写错，被当成库名 | 按上面的格式改正，并清理误建的库 |
+
 ## radix 重构说明
 
 ### 分布式会话（pkg/auth）

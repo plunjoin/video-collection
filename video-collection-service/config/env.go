@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -130,4 +131,155 @@ func unquoteEnvValue(value string) string {
 		return strings.TrimSpace(value[:idx])
 	}
 	return value
+}
+
+// ---------- 连接串规范化与校验 ----------
+//
+// 线上最常见的两类连接串错误：
+//  1) 主机被写成 "//1panel-postgresql-hi3r/"（多出斜杠），拼出的 DSN 形如
+//     postgres://user:pw@//host/:5432/db —— url 解析后 host 为空、库名变成 "/host/:5432/db"，
+//     lib/pq 会连到 ":5432"（即本机），甚至用这个垃圾库名去 CREATE DATABASE。
+//  2) 干脆没写主机，或库名里带了斜杠/冒号。
+// 这里先做保守修复，修不好就带着明确提示拒绝启动。
+
+var (
+	pgSchemeRe = regexp.MustCompile(`^(?i)postgres(ql)?://`)
+	pgIdentRe  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$-]*$`)
+)
+
+// PostgresDSNTemplate 正确的连接串格式说明
+const PostgresDSNTemplate = "postgres://用户名:密码@主机:端口/库名?sslmode=disable（示例：postgres://x21_admin:PASS@1panel-postgresql-hi3r:5432/videodb?sslmode=disable）"
+
+// NormalizeDSN 修正常见的连接串写法错误，返回修正后的 DSN 与需要提示给用户的说明
+func NormalizeDSN(dsn string) (string, []string) {
+	trimmed := strings.TrimSpace(dsn)
+	if trimmed == "" || !pgSchemeRe.MatchString(trimmed) {
+		// key=value 形式或空串：不做改写
+		return trimmed, nil
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return trimmed, nil
+	}
+
+	var warnings []string
+
+	// 情形一：host 为空但路径里塞了 "//host/:port/db"
+	if strings.TrimSpace(u.Host) == "" && strings.HasPrefix(u.Path, "//") {
+		host, port, db, ok := parseAuthorityLikePath(u.Path)
+		if ok {
+			u.Host = host
+			if port != "" {
+				u.Host = host + ":" + port
+			}
+			u.Path = "/" + db
+			warnings = append(warnings, fmt.Sprintf("连接串缺少主机名（写成了 %q），已自动修正为 %s",
+				strings.TrimSpace(dsn), MaskDSN(u.String())))
+		}
+	}
+
+	// 情形二：host 里混进了斜杠，例如 "//host/" 或 "host/:5432"
+	if h := u.Host; strings.Contains(h, "/") {
+		cleaned := strings.Trim(h, "/")
+		// "host/:5432" -> host + port
+		if before, after, found := strings.Cut(cleaned, "/:"); found {
+			u.Host = before + ":" + after
+		} else {
+			u.Host = strings.ReplaceAll(cleaned, "/", "")
+		}
+		warnings = append(warnings, fmt.Sprintf("连接串主机名含多余斜杠，已修正为 %q", u.Host))
+	}
+
+	// 情形三：端口写在了路径里（host 正常，但 path 形如 "/:5432/db"）
+	if strings.HasPrefix(u.Path, "/:") {
+		portPart, rest, _ := strings.Cut(strings.TrimPrefix(u.Path, "/:"), "/")
+		if portPart != "" {
+			u.Host = u.Hostname() + ":" + portPart
+			u.Path = "/" + rest
+			warnings = append(warnings, fmt.Sprintf("连接串端口写在路径里，已修正为 %q", u.Host))
+		}
+	}
+
+	return u.String(), warnings
+}
+
+// parseAuthorityLikePath 解析 "//host/:port/db"、"//host/db"、"//host:port/db" 三种写法
+func parseAuthorityLikePath(path string) (host, port, db string, ok bool) {
+	rest := strings.TrimPrefix(path, "//")
+	if rest == "" {
+		return "", "", "", false
+	}
+	head, tail, _ := strings.Cut(rest, "/")
+	if head == "" {
+		return "", "", "", false
+	}
+	host = head
+	// 端口被斜杠隔开："host" + "/:5432/db"
+	if strings.HasPrefix(tail, ":") {
+		portPart, dbPart, _ := strings.Cut(strings.TrimPrefix(tail, ":"), "/")
+		port, db = portPart, dbPart
+	} else {
+		db = tail
+	}
+	// "host:5432/db" 这种 head 自带端口的情况
+	if h, p, found := strings.Cut(host, ":"); found {
+		host, port = h, p
+	}
+	if db == "" {
+		return "", "", "", false
+	}
+	return host, port, db, true
+}
+
+// ValidatePostgresDSN 校验 PostgreSQL 连接串；错误信息里带上正确格式，避免只看到一句 "连接失败"
+func ValidatePostgresDSN(dsn string) error {
+	trimmed := strings.TrimSpace(dsn)
+	if trimmed == "" {
+		return fmt.Errorf("连接串为空，正确格式：%s", PostgresDSNTemplate)
+	}
+	if !pgSchemeRe.MatchString(trimmed) {
+		// key=value 形式（host=... dbname=...）
+		if !regexp.MustCompile(`(^|\s)host=`).MatchString(trimmed) {
+			return fmt.Errorf("连接串缺少 host，正确格式：%s", PostgresDSNTemplate)
+		}
+		return nil
+	}
+
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return fmt.Errorf("连接串无法解析（%v），正确格式：%s", err, PostgresDSNTemplate)
+	}
+	if u.User == nil || u.User.Username() == "" {
+		return fmt.Errorf("连接串缺少用户名，正确格式：%s", PostgresDSNTemplate)
+	}
+	if strings.TrimSpace(u.Host) == "" {
+		return fmt.Errorf("连接串缺少主机名（@ 后面为空），正确格式：%s", PostgresDSNTemplate)
+	}
+	if strings.Contains(u.Host, "/") {
+		return fmt.Errorf("连接串主机名含斜杠：%q，正确格式：%s", u.Host, PostgresDSNTemplate)
+	}
+	dbName := strings.TrimPrefix(u.Path, "/")
+	if dbName == "" {
+		return fmt.Errorf("连接串缺少数据库名，正确格式：%s", PostgresDSNTemplate)
+	}
+	if strings.ContainsAny(dbName, "/:") {
+		return fmt.Errorf("数据库名不合法：%q（不应包含 / 或 :），正确格式：%s", dbName, PostgresDSNTemplate)
+	}
+	if !pgIdentRe.MatchString(dbName) {
+		return fmt.Errorf("数据库名不合法：%q（只允许字母、数字、下划线与连字符，且不能以数字开头），正确格式：%s", dbName, PostgresDSNTemplate)
+	}
+	return nil
+}
+
+// DescribePostgresTarget 返回 "主机:端口/库名"，用于启动日志确认连的是哪个库
+func DescribePostgresTarget(dsn string) string {
+	u, err := url.Parse(strings.TrimSpace(dsn))
+	if err != nil {
+		return ""
+	}
+	dbName := strings.TrimPrefix(u.Path, "/")
+	if u.Host == "" && dbName == "" {
+		return ""
+	}
+	return u.Host + "/" + dbName
 }

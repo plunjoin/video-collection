@@ -1,8 +1,10 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -72,5 +74,88 @@ func TestMaskDSN(t *testing.T) {
 	got := MaskDSN("postgres://u:secret@h:5432/d?sslmode=disable")
 	if got != "postgres://u:******@h:5432/d?sslmode=disable" {
 		t.Errorf("MaskDSN = %q", got)
+	}
+}
+
+func TestNormalizeDSNRepairsSlashHost(t *testing.T) {
+	cases := []struct {
+		name     string
+		in       string
+		wantHost string
+		wantDB   string
+		warned   bool
+	}{
+		{
+			name:     "主机被写成 //host/ 且端口前多斜杠",
+			in:       "postgres://x21_admin:pw@//1panel-postgresql-hi3r/:5432/videodb?sslmode=disable",
+			wantHost: "1panel-postgresql-hi3r:5432",
+			wantDB:   "videodb",
+			warned:   true,
+		},
+		{
+			name:     "主机写成 //host/ 但没写端口",
+			in:       "postgres://u:p@//pg-host/videodb?sslmode=disable",
+			wantHost: "pg-host",
+			wantDB:   "videodb",
+			warned:   true,
+		},
+		{
+			name:     "正常连接串保持不变",
+			in:       "postgres://u:p@pg-host:5432/videodb?sslmode=disable",
+			wantHost: "pg-host:5432",
+			wantDB:   "videodb",
+			warned:   false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, warnings := NormalizeDSN(tc.in)
+			u, err := url.Parse(got)
+			if err != nil {
+				t.Fatalf("修正后的 DSN 无法解析: %v (%s)", err, got)
+			}
+			if u.Host != tc.wantHost {
+				t.Fatalf("host = %q, want %q (dsn=%s)", u.Host, tc.wantHost, got)
+			}
+			if dbName := strings.TrimPrefix(u.Path, "/"); dbName != tc.wantDB {
+				t.Fatalf("dbname = %q, want %q (dsn=%s)", dbName, tc.wantDB, got)
+			}
+			if tc.warned && len(warnings) == 0 {
+				t.Fatalf("期望产生修正提示，实际没有")
+			}
+			if !tc.warned && len(warnings) != 0 {
+				t.Fatalf("不应产生提示，实际: %v", warnings)
+			}
+			if err := ValidatePostgresDSN(got); err != nil {
+				t.Fatalf("修正后应通过校验，实际: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidatePostgresDSNRejectsBadInput(t *testing.T) {
+	bad := []string{
+		"",
+		"postgres://u:p@/videodb",                                        // 缺主机
+		"postgres://u:p@pg-host:5432/",                                   // 缺库名
+		"postgres://u:p@pg-host:5432/1panel-postgresql-hi3r/:5432/videodb", // 库名带斜杠冒号
+		"postgres://u:p@pg-host:5432/bad name",                           // 库名含空格
+	}
+	for _, dsn := range bad {
+		if err := ValidatePostgresDSN(dsn); err == nil {
+			t.Fatalf("应校验失败: %s", dsn)
+		} else if !strings.Contains(err.Error(), "postgres://") {
+			t.Fatalf("错误信息应带正确格式示例，实际: %v", err)
+		}
+	}
+
+	good := "postgres://x21_admin:pw@1panel-postgresql-hi3r:5432/videodb?sslmode=disable"
+	if err := ValidatePostgresDSN(good); err != nil {
+		t.Fatalf("合法连接串不应报错: %v", err)
+	}
+	// key=value 形式
+	if err := ValidatePostgresDSN("host=pg-host port=5432 user=u password=p dbname=videodb sslmode=disable"); err != nil {
+		t.Fatalf("key=value 形式不应报错: %v", err)
 	}
 }

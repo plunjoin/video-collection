@@ -98,6 +98,26 @@ func main() {
 		log.Fatalf("[FATAL] 不支持的数据库驱动: %s", cfg.Database.Driver)
 	}
 
+	// 1.9 连接串规范化与校验：所有配置来源合并完成后统一处理
+	// 典型错误：主机写成 "//1panel-postgresql-hi3r/"，解析后 host 为空，
+	// lib/pq 会连到本机 :5432，甚至拿垃圾库名去 CREATE DATABASE。
+	if strings.EqualFold(cfg.Database.Driver, "postgres") {
+		normalized, warnings := config.NormalizeDSN(cfg.Database.DSN)
+		for _, w := range warnings {
+			fmt.Printf("[WARN] %s\n", w)
+		}
+		cfg.Database.DSN = normalized
+		if err := config.ValidatePostgresDSN(cfg.Database.DSN); err != nil {
+			log.Fatalf(`[FATAL] PostgreSQL 连接串无效: %v
+
+  当前配置来源：%s
+  修正后请重启服务。也可以：
+  1) 管理后台「基础配置」页面修改并保存（持久化在 %s 的 bootstrap_config 表）
+  2) 修改环境变量 DB_DSN，或改用 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME 分项配置`,
+				err, dsnSource, sqlitePath)
+		}
+	}
+
 	// 2. 初始化持久化存储（SQLite 仅作为显式配置的单文件模式，不再作为 PostgreSQL 的兜底）
 	var dbStore store.Store
 	switch strings.ToLower(cfg.Database.Driver) {
@@ -107,14 +127,24 @@ func main() {
 		if pgErr != nil {
 			log.Fatalf(`[FATAL] PostgreSQL 连接失败（系统不再自动降级到 SQLite 兜底）: %v
 
-  请通过以下任一方式修正数据库配置后重启：
+  常见原因排查：
+  1) 连接串格式：应为 postgres://用户:密码@主机:端口/库名?sslmode=disable
+     容器部署时主机请填服务名/容器名（如 1panel-postgresql-hi3r），不要用 127.0.0.1 或带斜杠的写法
+  2) 主机/端口不可达：在容器内执行 nc -zv <主机> 5432 确认连通性
+  3) 账号密码错误，或该数据库不存在
+  4) PostgreSQL 15+ 默认不再给 public schema 建表权限，用超级管理员执行：
+       GRANT ALL ON SCHEMA public TO <用户>;
+     或把库的 owner 改为该用户：ALTER DATABASE <库名> OWNER TO <用户>;
+
+  修正配置后重启即可：
   1) 管理后台「基础配置」页面 / API： GET|PUT /api/admin/bootstrap
      （配置持久化在 %s 的 bootstrap_config 表中）
   2) 环境变量：DB_DSN 或 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME
   3) 若确需 SQLite 单文件模式，将 db.driver 显式设为 sqlite`, pgErr, sqlitePath)
 		}
 		dbStore = pgStore
-		fmt.Println("[OK] PostgreSQL 数据库连接成功！已开启原生 JSONB 与高并发支持。")
+		fmt.Printf("[OK] PostgreSQL 数据库连接成功（%s）！已开启原生 JSONB 与高并发支持。\n",
+			config.DescribePostgresTarget(cfg.Database.DSN))
 	case "sqlite":
 		sqStore, sqErr := store.NewSQLiteStore(sqlitePath)
 		if sqErr != nil {
