@@ -39,6 +39,60 @@
       </div>
     </r-card>
 
+    <!-- 2.5 埋点流量概览（网站 + App 上报汇总） -->
+    <r-card shadow="never" class="section-card analytics-card">
+      <div class="analytics-header">
+        <div class="title-wrap">
+          <r-icon class="title-icon"><TrendCharts /></r-icon>
+          <span class="title-text">埋点流量概览</span>
+          <span class="title-aux">网站 / App 上报汇总</span>
+        </div>
+        <r-button link type="primary" @click="$router.push('/analytics')">
+          埋点详情 &rarr;
+        </r-button>
+      </div>
+
+      <div v-loading="loadingAnalytics" class="analytics-body">
+        <div class="an-metrics">
+          <div v-for="m in analyticsMetrics" :key="m.key" class="an-metric">
+            <span class="an-label">{{ m.label }}</span>
+            <span class="an-value-row">
+              <span class="an-value">{{ formatNumber(m.value) }}</span>
+              <span
+                v-if="m.delta !== null"
+                class="an-delta"
+                :class="m.delta >= 0 ? 'is-up' : 'is-down'"
+              >{{ m.delta >= 0 ? '+' : '' }}{{ m.delta.toFixed(1) }}%</span>
+            </span>
+            <span class="an-sub">{{ m.sub }}</span>
+          </div>
+        </div>
+
+        <div v-if="trendBars.length" class="an-trend">
+          <div class="an-trend-head">
+            <span>近 7 天浏览量</span>
+            <span class="an-trend-max">峰值 {{ formatNumber(trendMax) }}</span>
+          </div>
+          <div class="an-bars">
+            <div
+              v-for="p in trendBars"
+              :key="p.day"
+              class="an-bar-col"
+              :title="`${p.day} · PV ${formatNumber(p.pv)} · UV ${formatNumber(p.uv)}`"
+            >
+              <div class="an-bar-track">
+                <div class="an-bar" :style="{ height: p.height }"></div>
+              </div>
+              <span class="an-bar-label">{{ p.label }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="!loadingAnalytics" class="an-empty">
+          暂无埋点数据，部署后产生首批访问即可统计
+        </div>
+      </div>
+    </r-card>
+
     <!-- 3. 采集源即时状态与图表分布 -->
     <r-row :gutter="12" class="content-row">
       <!-- 采集点即时触发列表 -->
@@ -138,12 +192,13 @@
 import { ref, onMounted, computed } from 'vue'
 import {
   getAdminStats,
+  getAnalyticsOverview,
   getSources,
   triggerCollect,
   triggerCollectAll
 } from '@/api/admin'
 import { getCategories } from '@/api/videos'
-import type { AdminStats, SourceConfig, Category } from '@/types'
+import type { AdminStats, AnalyticsOverview, SourceConfig, Category } from '@/types'
 import { notify }  from '@/components/radix/feedback'
 import {
   Connection,
@@ -155,7 +210,8 @@ import {
   Lightning,
   Refresh,
   Download,
-  Plus
+  Plus,
+  TrendCharts
 } from '@/components/radix/icons'
 
 const stats = ref<Partial<AdminStats>>({})
@@ -165,6 +221,81 @@ const loadingSources = ref(false)
 const loadingCategories = ref(false)
 const collectingAll = ref(false)
 const triggeringId = ref('')
+
+// 埋点流量概览
+const analytics = ref<AnalyticsOverview | null>(null)
+const loadingAnalytics = ref(false)
+
+const formatNumber = (value?: number) => (value ?? 0).toLocaleString('zh-CN')
+
+// 今日 vs 昨日变化率；昨日为 0 时返回 null（无基准）
+const pctDelta = (current?: number, previous?: number): number | null => {
+  if (!previous) return null
+  return (((current ?? 0) - previous) / previous) * 100
+}
+
+const analyticsMetrics = computed(() => {
+  const today = analytics.value?.today
+  const yesterday = analytics.value?.yesterday
+  const total = analytics.value?.total
+  return [
+    {
+      key: 'today_pv',
+      label: '今日浏览量 PV',
+      value: today?.pv ?? 0,
+      delta: pctDelta(today?.pv, yesterday?.pv),
+      sub: `网站 ${formatNumber(today?.web_pv)} · App ${formatNumber(today?.app_pv)}`
+    },
+    {
+      key: 'today_uv',
+      label: '今日访客 UV',
+      value: today?.uv ?? 0,
+      delta: pctDelta(today?.uv, yesterday?.uv),
+      sub: `网站 ${formatNumber(today?.web_uv)} · App ${formatNumber(today?.app_uv)}`
+    },
+    {
+      key: 'total_pv',
+      label: '累计浏览量',
+      value: total?.pv ?? 0,
+      delta: null,
+      sub: `网站 ${formatNumber(total?.web_pv)} · App ${formatNumber(total?.app_pv)}`
+    },
+    {
+      key: 'total_uv',
+      label: '累计访客',
+      value: total?.uv ?? 0,
+      delta: null,
+      sub: `网站 ${formatNumber(total?.web_uv)} · App ${formatNumber(total?.app_uv)}`
+    }
+  ]
+})
+
+const trendWindow = computed(() => (analytics.value?.trend || []).slice(-7))
+
+const trendMax = computed(() => Math.max(0, ...trendWindow.value.map((point) => point.pv)))
+
+const trendBars = computed(() => {
+  const max = Math.max(1, trendMax.value)
+  return trendWindow.value.map((point) => ({
+    day: point.day,
+    label: point.day.slice(5),
+    pv: point.pv,
+    uv: point.uv,
+    height: `${Math.max(4, Math.round((point.pv / max) * 100))}%`
+  }))
+})
+
+const loadAnalytics = async () => {
+  loadingAnalytics.value = true
+  try {
+    const res = await getAnalyticsOverview()
+    analytics.value = res.data ?? null
+  } catch (e) {
+    analytics.value = null
+  } finally {
+    loadingAnalytics.value = false
+  }
+}
 
 const statCards = computed(() => [
   {
@@ -278,6 +409,7 @@ const handleCollectAll = async (hours: number) => {
 
 onMounted(() => {
   loadStats()
+  loadAnalytics()
   loadSources()
   loadCategoriesData()
 })
@@ -370,6 +502,205 @@ onMounted(() => {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+      }
+    }
+  }
+
+  /* 埋点流量概览 */
+  .analytics-card {
+    .analytics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+
+      .title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        color: var(--brand);
+
+        .title-icon {
+          font-size: 15px;
+        }
+
+        .title-text {
+          font-size: 12px;
+          font-weight: 650;
+          color: var(--text-primary);
+          white-space: nowrap;
+        }
+
+        .title-aux {
+          font-size: 10px;
+          color: var(--text-secondary);
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .analytics-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      align-items: stretch;
+      gap: 10px;
+      min-height: 76px;
+    }
+
+    .an-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .an-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(20, 32, 57, 0.03);
+      border: 1px solid var(--border-color);
+
+      .an-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .an-value-row {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .an-value {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .an-delta {
+        padding: 0 5px;
+        border-radius: var(--radius-pill);
+        font-size: 9.5px;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+
+        &.is-up {
+          color: #1d7a52;
+          background: rgba(47, 158, 110, 0.12);
+        }
+
+        &.is-down {
+          color: #b93c3c;
+          background: rgba(229, 72, 77, 0.1);
+        }
+      }
+
+      .an-sub {
+        overflow: hidden;
+        color: var(--text-secondary);
+        font-size: 9.5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .an-trend {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: rgba(79, 110, 242, 0.04);
+
+      .an-trend-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 10px;
+        color: var(--text-secondary);
+
+        .an-trend-max {
+          color: var(--text-regular);
+          font-weight: 600;
+        }
+      }
+
+      .an-bars {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        align-items: end;
+        gap: 4px;
+        height: 54px;
+      }
+
+      .an-bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        height: 100%;
+        min-width: 0;
+      }
+
+      .an-bar-track {
+        display: flex;
+        flex: 1;
+        width: 100%;
+        align-items: flex-end;
+        justify-content: center;
+      }
+
+      .an-bar {
+        width: 100%;
+        max-width: 30px;
+        border-radius: 3px 3px 2px 2px;
+        background: linear-gradient(180deg, rgba(79, 110, 242, 0.9), rgba(79, 110, 242, 0.45));
+        transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .an-bar-label {
+        color: var(--text-secondary);
+        font-size: 8.5px;
+        white-space: nowrap;
+      }
+    }
+
+    .an-empty {
+      display: grid;
+      grid-column: 1 / -1;
+      min-height: 76px;
+      place-items: center;
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    @media (max-width: 1180px) {
+      .analytics-body {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .an-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
   }
@@ -507,6 +838,26 @@ onMounted(() => {
         font-size: 11px;
       }
     }
+  }
+}
+
+html.dark .analytics-card {
+  .an-metric {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .an-trend {
+    background: rgba(126, 148, 255, 0.07);
+  }
+
+  .an-delta.is-up {
+    color: #67d3a1;
+    background: rgba(47, 158, 110, 0.18);
+  }
+
+  .an-delta.is-down {
+    color: #f28b8e;
+    background: rgba(229, 72, 77, 0.16);
   }
 }
 </style>
