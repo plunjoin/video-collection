@@ -179,13 +179,13 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = migrateWiki(tx, id, timestamp); err != nil {
 		return err
 	}
-	if err = migrateRAG(tx, id, timestamp); err != nil {
+	if err = migrateRAG(tx, postgres, id, timestamp); err != nil {
 		return err
 	}
 	if err = migrateCollectionTasks(tx, id, timestamp); err != nil {
 		return err
 	}
-	if err = migrateWebhooks(tx, id, timestamp); err != nil {
+	if err = migrateWebhooks(tx, postgres, id, timestamp); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {

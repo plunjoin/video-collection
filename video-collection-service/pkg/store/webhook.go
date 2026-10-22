@@ -74,7 +74,7 @@ type WebhookStore interface {
 	ClearWebhookDeliveries(ctx context.Context, webhookID string, olderThanDays int) (int64, error)
 }
 
-func migrateWebhooks(tx *sql.Tx, id, timestamp string) error {
+func migrateWebhooks(tx *sql.Tx, postgres bool, id, timestamp string) error {
 	schema := fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS webhooks (
   id TEXT PRIMARY KEY,
@@ -105,10 +105,22 @@ CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_list ON webhook_deliveries(web
 	if _, err := tx.Exec(schema); err != nil {
 		return err
 	}
-	// 旧库升级：补充 tolerance_sec / events / secret_hint 列（幂等，失败可忽略）。
-	_, _ = tx.Exec("ALTER TABLE webhooks ADD COLUMN tolerance_sec INTEGER NOT NULL DEFAULT 300")
-	_, _ = tx.Exec("ALTER TABLE webhooks ADD COLUMN events TEXT NOT NULL DEFAULT '[]'")
-	_, _ = tx.Exec("ALTER TABLE webhooks ADD COLUMN secret_hint TEXT NOT NULL DEFAULT ''")
+	// PostgreSQL errors abort the transaction, so duplicate columns must be
+	// avoided and other errors returned. SQLite duplicate-column errors are safe
+	// to ignore and older versions do not support ADD COLUMN IF NOT EXISTS.
+	alter := "ALTER TABLE webhooks ADD COLUMN "
+	if postgres {
+		alter += "IF NOT EXISTS "
+	}
+	for _, column := range []string{
+		"tolerance_sec INTEGER NOT NULL DEFAULT 300",
+		"events TEXT NOT NULL DEFAULT '[]'",
+		"secret_hint TEXT NOT NULL DEFAULT ''",
+	} {
+		if _, err := tx.Exec(alter + column); err != nil && postgres {
+			return err
+		}
+	}
 	return nil
 }
 

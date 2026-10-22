@@ -38,7 +38,11 @@ type RAGStore interface {
 	CountRAGChunks(ctx context.Context) (int, error)
 }
 
-func migrateRAG(tx *sql.Tx, id, timestamp string) error {
+func migrateRAG(tx *sql.Tx, postgres bool, id, timestamp string) error {
+	embeddingType := "BLOB"
+	if postgres {
+		embeddingType = "BYTEA"
+	}
 	schema := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS rag_chunks (
 		id %s,
@@ -48,14 +52,14 @@ func migrateRAG(tx *sql.Tx, id, timestamp string) error {
 		chunk_index INTEGER NOT NULL DEFAULT 0,
 		text TEXT NOT NULL,
 		metadata TEXT NOT NULL DEFAULT '{}',
-		embedding BLOB NOT NULL,
+		embedding %s NOT NULL,
 		dimensions INTEGER NOT NULL,
 		updated_at %s NOT NULL,
 		UNIQUE(source_type, source_id, chunk_index)
 	);
 	CREATE INDEX IF NOT EXISTS idx_rag_chunks_subject ON rag_chunks(subject_id);
 	CREATE INDEX IF NOT EXISTS idx_rag_chunks_source ON rag_chunks(source_type, source_id);
-	`, id, timestamp)
+	`, id, embeddingType, timestamp)
 	if _, err := tx.Exec(schema); err != nil {
 		return err
 	}
