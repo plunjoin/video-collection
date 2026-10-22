@@ -30,6 +30,10 @@ services:
     build:
       context: .
       dockerfile: video-collection-service/Dockerfile
+      args:
+        # 构建版本号会打进启动日志与 /status，便于确认线上跑的是哪次构建：
+        #   BUILD_VERSION=$(git rev-parse --short HEAD) docker compose build service
+        BUILD_VERSION: ${BUILD_VERSION:-}
     restart: unless-stopped
     environment:
       PORT: "8080"

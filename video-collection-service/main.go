@@ -27,6 +27,7 @@ import (
 func main() {
 	fmt.Println("==================================================================")
 	fmt.Println("   Bllii 可配置采集聚合平台 - 统一服务 (Go: RESTful API + 管理后台) ")
+	fmt.Printf("   构建标识: %s\n", config.BuildInfo())
 	fmt.Println("==================================================================")
 
 	// 1. 加载 .env 与主配置文件（优先级：环境变量 > .env > YAML > 默认值）
@@ -102,11 +103,17 @@ func main() {
 	// 典型错误：主机写成 "//1panel-postgresql-hi3r/"，解析后 host 为空，
 	// lib/pq 会连到本机 :5432，甚至拿垃圾库名去 CREATE DATABASE。
 	if strings.EqualFold(cfg.Database.Driver, "postgres") {
-		normalized, warnings := config.NormalizeDSN(cfg.Database.DSN)
+		rawDSN := cfg.Database.DSN
+		normalized, warnings := config.NormalizeDSN(rawDSN)
 		for _, w := range warnings {
 			fmt.Printf("[WARN] %s\n", w)
 		}
 		cfg.Database.DSN = normalized
+		// 修正前后不一致时把两行都打出来，避免只看一行分不清到底生效的是哪个
+		if strings.TrimSpace(rawDSN) != strings.TrimSpace(normalized) {
+			fmt.Printf("[*] 连接串原始值: %s\n", config.MaskDSN(strings.TrimSpace(rawDSN)))
+			fmt.Printf("[*] 连接串已修正: %s\n", config.MaskDSN(normalized))
+		}
 		if err := config.ValidatePostgresDSN(cfg.Database.DSN); err != nil {
 			log.Fatalf(`[FATAL] PostgreSQL 连接串无效: %v
 
@@ -123,6 +130,7 @@ func main() {
 	switch strings.ToLower(cfg.Database.Driver) {
 	case "postgres":
 		fmt.Printf("[*] 正在连接 PostgreSQL 数据库: %s\n", config.MaskDSN(cfg.Database.DSN))
+		fmt.Printf("[*] 连接目标: %s\n", config.DescribePostgresTarget(cfg.Database.DSN))
 		pgStore, pgErr := store.NewPostgresStore(cfg.Database.DSN)
 		if pgErr != nil {
 			log.Fatalf(`[FATAL] PostgreSQL 连接失败（系统不再自动降级到 SQLite 兜底）: %v
@@ -262,6 +270,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":        "Video Collection Service (API + Admin)",
 			"version":     "2.0.0",
+			"build":       config.BuildInfo(),
 			"status":      "running",
 			"admin_url":   "/admin",
 			"docs_url":    "/docs",
@@ -270,6 +279,7 @@ func main() {
 			"cache":       cacheStatus(cacheClient),
 			"database": map[string]any{
 				"driver":         cfg.Database.Driver,
+				"target":         config.DescribePostgresTarget(cfg.Database.DSN),
 				"bootstrap_path": sqlitePath,
 			},
 			"apis": map[string]string{
