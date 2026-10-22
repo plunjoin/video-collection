@@ -151,7 +151,7 @@
           <template #header>
             <div class="card-title-bar">
               <span class="title">分类视频分布概览</span>
-              <r-button link type="primary" @click="$router.push('/videos')">
+              <r-button link type="primary" @click="$router.push('/resources/video')">
                 视频仓库 &rarr;
               </r-button>
             </div>

@@ -142,14 +142,13 @@ const allSections = [
   {
     title: '内容管理',
     items: [
-      { path: '/videos', title: '视频库', icon: Film },
+      { path: '/resources', title: '资源库', icon: Film },
       { path: '/wiki', title: 'Wiki 知识库', icon: Network },
       { path: '/rag', title: 'RAG 知识库', icon: Search },
       { path: '/sources', title: '使魔节点管理', icon: SetUp },
       { path: '/business-types', title: '业务类型', icon: Document },
       { path: '/collection-rules', title: '使魔规则工坊', icon: SetUp },
       { path: '/scheduler', title: '使魔调度', icon: Clock },
-      { path: '/news', title: '资讯管理', icon: Bell },
       { path: '/community', title: '社区内容', icon: ChatDotRound },
       { path: '/reviews', title: '内容审核', icon: Document },
       { path: '/feedbacks', title: '求片反馈', icon: ChatLineRound },
@@ -193,6 +192,9 @@ const profileName = computed(() => userStore.userInfo?.nickname || userStore.use
 const profileInitial = computed(() => profileName.value.slice(0, 1).toUpperCase())
 
 function isActive(path: string) {
+  if (path === '/resources') {
+    return route.path === '/resources' || route.path.startsWith('/resources/') || route.path === '/videos' || route.path.startsWith('/videos/') || route.path === '/news' || route.path.startsWith('/news/')
+  }
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 

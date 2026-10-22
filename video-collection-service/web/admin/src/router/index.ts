@@ -42,11 +42,19 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '使魔节点管理' }
       },
       {
-        path: 'videos',
-        name: 'Videos',
-        component: () => import('@/views/videos/index.vue'),
-        meta: { title: '视频仓库' }
+        path: 'resources',
+        name: 'Resources',
+        component: () => import('@/views/resources/index.vue'),
+        redirect: '/resources/video',
+        meta: { title: '资源库' },
+        children: [
+          { path: 'video', name: 'ResourcesVideo', component: () => import('@/views/videos/index.vue'), meta: { title: '视频库' } },
+          { path: 'news', name: 'ResourcesNews', component: () => import('@/views/news/index.vue'), meta: { title: '资讯' } },
+          { path: 'record', name: 'ResourcesRecord', component: () => import('@/views/resources/BizTypeRows.vue'), meta: { title: '通用数据' } },
+          { path: 'biz/:slug', name: 'ResourcesBiz', component: () => import('@/views/resources/BizTypeRows.vue'), meta: { title: '业务数据' } },
+        ]
       },
+      { path: 'videos', name: 'Videos', redirect: '/resources/video', meta: { title: '视频仓库', hidden: true } },
       {
         path: 'wiki',
         name: 'WikiKnowledge',
@@ -60,10 +68,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: 'RAG 知识库' }
       },
       {
-        path: 'news',
-        name: 'News',
-        component: () => import('@/views/news/index.vue'),
-        meta: { title: '资讯管理' }
+        path: 'news', name: 'News', redirect: '/resources/news', meta: { title: '资讯管理', hidden: true }
       },
       {
         path: 'community',
