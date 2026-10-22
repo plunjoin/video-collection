@@ -72,6 +72,7 @@
                 :min="1"
                 :max="72"
                 :step="1"
+                style="width: 120px;"
               />
               <span class="unit-text">小时 / 次（推荐 2 小时）</span>
             </r-form-item>
@@ -89,18 +90,43 @@
               <r-button @click="loadStatus">重置表单</r-button>
             </r-form-item>
           </r-form>
-
-          <div class="cron-tips">
-            <h4 class="tips-title">💡 调度运行机制说明：</h4>
-            <ul>
-              <li>系统在后台以轻量级 Goroutine 持续运行高精度定时轮询器。</li>
-              <li>定时任务触发时，会自动遍历所有处于<strong>「启用」</strong>状态的采集源并发拉取最新增量数据。</li>
-              <li>采集过程中会自动进行去重清洗、智能线路合并、剧集更新比对，并写入任务进程记录。</li>
-            </ul>
-          </div>
         </r-card>
       </r-col>
     </r-row>
+
+    <!-- 独立区块：调度运行机制说明 -->
+    <r-card shadow="never" class="mechanism-card">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">调度运行机制说明</span>
+          <span class="header-aux">后台常驻轮询 · 并发采集 · 自动清洗入库</span>
+        </div>
+      </template>
+
+      <ul class="mechanism-list">
+        <li class="mechanism-item">
+          <span class="idx">01</span>
+          <div class="copy">
+            <strong>高精度定时轮询</strong>
+            <p>系统在后台以轻量级 Goroutine 持续运行高精度定时轮询器，不依赖外部 Cron 服务。</p>
+          </div>
+        </li>
+        <li class="mechanism-item">
+          <span class="idx">02</span>
+          <div class="copy">
+            <strong>并发拉取增量数据</strong>
+            <p>定时任务触发时，自动遍历所有处于「启用」状态的采集源，并发拉取最新增量数据。</p>
+          </div>
+        </li>
+        <li class="mechanism-item">
+          <span class="idx">03</span>
+          <div class="copy">
+            <strong>清洗合并后入库</strong>
+            <p>采集过程中自动完成去重清洗、智能线路合并、剧集更新比对，并写入任务进程记录。</p>
+          </div>
+        </li>
+      </ul>
+    </r-card>
 
     <!-- 下半区：采集任务进程记录与实时日志控制台 -->
     <r-card shadow="never" class="runs-card" style="margin-top: 16px;">
@@ -568,7 +594,7 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .scheduler-page {
-  .status-card, .config-card, .runs-card {
+  .status-card, .config-card, .mechanism-card, .runs-card {
     border-radius: 12px;
     border: 1px solid var(--border-color);
 
@@ -576,12 +602,89 @@ onBeforeUnmount(() => {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
     }
 
     .card-title {
       font-size: 13px;
       font-weight: 650;
       color: var(--text-primary);
+    }
+
+    .header-aux {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+  }
+
+  /* 上半区两张卡片等高对齐：内容纵向撑满，手动唤醒按钮吸底 */
+  .status-card, .config-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    :deep(.r-card__body) {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  /* 独立区块：调度运行机制说明 */
+  .mechanism-card {
+    margin-top: 16px;
+
+    .mechanism-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .mechanism-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(20, 32, 57, 0.03);
+      border: 1px solid var(--border-color);
+
+      .idx {
+        flex: none;
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 6px;
+        background: rgba(79, 110, 242, 0.1);
+        color: var(--brand);
+        font-size: 10px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .copy {
+        min-width: 0;
+
+        strong {
+          display: block;
+          margin-bottom: 3px;
+          font-size: 11.5px;
+          font-weight: 650;
+          color: var(--text-primary);
+        }
+
+        p {
+          margin: 0;
+          font-size: 10.5px;
+          line-height: 1.65;
+          color: var(--text-secondary);
+        }
+      }
     }
   }
 
@@ -604,20 +707,31 @@ onBeforeUnmount(() => {
   }
 
   .status-content {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
+
+    :deep(.r-divider) {
+      margin-top: auto;
+      margin-bottom: 0;
+    }
 
     .status-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       font-size: 11.5px;
 
       .label {
+        flex: none;
+        white-space: nowrap;
         color: var(--text-secondary);
       }
       .val {
+        min-width: 0;
+        text-align: right;
         color: var(--text-primary);
       }
     }
@@ -643,29 +757,7 @@ onBeforeUnmount(() => {
       margin-left: 10px;
       font-size: 10px;
       color: var(--text-secondary);
-    }
-  }
-
-  .cron-tips {
-    margin-top: 18px;
-    padding: 10px 12px;
-    background: var(--nav-bg-subtle, rgba(79, 110, 242, 0.06));
-    border: 1px solid var(--nav-border-light, rgba(79, 110, 242, 0.16));
-    border-radius: 8px;
-
-    .tips-title {
-      margin: 0 0 6px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--brand);
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 16px;
-      font-size: 10.5px;
-      color: var(--text-secondary);
-      line-height: 1.6;
+      white-space: nowrap;
     }
   }
 
