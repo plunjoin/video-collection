@@ -48,7 +48,7 @@ class SearchBarWidget extends StatelessWidget {
             Expanded(
               child: readOnly
                   ? Text(
-                      '搜索番剧、视频…',
+                      '搜索番剧、资讯…',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

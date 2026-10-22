@@ -35,6 +35,8 @@ export interface AdminStats {
   total_sources: number
   active_sources: number
   total_videos: number
+  total_news: number
+  total_business_types: number
   today_updated: number
   total_play_groups: number
   total_users: number
