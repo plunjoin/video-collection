@@ -73,9 +73,17 @@
                 <span>{{ row.comment || '-' }}</span>
               </template>
             </r-table-column>
-            <r-table-column label="操作" width="100" align="center" fixed="right">
+            <r-table-column label="操作" width="170" align="center" fixed="right">
               <template #default="{ row }">
                 <r-button size="small" type="primary" plain @click="openBrowse(row.name)">浏览</r-button>
+                <r-button
+                  v-if="isSuperAdmin && row.name !== 'users'"
+                  size="small"
+                  type="danger"
+                  plain
+                  :disabled="!row.rows"
+                  @click="handleClearFromList(row)"
+                >清空</r-button>
               </template>
             </r-table-column>
           </r-table>
@@ -242,25 +250,64 @@
     <!-- 数据浏览对话框 -->
     <r-dialog v-model="browse.visible" :title="`浏览表数据 - ${browse.table}`" width="960px" top="6vh">
       <div class="browse-toolbar">
-        <r-select v-model="browse.orderBy" placeholder="排序字段" size="small" style="width: 180px" @change="loadBrowse">
-          <r-option v-for="c in browse.columns" :key="c.name" :value="c.name" :label="c.name" />
-        </r-select>
-        <r-switch v-model="browse.orderDesc" active-text="降序" inactive-text="升序" size="small" @change="loadBrowse" />
-        <r-input
-          v-model="browse.keyword"
-          size="small"
-          placeholder="全列模糊搜索（% 与 _ 按字面匹配）"
-          style="width: 240px"
-          clearable
-          @keyup.enter="loadBrowse"
-          @clear="loadBrowse"
-        >
-          <template #append>
-            <r-button @click="loadBrowse"><r-icon><Search /></r-icon></r-button>
-          </template>
-        </r-input>
+        <div class="browse-toolbar__filters">
+          <r-select v-model="browse.orderBy" placeholder="排序字段" size="small" style="width: 160px" @change="loadBrowse">
+            <r-option v-for="c in browse.columns" :key="c.name" :value="c.name" :label="c.name" />
+          </r-select>
+          <r-switch v-model="browse.orderDesc" active-text="降序" inactive-text="升序" size="small" @change="loadBrowse" />
+          <div class="browse-search">
+            <r-input
+              v-model="browse.keyword"
+              size="small"
+              placeholder="全列模糊搜索"
+              clearable
+              @keyup.enter="loadBrowse"
+              @clear="loadBrowse"
+            >
+              <template #append>
+                <r-button @click="loadBrowse"><r-icon><Search /></r-icon></r-button>
+              </template>
+            </r-input>
+          </div>
+        </div>
+        <div class="browse-toolbar__danger" v-if="isSuperAdmin">
+          <r-button
+            type="danger"
+            size="small"
+            plain
+            :disabled="!browse.selected.length"
+            :loading="browse.deleting"
+            @click="handleDeleteSelected"
+          >
+            <r-icon><Delete /></r-icon> 删除选中{{ browse.selected.length ? ` (${browse.selected.length})` : '' }}
+          </r-button>
+          <r-button
+            type="danger"
+            size="small"
+            plain
+            :disabled="!browse.total || browse.clearing || browse.table === 'users'"
+            :loading="browse.clearing"
+            :title="browse.table === 'users' ? '用户表不支持整表清空' : ''"
+            @click="handleClearTable"
+          >
+            <r-icon><Delete /></r-icon> 清空此表
+          </r-button>
+        </div>
       </div>
-      <r-table :data="browse.rows" v-loading="browse.loading" border stripe style="width: 100%" max-height="440">
+      <div class="browse-hint" v-if="isSuperAdmin && !browse.primaryKey.length">
+        当前表没有主键，无法按行删除，仅可使用「清空此表」或备份恢复。
+      </div>
+      <r-table
+        :data="browse.rows"
+        :row-key="browseRowKey"
+        v-loading="browse.loading"
+        border
+        stripe
+        style="width: 100%"
+        max-height="440"
+        @selection-change="handleBrowseSelection"
+      >
+        <r-table-column v-if="isSuperAdmin && browse.primaryKey.length" type="selection" width="46" align="center" />
         <r-table-column
           v-for="col in browse.columns"
           :key="col.name"
@@ -339,11 +386,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import {
   getDBInfo,
   getDBTables,
   browseTable,
+  deleteTableRows,
+  clearTable,
   createBackup,
   getBackups,
   deleteBackup,
@@ -354,7 +403,12 @@ import {
 } from '@/api/admin'
 import type { DBInfo, DBTableInfo, BackupMeta, RestorePreview, CleanupResult, SQLExecResult } from '@/types'
 import { notify, confirmAction }  from '@/components/radix/feedback'
-import { FolderAdd, RefreshRight, View, Brush, CaretRight, Search } from '@/components/radix/icons'
+import { FolderAdd, RefreshRight, View, Brush, CaretRight, Search, Delete } from '@/components/radix/icons'
+import { useUserStore } from '@/store/user'
+
+const userStore = useUserStore()
+// 删除 / 清空属于破坏性操作，仅超级管理员可见可用（后端同样校验）
+const isSuperAdmin = computed(() => userStore.userInfo?.role === 'super_admin')
 
 // ---------- 信息卡 ----------
 const info = ref<DBInfo | null>(null)
@@ -415,8 +469,22 @@ const browse = reactive({
   pageSize: 50,
   orderBy: '',
   orderDesc: false,
-  keyword: ''
+  keyword: '',
+  primaryKey: [] as string[],
+  selected: [] as Record<string, any>[],
+  deleting: false,
+  clearing: false
 })
+
+// 行唯一键：按主键拼接，供表格多选与删除定位
+const browseRowKey = (row: Record<string, any>) => {
+  const keys = browse.primaryKey.length ? browse.primaryKey : ['id']
+  return keys.map((k) => String(row[k] ?? '')).join('|')
+}
+
+const handleBrowseSelection = (rows: Record<string, any>[]) => {
+  browse.selected = rows
+}
 
 const openBrowse = (table: string) => {
   browse.table = table
@@ -425,6 +493,7 @@ const openBrowse = (table: string) => {
   browse.orderBy = ''
   browse.orderDesc = false
   browse.keyword = ''
+  browse.selected = []
   loadBrowse()
 }
 
@@ -443,9 +512,85 @@ const loadBrowse = async () => {
       browse.columns = res.data.columns || []
       browse.rows = res.data.rows || []
       browse.total = res.data.total || 0
+      browse.primaryKey = res.data.primary_key || []
+      browse.selected = []
     }
   } finally {
     browse.loading = false
+  }
+}
+
+// 删除选中行（仅超级管理员）
+const handleDeleteSelected = async () => {
+  if (!browse.selected.length) return
+  const keys = browse.primaryKey
+  if (!keys.length) {
+    notify('当前表没有主键，无法按行删除', 'warning')
+    return
+  }
+  try {
+    await confirmAction(
+      `确定删除 ${browse.table} 表中选中的 ${browse.selected.length} 行数据吗？\n该操作不可恢复，建议先创建备份。`,
+      '删除数据确认',
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' }
+    )
+  } catch {
+    return
+  }
+  browse.deleting = true
+  try {
+    const rows = browse.selected.map((row) => {
+      const key: Record<string, any> = {}
+      for (const k of keys) key[k] = row[k]
+      return key
+    })
+    const res = await deleteTableRows(browse.table, rows)
+    notify(res.msg || `已删除 ${res.data?.deleted ?? rows.length} 行数据`, 'success')
+    browse.selected = []
+    await Promise.all([loadBrowse(), loadTables(), loadInfo()])
+  } catch (err: any) {
+    notify(err?.response?.data?.error || err?.message || '删除失败', 'error')
+  } finally {
+    browse.deleting = false
+  }
+}
+
+// 清空整表（仅超级管理员，二次确认需输入表名）
+const handleClearTable = async () => {
+  await clearTableWithConfirm(browse.table, browse.total, () => {
+    browse.selected = []
+    return Promise.all([loadBrowse(), loadTables(), loadInfo()])
+  })
+}
+
+// 从表列表直接清空（不打开浏览对话框）
+const handleClearFromList = async (row: DBTableInfo) => {
+  await clearTableWithConfirm(row.name, row.rows, () => Promise.all([loadTables(), loadInfo()]))
+}
+
+const clearTableWithConfirm = async (
+  table: string,
+  rows: number,
+  after?: () => Promise<unknown>
+) => {
+  try {
+    await confirmAction(
+      `即将清空表 [${table}] 的全部 ${rows} 行数据，操作不可恢复，且无法撤销。\n建议先到「备份与恢复」创建备份。确认继续吗？`,
+      '清空表确认',
+      { confirmButtonText: '确认清空', cancelButtonText: '取消', type: 'error' }
+    )
+  } catch {
+    return
+  }
+  browse.clearing = true
+  try {
+    const res = await clearTable(table)
+    notify(res.msg || `已清空 ${table}`, 'success')
+    if (after) await after()
+  } catch (err: any) {
+    notify(err?.response?.data?.error || err?.message || '清空失败', 'error')
+  } finally {
+    browse.clearing = false
   }
 }
 
@@ -736,24 +881,40 @@ onMounted(() => {
   .cleanup-wrap {
     .cleanup-group {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 12px;
-      margin-bottom: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: stretch;
 
       .cleanup-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 10px 14px;
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.55);
+        transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+
+        &:hover {
+          border-color: rgba(79, 110, 242, 0.28);
+          background: rgba(255, 255, 255, 0.8);
+          box-shadow: 0 2px 10px rgba(22, 33, 58, 0.05);
+        }
 
         .cleanup-label {
+          font-size: 12px;
           font-weight: 600;
+          line-height: 1.4;
+          color: var(--text-primary);
         }
 
         .cleanup-desc {
-          font-size: 12px;
+          font-size: 11px;
+          line-height: 1.55;
           color: var(--text-secondary);
-          margin-top: 2px;
           padding-left: 24px;
+          margin: 0;
         }
       }
     }
@@ -798,17 +959,49 @@ onMounted(() => {
     }
   }
 
-  .browse-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-
   .error-text {
     font-size: 12px;
     color: var(#dc2626);
   }
+}
+
+/* 数据浏览对话框内容会被 teleport 到 body，样式需放在顶层作用域 */
+.browse-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.browse-toolbar__filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.browse-search {
+  width: 260px;
+  flex: 0 0 260px;
+
+  :deep(.r-input-wrap) {
+    width: 100%;
+  }
+}
+
+.browse-toolbar__danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.browse-hint {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>

@@ -262,6 +262,19 @@ export interface TableBrowseResult {
   total: number
   page: number
   page_size: number
+  primary_key: string[]
+}
+
+// 行删除结果
+export interface DeleteRowsResult {
+  table: string
+  deleted: number
+}
+
+// 清空表结果
+export interface ClearTableResult {
+  table: string
+  deleted: number
 }
 
 // 备份创建结果
