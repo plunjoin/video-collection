@@ -45,6 +45,13 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if r.SourceID == "" || r.Key == "" {
 		return false, fmt.Errorf("记录缺少来源或唯一标识")
 	}
+	b, err := s.GetBusinessType(ctx, r.Target)
+	if err != nil {
+		return false, fmt.Errorf("未知业务类型 %q: %w", r.Target, err)
+	}
+	if _, err = ValidateBusinessValues(b, r.Values); err != nil {
+		return false, err
+	}
 	data, err := json.Marshal(r.Values)
 	if err != nil {
 		return false, err
@@ -62,7 +69,13 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 	if err == nil && skip {
 		return false, nil
 	}
-	if r.Target == "article" {
+	if b.Writer == "table" {
+		r.ContentID, err = upsertBusinessRow(ctx, tx, b, r)
+		if err != nil {
+			return false, err
+		}
+	}
+	if b.Writer == "article" {
 		if id > 0 {
 			var status string
 			err = tx.QueryRowContext(ctx, `SELECT status FROM content_entries WHERE id=$1 AND kind='news'`, id).Scan(&status)
@@ -181,6 +194,22 @@ func (s *SQLContentStore) UpdateCollectionRecord(ctx context.Context, sourceID, 
 	if sourceID == "" || key == "" {
 		return fmt.Errorf("记录缺少来源或唯一标识")
 	}
+	b, err := s.GetBusinessType(ctx, target)
+	if err != nil {
+		return err
+	}
+	if b.Writer == "table" {
+		exists, err := s.HasCollectionRecord(ctx, sourceID, target, key)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("未找到对应采集记录")
+		}
+		_, err = s.SaveCollectionRecord(ctx, CollectionRecord{SourceID: sourceID, Target: target, Key: key, Values: values}, false)
+		return err
+	}
+
 	data, err := json.Marshal(values)
 	if err != nil {
 		return err
@@ -198,15 +227,32 @@ func (s *SQLContentStore) UpdateCollectionRecord(ctx context.Context, sourceID, 
 }
 
 func (s *SQLContentStore) DeleteCollectionRecord(ctx context.Context, sourceID, target, key string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, target, key)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	affected, err := res.RowsAffected()
-	if err == nil && affected == 0 {
+	defer tx.Rollback()
+	b, err := getBusinessType(ctx, tx, target)
+	if err != nil {
+		return err
+	}
+	if b.Writer == "table" {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM "+quoteIdent(b.TableName)+" WHERE id=(SELECT content_id FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3)", sourceID, target, key); err != nil {
+			return err
+		}
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM collection_records WHERE source_id=$1 AND target=$2 AND record_key=$3`, sourceID, target, key)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
 		return fmt.Errorf("未找到对应采集记录")
 	}
-	return err
+	return tx.Commit()
 }
 
 func (s *SQLContentStore) RectifyCollectionRecordToWiki(ctx context.Context, sourceID, target, key string, subject WikiSubject) (*WikiSubject, error) {

@@ -76,6 +76,7 @@ type NotificationQuery struct {
 }
 
 type ContentStore interface {
+	BusinessTypeStore
 	GovernanceStore
 	GrowthStore
 	CollectionStore
@@ -165,6 +166,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
  payload TEXT NOT NULL, content_id INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
  PRIMARY KEY(source_id,target,record_key)
 );`); err != nil {
+		return err
+	}
+	if err = migrateBusinessTypes(tx); err != nil {
 		return err
 	}
 	if err = migrateGrowth(tx, id); err != nil {
