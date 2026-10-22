@@ -31,7 +31,7 @@ func newWebhookMux(t *testing.T) (*store.SQLiteStore, *http.ServeMux) {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	mux := http.NewServeMux()
-	NewServer(s, nil, nil, nil).RegisterRoutes(mux)
+	NewServer(s, nil, nil, nil, nil).RegisterRoutes(mux)
 	return s, mux
 }
 

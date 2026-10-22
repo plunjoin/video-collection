@@ -11,7 +11,8 @@ import (
 type DatabaseConfig struct {
 	Driver string `yaml:"driver" json:"driver"` // "postgres" 或 "sqlite"
 	DSN    string `yaml:"dsn" json:"dsn"`       // 连接串
-	// SQLite 数据文件路径，PostgreSQL 不可用时降级使用
+	// SQLite 文件路径：基础配置存储（bootstrap_config 表）；
+	// DB_DRIVER=sqlite 时同时作为业务数据文件（单文件模式，非 PostgreSQL 兜底）
 	SQLitePath string `yaml:"sqlite_path" json:"sqlite_path"`
 }
 

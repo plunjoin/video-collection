@@ -306,3 +306,71 @@ func sqlTypeName(t string) string {
 	}
 	return "DDL"
 }
+
+// handleDBDeleteRows 按主键删除表数据（仅超级管理员）
+func (srv *Server) handleDBDeleteRows(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return
+	}
+	admin, ok := srv.dbAdmin()
+	if !ok {
+		errorResponse(w, http.StatusNotImplemented, "当前存储实现不支持数据库管理")
+		return
+	}
+	var req store.DeleteRowsQuery
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "参数解析失败: "+err.Error())
+		return
+	}
+	result, err := admin.DeleteRows(r.Context(), req)
+	if err != nil {
+		errorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"code": 1,
+		"msg":  "已删除 " + strconv.FormatInt(result.Deleted, 10) + " 行数据",
+		"data": result,
+	})
+}
+
+// handleDBClearTable 清空指定表数据（仅超级管理员，需 confirm=true）
+func (srv *Server) handleDBClearTable(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return
+	}
+	admin, ok := srv.dbAdmin()
+	if !ok {
+		errorResponse(w, http.StatusNotImplemented, "当前存储实现不支持数据库管理")
+		return
+	}
+	var req struct {
+		Table   string `json:"table"`
+		Confirm bool   `json:"confirm"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "参数解析失败: "+err.Error())
+		return
+	}
+	req.Table = strings.TrimSpace(req.Table)
+	if req.Table == "" {
+		errorResponse(w, http.StatusBadRequest, "缺少表名")
+		return
+	}
+	if !req.Confirm {
+		errorResponse(w, http.StatusBadRequest, "清空表属于不可逆操作，请携带 confirm=true 确认")
+		return
+	}
+	result, err := admin.ClearTable(r.Context(), req.Table)
+	if err != nil {
+		errorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"code": 1,
+		"msg":  "已清空 " + req.Table + "，共删除 " + strconv.FormatInt(result.Deleted, 10) + " 行",
+		"data": result,
+	})
+}

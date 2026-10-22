@@ -130,6 +130,16 @@ func (srv *Server) adminWrite(h http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// superAdminWrite 仅超级管理员可执行的写操作（破坏性数据操作专用），写后失效缓存
+func (srv *Server) superAdminWrite(h http.HandlerFunc) http.HandlerFunc {
+	return auth.SuperAdminRequired(srv.store, func(w http.ResponseWriter, r *http.Request) {
+		h(w, r)
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			srv.invalidateCaches(r.Context())
+		}
+	})
+}
+
 // videosCacheKey 由检索参数生成稳定缓存键（排序后拼接，保证同语义同键）。
 func videosCacheKey(page, pageSize, typeID int, keyword, area, year, orderBy string, orderDesc bool) string {
 	norm := func(s string) string {

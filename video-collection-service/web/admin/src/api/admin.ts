@@ -53,6 +53,8 @@ import type {
   DBInfo,
   DBTableInfo,
   TableBrowseResult,
+  DeleteRowsResult,
+  ClearTableResult,
   BackupResult,
   BackupMeta,
   RestorePreview,
@@ -220,6 +222,22 @@ export function browseTable(params: {
   keyword?: string
 }) {
   return request.get<any, ApiResponse<TableBrowseResult>>('/api/admin/db/table', { params })
+}
+
+// 按主键删除选中行（仅超级管理员）
+export function deleteTableRows(table: string, rows: Record<string, any>[]) {
+  return request.post<any, ApiResponse<DeleteRowsResult>>('/api/admin/db/table/rows/delete', {
+    table,
+    rows
+  })
+}
+
+// 清空整表（仅超级管理员，不可逆）
+export function clearTable(table: string) {
+  return request.post<any, ApiResponse<ClearTableResult>>('/api/admin/db/table/clear', {
+    table,
+    confirm: true
+  })
 }
 
 export function createBackup(tables?: string[]) {

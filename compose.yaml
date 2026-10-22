@@ -41,7 +41,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?请设置 DB_PASSWORD}
       DB_NAME: videodb
       DB_SSLMODE: disable
-      DB_REQUIRE_PRIMARY: "true"
+      # PostgreSQL 连接失败服务直接退出（SQLite 不再作为兜底）；
+      # 连接信息亦可经服务内置 SQLite 基础配置（管理后台「基础配置」）维护
+      DB_REQUIRE_PRIMARY: "true" # 已废弃：保留仅为兼容旧环境文件，无实际作用
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?请设置管理员初始密码}
       COLLECTION_TEMPLATES_PATH: /app/config/collection_templates.yaml
       COLLECTION_UPLOAD_DIR: /app/data/collection-uploads

@@ -456,6 +456,8 @@ html .r-button--text {
 
 // 表单与输入控件（统一与 Sidebar 搜索框同一风格规范）
 html .r-input {
+  width: 100%;
+  min-width: 0; // 关键：flex 子项默认 min-width:auto 会把容器撑破，导致文字溢出边框
   min-height: 32px;
   height: 32px;
   padding: 0 9px;
@@ -464,6 +466,10 @@ html .r-input {
   background: rgba(20, 32, 57, 0.035);
   color: var(--text-primary);
   font-size: 11px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
   &::placeholder {
@@ -497,6 +503,164 @@ html.dark .r-input {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(126, 148, 255, 0.4);
     box-shadow: 0 0 0 3px rgba(126, 148, 255, 0.14);
+  }
+}
+
+// 复选框 / 单选框根节点是 <button>，需清掉浏览器默认按钮外观（否则标签会被套上边框）
+html .r-checkbox,
+html .r-radio {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-regular);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: start;
+}
+
+html .r-checkbox:hover,
+html .r-radio:hover {
+  color: var(--text-primary);
+}
+
+html .r-checkbox__indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.9);
+  color: transparent; // 未选中时勾号透明，只显示空心方框
+  font-size: 10px;
+  line-height: 1;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+html .r-checkbox[data-state="checked"] .r-checkbox__indicator {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
+html.dark .r-checkbox__indicator {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+html.dark .r-checkbox[data-state="checked"] .r-checkbox__indicator {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+// 单选组：胶囊分段控件（统一替换浏览器默认 radio 外观）
+html .r-radio-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: rgba(20, 32, 57, 0.045);
+  vertical-align: middle;
+}
+
+html .r-radio-group > .r-radio,
+html .r-radio-group > .r-radio-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-regular);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.25);
+  }
+
+  &[data-state="checked"] {
+    background: var(--surface-solid);
+    color: var(--brand);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(22, 33, 58, 0.08), 0 2px 8px rgba(79, 110, 242, 0.14);
+  }
+
+  &[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// 指示圆点：空心环 + 选中实心点（不使用字体符号，避免样式缺失时退化为乱码）
+html .r-radio__indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  transition: border-color 0.16s ease, background 0.16s ease;
+
+  &::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    transform: scale(0);
+    transition: transform 0.16s ease;
+  }
+}
+
+html .r-radio[data-state="checked"] .r-radio__indicator,
+html .r-radio[data-state="checked"] .r-radio__indicator::after {
+  color: var(--brand);
+}
+
+html .r-radio[data-state="checked"] .r-radio__indicator {
+  border-color: var(--brand);
+  background: transparent;
+
+  &::after {
+    transform: scale(1);
+  }
+}
+
+html.dark .r-radio-group {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .r-radio-group > .r-radio,
+html.dark .r-radio-group > .r-radio-button {
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &[data-state="checked"] {
+    background: rgba(126, 148, 255, 0.18);
+    color: #c3cdfd;
+    box-shadow: none;
   }
 }
 
@@ -719,8 +883,8 @@ html.dark .r-switch {
 }
 
 // 头部栏与工具栏通用排版对齐规范
+// 说明：filter-bar 是筛选控件组，控件按自然顺序左对齐；header/toolbar 是「标题 + 操作」两端对齐
 .table-header,
-.filter-bar,
 .toolbar,
 .card-header {
   display: flex;
@@ -744,6 +908,14 @@ html.dark .r-switch {
   }
 }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .filter-bar,
 .header-right,
 .toolbar {
@@ -760,11 +932,42 @@ html.dark .r-switch {
   }
 }
 
+// 筛选栏中的「刷新 / 重置」等次要操作靠右，与左侧筛选控件分离
+.filter-bar > .filter-bar__end {
+  margin-inline-start: auto;
+}
+
 html .r-input--textarea {
   min-height: auto;
   height: auto;
   padding: 7px 9px;
   line-height: 1.5;
+  overflow: auto;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
+// 带字数统计的输入框：让出右下角空间，避免计数器压住文字
+html .r-input-wrap:has(.r-input__limit) > .r-input {
+  padding-right: 46px;
+  padding-bottom: 0;
+  text-overflow: clip;
+}
+
+html .r-input__limit {
+  right: 8px;
+  bottom: 50%;
+  transform: translateY(50%);
+  font-size: 10px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+
+html .r-input-wrap--textarea .r-input__limit {
+  bottom: 6px;
+  transform: none;
 }
 
 html .r-form-item {
@@ -804,6 +1007,7 @@ html .r-table {
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    white-space: nowrap; // 表头不换行，列多时由容器横向滚动
   }
 
   tbody tr {
@@ -821,6 +1025,77 @@ html.dark .r-table th {
 
 html.dark .r-table tbody tr:hover td {
   background: rgba(126, 148, 255, 0.08);
+}
+
+// 表格内操作按钮：相邻按钮留出间距，避免圆角互相贴合
+html .r-table td .r-button + .r-button {
+  margin-inline-start: 6px;
+}
+
+html .r-table td .r-button {
+  vertical-align: middle;
+}
+
+// 表格圆角：外层承载边框与圆角并裁剪，表头/表尾单元格跟随圆角，
+// 同时去掉与外框重复的上下左右外边框，避免「直角顶破圆角」与双线。
+html .r-table-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.72);
+  isolation: isolate;
+}
+
+html .r-table {
+  border-radius: inherit;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: transparent;
+}
+
+html .r-table--border th,
+html .r-table--border td {
+  border: 0;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+html .r-table--border tr > *:last-child {
+  border-right: 0;
+}
+
+html .r-table thead tr:first-child th {
+  border-top: 0;
+}
+
+html .r-table tr > th:first-child,
+html .r-table tr > td:first-child {
+  border-left: 0;
+}
+
+html .r-table tr > th:last-child,
+html .r-table tr > td:last-child {
+  border-right: 0;
+}
+
+html .r-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+html .r-table thead tr:first-child th:first-child {
+  border-start-start-radius: inherit;
+}
+
+html .r-table thead tr:first-child th:last-child {
+  border-start-end-radius: inherit;
+}
+
+html .r-table tbody tr:last-child td:first-child {
+  border-end-start-radius: inherit;
+}
+
+html .r-table tbody tr:last-child td:last-child {
+  border-end-end-radius: inherit;
 }
 
 // 标签 / 药丸
@@ -1019,4 +1294,46 @@ html.dark :focus-visible {
 .fade-transform-leave-to {
   opacity: 0;
   transform: translateX(10px);
+}
+
+// ===== 提示条（Alert）：图标与内容紧贴左对齐，正文占满剩余宽度 =====
+html .r-alert {
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+html .r-alert__icon {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+html .r-alert__title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+html .r-alert__description {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+html .r-alert__description .mono-text {
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: rgba(20, 32, 57, 0.06);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text-regular);
+}
+
+html.dark .r-alert__description .mono-text {
+  background: rgba(255, 255, 255, 0.07);
 }

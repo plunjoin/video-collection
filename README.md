@@ -77,7 +77,7 @@ flowchart TB
 - **统一服务（video-collection-service）**：原 `video-collection-api` 与 `video-collection-admin` 已合并为一个 Go 服务——管理后台 SPA 通过 `go:embed` 内嵌，由服务直接托管 `/admin`，无需独立后台容器。
 - **radix 缓存与会话**：接入 Redis（`mediocregopher/radix/v4`）后启用分布式会话与公开读接口缓存；未配置时自动降级为内存会话 + 直连数据库。
 - **前后端分离**：门户与客户端独立运行，共用后端数据与接口。
-- **本地开发轻量启动**：PostgreSQL 不可用时，API 自动降级到 SQLite；也可显式指定 `DB_DRIVER=sqlite`。
+- **本地开发轻量启动**：未配置数据库时服务以 SQLite 单文件模式运行（也可显式 `DB_DRIVER=sqlite`）；SQLite 同时承担基础配置存储（数据库连接、Redis、初始管理员账号密码等）。
 - **接口文档随服务提供**：`/docs`、`/redoc`、`/openapi.json`。
 
 ## 仓库结构
@@ -315,10 +315,13 @@ pnpm brand:sync
 </details>
 
 <details>
-<summary><strong>启动日志显示降级到 SQLite</strong></summary>
+<summary><strong>启动时报 PostgreSQL 连接失败并退出</strong></summary>
 
-表示 PostgreSQL 连接不可用，API 已使用本地 SQLite 继续运行。本地开发可直接使用；需要 PostgreSQL 时，检查 `.env` 中的主机、端口、凭据与连接串，并查看启动日志。容器中的 `localhost` 指向容器自身，数据库地址应使用可达的数据库容器名或宿主机地址。
-
+系统不再把 SQLite 作为 PostgreSQL 故障时的数据兜底（避免两套库数据漂移）。请通过以下任一方式修正后重启：
+1. 管理后台「基础配置」页面（`/admin/bootstrap`，接口 `GET|PUT /api/admin/bootstrap`）填写数据库连接并保存，支持「测试连通性」；
+2. 环境变量：`DB_DSN` 或 `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`；
+3. 确需 SQLite 单文件模式时，将 `db.driver` 显式设为 `sqlite`。
+容器中 `localhost` 指向容器自身，数据库地址应填写可达的数据库容器名或宿主机地址。
 </details>
 
 <details>

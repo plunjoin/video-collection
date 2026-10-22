@@ -1,15 +1,17 @@
 <template>
   <div class="operations-page">
-    <r-card shadow="never" class="toolbar">
-      <div class="toolbar__left">
-        <r-select v-model="slotFilter" placeholder="全部广告位" clearable style="width: 180px" @change="load">
-          <r-option v-for="(label, key) in slotLabels" :key="key" :label="label" :value="key" />
-        </r-select>
-        <span class="toolbar__tip">广告位按位置投放到客户端：banner=首页顶部横幅，home_recommend=首页推荐位（番剧列表内），detail=详情/播放页。未配置或过期时客户端自动隐藏。</span>
-      </div>
-      <div class="toolbar__right">
-        <r-button type="primary" :disabled="!canManage" @click="editItem()">新增广告</r-button>
-        <r-button @click="load">刷新</r-button>
+    <r-card shadow="never" class="toolbar-card">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <r-select v-model="slotFilter" placeholder="全部广告位" clearable style="width: 180px" @change="load">
+            <r-option v-for="(label, key) in slotLabels" :key="key" :label="label" :value="key" />
+          </r-select>
+          <span class="toolbar__tip">广告位按位置投放到客户端：banner=首页顶部横幅，home_recommend=首页推荐位（番剧列表内），detail=详情/播放页。未配置或过期时客户端自动隐藏。</span>
+        </div>
+        <div class="toolbar__right">
+          <r-button type="primary" :disabled="!canManage" @click="editItem()">新增广告</r-button>
+          <r-button @click="load">刷新</r-button>
+        </div>
       </div>
     </r-card>
 
@@ -143,12 +145,19 @@ onMounted(load)
 </script>
 
 <style scoped lang="scss">
+.toolbar-card {
+  margin-bottom: 12px;
+
+  :deep(.r-card__body) {
+    padding: 10px 12px;
+  }
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
   flex-wrap: wrap;
 
   &__left {
@@ -156,6 +165,16 @@ onMounted(load)
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    min-width: 0;
+    flex: 1 1 300px; // 基准宽度而非内容宽度，窄屏时让提示文案换行而不是把按钮挤到下一行
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    margin-inline-start: auto;
   }
 
   &__tip {
@@ -163,6 +182,8 @@ onMounted(load)
     color: var(--text-secondary);
     line-height: 1.5;
     max-width: 640px;
+    min-width: 0;
+    flex: 1 1 200px; // 与筛选框同排，空间不足时自身换行
   }
 }
 

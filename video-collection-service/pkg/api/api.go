@@ -14,6 +14,7 @@ import (
 
 	"video-collection-service/config"
 	"video-collection-service/pkg/auth"
+	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
 	"video-collection-service/pkg/rag"
@@ -28,16 +29,18 @@ type Server struct {
 	scheduler     *scheduler.Scheduler
 	themeManager  *theme.Manager
 	playerManager *player.Manager
+	bootstrap     *bootstrap.Store
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 	rag           *rag.Service
 }
 
-func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager) *Server {
+func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
 	srv := &Server{
 		store:         s,
 		scheduler:     sc,
 		themeManager:  tm,
 		playerManager: pm,
+		bootstrap:     bs,
 	}
 	if cs, ok := s.(store.ContentStore); ok {
 		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
@@ -52,6 +55,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	srv.registerContentRoutes(mux)
 	srv.registerCollectionRoutes(mux)
 	srv.registerWebhookRoutes(mux)
+	srv.registerBootstrapRoutes(mux)
 	// 通用采集 Webhook（推送入库 → article → content_entries/news）
 mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)
@@ -127,6 +131,9 @@ mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	mux.HandleFunc("/api/admin/db/restore", srv.adminWrite(srv.handleDBRestore))
 	mux.HandleFunc("/api/admin/db/cleanup", srv.adminWrite(srv.handleDBCleanup))
 	mux.HandleFunc("/api/admin/db/sql", srv.adminWrite(srv.handleDBSQL))
+	// 数据删除 / 清空（不可逆，仅超级管理员）
+	mux.HandleFunc("/api/admin/db/table/rows/delete", srv.superAdminWrite(srv.handleDBDeleteRows))
+	mux.HandleFunc("/api/admin/db/table/clear", srv.superAdminWrite(srv.handleDBClearTable))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, data any) {

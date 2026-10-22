@@ -51,6 +51,25 @@ func ConfigFromEnv() Config {
 	return cfg
 }
 
+// ConfigFromValues 由外部（bootstrap 基础配置）构造 Redis 配置，
+// 用于管理后台「基础配置」中维护 Redis 连接信息的场景。
+func ConfigFromValues(addr, password, db, prefix string) Config {
+	cfg := Config{
+		Addr:     strings.TrimSpace(addr),
+		Password: password,
+		Prefix:   strings.TrimSpace(prefix),
+	}
+	if cfg.Prefix == "" {
+		cfg.Prefix = "vc"
+	}
+	if v := strings.TrimSpace(db); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			cfg.DB = n
+		}
+	}
+	return cfg
+}
+
 // Client 封装 radix 连接池。Enabled() 为 false 时表示未接入 Redis，缓存全链路降级。
 type Client struct {
 	client radix.Client

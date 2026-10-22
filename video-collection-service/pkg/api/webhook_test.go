@@ -31,7 +31,7 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	f := &webhookFixture{t: t, s: s, mux: http.NewServeMux()}
-	NewServer(s, nil, nil, nil).RegisterRoutes(f.mux)
+	NewServer(s, nil, nil, nil, nil).RegisterRoutes(f.mux)
 	return f
 }
 

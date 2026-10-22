@@ -1,10 +1,10 @@
 # Bllii-Familiar (追番使魔) 网络采集聚合与自动化调度服务配置文件
 
-# 数据库配置可被环境变量或 .env 覆盖（DB_DRIVER / DB_DSN / DB_HOST 等，见 .env.example），生产环境建议不要在此填写真实密码
+# 数据库配置：优先级为 环境变量 > 基础配置（bootstrap SQLite，管理后台「基础配置」可维护）> 本文件
 database:
-  driver: "postgres" # 支持 "postgres" 或 "sqlite" (优先连接 PostgreSQL，失败则平滑降级至本地 SQLite)
+  driver: "postgres" # 支持 "postgres" 或 "sqlite"（单文件模式，非兜底）；PostgreSQL 连接失败服务将直接退出
   dsn: "postgres://postgres:postgres@localhost:5432/videodb?sslmode=disable"
-  sqlite_path: "data/collection.db"
+  sqlite_path: "data/collection.db" # 基础配置存储；DB_DRIVER=sqlite 时同时为业务数据文件
 
 sources:
   # 采集源 1: 标准网络视频 JSON 接口示例（占位，仅用于演示配置格式）
