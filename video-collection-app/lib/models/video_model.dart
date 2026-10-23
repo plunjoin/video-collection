@@ -59,6 +59,7 @@ class PlayGroup {
 
 class VideoRecord {
   final int id;
+  final int subjectId;
   final String name;
   final String subName;
   final int typeId;
@@ -77,6 +78,7 @@ class VideoRecord {
 
   VideoRecord({
     required this.id,
+    this.subjectId = 0,
     required this.name,
     required this.subName,
     required this.typeId,
@@ -155,6 +157,7 @@ class VideoRecord {
 
     return VideoRecord(
       id: id,
+      subjectId: int.tryParse(json['subject_id']?.toString() ?? '') ?? 0,
       name: json['name']?.toString() ?? '',
       subName: json['sub_name']?.toString() ?? '',
       typeId: typeId,
@@ -184,6 +187,7 @@ class VideoRecord {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'subject_id': subjectId,
       'name': name,
       'sub_name': subName,
       'type_id': typeId,
@@ -308,4 +312,76 @@ class SiteConfig {
       ],
     );
   }
+}
+
+String wikiRoleLabel(String role) => const {
+  'actor': '演员',
+  'director': '导演',
+  'suit_actor': '皮套演员',
+  'cv': '配音',
+  'martial_arts': '武术指导',
+}[role] ?? role;
+
+class WikiCastMember {
+  final int subjectId;
+  final String name, originalName, type, subType, coverImage, summary;
+  final String relationType, roleDescription;
+  final int sortOrder;
+  WikiCastMember.fromJson(Map<String, dynamic> json)
+      : subjectId = int.tryParse(json['subject_id']?.toString() ?? '') ?? 0,
+        name = json['name']?.toString() ?? '',
+        originalName = json['original_name']?.toString() ?? '',
+        type = json['type']?.toString() ?? '',
+        subType = json['sub_type']?.toString() ?? '',
+        coverImage = json['cover_image']?.toString() ?? '',
+        summary = json['summary']?.toString() ?? '',
+        relationType = json['relation_type']?.toString() ?? '',
+        roleDescription = json['role_description']?.toString() ?? '',
+        sortOrder = int.tryParse(json['sort_order']?.toString() ?? '') ?? 0;
+}
+
+class WikiSubject {
+  final int id;
+  final String name, originalName, type, subType, coverImage, summary;
+  WikiSubject.fromJson(Map<String, dynamic> json)
+      : id = int.tryParse(json['id']?.toString() ?? '') ?? 0,
+        name = json['name']?.toString() ?? '',
+        originalName = json['original_name']?.toString() ?? '',
+        type = json['type']?.toString() ?? '',
+        subType = json['sub_type']?.toString() ?? '',
+        coverImage = json['cover_image']?.toString() ?? '',
+        summary = json['summary']?.toString() ?? '';
+}
+
+class WikiRelation {
+  final int id, sortOrder;
+  final String relationType, roleDescription;
+  final WikiSubject? sourceSubject, targetSubject;
+  WikiRelation.fromJson(Map<String, dynamic> json)
+      : id = int.tryParse(json['id']?.toString() ?? '') ?? 0,
+        sortOrder = int.tryParse(json['sort_order']?.toString() ?? '') ?? 0,
+        relationType = json['relation_type']?.toString() ?? '',
+        roleDescription = json['role_description']?.toString() ?? '',
+        sourceSubject = json['source_subject'] is Map
+            ? WikiSubject.fromJson(Map<String, dynamic>.from(json['source_subject']))
+            : null,
+        targetSubject = json['target_subject'] is Map
+            ? WikiSubject.fromJson(Map<String, dynamic>.from(json['target_subject']))
+            : null;
+}
+
+class WikiSubjectDetail extends WikiSubject {
+  final List<WikiRelation> forwardRelations, reverseRelations;
+  final List<VideoRecord> linkedVideos;
+  WikiSubjectDetail.fromJson(Map<String, dynamic> json)
+      : forwardRelations = (json['forward_relations'] as List? ?? [])
+            .map((item) => WikiRelation.fromJson(Map<String, dynamic>.from(item)))
+            .toList(),
+        reverseRelations = (json['reverse_relations'] as List? ?? [])
+            .map((item) => WikiRelation.fromJson(Map<String, dynamic>.from(item)))
+            .toList(),
+        linkedVideos = (json['linked_videos'] as List? ?? [])
+            .map((item) => VideoRecord.fromJson(Map<String, dynamic>.from(item)))
+            .toList(),
+        super.fromJson(json);
 }

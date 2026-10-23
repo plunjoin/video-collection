@@ -814,13 +814,23 @@ func (srv *Server) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
 			return nil, errVideoNotFound
 		}
 
+		cast := []store.WikiCastMember{}
+		if video.SubjectID > 0 {
+			cast, err = srv.store.ListWikiCastForSubject(ctx, video.SubjectID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// 相关推荐：严格按照 名称/同系列/类型 顺序智能推荐 (提取系列名 -> 同系列 -> 同类型补齐)
 		related := srv.getRelatedVideos(ctx, video, 10)
 
 		return map[string]any{
-			"code":    1,
-			"data":    video,
-			"related": related,
+			"code":       1,
+			"data":       video,
+			"related":    related,
+			"cast":       cast,
+			"subject_id": video.SubjectID,
 		}, nil
 	})
 }

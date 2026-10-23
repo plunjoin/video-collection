@@ -192,12 +192,32 @@ class ApiService {
               );
             }
           }
-          return {'video': video, 'related': related};
+          final cast = (decoded['cast'] as List? ?? [])
+              .map((item) => WikiCastMember.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+          return {'video': video, 'related': related, 'cast': cast};
         }
       }
     } catch (_) {}
 
-    return {'video': null, 'related': <VideoRecord>[]};
+    return {'video': null, 'related': <VideoRecord>[], 'cast': <WikiCastMember>[]};
+  }
+
+  Future<WikiSubjectDetail?> getWikiSubject(int id) async {
+    if (id <= 0) return null;
+    try {
+      final res = await _client.get(
+        Uri.parse('$_baseUrl/api/wiki/subject?id=$id'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final decoded = json.decode(utf8.decode(res.bodyBytes));
+        if (decoded['code'] == 1 && decoded['data'] is Map) {
+          return WikiSubjectDetail.fromJson(Map<String, dynamic>.from(decoded['data']));
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   // 3. 获取排行榜

@@ -37,6 +37,7 @@ JSON 路径例如 `data.items`、`images.0.url`；根数组使用 `$`。这不�
 - **通用数据**：任意合法目标字段保存到 `collection_records`，便于以后新增内容模型。
 - **文章**：`title`、`content` 必填；可选 `summary`、`cover`、`category`。写入现有 `content_entries` 的资讯草稿，使用第一个启用管理员作为作者，可通过资讯管理 API 审核发布。文章和来源记录在同一事务提交。重采只更新草稿，已发布/隐藏内容保持不变。
 - **视频**：`title` 必填；可选 `play_url`、`play_from`、`cover`、`content`、`category`、`year`、`actor`、`director`、`area`、`remarks`。`play_url` 内置多集切分与多线路解析（支持标准 `#` 分集、`$` 分名称与链接、`$$$` 分线路，或单条播放链接），复用现有视频库按片名聚合策略并生成完整剧集与播放线路。
+- **Wiki 演职员**：视频入库（`UpsertVideo` / 校正到视频）后会自动同步作品与演员/导演关系到可编辑 Wiki；影人采集的 `avatar`/`cover` 可在同步时回填人物空封面。详见 [wiki-cast-data.md](./wiki-cast-data.md)。
 
 来源 ID + 内容类型 + 映射后的唯一字段值共同去重，可选更新或跳过；唯一字段不能为空。无效记录跳过并记录日志。来源读取或入库失败会中止任务，保留已成功记录并报告错误；修正规则后可重跑去重。删除规则保留已经导入的内容和来源记录。
 

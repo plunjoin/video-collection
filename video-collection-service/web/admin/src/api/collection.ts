@@ -205,10 +205,10 @@ export function newTMDBMoviePreset(): PipelineSource {
   }
 }
 
-export function newMacCMSVideoPreset(): PipelineSource {
+export function newStandardVideoPreset(): PipelineSource {
   return {
     id: 'rule_' + crypto.randomUUID(),
-    name: 'MacCMS · 标准影视 JSON 采集（自动分集与多线路）',
+    name: '标准影视 JSON 采集（自动分集与多线路）',
     type: 'pipeline',
     api: 'https://example.com/api.php/provide/vod/',
     active: false,

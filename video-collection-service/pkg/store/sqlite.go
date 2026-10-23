@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -742,6 +743,11 @@ func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *col
 			UPDATE videos SET
 				sub_name = CASE WHEN ? != '' THEN ? ELSE sub_name END,
 				picture = CASE WHEN ? != '' THEN ? ELSE picture END,
+				actor = CASE WHEN ? != '' THEN ? ELSE actor END,
+				director = CASE WHEN ? != '' THEN ? ELSE director END,
+				area = CASE WHEN ? != '' THEN ? ELSE area END,
+				language = CASE WHEN ? != '' THEN ? ELSE language END,
+				year = CASE WHEN ? != '' THEN ? ELSE year END,
 				remarks = CASE WHEN ? != '' THEN ? ELSE remarks END,
 				content = CASE WHEN ? != '' THEN ? ELSE content END,
 				type_id = CASE WHEN ? > 0 THEN ? ELSE type_id END,
@@ -753,6 +759,11 @@ func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *col
 		_, err := s.db.ExecContext(ctx, updateSQL,
 			vod.SubName, vod.SubName,
 			vod.Picture, vod.Picture,
+			vod.Actor, vod.Actor,
+			vod.Director, vod.Director,
+			vod.Area, vod.Area,
+			vod.Language, vod.Language,
+			vod.Year, vod.Year,
 			vod.Remarks, vod.Remarks,
 			vod.Content, vod.Content,
 			vod.TargetTypeID, vod.TargetTypeID,
@@ -791,6 +802,9 @@ func (s *SQLiteStore) UpsertVideo(ctx context.Context, sourceID string, vod *col
 		}
 	}
 
+	if _, syncErr := s.SyncVideoToWikiSubject(ctx, videoID); syncErr != nil {
+		log.Printf("wiki auto-sync after UpsertVideo %d: %v", videoID, syncErr)
+	}
 	return videoID, nil
 }
 
@@ -905,7 +919,7 @@ func (s *SQLiteStore) QueryVideos(ctx context.Context, q VideoQuery) ([]VideoRec
 	}
 
 	querySQL := fmt.Sprintf(`
-		SELECT v.id, v.name, v.sub_name, v.type_id, v.type_name, v.picture,
+		SELECT v.id, COALESCE(v.subject_id, 0), v.name, v.sub_name, v.type_id, v.type_name, v.picture,
 		       v.actor, v.director, v.area, v.language, v.year, v.remarks,
 		       v.content, v.source_id, COALESCE(v.hits, 0), v.created_at, v.updated_at
 		FROM videos v
@@ -927,7 +941,7 @@ func (s *SQLiteStore) QueryVideos(ctx context.Context, q VideoQuery) ([]VideoRec
 	for rows.Next() {
 		var rec VideoRecord
 		err := rows.Scan(
-			&rec.ID, &rec.Name, &rec.SubName, &rec.TypeID, &rec.TypeName, &rec.Picture,
+			&rec.ID, &rec.SubjectID, &rec.Name, &rec.SubName, &rec.TypeID, &rec.TypeName, &rec.Picture,
 			&rec.Actor, &rec.Director, &rec.Area, &rec.Language, &rec.Year, &rec.Remarks,
 			&rec.Content, &rec.SourceID, &rec.Hits, &rec.CreatedAt, &rec.UpdatedAt,
 		)

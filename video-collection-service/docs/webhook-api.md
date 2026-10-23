@@ -22,7 +22,7 @@
 
 ```json
 {
-  "name": "苹果CMS 内容源回调",
+  "name": "标准影视内容源回调",
   "target": "video",
   "duplicate": "update",
   "events": ["video.upsert"],
@@ -69,7 +69,7 @@ X-Webhook-Signature: sha256=<signature>
 
 ### 载荷格式
 
-兼容以下形态，字段兼容苹果 CMS `vod_*` 标准键与短名（`name` / `pic` / `play_url` 等）：
+兼容以下形态，字段兼容标准影视 JSON `vod_*` 键与短名（`name` / `pic` / `play_url` 等）：
 
 ```json
 { "event": "video.upsert", "data": { "list": [ { "vod_id": 123, "vod_name": "示例影片", "vod_pic": "https://cdn/p.jpg", "vod_play_from": "m3u8", "vod_play_url": "https://cdn/1.m3u8" } ] } }

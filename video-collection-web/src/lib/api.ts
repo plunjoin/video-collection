@@ -19,6 +19,7 @@ export interface PlayGroup {
 }
 
 export interface VideoRecord {
+  subject_id?: number;
   id: number;
   name: string;
   sub_name: string;
@@ -41,6 +42,63 @@ export interface VideoRecord {
   updated_at?: string;
   play_groups?: PlayGroup[];
   play_routes?: PlayGroup[];
+}
+
+export interface WikiSubject {
+  id: number;
+  name: string;
+  original_name: string;
+  type: string;
+  sub_type: string;
+  cover_image: string;
+  summary: string;
+}
+
+export interface WikiCastMember extends Omit<WikiSubject, 'id' | 'original_name'> {
+  original_name?: string;
+  subject_id: number;
+  relation_type: string;
+  role_description: string;
+  sort_order: number;
+}
+
+export interface WikiRelation {
+  id: number;
+  source_id: number;
+  target_id: number;
+  relation_type: string;
+  role_description: string;
+  sort_order: number;
+  source_subject?: WikiSubject;
+  target_subject?: WikiSubject;
+}
+
+export interface WikiSubjectDetail extends WikiSubject {
+  forward_relations: WikiRelation[];
+  reverse_relations: WikiRelation[];
+  linked_videos: VideoRecord[];
+}
+
+const wikiRoles: Record<string, string> = {
+  actor: '演员', director: '导演', suit_actor: '皮套演员', cv: '配音', martial_arts: '武术指导',
+};
+export const wikiRoleLabel = (role: string) => wikiRoles[role] || role;
+
+export function wikiCastOf(subject: WikiSubjectDetail): WikiCastMember[] {
+  return (subject.forward_relations || [])
+    .filter(r => r.target_subject && (r.target_subject.type === 'person' || ['actor', 'director', 'suit_actor', 'cv', 'martial_arts'].includes(r.relation_type)))
+    .sort((a, b) => {
+      const rank = (r: WikiRelation) => ['actor', 'suit_actor', 'cv'].includes(r.relation_type) ? 0 : 1;
+      return rank(a) - rank(b) || a.sort_order - b.sort_order || a.id - b.id;
+    })
+    .map(r => ({ ...r.target_subject!, subject_id: r.target_id, relation_type: r.relation_type, role_description: r.role_description, sort_order: r.sort_order }));
+}
+
+export async function getWikiSubject(id: number | string): Promise<WikiSubjectDetail | null> {
+  const numId = Number(id);
+  if (!Number.isInteger(numId) || numId <= 0) return null;
+  const res = await apiFetch<{ code: number; data: WikiSubjectDetail }>(`/api/wiki/subject?id=${numId}`);
+  return res?.code === 1 && res.data ? res.data : null;
 }
 
 export interface Category {
@@ -225,14 +283,15 @@ export async function getAnimeVideos(limit = 18): Promise<VideoRecord[]> {
 export async function getVideoDetail(id: number | string) {
   const numId = Number(id);
   if (!numId) return null;
-  const res = await apiFetch<{ code: number; data: VideoRecord; related: VideoRecord[] }>(`/api/video?id=${numId}`);
+  const res = await apiFetch<{ code: number; data: VideoRecord; related: VideoRecord[]; cast?: WikiCastMember[] }>(`/api/video?id=${numId}`);
   if (!res || res.code !== 1 || !res.data) return null;
 
   const relatedAnime = (res.related || []).filter(isAnimeRecord).map(formatVideo);
   const related = relatedAnime.length > 0 ? relatedAnime : (await getAnimeVideos(10)).filter(v => v.id !== numId);
   return {
     video: formatVideo(res.data),
-    related: related.slice(0, 10)
+    related: related.slice(0, 10),
+    cast: res.cast || []
   };
 }
 

@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import CastSection from '../../components/CastSection.astro';
+import { getWikiSubject, wikiCastOf, wikiRoleLabel } from '../../lib/api';
+
+const subject = await getWikiSubject(Astro.params.id || '0');
+if (!subject) return Astro.redirect('/404');
+const isPerson = subject.type === 'person';
+const cast = subject.type === 'work' ? wikiCastOf(subject) : [];
+const works = (subject.reverse_relations || []).filter(r => r.source_subject?.type === 'work');
+const otherRelations = [
+  ...(subject.forward_relations || []).filter(r => !cast.some(c => c.subject_id === r.target_id && c.relation_type === r.relation_type)).map(r => ({ subject: r.target_subject, role: r.role_description || wikiRoleLabel(r.relation_type) })),
+  ...(subject.reverse_relations || []).filter(r => r.source_subject?.type !== 'work' || !isPerson).map(r => ({ subject: r.source_subject, role: r.role_description || wikiRoleLabel(r.relation_type) })),
+].filter(r => r.subject);
+const summary = subject.summary?.replace(/<[^>]+>/g, '') || '';
+const cover = subject.cover_image || '/brand/bllii-app-blue.svg';
+---
+<Layout title={`${subject.name} — bllii 百科`} description={summary.slice(0, 150) || `${subject.name}的介绍与相关作品`} image={cover}>
+  <section class="brand-section">
+    <div class="flex flex-col sm:flex-row gap-6 rounded-3xl bg-white p-5 sm:p-8 shadow-sm border border-slate-100">
+      <img src={cover} alt={subject.name} class="w-40 sm:w-48 aspect-[3/4] object-cover object-top rounded-2xl self-start bg-slate-100" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+      <div class="min-w-0 flex-1">
+        <p class="text-sm text-slate-500">百科 · {isPerson ? '人物' : subject.type === 'work' ? '作品' : subject.type} {wikiRoleLabel(subject.sub_type)}</p>
+        <h1 class="mt-2 text-3xl font-bold text-slate-800">{subject.name}</h1>
+        {subject.original_name && <p class="mt-2 text-slate-500">{subject.original_name}</p>}
+        <p class="mt-5 whitespace-pre-line text-sm leading-loose text-slate-600">{summary || '暂无简介'}</p>
+      </div>
+    </div>
+  </section>
+  {isPerson && <section class="brand-section">
+    <div class="section-heading"><h2>相关作品</h2></div>
+    {works.length === 0 ? <p class="text-sm text-slate-500">暂无相关作品</p> : <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+      {works.map(relation => {
+        const work = relation.source_subject!;
+        return <a href={`/wiki/${work.id}`} class="group overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-sm card-hover-effect">
+          <img src={work.cover_image || '/brand/bllii-app-blue.svg'} alt={work.name} loading="lazy" class="aspect-[3/4] w-full object-cover bg-slate-100" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+          <div class="p-3"><h3 class="font-semibold text-sm text-slate-800">{work.name}</h3><p class="mt-1 text-xs text-slate-500">{relation.role_description || wikiRoleLabel(relation.relation_type)}</p></div>
+        </a>;
+      })}
+    </div>}
+  </section>}
+  {cast.length > 0 && <CastSection cast={cast} />}
+  {(subject.linked_videos || []).length > 0 && <section class="brand-section">
+    <div class="section-heading"><h2>在线观看</h2></div>
+    <div class="flex flex-wrap gap-3">{subject.linked_videos.map(video => <a href={`/anime/${video.id}`} class="rounded-xl bg-primary-600 px-4 py-3 text-sm text-white">{video.name} · {video.remarks || '播放'}</a>)}</div>
+  </section>}
+  {otherRelations.length > 0 && <section class="brand-section">
+    <div class="section-heading"><h2>相关词条</h2></div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">{otherRelations.map(relation => <a href={`/wiki/${relation.subject!.id}`} class="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
+      <img src={relation.subject!.cover_image || '/brand/bllii-app-blue.svg'} alt="" loading="lazy" class="h-16 w-12 rounded-lg object-cover bg-slate-100" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+      <div><h3 class="text-sm font-semibold text-slate-800">{relation.subject!.name}</h3><p class="text-xs text-slate-500">{relation.role}</p></div>
+    </a>)}</div>
+  </section>}
+</Layout>

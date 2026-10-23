@@ -47,7 +47,7 @@
         </r-table-column>
         <r-table-column prop="type" label="协议类型" width="100" align="center">
           <template #default="{ row }">
-            <r-tag :type="getTypeTag(row.filter?.collector?.format || row.type)">{{ row.filter?.collector?.format || row.type }}</r-tag>
+            <r-tag :type="getTypeTag(row.filter?.collector?.format || row.type)">{{ formatTypeLabel(row.filter?.collector?.format || row.type) }}</r-tag>
           </template>
         </r-table-column>
         <r-table-column prop="collect_hours" label="增量策略" width="110" align="center">
@@ -354,6 +354,33 @@ const formRules: FormRules = {
   name: [{ required: true, message: '请输入采集点名称', trigger: 'blur' }],
   api: [{ required: true, message: '请输入有效的API地址', trigger: 'blur' }],
   type: [{ required: true, message: '请选择接口协议类型', trigger: 'change' }]
+}
+
+const formatTypeLabel = (type: string) => {
+  switch (type) {
+    case 'json':
+    case 'video_json':
+    case 'standard_json':
+    case 'maccms_json':
+      return '标准影视 JSON'
+    case 'xml':
+    case 'video_xml':
+    case 'standard_xml':
+    case 'maccms_xml':
+      return '标准影视 XML'
+    case 'rss':
+    case 'rss_feed':
+      return 'RSS / Atom'
+    case 'webhook':
+      return 'Webhook'
+    case 'custom_json':
+    case 'custom':
+      return '通用 REST JSON'
+    case 'rule':
+      return '规则采集'
+    default:
+      return type || '-'
+  }
 }
 
 const getTypeTag = (type: string) => {

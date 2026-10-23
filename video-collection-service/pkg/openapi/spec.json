@@ -9566,7 +9566,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "端点名称，如「苹果CMS 内容源回调」"
+            "description": "端点名称，如「标准影视内容源回调」"
           },
           "target": {
             "type": "string",

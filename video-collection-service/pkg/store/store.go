@@ -33,6 +33,7 @@ type Category struct {
 
 // VideoRecord 存储在数据库中的标准视频记录（深度支持多节点聚合与双向接口规范兼容）
 type VideoRecord struct {
+	SubjectID  int                   `json:"subject_id"`
 	ID         int                   `json:"id"`
 	Name       string                `json:"name"`
 	SubName    string                `json:"sub_name"`

@@ -21,7 +21,7 @@
           </r-button>
           <template #dropdown>
             <r-dropdown-menu>
-              <r-dropdown-item command="maccms_video">🎬 MacCMS · 标准影视采集 (自动分集)</r-dropdown-item>
+              <r-dropdown-item command="standard_video">🎬 标准影视 JSON 采集 (自动分集)</r-dropdown-item>
               <r-dropdown-item command="agihunt_ai_news" divided>⚡ AGI Hunt · AI 实时快讯 / 日报</r-dropdown-item>
               <r-dropdown-item command="tmdb_movie" divided>🎬 TMDB · 热门影视作品全量</r-dropdown-item>
               <r-dropdown-item command="tmdb_popular_person">👤 TMDB · 热门影人与演职员档案库</r-dropdown-item>
@@ -41,7 +41,7 @@
           <span>{{ rule.name }}</span><small>{{ inputLabel(rule.filter.pipeline.input) }} · {{ targetLabel(rule.filter.pipeline.target) }}</small>
           <small :class="{ enabled: rule.enabled }">{{ rule.enabled ? '已加入自动调度' : '仅手动运行' }}</small>
         </button>
-        <r-divider /><p class="helper">统一采集工坊：覆盖标准影视接口 (MacCMS)、网页爬虫、外部数据库与文件导入，内置多集自动切分与数据校正。</p>
+        <r-divider /><p class="helper">统一采集工坊：覆盖标准影视 JSON/XML 接口、网页爬虫、外部数据库与文件导入，内置多集自动切分与数据校正。</p>
       </aside>
       <main class="workspace">
         <div class="editor-heading">
@@ -538,7 +538,7 @@ import {
   newTMDBPopularActorsPreset,
   newTMDBSearchPersonPreset,
   newTMDBMoviePreset,
-  newMacCMSVideoPreset,
+  newStandardVideoPreset,
   newAGIHuntPreset
 } from '@/api/collection'
 import type { CollectedRecord, CollectionTask, CollectionLog, PipelineRule, PipelineSource, Sample } from '@/api/collection'
@@ -597,9 +597,9 @@ function selectRule(rule: PipelineSource) {
 async function createRule(input: PipelineRule['input']) { if (await discardChanges()) selectRule(newRule(input)) }
 async function applyPreset(cmd: string) {
   if (!(await discardChanges())) return
-  if (cmd === 'maccms_video') {
-    selectRule(newMacCMSVideoPreset())
-    notify('已载入 MacCMS 标准影视预设规则！支持影视多集切分与线路解析，请在第二步填入您的采集源 API 地址即可运行。', 'success')
+  if (cmd === 'standard_video') {
+    selectRule(newStandardVideoPreset())
+    notify('已载入标准影视 JSON 预设规则！支持影视多集切分与线路解析，请在第二步填入您的采集源 API 地址即可运行。', 'success')
   } else if (cmd === 'agihunt_ai_news') {
     selectRule(newAGIHuntPreset())
     notify('已载入 AGI Hunt · AI 实时快讯预设规则！已配置 RSS 2.0 订阅源与文章草稿映射，可直接预览或运行入库。', 'success')
