@@ -53,7 +53,7 @@ export const uploadCollection = (file: File) => {
   const body = new FormData(); body.append('file', file)
   return request.post<any, ApiResponse<{ token: string; name: string }>>('/api/admin/collection/upload', body, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
-export const collectionRecords = (id: string, page: number) => request.get<any, ApiResponse<CollectedRecord[]>>('/api/admin/collection/records', { params: { source_id: id, page, page_size: 20 } })
+export const collectionRecords = (id: string, page: number, pageSize = 20) => request.get<any, ApiResponse<CollectedRecord[]>>('/api/admin/collection/records', { params: { source_id: id, page, page_size: pageSize } })
 export const updateCollectionRecord = (data: { source_id: string; target?: string; key: string; values: Record<string, string> }) => request.put<any, ApiResponse>('/api/admin/collection/records', data)
 export const deleteCollectionRecord = (params: { source_id: string; target?: string; key: string }) => request.delete<any, ApiResponse>('/api/admin/collection/records', { params })
 export const rectifyRecordToWiki = (data: { source_id: string; target?: string; key: string; subject: any }) => request.post<any, ApiResponse<any>>('/api/admin/collection/records/to-wiki', data)

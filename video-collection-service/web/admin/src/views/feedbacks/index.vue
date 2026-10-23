@@ -7,7 +7,7 @@
           <span class="sub-desc">收集并处理客户端用户提交的求片申请、视频播放报错及建议</span>
         </div>
         <div class="header-right">
-          <r-select v-model="filterStatus" placeholder="状态筛选" style="width: 130px" @change="loadData">
+          <r-select v-model="filterStatus" placeholder="状态筛选" style="width: 130px" @change="reload">
             <r-option label="全部状态" value="" />
             <r-option label="待处理" value="pending" />
             <r-option label="已处理" value="resolved" />
@@ -65,6 +65,17 @@
           </template>
         </r-table-column>
       </r-table>
+
+      <div class="pagination-bar">
+        <r-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          @current-change="loadData"
+          @size-change="loadData"
+        />
+      </div>
     </r-card>
 
     <!-- 回复处理模态框 -->
@@ -108,6 +119,9 @@ import { RefreshRight } from '@/components/radix/icons'
 
 const loading = ref(false)
 const tableData = ref<FeedbackItem[]>([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(20)
 const filterStatus = ref('')
 const replyDialogVisible = ref(false)
 const saving = ref(false)
@@ -150,14 +164,22 @@ const loadData = async () => {
   loading.value = true
   try {
     const res = await getFeedbacks({
+      page: page.value,
+      page_size: pageSize.value,
       status: filterStatus.value || undefined
     })
     if (res.code === 1) {
       tableData.value = res.data || []
+      total.value = (res as any).total || 0
     }
   } finally {
     loading.value = false
   }
+}
+
+const reload = () => {
+  page.value = 1
+  loadData()
 }
 
 const openReplyDialog = (row: FeedbackItem) => {

@@ -297,10 +297,11 @@
         <span class="total-text">当前页已筛选出 {{ filteredRecords.length }} 条记录</span>
         <r-pagination
           v-model:current-page="recordsPage"
-          :page-size="20"
+          v-model:page-size="recordsPageSize"
+          :page-sizes="[10, 20, 50, 100]"
           :total="recordsTotal"
-          layout="prev, pager, next, total"
           @current-change="loadRecords"
+          @size-change="loadRecords"
         />
       </div>
     </r-dialog>
@@ -906,7 +907,7 @@ function jumpToRecords() {
   showRecords()
 }
 
-const recordsVisible = ref(false), recordsLoading = ref(false), records = ref<CollectedRecord[]>([]), recordsPage = ref(1), recordsTotal = ref(0)
+const recordsVisible = ref(false), recordsLoading = ref(false), records = ref<CollectedRecord[]>([]), recordsPage = ref(1), recordsPageSize = ref(20), recordsTotal = ref(0)
 const recordKeyword = ref(''), recordStatusFilter = ref(''), importingSamples = ref(false), batchRectifying = ref(false)
 
 const pendingCount = computed(() => records.value.filter(r => !r.content_id || r.content_id <= 0).length)
@@ -926,7 +927,7 @@ const filteredRecords = computed(() => {
 async function loadRecords() {
   recordsLoading.value = true
   try {
-    const res = await collectionRecords(form.value.id, recordsPage.value)
+    const res = await collectionRecords(form.value.id, recordsPage.value, recordsPageSize.value)
     records.value = res.data || []
     recordsTotal.value = res.total || 0
   } finally {

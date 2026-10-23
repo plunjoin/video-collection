@@ -133,7 +133,6 @@
           v-model:page-size="queryForm.page_size"
           :page-sizes="[10, 20, 50, 100]"
           :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSearch"
           @current-change="loadData"
         />

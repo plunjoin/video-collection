@@ -1120,6 +1120,15 @@ html.dark .r-tag {
 }
 
 // 分页器
+// 全站统一分页栏：右侧对齐，与表格留出固定间距（各页统一使用 .pagination-bar 包裹）
+html .pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 html .r-pagination {
   gap: 5px;
   font-size: 11px;

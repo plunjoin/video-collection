@@ -9,7 +9,7 @@
       <r-table-column prop="submitter_name" label="提交人"/><r-table-column label="状态"><template #default="{row}"><r-tag :type="row.status === 'approved' ? 'success' : row.status === 'rejected' ? 'danger' : 'warning'">{{ states[row.status] }}</r-tag></template></r-table-column>
       <r-table-column prop="note" label="审核意见"/><r-table-column label="操作" width="130"><template #default="{row}"><r-button @click="selected=row; note=''">查看详情</r-button></template></r-table-column>
     </r-table>
-    <r-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load"/>
+    <r-pagination v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" @current-change="load" @size-change="load"/>
   </r-card>
   <r-dialog :model-value="!!selected" title="提交内容与审核" width="min(850px,95vw)" @close="selected=null">
     <template v-if="selected"><p>{{ kinds[selected.kind] }} · 原内容 ID：{{ selected.target_id || '新增' }} · 提交于 {{ selected.created_at }}</p>
@@ -34,8 +34,8 @@ const operator = computed(() => user.userInfo?.role === 'operator')
 const canReview = computed(() => ['super_admin','admin'].includes(user.userInfo?.role || ''))
 const kinds: Record<string,string> = {video:'视频',news:'资讯',post:'社区',comment:'评论'}
 const states: Record<string,string> = {pending:'待审核',approved:'已通过',rejected:'已拒绝'}
-const items=ref<any[]>([]), selected=ref<any>(null), status=ref('pending'), page=ref(1),total=ref(0),loading=ref(false),saving=ref(false),note=ref(''),resubmitVisible=ref(false),editPayload=ref('')
-async function load(){loading.value=true;try{const r:any=await request.get('/api/admin/reviews',{params:{status:status.value,page:page.value}});items.value=r.data;total.value=r.total}finally{loading.value=false}}
+const items=ref<any[]>([]), selected=ref<any>(null), status=ref('pending'), page=ref(1),pageSize=ref(20),total=ref(0),loading=ref(false),saving=ref(false),note=ref(''),resubmitVisible=ref(false),editPayload=ref('')
+async function load(){loading.value=true;try{const r:any=await request.get('/api/admin/reviews',{params:{status:status.value,page:page.value,page_size:pageSize.value}});items.value=r.data;total.value=r.total}finally{loading.value=false}}
 async function decide(approve:boolean){if(!approve&&!note.value.trim()){notify('请输入拒绝原因', 'warning');return}saving.value=true;try{await request.post('/api/admin/reviews',{id:selected.value.id,approve,note:note.value});selected.value=null;notify('审核完成', 'success');await load()}finally{saving.value=false}}
 async function resubmit(){let payload:any;try{payload=JSON.parse(editPayload.value)}catch{notify('JSON 格式错误', 'error');return}const kind=selected.value.kind; const paths:Record<string,string>={video:'/api/admin/videos/save',news:'/api/admin/news',post:'/api/admin/community/posts',comment:'/api/comments'}
  if(kind==='news'||kind==='post'){const {id,title,summary,content,cover,category,status,pinned}=payload;payload={id,title,summary,content,cover,category,status,pinned}}

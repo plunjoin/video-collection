@@ -170,10 +170,11 @@
       <div class="wb-pagination-bar">
         <r-pagination
           v-model:current-page="deliveryPage"
-          :page-size="10"
+          v-model:page-size="deliveryPageSize"
+          :page-sizes="[10, 20, 50, 100]"
           :total="deliveryTotal"
-          layout="prev, pager, next, total"
           @current-change="loadDeliveries"
+          @size-change="loadDeliveries"
         />
       </div>
     </r-dialog>
@@ -317,6 +318,7 @@ const deliveryLoading = ref(false)
 const deliveryStatus = ref('')
 const deliveryKeyword = ref('')
 const deliveryPage = ref(1)
+const deliveryPageSize = ref(20)
 const deliveryTotal = ref(0)
 const stats = ref<WebhookStats | null>(null)
 
@@ -341,7 +343,7 @@ const loadDeliveries = async () => {
       status: deliveryStatus.value || undefined,
       keyword: deliveryKeyword.value || undefined,
       page: deliveryPage.value,
-      page_size: 10,
+      page_size: deliveryPageSize.value,
     })
     if (res.code === 1) {
       deliveries.value = res.data || []

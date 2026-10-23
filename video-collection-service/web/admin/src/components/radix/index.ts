@@ -671,10 +671,11 @@ const Pagination = defineComponent({
   props: {
     modelValue: Number,
     currentPage: Number,
-    pageSize: { type: Number, default: 10 },
+    pageSize: { type: Number, default: 20 },
     pageSizes: { type: Array as PropType<number[]>, default: () => [10, 20, 50, 100] },
     total: { type: Number, default: 0 },
-    layout: { type: String, default: 'prev, pager, next' },
+    // 后台全站统一分页布局：总数 / 每页条数 / 上下页 / 页码 / 跳至
+    layout: { type: String, default: 'total, sizes, prev, pager, next, jumper' },
     disabled: Boolean,
   },
   emits: ['update:modelValue', 'update:currentPage', 'update:pageSize', 'current-change', 'size-change'],
@@ -682,6 +683,8 @@ const Pagination = defineComponent({
     const page = computed(() => Math.max(1, props.modelValue ?? props.currentPage ?? 1))
     const pages = computed(() => Math.max(1, Math.ceil(props.total / Math.max(1, props.pageSize))))
     const jump = ref(String(page.value))
+    // 页码由外部（上一页/下一页/翻页/筛选重置）变化时，同步跳转输入框
+    watch(page, (value) => { jump.value = String(value) })
     const change = (next: number) => {
       const value = Math.min(pages.value, Math.max(1, Number.isFinite(next) ? next : 1))
       jump.value = String(value)
@@ -689,11 +692,17 @@ const Pagination = defineComponent({
       emit('update:currentPage', value)
       emit('current-change', value)
     }
+    // 切换每页条数：页码回到第 1 页，只发 size-change，由调用方负责重新取数（避免重复请求）
     const changeSize = (event: Event) => {
       const size = Number((event.target as HTMLSelectElement).value)
+      if (!Number.isFinite(size) || size < 1) return
       emit('update:pageSize', size)
+      if (page.value !== 1) {
+        jump.value = '1'
+        emit('update:modelValue', 1)
+        emit('update:currentPage', 1)
+      }
       emit('size-change', size)
-      change(1)
     }
     const button = (label: string, next: number, aria: string) => h('button', {
       class: 'r-pagination__button', type: 'button', disabled: props.disabled || next < 1 || next > pages.value,
