@@ -119,3 +119,58 @@ func TestWikiAPIEndpoints(t *testing.T) {
 		t.Fatalf("expected director node 郭帆 to be auto-created")
 	}
 }
+
+func TestVideoDetailWikiCastTracksAdminEdits(t *testing.T) {
+	f := newContentFixture(t)
+	vid, err := f.s.UpsertVideo(context.Background(), "test", &collector.CleanedVod{Name: "演职员测试", Actor: "测试演员"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpoint := fmt.Sprintf("/api/video?id=%d", vid)
+	before := f.request("GET", endpoint, "", nil, 200)
+	if string(before["cast"]) != "[]" || string(before["subject_id"]) != "0" {
+		t.Fatalf("unsynced detail: %v", before)
+	}
+	video := decodeContentData[store.VideoRecord](t, before)
+	if video.SubjectID != 0 {
+		t.Fatal("unexpected subject")
+	}
+	f.request("POST", "/api/admin/wiki/sync-video", fmt.Sprintf(`{"video_id":%d}`, vid), f.admin, 200)
+	res := f.request("GET", endpoint, "", nil, 200)
+	video = decodeContentData[store.VideoRecord](t, res)
+	var subjectID int
+	if err := json.Unmarshal(res["subject_id"], &subjectID); err != nil {
+		t.Fatal(err)
+	}
+	var cast []store.WikiCastMember
+	if err := json.Unmarshal(res["cast"], &cast); err != nil {
+		t.Fatal(err)
+	}
+	if video.SubjectID <= 0 || subjectID != video.SubjectID || len(cast) != 1 || cast[0].SubjectID <= 0 || cast[0].Name != "测试演员" {
+		t.Fatalf("missing wiki cast: video=%+v cast=%+v", video, cast)
+	}
+	personID := cast[0].SubjectID
+	f.request("PUT", "/api/admin/wiki/subjects", fmt.Sprintf(`{"id":%d,"name":"测试演员","type":"person","sub_type":"actor","summary":"更新人物简介","cover_image":"https://example.com/actor.jpg"}`, personID), f.admin, 200)
+	res = f.request("GET", endpoint, "", nil, 200)
+	if err := json.Unmarshal(res["cast"], &cast); err != nil {
+		t.Fatal(err)
+	}
+	if cast[0].Summary != "更新人物简介" || cast[0].CoverImage != "https://example.com/actor.jpg" {
+		t.Fatalf("stale cast: %+v", cast)
+	}
+	workRes := f.request("GET", fmt.Sprintf("/api/wiki/subject?id=%d", video.SubjectID), "", nil, 200)
+	work := decodeContentData[store.WikiSubjectDetail](t, workRes)
+	if work.ForwardRelations[0].TargetSubject.Summary != cast[0].Summary {
+		t.Fatal("nested relation missing bio")
+	}
+	personRes := f.request("GET", fmt.Sprintf("/api/wiki/subject?id=%d", personID), "", nil, 200)
+	person := decodeContentData[store.WikiSubjectDetail](t, personRes)
+	if len(person.ReverseRelations) != 1 || person.ReverseRelations[0].SourceSubject.ID != video.SubjectID {
+		t.Fatalf("missing related works: %+v", person)
+	}
+	f.request("DELETE", fmt.Sprintf("/api/admin/wiki/relations?id=%d", work.ForwardRelations[0].ID), "", f.admin, 200)
+	res = f.request("GET", endpoint, "", nil, 200)
+	if string(res["cast"]) != "[]" {
+		t.Fatal("removed Wiki relation still in cast")
+	}
+}

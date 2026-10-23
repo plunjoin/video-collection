@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"video-collection-service/pkg/auth"
 	"video-collection-service/pkg/store"
 )
 
@@ -16,9 +15,9 @@ func (srv *Server) registerWikiRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/wiki/graph", srv.handleWikiGraph)
 
 	// 管理员专属管理接口
-	mux.HandleFunc("/api/admin/wiki/subjects", auth.AdminRequired(srv.store, srv.handleAdminWikiSubjects))
-	mux.HandleFunc("/api/admin/wiki/relations", auth.AdminRequired(srv.store, srv.handleAdminWikiRelations))
-	mux.HandleFunc("/api/admin/wiki/sync-video", auth.AdminRequired(srv.store, srv.handleAdminWikiSyncVideo))
+	mux.HandleFunc("/api/admin/wiki/subjects", srv.adminWrite(srv.handleAdminWikiSubjects))
+	mux.HandleFunc("/api/admin/wiki/relations", srv.adminWrite(srv.handleAdminWikiRelations))
+	mux.HandleFunc("/api/admin/wiki/sync-video", srv.adminWrite(srv.handleAdminWikiSyncVideo))
 }
 
 // handleWikiSubjects 公开检索词条列表

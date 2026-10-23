@@ -230,3 +230,142 @@ func TestSyncVideoToWikiSubject(t *testing.T) {
 		t.Errorf("expected 徐纪周 to be person/director, got %s/%s", xujizhou.Type, xujizhou.SubType)
 	}
 }
+
+func TestWikiSyncRefreshAndLiveCast(t *testing.T) {
+	ctx := context.Background()
+	s := newTestSQLiteStore(t)
+	vod := &collector.CleanedVod{Name: "同步作品", Actor: "演员甲、演员乙", Director: "导演甲"}
+	vid, err := s.UpsertVideo(ctx, "test", vod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := s.SyncVideoToWikiSubject(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A later collection fills only missing work metadata.
+	vod.Picture = "https://example.com/work.jpg"
+	vod.Content = "采集简介"
+	vod.Year = "2026"
+	vod.Area = "中国"
+	vod.Language = "中文"
+	vod.Remarks = "完结"
+	if _, err := s.SaveVideoManual(ctx, &VideoRecord{ID: vid, Name: vod.Name, Actor: vod.Actor, Director: vod.Director, Picture: vod.Picture, Content: vod.Content, Year: vod.Year, Area: vod.Area, Language: vod.Language, Remarks: vod.Remarks}); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := s.SyncVideoToWikiSubject(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.ID != sub.ID || refreshed.Summary != vod.Content || refreshed.CoverImage != vod.Picture {
+		t.Fatalf("missing work metadata not refreshed: %+v", refreshed)
+	}
+	if refreshed.Infobox["year"] != "2026" || refreshed.Infobox["area"] != "中国" || refreshed.Infobox["language"] != "中文" || refreshed.Infobox["remarks"] != "完结" {
+		t.Fatalf("missing infobox keys not filled: %+v", refreshed.Infobox)
+	}
+	cast, err := s.ListWikiCastForVideo(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cast) != 3 || cast[0].Name != "演员甲" || cast[1].Name != "演员乙" || cast[2].RelationType != "director" || cast[0].SubjectID <= 0 {
+		t.Fatalf("unexpected ordered cast: %+v", cast)
+	}
+	person, err := s.GetWikiSubjectByID(ctx, cast[0].SubjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	person.Summary = "管理员人物简介"
+	person.CoverImage = "https://example.com/person.jpg"
+	person.OriginalName = "Actor A"
+	if err := s.UpdateWikiSubject(ctx, &person.WikiSubject); err != nil {
+		t.Fatal(err)
+	}
+	refreshed.Name = "管理员改名"
+	refreshed.Summary = "管理员作品简介"
+	refreshed.CoverImage = "https://example.com/admin.jpg"
+	refreshed.Infobox["year"] = "编辑年份"
+	refreshed.Infobox["area"] = "编辑地区"
+	refreshed.Infobox["language"] = "编辑语言"
+	refreshed.Infobox["remarks"] = "编辑备注"
+	refreshed.Infobox["custom"] = "保留字段"
+	if err := s.UpdateWikiSubject(ctx, refreshed); err != nil {
+		t.Fatal(err)
+	}
+	editedAt := refreshed.UpdatedAt
+	again, err := s.SyncVideoToWikiSubject(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.ID != sub.ID || again.Name != refreshed.Name || again.Summary != refreshed.Summary || again.CoverImage != refreshed.CoverImage || !again.UpdatedAt.Equal(editedAt) {
+		t.Fatalf("re-sync overwrote edited work or unnecessarily updated it: %+v", again)
+	}
+	for key, want := range refreshed.Infobox {
+		if again.Infobox[key] != want {
+			t.Errorf("infobox %s overwritten: %v", key, again.Infobox[key])
+		}
+	}
+	cast, err = s.ListWikiCastForSubject(ctx, sub.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cast) != 3 || cast[0].Summary != person.Summary || cast[0].CoverImage != person.CoverImage || cast[0].OriginalName != person.OriginalName {
+		t.Fatalf("cast must read edited Wiki metadata without duplicating relations: %+v", cast)
+	}
+	video, err := s.GetVideoByID(ctx, vid)
+	if err != nil || video.SubjectID != sub.ID {
+		t.Fatalf("missing video subject ID: %+v, %v", video, err)
+	}
+	detail, err := s.GetWikiSubjectByID(ctx, sub.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.ForwardRelations[0].TargetSubject.Summary != person.Summary || detail.ForwardRelations[0].TargetSubject.CoverImage != person.CoverImage {
+		t.Fatalf("missing forward relation metadata: %+v", detail.ForwardRelations[0])
+	}
+	person, err = s.GetWikiSubjectByID(ctx, cast[0].SubjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := person.ReverseRelations[0].SourceSubject
+	if work.Summary != refreshed.Summary || work.CoverImage != refreshed.CoverImage {
+		t.Fatalf("missing reverse relation metadata: %+v", work)
+	}
+	empty, err := s.ListWikiCastForSubject(ctx, 0)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("expected empty cast array: %v, %v", empty, err)
+	}
+}
+
+func TestWikiCastIncludesPersonRelationsAndExcludesUnrelatedSubjects(t *testing.T) {
+	s := newTestSQLiteStore(t)
+	ctx := context.Background()
+	work := &WikiSubject{Name: "关系筛选作品", Type: "work"}
+	if _, err := s.CreateWikiSubject(ctx, work); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct {
+		name, subjectType, relation string
+		order                       int
+	}{
+		{"纪元", "event", "belongs_to_era", 0},
+		{"动作监督", "person", "action_director", 0},
+		{"配音演员", "person", "cv", 4},
+		{"皮套演员", "person", "suit_actor", 2},
+	} {
+		target := &WikiSubject{Name: item.name, Type: item.subjectType}
+		if _, err := s.CreateWikiSubject(ctx, target); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.CreateWikiRelation(ctx, &WikiRelation{SourceID: work.ID, TargetID: target.ID, RelationType: item.relation, SortOrder: item.order, RoleDescription: "编辑角色"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cast, err := s.ListWikiCastForSubject(ctx, work.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cast) != 3 || cast[0].Name != "皮套演员" || cast[1].Name != "配音演员" || cast[2].Name != "动作监督" || cast[0].RoleDescription != "编辑角色" {
+		t.Fatalf("unexpected cast filter/order: %+v", cast)
+	}
+}

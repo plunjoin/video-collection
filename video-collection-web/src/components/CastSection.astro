@@ -1,0 +1,22 @@
+---
+import { wikiRoleLabel, type WikiCastMember } from '../lib/api';
+interface Props { cast: WikiCastMember[]; }
+const { cast } = Astro.props;
+---
+<section class="brand-section" id="tab-角色">
+  <div class="section-heading"><h2>演职人员</h2></div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    {cast.map(person => (
+      <a href={`/wiki/${person.subject_id}`} class="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm card-hover-effect">
+        <div class="aspect-[4/5] overflow-hidden bg-slate-100">
+          <img src={person.cover_image || '/brand/bllii-app-blue.svg'} alt={person.name} loading="lazy" class="h-full w-full object-cover object-top transition-transform group-hover:scale-105" onerror="this.onerror=null;this.src='/brand/bllii-app-blue.svg'" />
+        </div>
+        <div class="p-3">
+          <h3 class="font-semibold text-slate-800 group-hover:text-primary-600">{person.name}</h3>
+          <span class="mt-1 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{person.role_description || wikiRoleLabel(person.relation_type)}</span>
+          <p class="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500">{person.summary?.replace(/<[^>]+>/g, '') || '暂无人物简介'}</p>
+        </div>
+      </a>
+    ))}
+  </div>
+</section>

@@ -15,6 +15,7 @@ import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/episode_selector.dart';
 import '../widgets/video_comments.dart';
 import 'player_screen.dart';
+import 'wiki_subject_screen.dart';
 
 class AnimeDetailScreen extends StatefulWidget {
   final int videoId;
@@ -27,6 +28,7 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
   bool _loading = true;
   VideoRecord? _video;
   List<VideoRecord> _related = [];
+  List<WikiCastMember> _wikiCast = [];
   @override
   void initState() {
     super.initState();
@@ -41,6 +43,7 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
     setState(() {
       _video = result['video'] as VideoRecord?;
       _related = result['related'] as List<VideoRecord>;
+      _wikiCast = result['cast'] as List<WikiCastMember>;
       _loading = false;
     });
   }
@@ -73,6 +76,7 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
                 : AnimeDetailContent(
                     video: _video!,
                     related: _related,
+                    cast: _wikiCast,
                     onPlay: (group, episode) => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PlayerScreen(
@@ -98,7 +102,15 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
 class _Credit {
   final String name;
   final String role;
-  const _Credit(this.name, this.role);
+  final int subjectId;
+  final String coverImage, summary;
+  const _Credit(
+    this.name,
+    this.role, {
+    this.subjectId = 0,
+    this.coverImage = '',
+    this.summary = '',
+  });
 }
 
 List<_Credit> _creditsOf(VideoRecord video) {
@@ -129,12 +141,14 @@ List<_Credit> _creditsOf(VideoRecord video) {
 class AnimeDetailContent extends StatefulWidget {
   final VideoRecord video;
   final List<VideoRecord> related;
+  final List<WikiCastMember> cast;
   final void Function(int group, int episode) onPlay;
   final ValueChanged<VideoRecord> onRelated;
   const AnimeDetailContent({
     super.key,
     required this.video,
     required this.related,
+    this.cast = const [],
     required this.onPlay,
     required this.onRelated,
   });
@@ -184,7 +198,17 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     final video = widget.video;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final favorite = context.watch<AppStateProvider>().isFavorite(video.id);
-    final credits = _creditsOf(video);
+    final credits = widget.cast.isNotEmpty
+        ? widget.cast.map((person) => _Credit(
+              person.name,
+              person.roleDescription.isNotEmpty
+                  ? person.roleDescription
+                  : wikiRoleLabel(person.relationType),
+              subjectId: person.subjectId,
+              coverImage: person.coverImage,
+              summary: person.summary,
+            )).toList()
+        : _creditsOf(video);
     final firstPlayable = video.playGroups.indexWhere(
       (group) => group.episodes.isNotEmpty,
     );
@@ -622,7 +646,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 168,
+            height: 220,
             child: DesktopHorizontalScroll(
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
@@ -694,55 +718,75 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     ];
     final color = colors[credit.name.hashCode.abs() % colors.length];
     return SizedBox(
-      width: 108,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 108,
-            height: 112,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withValues(alpha: .85),
-                  color.withValues(alpha: .45),
-                ],
+      width: 132,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: credit.subjectId > 0
+            ? () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => WikiSubjectScreen(subjectId: credit.subjectId),
+              ))
+            : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 132,
+              height: 140,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: .85),
+                    color.withValues(alpha: .45),
+                  ],
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: credit.coverImage.isNotEmpty
+                  ? SizedBox.expand(child: _cover(credit.coverImage))
+                  : Text(
+                      credit.name.isEmpty
+                          ? '?'
+                          : String.fromCharCode(credit.name.runes.first),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              credit.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              credit.role,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: dark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
-            child: Text(
-              credit.name.isEmpty
-                  ? '?'
-                  : String.fromCharCode(credit.name.runes.first),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
+            if (credit.summary.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                credit.summary.replaceAll(RegExp(r'<[^>]+>'), ''),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            credit.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            credit.role,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              color: dark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-            ),
-          ),
-        ],
+            ],
+          ],
+        ),
       ),
     );
   }

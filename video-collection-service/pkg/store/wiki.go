@@ -38,6 +38,20 @@ type WikiRelation struct {
 	TargetSubject   *WikiSubject `json:"target_subject,omitempty"`
 }
 
+// WikiCastMember is a live projection of editable Wiki subjects and relations.
+type WikiCastMember struct {
+	SubjectID       int    `json:"subject_id"`
+	Name            string `json:"name"`
+	OriginalName    string `json:"original_name,omitempty"`
+	Type            string `json:"type"`
+	SubType         string `json:"sub_type"`
+	CoverImage      string `json:"cover_image"`
+	Summary         string `json:"summary"`
+	RelationType    string `json:"relation_type"`
+	RoleDescription string `json:"role_description"`
+	SortOrder       int    `json:"sort_order"`
+}
+
 // WikiSubjectDetail 词条完整详情聚合视图
 type WikiSubjectDetail struct {
 	WikiSubject
@@ -95,6 +109,8 @@ type WikiStore interface {
 
 	LinkVideoToSubject(ctx context.Context, videoID int, subjectID int) error
 	SyncVideoToWikiSubject(ctx context.Context, videoID int) (*WikiSubject, error)
+	ListWikiCastForSubject(ctx context.Context, subjectID int) ([]WikiCastMember, error)
+	ListWikiCastForVideo(ctx context.Context, videoID int) ([]WikiCastMember, error)
 }
 
 func migrateWiki(tx *sql.Tx, id, timestamp string) error {
@@ -263,67 +279,34 @@ func (s *SQLContentStore) GetWikiSubjectByID(ctx context.Context, id int) (*Wiki
 	d.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdStr)
 	d.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedStr)
 
-	// 1. 查询以该词条为起点的正向关系（携带 TargetSubject 摘要）
-	fRows, err := s.db.QueryContext(ctx, `
-		SELECT r.id, r.source_id, r.target_id, r.relation_type, r.role_description, r.sort_order, r.created_at,
-		       t.id, t.name, t.type, t.sub_type, t.cover_image
-		FROM wiki_relations r
-		JOIN wiki_subjects t ON t.id = r.target_id
-		WHERE r.source_id = $1
-		ORDER BY r.sort_order ASC, r.id ASC`, id)
-	if err == nil {
-		defer fRows.Close()
-		for fRows.Next() {
-			var rel WikiRelation
-			var tgt WikiSubject
-			var relCreated string
-			if err := fRows.Scan(
-				&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.RoleDescription, &rel.SortOrder, &relCreated,
-				&tgt.ID, &tgt.Name, &tgt.Type, &tgt.SubType, &tgt.CoverImage,
-			); err == nil {
-				rel.CreatedAt, _ = time.Parse(time.RFC3339Nano, relCreated)
-				rel.TargetSubject = &tgt
-				d.ForwardRelations = append(d.ForwardRelations, rel)
-			}
-		}
+	relations, err := s.ListWikiRelations(ctx, id)
+	if err != nil {
+		return nil, err
 	}
-
-	// 2. 查询以该词条为终点的反向关系（携带 SourceSubject 摘要，如演员反查其出演的作品）
-	rRows, err := s.db.QueryContext(ctx, `
-		SELECT r.id, r.source_id, r.target_id, r.relation_type, r.role_description, r.sort_order, r.created_at,
-		       s.id, s.name, s.type, s.sub_type, s.cover_image
-		FROM wiki_relations r
-		JOIN wiki_subjects s ON s.id = r.source_id
-		WHERE r.target_id = $1
-		ORDER BY r.sort_order ASC, r.id ASC`, id)
-	if err == nil {
-		defer rRows.Close()
-		for rRows.Next() {
-			var rel WikiRelation
-			var srcSub WikiSubject
-			var relCreated string
-			if err := rRows.Scan(
-				&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.RoleDescription, &rel.SortOrder, &relCreated,
-				&srcSub.ID, &srcSub.Name, &srcSub.Type, &srcSub.SubType, &srcSub.CoverImage,
-			); err == nil {
-				rel.CreatedAt, _ = time.Parse(time.RFC3339Nano, relCreated)
-				rel.SourceSubject = &srcSub
-				d.ReverseRelations = append(d.ReverseRelations, rel)
-			}
+	d.ForwardRelations = []WikiRelation{}
+	d.ReverseRelations = []WikiRelation{}
+	d.LinkedVideos = []VideoRecord{}
+	for _, rel := range relations {
+		if rel.SourceID == id {
+			d.ForwardRelations = append(d.ForwardRelations, rel)
+		}
+		if rel.TargetID == id {
+			d.ReverseRelations = append(d.ReverseRelations, rel)
 		}
 	}
 
 	// 3. 查询绑定的线上播放视频
 	vRows, err := s.db.QueryContext(ctx, `
-		SELECT id, name, sub_name, type_name, picture, year, remarks
+		SELECT id, COALESCE(subject_id, 0), name, sub_name, type_name, picture, year, remarks
 		FROM videos
 		WHERE subject_id = $1
+		ORDER BY id ASC
 		LIMIT 10`, id)
 	if err == nil {
 		defer vRows.Close()
 		for vRows.Next() {
 			var v VideoRecord
-			if err := vRows.Scan(&v.ID, &v.Name, &v.SubName, &v.TypeName, &v.Picture, &v.Year, &v.Remarks); err == nil {
+			if err := vRows.Scan(&v.ID, &v.SubjectID, &v.Name, &v.SubName, &v.TypeName, &v.Picture, &v.Year, &v.Remarks); err == nil {
 				v.FillCompatFields()
 				d.LinkedVideos = append(d.LinkedVideos, v)
 			}
@@ -460,8 +443,8 @@ func (s *SQLContentStore) GetWikiRelationByID(ctx context.Context, id int) (*Wik
 func (s *SQLContentStore) ListWikiRelations(ctx context.Context, subjectID int) ([]WikiRelation, error) {
 	query := `
 		SELECT r.id, r.source_id, r.target_id, r.relation_type, r.role_description, r.sort_order, r.created_at,
-		       s.name, s.type, s.sub_type, s.cover_image,
-		       t.name, t.type, t.sub_type, t.cover_image
+		       s.name, s.type, s.sub_type, s.cover_image, s.summary, s.original_name,
+		       t.name, t.type, t.sub_type, t.cover_image, t.summary, t.original_name
 		FROM wiki_relations r
 		JOIN wiki_subjects s ON s.id = r.source_id
 		JOIN wiki_subjects t ON t.id = r.target_id
@@ -481,9 +464,11 @@ func (s *SQLContentStore) ListWikiRelations(ctx context.Context, subjectID int) 
 		var relCreated string
 		if err := rows.Scan(
 			&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.RoleDescription, &rel.SortOrder, &relCreated,
-			&sSub.Name, &sSub.Type, &sSub.SubType, &sSub.CoverImage,
-			&tSub.Name, &tSub.Type, &tSub.SubType, &tSub.CoverImage,
-		); err == nil {
+			&sSub.Name, &sSub.Type, &sSub.SubType, &sSub.CoverImage, &sSub.Summary, &sSub.OriginalName,
+			&tSub.Name, &tSub.Type, &tSub.SubType, &tSub.CoverImage, &tSub.Summary, &tSub.OriginalName,
+		); err != nil {
+			return nil, err
+		} else {
 			sSub.ID = rel.SourceID
 			tSub.ID = rel.TargetID
 			rel.SourceSubject = &sSub
@@ -492,7 +477,7 @@ func (s *SQLContentStore) ListWikiRelations(ctx context.Context, subjectID int) 
 			rels = append(rels, rel)
 		}
 	}
-	return rels, nil
+	return rels, rows.Err()
 }
 
 // GetWikiGraph 获取以 rootID 为中心的图谱拓扑数据 (支持 1 到 2 层深度)
@@ -585,10 +570,10 @@ func (s *SQLContentStore) LinkVideoToSubject(ctx context.Context, videoID int, s
 // SyncVideoToWikiSubject 智能桥接：从已有视频冷启动生成对应 Wiki 作品条目与演职员关系网
 func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID int) (*WikiSubject, error) {
 	var v VideoRecord
-	query := `SELECT id, name, sub_name, type_id, type_name, picture, actor, director, area, language, year, remarks, content
+	query := `SELECT id, COALESCE(subject_id, 0), name, sub_name, type_id, type_name, picture, actor, director, area, language, year, remarks, content
 	          FROM videos WHERE id = $1`
 	err := s.db.QueryRowContext(ctx, query, videoID).Scan(
-		&v.ID, &v.Name, &v.SubName, &v.TypeID, &v.TypeName, &v.Picture,
+		&v.ID, &v.SubjectID, &v.Name, &v.SubName, &v.TypeID, &v.TypeName, &v.Picture,
 		&v.Actor, &v.Director, &v.Area, &v.Language, &v.Year, &v.Remarks, &v.Content,
 	)
 	if err != nil {
@@ -596,7 +581,16 @@ func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID in
 	}
 
 	// 1. 检查或创建作品词条
-	subject, err := s.GetWikiSubjectByName(ctx, v.Name)
+	var subject *WikiSubject
+	if v.SubjectID > 0 {
+		detail, loadErr := s.GetWikiSubjectByID(ctx, v.SubjectID)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		subject = &detail.WikiSubject
+	} else {
+		subject, err = s.GetWikiSubjectByName(ctx, v.Name)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -633,8 +627,36 @@ func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID in
 		subject = newSubject
 	}
 
-	// 绑定视频与词条
-	_ = s.LinkVideoToSubject(ctx, v.ID, subject.ID)
+	// Only fill gaps: Wiki editors own all non-empty metadata.
+	changed := false
+	if subject.Type == "work" {
+		if strings.TrimSpace(subject.Summary) == "" && strings.TrimSpace(v.Content) != "" {
+			subject.Summary = v.Content
+			changed = true
+		}
+		if strings.TrimSpace(subject.CoverImage) == "" && strings.TrimSpace(v.Picture) != "" {
+			subject.CoverImage = v.Picture
+			changed = true
+		}
+		if subject.Infobox == nil {
+			subject.Infobox = map[string]any{}
+		}
+		for key, value := range map[string]string{"year": v.Year, "area": v.Area, "language": v.Language, "remarks": v.Remarks} {
+			existing := subject.Infobox[key]
+			if (existing == nil || strings.TrimSpace(fmt.Sprint(existing)) == "") && strings.TrimSpace(value) != "" {
+				subject.Infobox[key] = value
+				changed = true
+			}
+		}
+	}
+	if changed {
+		if err := s.UpdateWikiSubject(ctx, subject); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.LinkVideoToSubject(ctx, v.ID, subject.ID); err != nil {
+		return nil, err
+	}
 
 	// 2. 提取演员并建立关系
 	splitTokens := func(s string) []string {
@@ -652,56 +674,60 @@ func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID in
 		return res
 	}
 
-	actors := splitTokens(v.Actor)
-	for idx, actorName := range actors {
-		person, _ := s.GetWikiSubjectByName(ctx, actorName)
-		if person == nil {
-			person = &WikiSubject{
-				Name:    actorName,
-				Type:    "person",
-				SubType: "actor",
+	for _, credit := range []struct{ names, relationType, role string }{
+		{v.Actor, "actor", "主演"}, {v.Director, "director", "导演"},
+	} {
+		for idx, name := range splitTokens(credit.names) {
+			person, err := s.GetWikiSubjectByName(ctx, name)
+			if err != nil {
+				return nil, err
 			}
-			pID, err := s.CreateWikiSubject(ctx, person)
-			if err == nil {
-				person.ID = pID
+			if person == nil {
+				person = &WikiSubject{Name: name, Type: "person", SubType: credit.relationType}
+				if _, err := s.CreateWikiSubject(ctx, person); err != nil {
+					return nil, err
+				}
 			}
-		}
-		if person != nil && person.ID > 0 {
-			_, _ = s.CreateWikiRelation(ctx, &WikiRelation{
-				SourceID:        subject.ID,
-				TargetID:        person.ID,
-				RelationType:    "actor",
-				RoleDescription: "主演",
-				SortOrder:       idx + 1,
-			})
-		}
-	}
-
-	// 3. 提取导演并建立关系
-	directors := splitTokens(v.Director)
-	for idx, dirName := range directors {
-		dirPerson, _ := s.GetWikiSubjectByName(ctx, dirName)
-		if dirPerson == nil {
-			dirPerson = &WikiSubject{
-				Name:    dirName,
-				Type:    "person",
-				SubType: "director",
+			if _, err := s.CreateWikiRelation(ctx, &WikiRelation{
+				SourceID: subject.ID, TargetID: person.ID, RelationType: credit.relationType,
+				RoleDescription: credit.role, SortOrder: idx + 1,
+			}); err != nil {
+				return nil, err
 			}
-			dID, err := s.CreateWikiSubject(ctx, dirPerson)
-			if err == nil {
-				dirPerson.ID = dID
-			}
-		}
-		if dirPerson != nil && dirPerson.ID > 0 {
-			_, _ = s.CreateWikiRelation(ctx, &WikiRelation{
-				SourceID:        subject.ID,
-				TargetID:        dirPerson.ID,
-				RelationType:    "director",
-				RoleDescription: "导演",
-				SortOrder:       idx + 1,
-			})
 		}
 	}
 
 	return subject, nil
+}
+
+// ListWikiCastForSubject reads current Wiki metadata; no separate cast store is maintained.
+func (s *SQLContentStore) ListWikiCastForSubject(ctx context.Context, subjectID int) ([]WikiCastMember, error) {
+	cast := []WikiCastMember{}
+	rows, err := s.db.QueryContext(ctx, `
+ SELECT t.id, t.name, t.original_name, t.type, t.sub_type, t.cover_image, t.summary,
+        r.relation_type, r.role_description, r.sort_order
+ FROM wiki_relations r JOIN wiki_subjects t ON t.id = r.target_id
+ WHERE r.source_id = $1 AND (r.relation_type IN ('actor','director','suit_actor','cv','martial_arts') OR t.type = 'person')
+ ORDER BY CASE WHEN r.relation_type IN ('actor','suit_actor','cv') THEN 0 ELSE 1 END,
+          r.sort_order ASC, r.id ASC`, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var member WikiCastMember
+		if err := rows.Scan(&member.SubjectID, &member.Name, &member.OriginalName, &member.Type, &member.SubType, &member.CoverImage, &member.Summary, &member.RelationType, &member.RoleDescription, &member.SortOrder); err != nil {
+			return nil, err
+		}
+		cast = append(cast, member)
+	}
+	return cast, rows.Err()
+}
+
+func (s *SQLContentStore) ListWikiCastForVideo(ctx context.Context, videoID int) ([]WikiCastMember, error) {
+	var subjectID int
+	if err := s.db.QueryRowContext(ctx, "SELECT COALESCE(subject_id, 0) FROM videos WHERE id = $1", videoID).Scan(&subjectID); err != nil {
+		return nil, err
+	}
+	return s.ListWikiCastForSubject(ctx, subjectID)
 }

@@ -1035,7 +1035,7 @@ func (s *PostgresStore) QueryVideos(ctx context.Context, q VideoQuery) ([]VideoR
 	}
 
 	querySQL := fmt.Sprintf(`
-		SELECT v.id, v.name, v.sub_name, v.type_id, v.type_name, v.picture,
+		SELECT v.id, COALESCE(v.subject_id, 0), v.name, v.sub_name, v.type_id, v.type_name, v.picture,
 		       v.actor, v.director, v.area, v.language, v.year, v.remarks,
 		       v.content, v.source_id, COALESCE(v.hits, 0), v.created_at, v.updated_at, v.play_groups
 		FROM videos v
@@ -1055,7 +1055,7 @@ func (s *PostgresStore) QueryVideos(ctx context.Context, q VideoQuery) ([]VideoR
 		var rec VideoRecord
 		var playJSON []byte
 		err := rows.Scan(
-			&rec.ID, &rec.Name, &rec.SubName, &rec.TypeID, &rec.TypeName, &rec.Picture,
+			&rec.ID, &rec.SubjectID, &rec.Name, &rec.SubName, &rec.TypeID, &rec.TypeName, &rec.Picture,
 			&rec.Actor, &rec.Director, &rec.Area, &rec.Language, &rec.Year, &rec.Remarks,
 			&rec.Content, &rec.SourceID, &rec.Hits, &rec.CreatedAt, &rec.UpdatedAt, &playJSON,
 		)
