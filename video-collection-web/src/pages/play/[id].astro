@@ -394,12 +394,12 @@ const origin = getSiteOrigin(Astro.site, Astro.url, Astro.request);
       window.addEventListener('pagehide', () => writeBookmark(modernPlayer.currentRouteIndex, modernPlayer.currentEpisodeIndex, modernPlayer.getCurrentTime(), modernPlayer.player.duration()));
 
       // 埋点：监听播放深度（25%, 50%, 75%, 100% 完播）与播放动作
-      const reportedMilestones: Record<number, boolean> = { 25: false, 50: false, 75: false, 100: false };
+      const reportedMilestones = { 25: false, 50: false, 75: false, 100: false };
       const currentVideoId = Number(videoData.id);
 
       modernPlayer.player.on('play', () => {
-        if ((window as any).blliiTrack) {
-          (window as any).blliiTrack.event('play', { target_id: currentVideoId });
+        if (window.blliiTrack) {
+          window.blliiTrack.event('play', { target_id: currentVideoId });
         }
       });
 
@@ -412,8 +412,8 @@ const origin = getSiteOrigin(Astro.site, Astro.url, Astro.request);
         [25, 50, 75].forEach(milestone => {
           if (percent >= milestone && !reportedMilestones[milestone]) {
             reportedMilestones[milestone] = true;
-            if ((window as any).blliiTrack) {
-              (window as any).blliiTrack.progress(currentVideoId, milestone);
+            if (window.blliiTrack) {
+              window.blliiTrack.progress(currentVideoId, milestone);
             }
           }
         });
@@ -422,8 +422,8 @@ const origin = getSiteOrigin(Astro.site, Astro.url, Astro.request);
       modernPlayer.player.on('ended', () => {
         if (!reportedMilestones[100]) {
           reportedMilestones[100] = true;
-          if ((window as any).blliiTrack) {
-            (window as any).blliiTrack.progress(currentVideoId, 100);
+          if (window.blliiTrack) {
+            window.blliiTrack.progress(currentVideoId, 100);
           }
         }
       });

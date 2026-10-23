@@ -258,8 +258,8 @@ const totalDbCount = total || 6686;
         if (noResultsEl) noResultsEl.classList.add('hidden');
 
         // 上报站内搜索事件
-        if ((window as any).blliiTrack) {
-          (window as any).blliiTrack.event('search', { keyword: q });
+        if (window.blliiTrack) {
+          window.blliiTrack.event('search', { keyword: q });
         }
 
         try {
