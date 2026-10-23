@@ -40,6 +40,7 @@ type BusinessTypeField struct {
 	SortOrder     int      `json:"sort_order"`
 	Filterable    bool     `json:"filterable"`
 	Options       []string `json:"options,omitempty"`
+	Default       string   `json:"default,omitempty"`
 	filterableSet bool
 }
 
@@ -436,6 +437,11 @@ func migrateBusinessTypes(tx *sql.Tx) error {
 			return err
 		}
 	}
+	if !has["default_value"] {
+		if _, err = tx.Exec(`ALTER TABLE business_type_fields ADD COLUMN default_value TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
 	if _, err = tx.Exec(`UPDATE business_type_fields SET options='[]' WHERE options IS NULL`); err != nil {
 		return err
 	}
@@ -458,10 +464,18 @@ func migrateBusinessTypes(tx *sql.Tx) error {
 		}
 		for i, n := range names {
 			required := (n == "title" && b.Slug != "record") || (n == "content" && b.Slug == "article")
-			if _, err = tx.Exec(`INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order) VALUES($1,$2,$2,'text',$3,TRUE,$4) ON CONFLICT(type_slug,name) DO NOTHING`, b.Slug, n, required, i); err != nil {
+			dataType, options, defaultValue := "text", "[]", ""
+			if b.Slug == "article" && n == "status" {
+				dataType, options, defaultValue = "enum", `["draft","published"]`, "published"
+			}
+			if _, err = tx.Exec(`INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order,filterable,options,default_value) VALUES($1,$2,$2,$3,$4,TRUE,$5,TRUE,$6,$7) ON CONFLICT(type_slug,name) DO NOTHING`, b.Slug, n, dataType, required, i, options, defaultValue); err != nil {
 				return err
 			}
 		}
+	}
+	// Existing DBs: article.status becomes enum with default published when unset.
+	if _, err = tx.Exec(`UPDATE business_type_fields SET data_type='enum', options='["draft","published"]', default_value=CASE WHEN COALESCE(default_value,'')='' THEN 'published' ELSE default_value END WHERE type_slug='article' AND name='status'`); err != nil {
+		return err
 	}
 	return nil
 }
@@ -477,7 +491,7 @@ func getBusinessType(ctx context.Context, q businessQuerier, slug string) (*Busi
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT name,label,data_type,required,is_system,sort_order,filterable,COALESCE(options,'[]') FROM business_type_fields WHERE type_slug=$1 ORDER BY sort_order,name`, slug)
+	rows, err := q.QueryContext(ctx, `SELECT name,label,data_type,required,is_system,sort_order,filterable,COALESCE(options,'[]'),COALESCE(default_value,'') FROM business_type_fields WHERE type_slug=$1 ORDER BY sort_order,name`, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -485,7 +499,7 @@ func getBusinessType(ctx context.Context, q businessQuerier, slug string) (*Busi
 	for rows.Next() {
 		var f BusinessTypeField
 		var options string
-		if err = rows.Scan(&f.Name, &f.Label, &f.DataType, &f.Required, &f.IsSystem, &f.SortOrder, &f.Filterable, &options); err != nil {
+		if err = rows.Scan(&f.Name, &f.Label, &f.DataType, &f.Required, &f.IsSystem, &f.SortOrder, &f.Filterable, &options, &f.Default); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal([]byte(options), &f.Options); err != nil {
@@ -558,6 +572,10 @@ func validBusinessField(f *BusinessTypeField) error {
 	} else {
 		f.Options = nil
 	}
+	f.Default = strings.TrimSpace(f.Default)
+	if f.Default != "" && f.DataType == "enum" && !businessEnumOption(f.Options, f.Default) {
+		return fmt.Errorf("默认值不在枚举选项中")
+	}
 	if f.Label == "" {
 		f.Label = f.Name
 	}
@@ -626,7 +644,7 @@ func insertBusinessField(ctx context.Context, tx *sql.Tx, slug string, f Busines
 		}
 		options = string(encoded)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order,filterable,options) VALUES($1,$2,$3,$4,$5,FALSE,$6,$7,$8)`, slug, f.Name, f.Label, f.DataType, f.Required, f.SortOrder, f.Filterable, options)
+	_, err := tx.ExecContext(ctx, `INSERT INTO business_type_fields(type_slug,name,label,data_type,required,is_system,sort_order,filterable,options,default_value) VALUES($1,$2,$3,$4,$5,FALSE,$6,$7,$8,$9)`, slug, f.Name, f.Label, f.DataType, f.Required, f.SortOrder, f.Filterable, options, f.Default)
 	return err
 }
 func (s *SQLContentStore) UpdateBusinessType(ctx context.Context, slug, name, description string) error {
@@ -772,7 +790,7 @@ func (s *SQLContentStore) UpdateBusinessTypeField(ctx context.Context, slug, nam
 				}
 				options = string(encoded)
 			}
-			_, err = tx.ExecContext(ctx, `UPDATE business_type_fields SET label=$1,required=$2,filterable=$3,options=$4 WHERE type_slug=$5 AND name=$6`, f.Label, f.Required, f.Filterable, options, slug, name)
+			_, err = tx.ExecContext(ctx, `UPDATE business_type_fields SET label=$1,required=$2,filterable=$3,options=$4,default_value=$5 WHERE type_slug=$6 AND name=$7`, f.Label, f.Required, f.Filterable, options, f.Default, slug, name)
 			if err != nil {
 				return err
 			}
@@ -810,9 +828,26 @@ func (s *SQLContentStore) DeleteBusinessTypeField(ctx context.Context, slug, nam
 	return sql.ErrNoRows
 }
 
+// ApplyBusinessDefaults fills missing/blank mapped values from field defaults.
+func ApplyBusinessDefaults(b *BusinessType, values map[string]string) {
+	if b == nil || values == nil {
+		return
+	}
+	for _, f := range b.Fields {
+		if strings.TrimSpace(f.Default) == "" {
+			continue
+		}
+		if strings.TrimSpace(values[f.Name]) == "" {
+			values[f.Name] = f.Default
+		}
+	}
+}
+
 // ValidateBusinessValues applies schema requirements and converts mapped strings
 // to driver values. Unknown mapping fields remain in payload for audit/flexibility.
+// Missing values are filled from field defaults before validation.
 func ValidateBusinessValues(b *BusinessType, values map[string]string) ([]any, error) {
+	ApplyBusinessDefaults(b, values)
 	result := make([]any, 0, len(b.Fields))
 	for _, f := range b.Fields {
 		v := values[f.Name]

@@ -10,6 +10,7 @@ export interface BusinessFieldInput {
   sort_order: number
   filterable?: boolean
   options?: string[]
+  default?: string
 }
 export interface BusinessTypeField extends BusinessFieldInput { is_system: boolean }
 export interface BusinessType {
@@ -47,6 +48,6 @@ export const saveSchemaRow = (slug: string, body: Record<string, unknown>) => re
 export const deleteSchemaRow = (slug: string, id: number) => request.delete<any, ApiResponse>(`/api/admin/schema/${encodeURIComponent(slug)}/rows`, { params: { id } })
 export const deleteBusinessRow = (slug: string, params: { id?: number; source_id?: string; key?: string }) => request.delete<any, ApiResponse>(`${path(slug)}/rows`, { params })
 export const addBusinessField = (slug: string, data: BusinessFieldInput) => request.post<any, ApiResponse>(`${path(slug)}/fields`, data)
-export const updateBusinessField = (slug: string, name: string, data: { label: string; required: boolean; filterable?: boolean; options?: string[] }) => request.put<any, ApiResponse>(`${path(slug)}/fields/${encodeURIComponent(name)}`, data)
+export const updateBusinessField = (slug: string, name: string, data: { label: string; required: boolean; filterable?: boolean; options?: string[]; default?: string }) => request.put<any, ApiResponse>(`${path(slug)}/fields/${encodeURIComponent(name)}`, data)
 export const deleteBusinessField = (slug: string, name: string) => request.delete<any, ApiResponse>(`${path(slug)}/fields/${encodeURIComponent(name)}`)
-export const newBusinessField = (): BusinessFieldInput => ({ name: '', label: '', data_type: 'text', required: false, sort_order: 0, filterable: true, options: [] })
+export const newBusinessField = (): BusinessFieldInput => ({ name: '', label: '', data_type: 'text', required: false, sort_order: 0, filterable: true, options: [], default: '' })

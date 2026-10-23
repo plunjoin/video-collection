@@ -41,7 +41,7 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 		t.Fatalf("records: %v %d %v", rows, total, err)
 	}
 	article, err := s.GetContent(ctx, "news", rows[0].ContentID, 0, true)
-	if err != nil || article.Title != "更新标题" || article.Status != "draft" {
+	if err != nil || article.Title != "更新标题" || article.Status != "published" {
 		t.Fatalf("article: %+v %v", article, err)
 	}
 	if article.SourceURL != "https://example.com/a" || article.SourceName != "Demo Source" || article.PublishedAt != "2026-10-01T12:00:00Z" {
@@ -51,21 +51,26 @@ func TestCollectionRulePersistenceAndArticleDeduplication(t *testing.T) {
 	if !article.CreatedAt.Equal(wantCreatedAt) {
 		t.Fatalf("created_at = %v, want %v", article.CreatedAt, wantCreatedAt)
 	}
-	article.Status = "published"
-	if err := s.SaveContent(ctx, article, article.AuthorID, true); err != nil {
-		t.Fatal(err)
-	}
-	r.Values["title"] = "不可覆盖"
+	r.Values["title"] = "已发布也可更新"
 	r.Values["published_at"] = "2026-10-02T12:00:00Z"
-	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || saved {
-		t.Fatalf("published overwritten: %v %v", saved, err)
+	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
+		t.Fatalf("published update: %v %v", saved, err)
 	}
 	article, err = s.GetContent(ctx, "news", article.ID, 0, true)
-	if err != nil || article.Title != "更新标题" {
-		t.Fatalf("editorial change lost: %+v %v", article, err)
+	if err != nil || article.Title != "已发布也可更新" || article.Status != "published" {
+		t.Fatalf("published update lost: %+v %v", article, err)
 	}
-	if !article.CreatedAt.Equal(wantCreatedAt) || article.PublishedAt != "2026-10-01T12:00:00Z" {
-		t.Fatalf("published article timestamps overwritten: %+v", article)
+	if article.PublishedAt != "2026-10-02T12:00:00Z" {
+		t.Fatalf("published_at not updated: %q", article.PublishedAt)
+	}
+	r.Values["status"] = "draft"
+	r.Values["title"] = "显式降为草稿"
+	if saved, err := s.SaveCollectionRecord(ctx, r, false); err != nil || !saved {
+		t.Fatalf("explicit demote: %v %v", saved, err)
+	}
+	article, err = s.GetContent(ctx, "news", article.ID, 0, true)
+	if err != nil || article.Status != "draft" || article.Title != "显式降为草稿" {
+		t.Fatalf("demote failed: %+v %v", article, err)
 	}
 	r.SourceID = "other"
 	r.Target = "record"
