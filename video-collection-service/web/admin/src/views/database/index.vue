@@ -326,7 +326,6 @@
         v-model:page-size="browse.pageSize"
         :total="browse.total"
         :page-sizes="[20, 50, 100, 200]"
-        layout="total, sizes, prev, pager, next, jumper"
         style="margin-top: 14px; justify-content: flex-end"
         @current-change="loadBrowse"
         @size-change="loadBrowse"

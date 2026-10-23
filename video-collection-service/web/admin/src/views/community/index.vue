@@ -84,13 +84,14 @@
             </r-table-column>
           </r-table>
 
-          <div class="pagination-wrap" v-if="postsTotal > postsPageSize">
+          <div class="pagination-wrap" v-if="postsTotal > 0">
             <r-pagination
               v-model:current-page="postsPage"
+              v-model:page-size="postsPageSize"
+              :page-sizes="[10, 20, 50, 100]"
               :total="postsTotal"
-              :page-size="postsPageSize"
-              layout="total, prev, pager, next"
               @current-change="loadPosts"
+              @size-change="loadPosts"
             />
           </div>
         </r-tab-pane>
@@ -130,13 +131,14 @@
               </r-table-column>
             </r-table>
 
-            <div class="pagination-wrap" v-if="commentsTotal > commentsPageSize">
+            <div class="pagination-wrap" v-if="commentsTotal > 0">
               <r-pagination
                 v-model:current-page="commentsPage"
+                v-model:page-size="commentsPageSize"
+                :page-sizes="[10, 20, 50, 100]"
                 :total="commentsTotal"
-                :page-size="commentsPageSize"
-                layout="total, prev, pager, next"
                 @current-change="loadComments"
+                @size-change="loadComments"
               />
             </div>
           </template>
@@ -212,7 +214,7 @@ const postsLoading = ref(false)
 const posts = ref<ContentItem[]>([])
 const postsTotal = ref(0)
 const postsPage = ref(1)
-const postsPageSize = 20
+const postsPageSize = ref(20)
 const postFilter = reactive({ status: '', keyword: '' })
 
 const postDialogVisible = ref(false)
@@ -243,7 +245,7 @@ const commentsLoaded = ref(false)
 const comments = ref<CommunityCommentItem[]>([])
 const commentsTotal = ref(0)
 const commentsPage = ref(1)
-const commentsPageSize = 20
+const commentsPageSize = ref(20)
 const commentPostId = ref<number | undefined>(undefined)
 
 const formatDate = (val?: string) => {
@@ -256,7 +258,7 @@ const loadPosts = async () => {
   try {
     const res = await getPostList({
       page: postsPage.value,
-      page_size: postsPageSize,
+      page_size: postsPageSize.value,
       status: postFilter.status || undefined,
       keyword: postFilter.keyword.trim() || undefined
     })
@@ -353,7 +355,7 @@ const loadComments = async () => {
     const res = await getCommentList({
       post_id: commentPostId.value,
       page: commentsPage.value,
-      page_size: commentsPageSize
+      page_size: commentsPageSize.value
     })
     if (res.code === 1 && res.data) {
       comments.value = res.data

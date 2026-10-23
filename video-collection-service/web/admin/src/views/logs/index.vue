@@ -61,8 +61,8 @@
         <r-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
           :total="total"
-          layout="total, prev, pager, next"
           @current-change="loadData"
           @size-change="reload"
         />

@@ -58,7 +58,7 @@
     </r-form></r-tab-pane>
     <r-tab-pane label="积分求片" name="requests"><r-button @click="loadRequests">刷新</r-button>
       <r-table :data="requests"><r-table-column prop="id" label="ID" width="70"/><r-table-column prop="username" label="用户"/><r-table-column prop="title" label="片名"/><r-table-column prop="details" label="说明"/><r-table-column prop="cost" label="积分" width="70"/><r-table-column prop="support_count" label="同好助力" width="90"/><r-table-column label="状态"><template #default="{row}">{{ states[row.status] }}</template></r-table-column><r-table-column prop="reply" label="回复"/><r-table-column label="处理"><template #default="{row}"><r-button :disabled="!canManage || ['fulfilled','rejected'].includes(row.status)" @click="chosenRequest=row; resolution='processing'; reply=''">处理</r-button></template></r-table-column></r-table>
-      <r-pagination v-model:current-page="page" :page-size="20" :total="total" layout="total, prev, pager, next" @current-change="loadRequests"/>
+      <r-pagination v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" @current-change="loadRequests" @size-change="loadRequests"/>
     </r-tab-pane>
     <r-tab-pane label="成长任务" name="missions">
       <p>任务按真实观影记录、有效收藏、已发布留言、连续签到和求片助力判定。每日任务按北京时间重置；成就只能领取一次。修改奖励和目标不重置已领取记录。</p>
@@ -85,7 +85,7 @@ import { getRetention } from '@/api/admin'
 import { useUserStore } from '@/store/user'
 import { notify }  from '@/components/radix/feedback'
 const user=useUserStore(), canManage=computed(()=>['super_admin','admin'].includes(user.userInfo?.role || ''))
-const tab=ref('metrics'),days=ref<any[]>([]),requests=ref<any[]>([]),shop=ref<any[]>([]),rules=reactive<Record<string,number>>({active:5,checkin:10,streak_step:2,streak_cap:30,request_cost:20}),busy=ref(false),page=ref(1),total=ref(0),chosenRequest=ref<any>(null),resolution=ref('processing'),reply=ref(''),itemVisible=ref(false)
+const tab=ref('metrics'),days=ref<any[]>([]),requests=ref<any[]>([]),shop=ref<any[]>([]),rules=reactive<Record<string,number>>({active:5,checkin:10,streak_step:2,streak_cap:30,request_cost:20}),busy=ref(false),page=ref(1),pageSize=ref(20),total=ref(0),chosenRequest=ref<any>(null),resolution=ref('processing'),reply=ref(''),itemVisible=ref(false)
 const retention=ref<any>(null),penetration=ref<any>(null)
 async function loadRetention(){try{const r:any=await getRetention();retention.value=r.data?.retention||null;penetration.value=r.data?.penetration||null}catch(e){retention.value=null;penetration.value=null}}
 const item=reactive({id:0,name:'',kind:'avatar',value:'',price:30,active:true})
@@ -97,7 +97,7 @@ function editMission(row?:any){missionEditing.value=!!row;Object.assign(mission,
 async function saveMission(){if(mission.kind==='checkin'&&mission.period==='day'){notify('连续签到使用一次成就周期', 'warning');return}busy.value=true;try{await request.post('/api/admin/missions',mission);missionVisible.value=false;await loadMissions();notify('任务已保存', 'success')}finally{busy.value=false}}
 const kinds:Record<string,string>={avatar:'头像',animated_avatar:'动态头像',frame:'头像框',badge:'铭牌',nickname_color:'彩色昵称'},states:Record<string,string>={pending:'待处理',processing:'寻找中',fulfilled:'已完成',rejected:'未采纳 / 已退款'},ruleLabels:Record<string,string>={active:'每日活跃奖励',checkin:'签到基础奖励',streak_step:'连续签到每日增量',streak_cap:'签到奖励封顶',request_cost:'每次求片积分'}
 const today=computed(()=>days.value.find(d=>d.day===new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date())))
-async function loadRequests(){const r:any=await request.get('/api/admin/movie-requests',{params:{page:page.value}});requests.value=r.data;total.value=r.total}
+async function loadRequests(){const r:any=await request.get('/api/admin/movie-requests',{params:{page:page.value,page_size:pageSize.value}});requests.value=r.data;total.value=r.total}
 async function loadShop(){const r:any=await request.get('/api/admin/shop');shop.value=r.data}
 async function saveRules(){busy.value=true;try{await request.post('/api/admin/growth/rules',rules);notify('规则已保存', 'success')}finally{busy.value=false}}
 async function resolve(){if(!reply.value.trim()){notify('请输入处理说明', 'warning');return}busy.value=true;try{await request.post('/api/admin/movie-requests',{id:chosenRequest.value.id,status:resolution.value,reply:reply.value});chosenRequest.value=null;await loadRequests();notify('已处理并通知', 'success')}finally{busy.value=false}}

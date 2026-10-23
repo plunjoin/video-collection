@@ -55,8 +55,8 @@
       </r-table-column>
     </r-table>
 
-    <div v-if="total > pageSize" class="pagination-wrap">
-      <r-pagination v-model:current-page="page" :total="total" :page-size="pageSize" layout="total, prev, pager, next" @current-change="loadRows" />
+    <div v-if="total > 0" class="pagination-wrap">
+      <r-pagination v-model:current-page="page" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" @current-change="loadRows" @size-change="loadRows" />
     </div>
 
     <r-dialog v-if="isCustom" v-model="createVisible" title="新增数据" width="min(600px, 95vw)">
@@ -98,7 +98,7 @@ const businessType = ref<BusinessType | null>(null)
 const rows = ref<BusinessRow[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
 const loading = ref(false)
 const saving = ref(false)
 const createVisible = ref(false)
@@ -190,12 +190,12 @@ async function loadRows() {
   loading.value = true
   try {
     const response = isCustom.value
-      ? await listSchemaRows(currentSlug, page.value, pageSize, filters.value)
-      : await listBusinessRows(currentSlug, page.value, pageSize)
+      ? await listSchemaRows(currentSlug, page.value, pageSize.value, filters.value)
+      : await listBusinessRows(currentSlug, page.value, pageSize.value)
     if (request !== rowsRequest || currentSlug !== slug.value) return
     rows.value = response.data || []
     total.value = response.total ?? rows.value.length
-    const lastPage = Math.max(1, Math.ceil(total.value / pageSize))
+    const lastPage = Math.max(1, Math.ceil(total.value / pageSize.value))
     if (page.value > lastPage) { page.value = lastPage; await loadRows() }
   } catch { /* request interceptor displays the error */ } finally {
     if (request === rowsRequest) loading.value = false

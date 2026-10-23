@@ -167,13 +167,13 @@
 
       <!-- 分页栏 -->
       <div class="pagination-bar">
-        <span class="total-indicator">共收录 <strong>{{ total }}</strong> 个百科图谱实体</span>
         <r-pagination
           v-model:current-page="page"
-          :page-size="pageSize"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
           :total="total"
-          layout="prev, pager, next, total"
           @current-change="loadData"
+          @size-change="loadData"
         />
       </div>
     </r-card>
@@ -630,7 +630,7 @@ const loading = ref(false)
 const tableData = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(15)
+const pageSize = ref(20)
 const searchQuery = ref('')
 const filterType = ref('')
 const filterSubType = ref('')

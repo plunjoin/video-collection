@@ -124,13 +124,14 @@
         </r-table-column>
       </r-table>
 
-      <div class="pagination-wrap" v-if="total > pageSize">
+      <div class="pagination-wrap" v-if="total > 0">
         <r-pagination
           v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
           :total="total"
-          :page-size="pageSize"
-          layout="total, prev, pager, next"
           @current-change="loadData"
+          @size-change="loadData"
         />
       </div>
     </r-card>
@@ -221,7 +222,7 @@ const tableKey = ref(0)
 const tableData = ref<ContentItem[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
 const filterStatus = ref('')
 const keyword = ref('')
 
@@ -261,14 +262,14 @@ const loadData = async () => {
   try {
     const res = await getNewsList({
       page: page.value,
-      page_size: pageSize,
+      page_size: pageSize.value,
       status: filterStatus.value || undefined,
       keyword: keyword.value.trim() || undefined
     })
     if (res.code === 1 && res.data) {
       tableData.value = res.data
       total.value = res.total ?? res.data.length
-      const lastPage = Math.max(1, Math.ceil(total.value / pageSize))
+      const lastPage = Math.max(1, Math.ceil(total.value / pageSize.value))
       if (page.value > lastPage) {
         page.value = lastPage
         await loadData()

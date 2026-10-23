@@ -267,10 +267,11 @@
           <div class="pagination-box" v-if="tasksTotal > 0">
             <r-pagination
               v-model:current-page="tasksPage"
-              :page-size="20"
+              v-model:page-size="tasksPageSize"
+              :page-sizes="[10, 20, 50, 100]"
               :total="tasksTotal"
-              layout="total, prev, pager, next"
               @current-change="loadTasks"
+              @size-change="loadTasks"
             />
           </div>
         </r-tab-pane>
@@ -327,10 +328,11 @@
           <div class="pagination-box" v-if="logsTotal > 0">
             <r-pagination
               v-model:current-page="logsPage"
-              :page-size="50"
+              v-model:page-size="logsPageSize"
+              :page-sizes="[20, 50, 100, 200]"
               :total="logsTotal"
-              layout="total, prev, pager, next"
               @current-change="loadLogs"
+              @size-change="loadLogs"
             />
           </div>
         </r-tab-pane>
@@ -414,6 +416,7 @@ const activeTab = ref('tasks')
 const tasks = ref<CollectionTask[]>([])
 const tasksTotal = ref(0)
 const tasksPage = ref(1)
+const tasksPageSize = ref(20)
 const tasksLoading = ref(false)
 const taskStatusFilter = ref('')
 const taskTriggerFilter = ref('')
@@ -428,6 +431,7 @@ const totalSavedSum = computed(() => tasks.value.reduce((sum, t) => sum + (t.tot
 const logs = ref<CollectionLog[]>([])
 const logsTotal = ref(0)
 const logsPage = ref(1)
+const logsPageSize = ref(50)
 const logsLoading = ref(false)
 const logLevelFilter = ref('')
 const logKeyword = ref('')
@@ -477,7 +481,7 @@ const loadTasks = async () => {
   try {
     const res = await getCollectionTasks({
       page: tasksPage.value,
-      page_size: 20,
+      page_size: tasksPageSize.value,
       status: taskStatusFilter.value,
       trigger_type: taskTriggerFilter.value
     })
@@ -495,7 +499,7 @@ const loadLogs = async () => {
   try {
     const res = await getCollectionLogs({
       page: logsPage.value,
-      page_size: 50,
+      page_size: logsPageSize.value,
       level: logLevelFilter.value,
       keyword: logKeyword.value.trim()
     })
