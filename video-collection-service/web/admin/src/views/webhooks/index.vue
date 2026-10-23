@@ -71,7 +71,7 @@
     <r-dialog v-model="createVisible" title="新建 Webhook 回调端点" width="560px">
       <r-form :model="createForm" label-width="110px">
         <r-form-item label="端点名称" required>
-          <r-input v-model="createForm.name" maxlength="64" show-word-limit placeholder="如：苹果CMS 内容源回调" />
+          <r-input v-model="createForm.name" maxlength="64" show-word-limit placeholder="如：标准影视内容源回调" />
         </r-form-item>
         <r-form-item label="入库目标">
           <r-radio-group v-model="createForm.target">

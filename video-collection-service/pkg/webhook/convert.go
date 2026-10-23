@@ -15,7 +15,7 @@ type Payload struct {
 	Videos []collector.CleanedVod // 解析出的待入库视频条目
 }
 
-// 字段别名候选：标准苹果 CMS 字段（vod_xxx）优先，其次短名/驼峰兼容。
+// 字段别名候选：标准影视 JSON 字段（vod_xxx）优先，其次短名/驼峰兼容。
 var fieldAliases = map[string][]string{
 	"original_id":      {"vod_id", "original_id", "id", "vid"},
 	"name":             {"vod_name", "name", "title"},
