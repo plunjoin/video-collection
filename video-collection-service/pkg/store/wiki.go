@@ -567,7 +567,139 @@ func (s *SQLContentStore) LinkVideoToSubject(ctx context.Context, videoID int, s
 	return err
 }
 
-// SyncVideoToWikiSubject 智能桥接：从已有视频冷启动生成对应 Wiki 作品条目与演职员关系网
+// collectionPersonMeta is cover/summary mined from collection_records for a person name.
+type collectionPersonMeta struct {
+	Cover        string
+	Summary      string
+	OriginalName string
+}
+
+func firstNonEmptyString(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func wikiNameMatches(candidate, want string) bool {
+	candidate = strings.TrimSpace(candidate)
+	want = strings.TrimSpace(want)
+	if candidate == "" || want == "" {
+		return false
+	}
+	if strings.EqualFold(candidate, want) {
+		return true
+	}
+	// Allow "成龙 (Jackie Chan)" style payloads to match "成龙".
+	if i := strings.IndexAny(candidate, "（("); i > 0 {
+		return strings.EqualFold(strings.TrimSpace(candidate[:i]), want)
+	}
+	return false
+}
+
+// lookupCollectionPersonMeta finds avatar/cover/summary for a person name in collection_records.
+// Prefers records that look like people (have avatar/biography, no play_url).
+func (s *SQLContentStore) lookupCollectionPersonMeta(ctx context.Context, name string) collectionPersonMeta {
+	var out collectionPersonMeta
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return out
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT payload FROM collection_records
+		WHERE payload LIKE $1
+		ORDER BY updated_at DESC
+		LIMIT 80`, "%"+name+"%")
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+
+	type scored struct {
+		meta  collectionPersonMeta
+		score int
+	}
+	best := scored{}
+	for rows.Next() {
+		var payloadStr string
+		if err := rows.Scan(&payloadStr); err != nil {
+			continue
+		}
+		var v map[string]string
+		if err := json.Unmarshal([]byte(payloadStr), &v); err != nil || v == nil {
+			continue
+		}
+		recordName := firstNonEmptyString(v["name"], v["title"])
+		matched := wikiNameMatches(recordName, name) || wikiNameMatches(v["original_name"], name)
+		if !matched && v["aliases"] != "" {
+			for _, a := range strings.Split(v["aliases"], "\n") {
+				if wikiNameMatches(a, name) {
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			continue
+		}
+		// Skip video-shaped payloads; person covers live on person/record targets.
+		if strings.TrimSpace(v["play_url"]) != "" || strings.TrimSpace(v["vod_play_url"]) != "" {
+			continue
+		}
+		meta := collectionPersonMeta{
+			Cover:        firstNonEmptyString(v["avatar"], v["cover"], v["picture"], v["profile_path"], v["vod_pic"]),
+			Summary:      firstNonEmptyString(v["biography"], v["overview"], v["summary"], v["content"]),
+			OriginalName: strings.TrimSpace(v["original_name"]),
+		}
+		score := 0
+		if meta.Cover != "" {
+			score += 2
+		}
+		if meta.Summary != "" {
+			score++
+		}
+		if v["avatar"] != "" || v["biography"] != "" || v["role_type"] != "" {
+			score += 2
+		}
+		if score > best.score {
+			best = scored{meta: meta, score: score}
+		}
+		if best.score >= 4 && best.meta.Cover != "" {
+			break
+		}
+	}
+	return best.meta
+}
+
+// fillWikiSubjectGaps writes only empty fields from incoming values; never overwrites editors.
+func (s *SQLContentStore) fillWikiSubjectGaps(ctx context.Context, sub *WikiSubject, cover, summary, originalName string) error {
+	if sub == nil || sub.ID <= 0 {
+		return nil
+	}
+	changed := false
+	if strings.TrimSpace(sub.CoverImage) == "" && strings.TrimSpace(cover) != "" {
+		sub.CoverImage = strings.TrimSpace(cover)
+		changed = true
+	}
+	if strings.TrimSpace(sub.Summary) == "" && strings.TrimSpace(summary) != "" {
+		sub.Summary = strings.TrimSpace(summary)
+		changed = true
+	}
+	if strings.TrimSpace(sub.OriginalName) == "" && strings.TrimSpace(originalName) != "" {
+		sub.OriginalName = strings.TrimSpace(originalName)
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return s.UpdateWikiSubject(ctx, sub)
+}
+
+// SyncVideoToWikiSubject 智能桥接：从已有视频冷启动生成对应 Wiki 作品条目与演职员关系网。
+// 作品封面/简介来自 videos；人物空封面优先回填 collection_records 里同名影人的 avatar/cover。
+// 已有非空 Wiki 字段（含管理员编辑）不会被覆盖。
 func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID int) (*WikiSubject, error) {
 	var v VideoRecord
 	query := `SELECT id, COALESCE(subject_id, 0), name, sub_name, type_id, type_name, picture, actor, director, area, language, year, remarks, content
@@ -658,7 +790,7 @@ func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID in
 		return nil, err
 	}
 
-	// 2. 提取演员并建立关系
+	// 2. 提取演员并建立关系；空人物字段回填采集库同名影人封面/简介
 	splitTokens := func(s string) []string {
 		f := func(c rune) bool {
 			return c == ',' || c == '/' || c == '、' || c == '|' || c == ';' || c == '，'
@@ -682,11 +814,21 @@ func (s *SQLContentStore) SyncVideoToWikiSubject(ctx context.Context, videoID in
 			if err != nil {
 				return nil, err
 			}
+			meta := s.lookupCollectionPersonMeta(ctx, name)
 			if person == nil {
-				person = &WikiSubject{Name: name, Type: "person", SubType: credit.relationType}
+				person = &WikiSubject{
+					Name:         name,
+					Type:         "person",
+					SubType:      credit.relationType,
+					CoverImage:   meta.Cover,
+					Summary:      meta.Summary,
+					OriginalName: meta.OriginalName,
+				}
 				if _, err := s.CreateWikiSubject(ctx, person); err != nil {
 					return nil, err
 				}
+			} else if err := s.fillWikiSubjectGaps(ctx, person, meta.Cover, meta.Summary, meta.OriginalName); err != nil {
+				return nil, err
 			}
 			if _, err := s.CreateWikiRelation(ctx, &WikiRelation{
 				SourceID: subject.ID, TargetID: person.ID, RelationType: credit.relationType,

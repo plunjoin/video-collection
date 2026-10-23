@@ -369,3 +369,130 @@ func TestWikiCastIncludesPersonRelationsAndExcludesUnrelatedSubjects(t *testing.
 		t.Fatalf("unexpected cast filter/order: %+v", cast)
 	}
 }
+
+
+func TestSyncVideoToWikiFillsPersonCoverFromCollection(t *testing.T) {
+	ctx := context.Background()
+	s := newTestSQLiteStore(t)
+
+	_, err := s.SaveCollectionRecord(ctx, CollectionRecord{
+		SourceID: "person_src",
+		Target:   "record",
+		Key:      "actor_zhangyi",
+		Values: map[string]string{
+			"name":      "张译",
+			"avatar":    "https://cdn.example.com/zhangyi.jpg",
+			"biography": "实力派演员",
+			"role_type": "actor",
+		},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vid, err := s.UpsertVideo(ctx, "vod_src", &collector.CleanedVod{
+		Name:    "狂飙采集对接",
+		Picture: "https://cdn.example.com/work.jpg",
+		Actor:   "张译,李一桐",
+		Content: "扫黑除恶",
+	})
+	if err != nil || vid <= 0 {
+		t.Fatalf("UpsertVideo: %v id=%d", err, vid)
+	}
+
+	// UpsertVideo auto-syncs; cast must expose collection avatar.
+	cast, err := s.ListWikiCastForVideo(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cast) < 2 {
+		t.Fatalf("expected cast members, got %+v", cast)
+	}
+	var zhangyi *WikiCastMember
+	for i := range cast {
+		if cast[i].Name == "张译" {
+			zhangyi = &cast[i]
+			break
+		}
+	}
+	if zhangyi == nil {
+		t.Fatalf("missing 张译 in cast: %+v", cast)
+	}
+	if zhangyi.CoverImage != "https://cdn.example.com/zhangyi.jpg" {
+		t.Fatalf("expected collection avatar on cast card, got %q", zhangyi.CoverImage)
+	}
+	if zhangyi.Summary != "实力派演员" {
+		t.Fatalf("expected biography summary, got %q", zhangyi.Summary)
+	}
+
+	work, err := s.GetWikiSubjectByName(ctx, "狂飙采集对接")
+	if err != nil || work == nil || work.CoverImage != "https://cdn.example.com/work.jpg" {
+		t.Fatalf("work cover not wired: %+v err=%v", work, err)
+	}
+}
+
+func TestRectifyPersonToWikiDoesNotOverwriteEditedCover(t *testing.T) {
+	ctx := context.Background()
+	s := newTestSQLiteStore(t)
+
+	person := &WikiSubject{Name: "简秀吉", Type: "person", SubType: "actor", CoverImage: "https://admin.example/cover.jpg", Summary: "管理员简介"}
+	if _, err := s.CreateWikiSubject(ctx, person); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.SaveCollectionRecord(ctx, CollectionRecord{
+		SourceID: "p", Target: "record", Key: "k1",
+		Values: map[string]string{"name": "简秀吉", "avatar": "https://collect.example/new.jpg", "biography": "采集简介"},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.RectifyCollectionRecordToWiki(ctx, "p", "record", "k1", WikiSubject{
+		Name: "简秀吉", Type: "person", SubType: "actor",
+		CoverImage: "https://collect.example/new.jpg", Summary: "采集简介",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.CoverImage != "https://admin.example/cover.jpg" || out.Summary != "管理员简介" {
+		t.Fatalf("rectify overwrote edited fields: %+v", out)
+	}
+}
+
+func TestRectifyVideoWiresWikiCast(t *testing.T) {
+	ctx := context.Background()
+	s := newTestSQLiteStore(t)
+	_, err := s.SaveCollectionRecord(ctx, CollectionRecord{
+		SourceID: "vsrc", Target: "record", Key: "geats",
+		Values: map[string]string{
+			"name": "假面骑士极狐对接", "title": "假面骑士极狐对接",
+			"cover": "https://cdn.example.com/geats.jpg",
+			"actor": "简秀吉", "play_url": "https://cdn.example.com/1.m3u8", "play_from": "m3u8",
+		},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.SaveCollectionRecord(ctx, CollectionRecord{
+		SourceID: "psrc", Target: "record", Key: "actor_kaneshiro",
+		Values: map[string]string{"name": "简秀吉", "avatar": "https://cdn.example.com/kaneshiro.jpg", "biography": "主演"},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vod := &collector.CleanedVod{
+		Name: "假面骑士极狐对接", Picture: "https://cdn.example.com/geats.jpg",
+		Actor: "简秀吉", PlayGroups: []collector.PlayGroup{{PlayerCode: "m3u8", Episodes: []collector.Episode{{Name: "01", URL: "https://cdn.example.com/1.m3u8"}}}},
+	}
+	vid, err := s.RectifyCollectionRecordToVideo(ctx, "vsrc", "record", "geats", vod)
+	if err != nil || vid <= 0 {
+		t.Fatalf("rectify video: %v id=%d", err, vid)
+	}
+	cast, err := s.ListWikiCastForVideo(ctx, vid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cast) != 1 || cast[0].Name != "简秀吉" || cast[0].CoverImage != "https://cdn.example.com/kaneshiro.jpg" {
+		t.Fatalf("expected wired cast with cover: %+v", cast)
+	}
+}

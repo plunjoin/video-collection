@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -318,19 +319,58 @@ func (s *SQLContentStore) RectifyCollectionRecordToWiki(ctx context.Context, sou
 	}
 	var subID int
 	if subject.ID > 0 {
+		// Explicit ID: admin-provided full update of that subject.
 		if err := s.UpdateWikiSubject(ctx, &subject); err != nil {
 			return nil, err
 		}
 		subID = subject.ID
 	} else {
-		// 检查同名词条
+		// Name match: fill empty fields only — never wipe editor-owned cover/summary.
 		existing, err := s.GetWikiSubjectByName(ctx, subject.Name)
-		if err == nil && existing != nil {
-			subject.ID = existing.ID
-			if err := s.UpdateWikiSubject(ctx, &subject); err != nil {
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			merged := *existing
+			if strings.TrimSpace(merged.OriginalName) == "" && strings.TrimSpace(subject.OriginalName) != "" {
+				merged.OriginalName = subject.OriginalName
+			}
+			if strings.TrimSpace(merged.Summary) == "" && strings.TrimSpace(subject.Summary) != "" {
+				merged.Summary = subject.Summary
+			}
+			if strings.TrimSpace(merged.CoverImage) == "" && strings.TrimSpace(subject.CoverImage) != "" {
+				merged.CoverImage = subject.CoverImage
+			}
+			if strings.TrimSpace(merged.SubType) == "" && strings.TrimSpace(subject.SubType) != "" {
+				merged.SubType = subject.SubType
+			}
+			if merged.Infobox == nil {
+				merged.Infobox = map[string]any{}
+			}
+			for k, val := range subject.Infobox {
+				existingVal := merged.Infobox[k]
+				if (existingVal == nil || strings.TrimSpace(fmt.Sprint(existingVal)) == "") && val != nil && strings.TrimSpace(fmt.Sprint(val)) != "" {
+					merged.Infobox[k] = val
+				}
+			}
+			if len(subject.Aliases) > 0 {
+				seen := map[string]bool{}
+				for _, a := range merged.Aliases {
+					seen[strings.TrimSpace(a)] = true
+				}
+				for _, a := range subject.Aliases {
+					a = strings.TrimSpace(a)
+					if a != "" && !seen[a] {
+						merged.Aliases = append(merged.Aliases, a)
+						seen[a] = true
+					}
+				}
+			}
+			if err := s.UpdateWikiSubject(ctx, &merged); err != nil {
 				return nil, err
 			}
-			subID = existing.ID
+			subject = merged
+			subID = merged.ID
 		} else {
 			id, err := s.CreateWikiSubject(ctx, &subject)
 			if err != nil {
@@ -406,6 +446,11 @@ func (s *SQLContentStore) RectifyCollectionRecordToVideo(ctx context.Context, so
 	nowStr := now.Format(time.RFC3339Nano)
 	_, _ = s.db.ExecContext(ctx, `UPDATE collection_records SET content_id=$1, updated_at=$2 WHERE source_id=$3 AND target=$4 AND record_key=$5`,
 		vid, nowStr, sourceID, target, key)
+
+	// Wire collected video picture/actor/director into editable Wiki (gap-fill only).
+	if _, syncErr := s.SyncVideoToWikiSubject(ctx, vid); syncErr != nil {
+		log.Printf("wiki auto-sync after rectify video %d: %v", vid, syncErr)
+	}
 
 	return vid, nil
 }

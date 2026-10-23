@@ -785,7 +785,13 @@ func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *c
 			vod.Actor, vod.Director, vod.Area, vod.Language, vod.Year,
 			vod.Remarks, vod.Content, sourceID, recordTime, recordTime, string(newGroupsJSON),
 		).Scan(&videoID)
-		return videoID, err
+		if err != nil {
+			return 0, err
+		}
+		if _, syncErr := s.SyncVideoToWikiSubject(ctx, videoID); syncErr != nil {
+			log.Printf("wiki auto-sync after UpsertVideo %d: %v", videoID, syncErr)
+		}
+		return videoID, nil
 	} else if err != nil {
 		return 0, err
 	}
@@ -894,21 +900,32 @@ func (s *PostgresStore) UpsertVideo(ctx context.Context, sourceID string, vod *c
 		UPDATE videos SET
 			sub_name = CASE WHEN $1 != '' THEN $1 ELSE sub_name END,
 			picture = CASE WHEN $2 != '' THEN $2 ELSE picture END,
-			remarks = CASE WHEN $3 != '' THEN $3 ELSE remarks END,
-			content = CASE WHEN $4 != '' THEN $4 ELSE content END,
-			type_id = CASE WHEN $5 > 0 THEN $5 ELSE type_id END,
-			type_name = CASE WHEN $6 != '' THEN $6 ELSE type_name END,
-			source_id = $7,
-			play_groups = $8::jsonb,
-			updated_at = $9
-		WHERE id = $10
+			actor = CASE WHEN $3 != '' THEN $3 ELSE actor END,
+			director = CASE WHEN $4 != '' THEN $4 ELSE director END,
+			area = CASE WHEN $5 != '' THEN $5 ELSE area END,
+			language = CASE WHEN $6 != '' THEN $6 ELSE language END,
+			year = CASE WHEN $7 != '' THEN $7 ELSE year END,
+			remarks = CASE WHEN $8 != '' THEN $8 ELSE remarks END,
+			content = CASE WHEN $9 != '' THEN $9 ELSE content END,
+			type_id = CASE WHEN $10 > 0 THEN $10 ELSE type_id END,
+			type_name = CASE WHEN $11 != '' THEN $11 ELSE type_name END,
+			source_id = $12,
+			play_groups = $13::jsonb,
+			updated_at = $14
+		WHERE id = $15
 	`
 	_, err = s.db.ExecContext(ctx, updateSQL,
-		vod.SubName, vod.Picture, vod.Remarks, vod.Content,
-		vod.TargetTypeID, vod.TargetTypeName, newSourceID,
+		vod.SubName, vod.Picture, vod.Actor, vod.Director, vod.Area, vod.Language, vod.Year,
+		vod.Remarks, vod.Content, vod.TargetTypeID, vod.TargetTypeName, newSourceID,
 		string(mergedBytes), recordTime, videoID,
 	)
-	return videoID, err
+	if err != nil {
+		return 0, err
+	}
+	if _, syncErr := s.SyncVideoToWikiSubject(ctx, videoID); syncErr != nil {
+		log.Printf("wiki auto-sync after UpsertVideo %d: %v", videoID, syncErr)
+	}
+	return videoID, nil
 }
 
 // QueryVideos 视频多维检索 (支持树形级联分类展开)
