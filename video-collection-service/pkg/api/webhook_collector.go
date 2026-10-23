@@ -246,13 +246,14 @@ func mapCollectorItem(it collectorWebhookItem, requireTitle bool) (key string, v
 		also = string(it.AlsoReportedBy)
 	}
 
+	// Omit status so business-type field defaults apply; payload may still
+	// set status via the raw-field merge below (draft|published).
 	values = map[string]string{
 		"title":            title,
 		"content":          content,
 		"summary":          summary,
 		"cover":            firstRemoteImageURL(it.Images),
 		"category":         category,
-		"status":           "draft",
 		"url":              strings.TrimSpace(it.URL),
 		"source":           src,
 		"source_name":      strings.TrimSpace(it.SourceName),

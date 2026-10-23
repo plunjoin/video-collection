@@ -53,8 +53,10 @@ func (s *SQLContentStore) GetCollectionRecord(ctx context.Context, source, targe
 	return r, nil
 }
 
-// Article and provenance are committed together. Reimports update drafts only;
-// a published/hidden editorial decision is never silently overwritten.
+// Article and provenance are committed together. Reimports update matching
+// news by collection key (including already-published rows). Status follows
+// mapped values after business-field defaults: draft→published is allowed;
+// published→draft only when values explicitly set draft.
 func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r CollectionRecord, skip bool) (bool, error) {
 	if r.SourceID == "" || r.Key == "" {
 		return false, fmt.Errorf("记录缺少来源或唯一标识")
@@ -91,15 +93,14 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 		}
 	}
 	if b.Writer == "article" {
+		existingStatus := ""
 		if id > 0 {
-			var status string
-			err = tx.QueryRowContext(ctx, `SELECT status FROM content_entries WHERE id=$1 AND kind='news'`, id).Scan(&status)
+			err = tx.QueryRowContext(ctx, `SELECT status FROM content_entries WHERE id=$1 AND kind='news'`, id).Scan(&existingStatus)
 			if errors.Is(err, sql.ErrNoRows) {
 				id = 0
+				existingStatus = ""
 			} else if err != nil {
 				return false, err
-			} else if status != "draft" {
-				return false, nil
 			}
 		}
 		now := time.Now().UTC()
@@ -112,9 +113,14 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 				summary = string(runes)
 			}
 		}
-		initialStatus := "draft"
+		articleStatus := existingStatus
+		if articleStatus == "" {
+			articleStatus = "draft"
+		}
 		if s, ok := r.Values["status"]; ok && (s == "published" || s == "draft") {
-			initialStatus = s
+			// After ApplyBusinessDefaults, omitted status becomes the field default
+			// (published for article). Explicit draft is required to demote.
+			articleStatus = s
 		}
 		sourceURL := strings.TrimSpace(r.Values["url"])
 		sourceName := strings.TrimSpace(r.Values["source_name"])
@@ -135,9 +141,9 @@ func (s *SQLContentStore) SaveCollectionRecord(ctx context.Context, r Collection
 			if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE role IN ('admin','super_admin') AND status=1 ORDER BY id LIMIT 1`).Scan(&author); err != nil {
 				return false, fmt.Errorf("没有可用的管理员作为文章作者")
 			}
-			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, initialStatus, createdAt, now).Scan(&id)
+			err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,created_at,updated_at) VALUES ('news',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`, author, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, articleStatus, createdAt, now).Scan(&id)
 		} else {
-			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,updated_at=$9,created_at=COALESCE($10,created_at) WHERE id=$11 AND status='draft'`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, now, sql.NullTime{Time: publishedTime, Valid: validPublishedTime}, id)
+			_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,status=$9,updated_at=$10,created_at=COALESCE($11,created_at) WHERE id=$12`, r.Values["title"], summary, r.Values["content"], r.Values["cover"], r.Values["category"], sourceURL, sourceName, publishedAt, articleStatus, now, sql.NullTime{Time: publishedTime, Valid: validPublishedTime}, id)
 		}
 		if err != nil {
 			return false, err

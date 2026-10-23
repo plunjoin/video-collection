@@ -30,6 +30,53 @@ func TestValidateBusinessValuesEnum(t *testing.T) {
 	}
 }
 
+func TestApplyBusinessDefaults(t *testing.T) {
+	b := &BusinessType{Fields: []BusinessTypeField{
+		{Name: "status", DataType: "enum", Default: "published", Options: []string{"draft", "published"}},
+		{Name: "category", DataType: "text", Default: "资讯"},
+		{Name: "title", DataType: "text"},
+	}}
+	values := map[string]string{"title": "Hello", "status": "  "}
+	ApplyBusinessDefaults(b, values)
+	if values["status"] != "published" || values["category"] != "资讯" || values["title"] != "Hello" {
+		t.Fatalf("defaults not applied: %#v", values)
+	}
+	values["status"] = "draft"
+	ApplyBusinessDefaults(b, values)
+	if values["status"] != "draft" {
+		t.Fatalf("explicit value overwritten: %#v", values)
+	}
+	if _, err := ValidateBusinessValues(b, map[string]string{"title": "x"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestArticleStatusFieldSeedDefault(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "article-status.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	b, err := s.GetBusinessType(ctx, "article")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status *BusinessTypeField
+	for i := range b.Fields {
+		if b.Fields[i].Name == "status" {
+			status = &b.Fields[i]
+			break
+		}
+	}
+	if status == nil || status.DataType != "enum" || status.Default != "published" {
+		t.Fatalf("status field: %+v", status)
+	}
+	if !businessEnumOption(status.Options, "draft") || !businessEnumOption(status.Options, "published") {
+		t.Fatalf("status options: %v", status.Options)
+	}
+}
+
 func TestBusinessRowSystemTimeFilters(t *testing.T) {
 	// System time bounds work without schema fields, and even SQL-like input
 	// remains a string argument rather than becoming part of the query.
