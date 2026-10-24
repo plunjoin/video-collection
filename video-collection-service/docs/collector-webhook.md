@@ -10,7 +10,7 @@ POST /api/webhooks/collector
   → 读取使魔节点配置（密钥、启用、过期）
   → HMAC 验签（原始 body）
   → SaveCollectionRecord(target=article, source_id=<collector>)
-  → content_entries (kind=news, 默认 draft)
+  → content_entries (kind=news；status 取自业务类型字段默认值，默认 published)
   → 管理端「资讯管理」/ GET /api/admin/news 、公开 GET /api/news（仅 published）
 ```
 
@@ -33,7 +33,7 @@ POST /api/webhooks/collector
 | `source_url` | `url`（原文链接，写入 `content_entries.source_url`） |
 | `source_name` | `source_name`，否则 `source_label`，否则 `source` |
 | `published_at` | `published_at`（原文发布时间，原样字符串） |
-| `status` | 固定 `draft`（与其它采集器一致；已发布条目不会被覆盖） |
+| `status` | 省略时用业务类型 `article.status` 字段默认值（内置为 `published`）；payload 可显式传 `draft`/`published`。同 key 再推会更新已发布稿（标题/摘要/正文/封面/分类/来源/发布时间/状态） |
 
 管理后台「资讯管理」列表与编辑弹窗会展示来源、原文链接与发布时间；完整溯源仍在 `collection_records.payload`。
 

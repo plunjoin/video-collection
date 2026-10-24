@@ -115,7 +115,7 @@ func TestCollectorWebhookIngestsIntoNewsPipeline(t *testing.T) {
 	if err != nil || article == nil {
 		t.Fatalf("news: %v", err)
 	}
-	if article.Title != "《PSYREN》英语配音" || article.Status != "draft" || article.Category != "动画" {
+	if article.Title != "《PSYREN》英语配音" || article.Status != "published" || article.Category != "动画" {
 		t.Fatalf("article=%+v", article)
 	}
 	if article.Cover != "https://cdn.example.com/psyren.jpg" {
@@ -334,5 +334,72 @@ func TestMapCollectorItemSourceLabelAlreadyPrefixed(t *testing.T) {
 	want := "来源：MyAnimeList News\n原文：https://myanimelist.net/news/100\n\nTitle Only"
 	if values["content"] != want {
 		t.Fatalf("content=%q want=%q", values["content"], want)
+	}
+}
+
+func TestCollectorWebhookStatusFromFieldDefaultAndPayload(t *testing.T) {
+	secret := "status-secret"
+	t.Setenv("ACG_WEBHOOK_SECRET", secret)
+	t.Setenv("COLLECTOR_WEBHOOK_SECRET", "")
+	s, mux := newWebhookMux(t)
+	saveWebhookSource(t, s, "acg-news", "", "", true)
+
+	body := []byte(`[{"id":1,"source":"crunchyroll","title_zh":"默认发布","summary_zh":"正文","url":"https://example.com/1","published_at":"2026-10-18T13:00:00Z"}]`)
+	w := postCollector(mux, body, secret, nil)
+	if w.Code != 200 {
+		t.Fatalf("default status: %d %s", w.Code, w.Body.String())
+	}
+	pubID := contentIDByKey(t, s, "acg-news", "crunchyroll:1")
+	article, err := s.GetContent(context.Background(), "news", pubID, 0, true)
+	if err != nil || article.Status != "published" {
+		t.Fatalf("want published got %+v %v", article, err)
+	}
+
+	bodyDraft := []byte(`[{"id":2,"source":"crunchyroll","title_zh":"显式草稿","summary_zh":"正文","status":"draft"}]`)
+	w = postCollector(mux, bodyDraft, secret, nil)
+	if w.Code != 200 {
+		t.Fatalf("explicit draft: %d %s", w.Code, w.Body.String())
+	}
+	draftID := contentIDByKey(t, s, "acg-news", "crunchyroll:2")
+	article, err = s.GetContent(context.Background(), "news", draftID, 0, true)
+	if err != nil || article.Status != "draft" {
+		t.Fatalf("want draft got %+v %v", article, err)
+	}
+
+	bodyUpdate := []byte(`[{"id":1,"source":"crunchyroll","title_zh":"标题已更新","summary_zh":"正文","published_at":"2026-10-19T13:00:00Z"}]`)
+	w = postCollector(mux, bodyUpdate, secret, nil)
+	if w.Code != 200 {
+		t.Fatalf("republish update: %d %s", w.Code, w.Body.String())
+	}
+	article, err = s.GetContent(context.Background(), "news", pubID, 0, true)
+	if err != nil || article.Title != "标题已更新" || article.Status != "published" || article.PublishedAt != "2026-10-19T13:00:00Z" {
+		t.Fatalf("published re-push: %+v %v", article, err)
+	}
+}
+
+func contentIDByKey(t *testing.T, s *store.SQLiteStore, sourceID, key string) int {
+	t.Helper()
+	rows, _, err := s.ListCollectionRecords(context.Background(), sourceID, 1, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.Key == key {
+			return row.ContentID
+		}
+	}
+	t.Fatalf("missing key %s", key)
+	return 0
+}
+
+func TestMapCollectorItemOmitsStatus(t *testing.T) {
+	summary := "s"
+	it := collectorWebhookItem{ID: json.RawMessage(`"1"`), TitleOriginal: "t", SummaryZh: &summary}
+	_, values, err := mapCollectorItemToArticle(it)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := values["status"]; ok {
+		t.Fatalf("status should be omitted for field defaults, got %q", values["status"])
 	}
 }
