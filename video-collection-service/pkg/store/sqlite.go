@@ -31,6 +31,11 @@ type SQLiteStore struct {
 // 编译期断言：SQLiteStore 实现数据库管理接口
 var _ DBAdmin = (*SQLiteStore)(nil)
 
+// DB 返回底层的*sql.DB(用于需要直接访问数据库的场景)
+func (s *SQLiteStore) DB() *sql.DB {
+	return s.db
+}
+
 // NewSQLiteStore 初始化 SQLite 存储
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	dir := filepath.Dir(dbPath)
@@ -195,6 +200,35 @@ func (s *SQLiteStore) initSchema() error {
 		UNIQUE(user_id, video_id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_user_fav_uid ON user_favorites(user_id, created_at DESC);
+
+	CREATE TABLE IF NOT EXISTS watch_rooms (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		code TEXT UNIQUE NOT NULL,
+		host_user_id INTEGER NOT NULL,
+		video_id INTEGER NOT NULL,
+		route_index INTEGER NOT NULL DEFAULT 0,
+		episode_index INTEGER NOT NULL DEFAULT 0,
+		status TEXT NOT NULL DEFAULT 'active',
+		max_participants INTEGER NOT NULL DEFAULT 6,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_code ON watch_rooms(code);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_host ON watch_rooms(host_user_id);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_status ON watch_rooms(status);
+
+	CREATE TABLE IF NOT EXISTS watch_participants (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		room_id INTEGER NOT NULL,
+		user_id INTEGER NOT NULL,
+		username TEXT NOT NULL,
+		nickname TEXT NOT NULL DEFAULT '',
+		role TEXT NOT NULL DEFAULT 'member',
+		joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		left_at DATETIME
+	);
+	CREATE INDEX IF NOT EXISTS idx_watch_participants_room ON watch_participants(room_id);
+	CREATE INDEX IF NOT EXISTS idx_watch_participants_user ON watch_participants(user_id);
 	`
 	if err := execScript(s.db, schema); err != nil {
 		return err

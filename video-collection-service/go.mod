@@ -14,7 +14,10 @@ require (
 	modernc.org/sqlite v1.59.0
 )
 
-require github.com/tilinna/clock v1.0.2 // indirect
+require (
+	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/tilinna/clock v1.0.2 // indirect
+)
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
