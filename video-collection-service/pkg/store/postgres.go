@@ -33,6 +33,11 @@ type PostgresStore struct {
 // 编译期断言：PostgresStore 实现数据库管理接口
 var _ DBAdmin = (*PostgresStore)(nil)
 
+// DB 返回底层的*sql.DB(用于需要直接访问数据库的场景)
+func (s *PostgresStore) DB() *sql.DB {
+	return s.db
+}
+
 // NewPostgresStore 初始化 PostgreSQL 存储并自动创建必要表与索引
 func NewPostgresStore(dsn string) (*PostgresStore, error) {
 	if err := ensureDatabaseExists(dsn); err != nil {
@@ -249,6 +254,36 @@ func (s *PostgresStore) initSchema() error {
 		UNIQUE(user_id, video_id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_user_fav_uid ON user_favorites(user_id, created_at DESC);
+
+	CREATE TABLE IF NOT EXISTS watch_rooms (
+		id SERIAL PRIMARY KEY,
+		code VARCHAR(16) UNIQUE NOT NULL,
+		host_user_id INT NOT NULL,
+		video_id INT NOT NULL,
+		route_index INT NOT NULL DEFAULT 0,
+		episode_index INT NOT NULL DEFAULT 0,
+		status VARCHAR(32) NOT NULL DEFAULT 'active',
+		max_participants INT NOT NULL DEFAULT 6,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		expires_at TIMESTAMPTZ NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_code ON watch_rooms(code);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_host ON watch_rooms(host_user_id);
+	CREATE INDEX IF NOT EXISTS idx_watch_rooms_status ON watch_rooms(status);
+
+	CREATE TABLE IF NOT EXISTS watch_participants (
+		id SERIAL PRIMARY KEY,
+		room_id INT NOT NULL,
+		user_id INT NOT NULL,
+		username VARCHAR(64) NOT NULL,
+		nickname VARCHAR(64) NOT NULL DEFAULT '',
+		role VARCHAR(32) NOT NULL DEFAULT 'member',
+		joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		left_at TIMESTAMPTZ
+	);
+	CREATE INDEX IF NOT EXISTS idx_watch_participants_room ON watch_participants(room_id);
+	CREATE INDEX IF NOT EXISTS idx_watch_participants_user ON watch_participants(user_id);
+	CREATE INDEX IF NOT EXISTS idx_watch_participants_active ON watch_participants(room_id, left_at) WHERE left_at IS NULL;
 	`
 	if err := execScript(s.db, schema); err != nil {
 		return err

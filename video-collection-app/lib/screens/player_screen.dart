@@ -12,13 +12,16 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
+import '../models/watch_together_model.dart';
 import '../services/analytics_tracker.dart';
 import '../services/fullscreen_service.dart';
 import '../services/api_service.dart';
 import '../services/client_playlist_service.dart';
+import '../services/watch_together_service.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_intro.dart';
+import '../widgets/watch_together_widgets.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -26,6 +29,7 @@ import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/danmaku_overlay.dart';
 import '../widgets/episode_selector.dart';
 import '../widgets/video_comments.dart';
+import '../mixins/watch_together_mixin.dart';
 import 'account_screen.dart';
 import 'anime_detail_screen.dart';
 
@@ -54,7 +58,7 @@ class PlayerScreen extends StatefulWidget {
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
+class _PlayerScreenState extends State<PlayerScreen> with WatchTogetherMixin {
   late int _currentGroupIndex;
   late int _currentEpisodeIndex;
   late final AppStateProvider _appState;
@@ -138,6 +142,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _commentTotal = 0;
   List<VideoRecord> _related = [];
 
+  // WatchTogetherMixin 需要的 getter 实现
+  @override
+  Player get player => _player;
+  
+  @override
+  Duration get position => _position;
+  
+  @override
+  bool get isPlaying => _isPlaying;
+  
+  @override
+  double get currentSpeed => _currentSpeed;
+  
+  @override
+  int get currentGroupIndex => _currentGroupIndex;
+  
+  @override
+  int get currentEpisodeIndex => _currentEpisodeIndex;
+  
+  // WatchTogetherMixin 需要的方法实现
+  @override
+  void onSwitchEpisode(int groupIndex, int episodeIndex) {
+    _switchEpisode(groupIndex, episodeIndex);
+  }
+  
+  @override
+  void onShowMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   // 极光超清色彩卷积矩阵 (对比度+10%, 饱和度+15%, 色彩通透)
   static const List<double> _auroraMatrix = [
     1.12,
@@ -190,6 +227,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _loadAndPlayCurrentEpisode();
     unawaited(_loadRelated());
     unawaited(_loadDanmaku());
+    
+    // 初始化 Watch Together
+    initWatchTogether();
+    _initWatchTogetherUser();
+  }
+  
+  // 初始化 Watch Together 用户ID
+  Future<void> _initWatchTogetherUser() async {
+    if (_appState.isLoggedIn && _appState.user != null) {
+      final userId = _appState.user!['id'] as int?;
+      if (userId != null) {
+        WatchTogetherService().setCurrentUserId(userId);
+      }
+    }
   }
 
   Future<void> _loadRelated() async {
@@ -207,6 +258,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    // 清理 Watch Together
+    disposeWatchTogether();
+    
     ++_sourceGeneration;
     unawaited(_pendingPlaylist?.dispose());
     if (!_hasError && _duration > Duration.zero) {
@@ -397,6 +451,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _recordHistory({bool countHit = true}) {
+    // 一起看期间不记录播放历史
+    if (!shouldRecordHistory()) return;
+    
     if (widget.video.playGroups.isEmpty ||
         _currentGroupIndex >= widget.video.playGroups.length) {
       return;
@@ -505,15 +562,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() {
+    // 如果在一起看中且不是房主,阻止操作
+    if (shouldBlockLocalControl()) {
+      onShowMessage('只有房主可以控制播放');
+      return;
+    }
+    
+    // 如果是房主,通过Watch Together发送意图
+    if (isInWatchTogether && isWatchTogetherHost) {
+      if (_isPlaying) {
+        watchTogetherPause();
+      } else {
+        watchTogetherPlay();
+      }
+    }
+    
     if (_isPlaying) _recordHistory(countHit: false);
     _player.playOrPause();
     _resetHideControlsTimer();
   }
 
   void _seekBy(int seconds) {
+    // 如果在一起看中且不是房主,阻止操作
+    if (shouldBlockLocalControl()) {
+      onShowMessage('只有房主可以快进快退');
+      return;
+    }
+    
     var target = _position + Duration(seconds: seconds);
     if (target < Duration.zero) target = Duration.zero;
     if (_duration > Duration.zero && target > _duration) target = _duration;
+    
+    // 如果是房主,通过Watch Together发送意图
+    if (isInWatchTogether && isWatchTogetherHost) {
+      watchTogetherSeek(target);
+    }
+    
     _player.seek(target);
 
     _showQuickSeekFeedback(seconds > 0 ? '+$seconds秒' : '$seconds秒');
@@ -534,6 +618,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _switchEpisode(int groupIndex, int episodeIndex) {
+    // 如果在一起看中且不是房主,阻止操作
+    if (shouldBlockLocalControl()) {
+      onShowMessage('只有房主可以切换剧集');
+      return;
+    }
+    
+    // 如果是房主,通过Watch Together发送意图
+    if (isInWatchTogether && isWatchTogetherHost) {
+      watchTogetherSwitchEpisode(groupIndex, episodeIndex);
+    }
+    
     if (!_hasError && _duration > Duration.zero) {
       _recordHistory(countHit: false);
     }
@@ -577,6 +672,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _setSpeed(double speed) {
+    // 如果在一起看中且不是房主,阻止操作
+    if (shouldBlockLocalControl()) {
+      onShowMessage('只有房主可以调整播放速率');
+      return;
+    }
+    
+    // 如果是房主,通过Watch Together发送意图
+    if (isInWatchTogether && isWatchTogetherHost) {
+      watchTogetherSetRate(speed);
+    }
+    
     setState(() {
       _currentSpeed = speed;
     });
@@ -790,6 +896,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             },
             onHorizontalDragStart: (details) {
               if (_isLocked || _isLongPressSpeeding) return;
+              // 如果在一起看中且不是房主,阻止拖拽
+              if (shouldBlockLocalControl()) {
+                onShowMessage('只有房主可以拖动进度');
+                return;
+              }
               _isDraggingProgress = true;
               _dragTargetSeconds = _position.inSeconds.toDouble();
             },
@@ -815,7 +926,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_isLocked) return;
               if (_isDraggingProgress) {
                 _isDraggingProgress = false;
-                _player.seek(Duration(seconds: _dragTargetSeconds.toInt()));
+                final targetPosition = Duration(seconds: _dragTargetSeconds.toInt());
+                
+                // 如果是房主,通过Watch Together发送意图
+                if (isInWatchTogether && isWatchTogetherHost) {
+                  watchTogetherSeek(targetPosition);
+                }
+                
+                _player.seek(targetPosition);
                 _resetHideControlsTimer();
               }
             },
@@ -2169,6 +2287,178 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   onToggleAspect: _toggleAspectMode,
                 ),
               ),
+              
+              // 一起看房间信息卡片 (如果已在房间中)
+              if (isInWatchTogether && watchRoomInfo != null)
+                Positioned(
+                  top: isCompact ? 50 : 70,
+                  left: 12,
+                  right: 12,
+                  child: WatchRoomInfoWidget(
+                    roomInfo: watchRoomInfo!,
+                    isHost: isWatchTogetherHost,
+                    onLeave: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('离开房间'),
+                          content: const Text('确定要离开一起看房间吗?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('取消'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('离开'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && mounted) {
+                        if (watchRoomInfo != null) {
+                          await WatchTogetherService().leaveRoom(watchRoomInfo!.room.id);
+                        }
+                        await WatchTogetherService().disconnectWebSocket();
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ),
+              
+              // 一起看按钮 (如果未在房间中且已登录)
+              if (!isInWatchTogether && _appState.isLoggedIn)
+                Positioned(
+                  top: isCompact ? 50 : 70,
+                  right: 12,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 创建房间按钮
+                      Material(
+                        color: Colors.purple.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            try {
+                              final room = await WatchTogetherService().createRoom(
+                                videoId: widget.video.id,
+                                routeIndex: _currentGroupIndex,
+                                episodeIndex: _currentEpisodeIndex,
+                              );
+                              
+                              // 加入自己创建的房间
+                              await WatchTogetherService().joinRoom(room.id);
+                              await WatchTogetherService().connectWebSocket(room.id);
+                              
+                              if (mounted) {
+                                setState(() {});
+                                // 显示房间码
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => RoomCreatedDialog(room: room),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                onShowMessage('创建房间失败: $e');
+                              }
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.people_outline,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '创建一起看',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 加入房间按钮
+                      Material(
+                        color: Colors.blue.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            final roomInfo = await showDialog<RoomInfo>(
+                              context: context,
+                              builder: (context) => const JoinWatchRoomDialog(),
+                            );
+                            if (roomInfo != null && mounted) {
+                              try {
+                                await WatchTogetherService().joinRoom(roomInfo.room.id);
+                                await WatchTogetherService().connectWebSocket(roomInfo.room.id);
+                                
+                                // 切换到房间的视频和剧集
+                                if (roomInfo.room.videoId != widget.video.id) {
+                                  onShowMessage('房间视频与当前视频不同,请返回重新进入');
+                                } else if (roomInfo.state.routeIndex != _currentGroupIndex ||
+                                           roomInfo.state.episodeIndex != _currentEpisodeIndex) {
+                                  _switchEpisode(
+                                    roomInfo.state.routeIndex,
+                                    roomInfo.state.episodeIndex,
+                                  );
+                                }
+                                
+                                setState(() {});
+                              } catch (e) {
+                                if (mounted) {
+                                  onShowMessage('加入房间失败: $e');
+                                }
+                              }
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.group_add,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '加入房间',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // 居中主控岛屿
               Center(
@@ -2203,7 +2493,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   isCompact: isCompact,
                   formatDuration: _formatDuration,
                   onSeek: (val) {
-                    _player.seek(Duration(milliseconds: val.toInt()));
+                    // 如果在一起看中且不是房主,阻止操作
+                    if (shouldBlockLocalControl()) {
+                      onShowMessage('只有房主可以拖动进度');
+                      return;
+                    }
+                    
+                    final targetPosition = Duration(milliseconds: val.toInt());
+                    
+                    // 如果是房主,通过Watch Together发送意图
+                    if (isInWatchTogether && isWatchTogetherHost) {
+                      watchTogetherSeek(targetPosition);
+                    }
+                    
+                    _player.seek(targetPosition);
                     _resetHideControlsTimer();
                   },
                   onTogglePlay: _togglePlayPause,

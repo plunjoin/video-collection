@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,6 +22,7 @@ import (
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
 	"video-collection-service/pkg/theme"
+	"video-collection-service/pkg/watch"
 	videoAdmin "video-collection-service/web/admin"
 )
 
@@ -181,6 +183,22 @@ func main() {
 	playerManager := player.NewManager(dbStore, "players")
 	sc := scheduler.NewScheduler(dbStore)
 
+	// 4.5 初始化一起看(Watch Together)服务
+	// 获取底层*sql.DB用于watch.DBStore
+	var rawDB *sql.DB
+	switch s := dbStore.(type) {
+	case interface{ DB() *sql.DB }:
+		rawDB = s.DB()
+	default:
+		log.Printf("[WARN] 无法获取底层sql.DB，一起看功能可能不可用")
+	}
+	var watchService *watch.Service
+	if rawDB != nil {
+		watchStore := watch.NewDBStore(rawDB)
+		watchService = watch.NewService(watchStore)
+		fmt.Println("[OK] 一起看(Watch Together)服务已启动")
+	}
+
 	// 5. 接入 radix (Redis)：启用分布式会话与公开读接口缓存
 	// 配置来源：环境变量 > bootstrap 基础配置（管理后台「基础配置」可维护）
 	// 未配置或连接失败时降级为内存会话 + 无缓存，不影响主流程
@@ -228,6 +246,22 @@ func main() {
 		apiServer.UseCache(cacheClient, 0)
 	}
 	apiServer.RegisterRoutes(mux)
+
+	// (C.1) 一起看(Watch Together) API与WebSocket服务
+	if watchService != nil {
+		watchHandler := watch.NewHandler(watchService, func(r *http.Request) (int, string, string, bool) {
+			user := auth.GetCurrentUser(r, dbStore)
+			if user == nil {
+				return 0, "", "", false
+			}
+			nickname := user.Nickname
+			if nickname == "" {
+				nickname = user.Username
+			}
+			return user.ID, user.Username, nickname, true
+		})
+		watchHandler.RegisterRoutes(mux)
+	}
 
 	// (D) 管理后台 SPA (Go 直接托管，构建产物经 go:embed 随二进制分发)
 	// 注意：需在根路径兜底之前注册，/admin/* 由 SPA history 路由处理
