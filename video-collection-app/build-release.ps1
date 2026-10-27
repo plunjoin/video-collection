@@ -4,15 +4,18 @@
 #   .\build-release.ps1 -Version v1.0.0
 #   .\build-release.ps1 -Target android -Version v1.0.0
 #   .\build-release.ps1 -Target windows -Version v1.0.0
+#   .\build-release.ps1 -SkipSign        # 跳过代码签名 (默认自动签名, 未配置证书时也会跳过)
 
 param(
     [string]$Version = "v1.0.1",
-    [string]$Target = "all"
+    [string]$Target = "all",
+    [switch]$SkipSign
 )
 
 $ErrorActionPreference = "Stop"
 $AppDir = $PSScriptRoot
 $DistDir = Join-Path $AppDir "dist"
+$SignScript = Join-Path $AppDir "scripts\sign-release.ps1"
 New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 
 $ConfigFile = Join-Path $AppDir "env/prod.json"
@@ -38,7 +41,16 @@ if ($Target -eq "all" -or $Target -eq "windows") {
     $winReleaseDir = Join-Path $AppDir "build\windows\x64\runner\Release"
     $winZip = Join-Path $DistDir "bllii_for_windows_${Version}.zip"
     if (Test-Path $winZip) { Remove-Item $winZip -Force }
-    
+
+    # 代码签名: 在打包 zip 之前签好 exe/dll (未配置证书时自动跳过, 详见 installer/SIGNING.md)
+    if (-not $SkipSign -and (Test-Path $SignScript)) {
+        & $SignScript -Path $winReleaseDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[错误] Windows 产物代码签名失败" -ForegroundColor Red
+            exit 1
+        }
+    }
+
     Write-Host "正在压缩 Windows 绿色包为: bllii_for_windows_${Version}.zip ..." -ForegroundColor Cyan
     Compress-Archive -Path "$winReleaseDir\*" -DestinationPath $winZip -Force
     Write-Host "[完成] Windows 绿色包: $winZip" -ForegroundColor Green
@@ -74,6 +86,15 @@ if ($Target -eq "all" -or $Target -eq "windows") {
             Write-Host "正在使用 Inno Setup 编译安装向导 (Setup.exe)..." -ForegroundColor Cyan
             & $iscc /DMyAppVersion="$Version" $issScript
             $setupExe = Join-Path $DistDir "bllii_setup_windows_${Version}.exe"
+
+            # 安装包代码签名 (未配置证书时自动跳过)
+            if (-not $SkipSign -and (Test-Path $SignScript)) {
+                & $SignScript -Path $setupExe
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "[错误] 安装包代码签名失败" -ForegroundColor Red
+                    exit 1
+                }
+            }
             Write-Host "[完成] Windows 安装包: $setupExe" -ForegroundColor Green
         } else {
             Write-Host "[提示] 未检测到 Inno Setup (ISCC.exe)，跳过安装包生成。可通过 winget install JRSoftware.InnoSetup 安装。" -ForegroundColor Yellow

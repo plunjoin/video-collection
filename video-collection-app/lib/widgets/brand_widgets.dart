@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'brand_intro.dart';
 export 'brand_components.dart';
 export 'brand_player_controls.dart';
 
@@ -24,26 +27,258 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
+/// 全局唯一的加载态。整页加载直接复用进入 App 时的那段品牌动画，
+/// 需要塞进小图标位时用 [size] 走同源的环形流光，视觉语言保持一致。
 class BrandLoading extends StatelessWidget {
-  final double size;
-  const BrandLoading({super.key, this.size = 64});
+  /// 小于等于 72 时走环形小尺寸，留空则使用启动动画。
+  final double? size;
+  final String? label;
+
+  const BrandLoading({super.key, this.size, this.label});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '正在加载',
-    liveRegion: true,
-    child: ClipOval(
-      child: Image.asset(
-        MediaQuery.disableAnimationsOf(context)
-            ? 'assets/brand/bllii-symbol.png'
-            : 'assets/brand/bllii-loading.gif',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        excludeFromSemantics: true,
-      ),
-    ),
+  Widget build(BuildContext context) {
+    final compact = size != null && size! <= 72;
+    return Semantics(
+      label: label ?? '正在加载',
+      liveRegion: true,
+      child: compact
+          ? BrandSpinner(size: size!)
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BrandIntro(width: size ?? 260),
+                if (label != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+/// 品牌环形流光：与启动动画同一组渐变，用于按钮内、列表尾部等窄小位置。
+class BrandSpinner extends StatefulWidget {
+  final double size;
+  const BrandSpinner({super.key, this.size = 24});
+
+  @override
+  State<BrandSpinner> createState() => _BrandSpinnerState();
+}
+
+class _BrandSpinnerState extends State<BrandSpinner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1150),
   );
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final track = dark
+        ? Colors.white.withValues(alpha: .12)
+        : AppColors.primary600.withValues(alpha: .10);
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => CustomPaint(
+          painter: _BrandArcPainter(
+            turns: _controller.value,
+            stroke: math.max(1.6, widget.size * .11),
+            trackColor: track,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandArcPainter extends CustomPainter {
+  final double turns;
+  final double stroke;
+  final Color trackColor;
+
+  const _BrandArcPainter({
+    required this.turns,
+    required this.stroke,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide - stroke) / 2;
+    if (radius <= 0) return;
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = trackColor,
+    );
+
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0x004B9FFF),
+          Color(0xFF4B9FFF),
+          Color(0xFF9A83FF),
+          Color(0xFFFF89C7),
+          Color(0x00FF89C7),
+        ],
+        stops: [0.0, .28, .58, .84, 1.0],
+        transform: GradientRotation(-math.pi / 2),
+      ).createShader(rect);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(turns * 2 * math.pi);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 1.55, false, arc);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_BrandArcPainter oldDelegate) =>
+      oldDelegate.turns != turns ||
+      oldDelegate.stroke != stroke ||
+      oldDelegate.trackColor != trackColor;
+}
+
+/// 海报缺图时的兜底：按片名派生一个极浅的品牌色相渐变 + 首字水印。
+/// 分类页大量条目没有封面，用纯灰块会让整面墙塌掉；这里让每个格子
+/// 保留自己的色相和识别度，远看仍是一整片有节奏的浅色版面。
+class BrandPosterFallback extends StatelessWidget {
+  final String title;
+
+  /// 是否显示首字水印。列表里的小缩略图可以不显示。
+  final bool showGlyph;
+
+  /// 强制走深色版本（放在深色底/虚化 hero 上时使用）。
+  final bool? forceDark;
+
+  const BrandPosterFallback({
+    super.key,
+    required this.title,
+    this.showGlyph = true,
+    this.forceDark,
+  });
+
+  static int _seedOf(String value) {
+    var hash = 7;
+    for (final rune in value.runes) {
+      hash = (hash * 31 + rune) & 0x7fffffff;
+    }
+    return hash;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = forceDark ?? Theme.of(context).brightness == Brightness.dark;
+    // 只取蓝→紫一段：粉色留给角标和主按钮，整墙都用粉会让强调色失效
+    final hue = (216 + _seedOf(title) % 56).toDouble();
+    final top = HSLColor.fromAHSL(
+      1,
+      hue,
+      dark ? .26 : .58,
+      dark ? .215 : .945,
+    ).toColor();
+    final bottom = HSLColor.fromAHSL(
+      1,
+      (hue + 18) % 360,
+      dark ? .30 : .50,
+      dark ? .155 : .885,
+    ).toColor();
+    final mark = dark ? Colors.white : const Color(0xFF1F2B42);
+    final trimmed = title.trim();
+    final glyph = trimmed.isEmpty
+        ? ''
+        : String.fromCharCode(trimmed.runes.first);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 120.0;
+        // 宽条（资讯卡片封面）不能按宽度算字号，否则会撑满整个横带
+        final base = constraints.hasBoundedHeight
+            ? math.min(width, constraints.maxHeight)
+            : width;
+        final size = (base * .36).clamp(16.0, 76.0);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [top, bottom],
+            ),
+          ),
+          child: !showGlyph || glyph.isEmpty
+              ? const SizedBox.expand()
+              : Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        glyph,
+                        style: TextStyle(
+                          fontSize: size,
+                          height: 1.05,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: -size * .02,
+                          color: mark.withValues(alpha: dark ? .24 : .21),
+                        ),
+                      ),
+                      if (base > 110) ...[
+                        SizedBox(height: size * .16),
+                        Container(
+                          width: size * .42,
+                          height: 1,
+                          color: mark.withValues(alpha: dark ? .18 : .16),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+        );
+      },
+    );
+  }
 }
 
 class BrandButton extends StatelessWidget {

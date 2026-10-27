@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_controls.dart';
+import '../widgets/brand_widgets.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/update_dialog.dart';
 
@@ -348,14 +349,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    state.latestUpdateInfo != null
-                                        ? (state.latestUpdateInfo!.hasUpdate
-                                            ? '发现新版本 v${state.latestUpdateInfo!.version}'
-                                            : '已是最新版本')
-                                        : '点击检查最新版本',
+                                    state.downloadingUpdate
+                                        ? '正在下载 v${state.latestUpdateInfo?.version ?? ''} ${(state.updateDownloadProgress * 100).toStringAsFixed(0)}%'
+                                        : state.downloadedInstallerPath != null
+                                            ? 'v${state.latestUpdateInfo?.version ?? ''} 安装包已就绪，点击安装'
+                                            : state.latestUpdateInfo != null
+                                                ? (state.latestUpdateInfo!.hasUpdate
+                                                    ? '发现新版本 v${state.latestUpdateInfo!.version}'
+                                                    : '已是最新版本')
+                                                : '点击检查最新版本',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: state.latestUpdateInfo?.hasUpdate == true
+                                      color: state.latestUpdateInfo?.hasUpdate ==
+                                              true
                                           ? Theme.of(context).colorScheme.primary
                                           : Theme.of(context).textTheme.bodySmall?.color,
                                     ),
@@ -364,16 +370,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                             FilledButton.tonal(
-                              onPressed: state.checkingUpdate ? null : _checkUpdate,
-                              child: state.checkingUpdate
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('检查更新'),
+                              onPressed: state.checkingUpdate ||
+                                      state.downloadingUpdate
+                                  ? null
+                                  : (state.downloadedInstallerPath != null
+                                      ? () => state.installUpdate()
+                                      : state.canUpdateWithInstaller
+                                          ? () => state.downloadUpdate()
+                                          : _checkUpdate),
+                              child: state.checkingUpdate ||
+                                      state.downloadingUpdate
+                                  ? const BrandSpinner(size: 14)
+                                  : Text(
+                                      state.downloadedInstallerPath != null
+                                          ? '立即安装'
+                                          : state.canUpdateWithInstaller
+                                              ? '下载更新'
+                                              : '检查更新',
+                                    ),
                             ),
                           ],
                         ),

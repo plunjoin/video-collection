@@ -289,9 +289,7 @@ class _SearchScreenState extends State<SearchScreen> {
             itemCount: _searchResults.length + (_isLoadingMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index >= _searchResults.length) {
-                return const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                );
+                return const Center(child: BrandSpinner(size: 22));
               }
               final video = _searchResults[index];
               return AnimePosterCard(
@@ -335,11 +333,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     if (_isLoadingSuggestions) ...[
                       const SizedBox(width: 8),
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      ),
+                      const BrandSpinner(size: 12),
                     ],
                   ],
                 ),

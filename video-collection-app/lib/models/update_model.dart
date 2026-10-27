@@ -178,6 +178,23 @@ class AppUpdateInfo {
       }
     }
 
+    // Windows 安装包 (setup.exe) 优先级高于绿色 zip 包:
+    // 安装包支持「下载后静默安装」更新, zip 只能解压手动覆盖
+    for (final asset in assets) {
+      if (asset is! Map) continue;
+      final name = asset['name']?.toString().toLowerCase() ?? '';
+      final browserDownloadUrl =
+          asset['browser_download_url']?.toString() ?? '';
+      if (browserDownloadUrl.isEmpty) continue;
+      if (name.endsWith('.exe') &&
+          (name.contains('win') ||
+              name.contains('windows') ||
+              name.contains('setup'))) {
+        platforms['windows'] = browserDownloadUrl;
+        break;
+      }
+    }
+
     final pKey = platform ?? currentPlatformKey();
     String matchedDownloadUrl = htmlUrl;
     if (platforms.containsKey(pKey) && platforms[pKey]!.isNotEmpty) {

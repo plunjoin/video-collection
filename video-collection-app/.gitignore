@@ -51,3 +51,22 @@ app.*.map.json
 /dist/
 env/*.local.json
 
+
+# Bllii Windows installer (WPF project)
+installer/app/BlliiSetup/bin/
+installer/app/BlliiSetup/obj/
+installer/app/BlliiSetup/.build/
+
+# 代码签名材料 (切勿提交到仓库, 详见 installer/SIGNING.md)
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.p8
+*signing-metadata.json
+key.properties
+**/key.properties
+
+# Local UI review screenshots
+ui-review/
+

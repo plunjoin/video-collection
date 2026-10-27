@@ -298,8 +298,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               children: [
                 const Expanded(
-                  child: Text('最新资讯',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    '最新资讯',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => widget.onSwitchTab(3),
@@ -309,103 +311,115 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            height: 250,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _latestNews.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final item = _latestNews[index];
-                final cover = item['cover']?.toString() ?? '';
-                final date = (DateTime.tryParse(
-                          item['published_at']?.toString() ?? '',
-                        ) ??
-                        DateTime.tryParse(item['created_at']?.toString() ?? ''))
-                    ?.toLocal();
-                const placeholder = Center(
-                  child: Icon(Icons.article_outlined,
-                      color: AppColors.primary500),
-                );
-                return SizedBox(
-                  width: 264,
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    elevation: 0,
-                    color: isDark ? AppColors.darkCard : Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(
-                        color: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder,
+            height: 236,
+            // 桌面端横向列表需要拖动 / 滚轮支持，否则鼠标滚不动
+            child: DesktopHorizontalScroll(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _latestNews.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final item = _latestNews[index];
+                  final cover = item['cover']?.toString() ?? '';
+                  final date = (DateTime.tryParse(
+                            item['published_at']?.toString() ?? '',
+                          ) ??
+                          DateTime.tryParse(item['created_at']?.toString() ?? ''))
+                      ?.toLocal();
+                  final title = item['title']?.toString() ?? '';
+                  final placeholder = BrandPosterFallback(title: title);
+                  return SizedBox(
+                    width: 264,
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      elevation: 0,
+                      color: isDark ? AppColors.darkCard : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        side: BorderSide(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder,
+                        ),
                       ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () {
-                        final id = int.tryParse(item['id']?.toString() ?? '') ?? 0;
-                        if (id <= 0) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ContentDetailScreen(
-                              kind: 'news',
-                              contentId: id,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(
-                            height: 96,
-                            child: cover.isEmpty
-                                ? placeholder
-                                : CachedNetworkImage(
-                                    imageUrl: cover,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, _) => placeholder,
-                                    errorWidget: (_, _, _) => placeholder,
-                                  ),
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['title']?.toString() ?? '未命名资讯',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 14, fontWeight: FontWeight.w700),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    item['summary']?.toString() ?? '',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 12, color: muted),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    date == null
-                                        ? ''
-                                        : DateFormat('yyyy/MM/dd').format(date),
-                                    style: TextStyle(fontSize: 10, color: muted),
-                                  ),
-                                ],
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () {
+                          final id =
+                              int.tryParse(item['id']?.toString() ?? '') ?? 0;
+                          if (id <= 0) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ContentDetailScreen(
+                                kind: 'news',
+                                contentId: id,
                               ),
                             ),
-                          ),
-                        ],
+                          );
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              height: 92,
+                              child: cover.isEmpty
+                                  ? placeholder
+                                  : CachedNetworkImage(
+                                      imageUrl: cover,
+                                      fit: BoxFit.cover,
+                                      placeholder: (_, _) => placeholder,
+                                      errorWidget: (_, _, _) => placeholder,
+                                    ),
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['title']?.toString() ?? '未命名资讯',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      item['summary']?.toString() ?? '',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: muted,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      date == null
+                                          ? ''
+                                          : DateFormat(
+                                              'yyyy/MM/dd',
+                                            ).format(date),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],

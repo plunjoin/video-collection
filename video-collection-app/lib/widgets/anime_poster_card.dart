@@ -95,48 +95,15 @@ class _AnimePosterCardState extends State<AnimePosterCard> {
                         child: CachedNetworkImage(
                           imageUrl: widget.video.picture,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: isDark
-                                ? const Color(0xFF1E293B)
-                                : const Color(0xFFE2E8F0),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: BrandLoading(size: 24),
-                              ),
-                            ),
+                          placeholder: (context, url) => Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              BrandPosterFallback(title: widget.video.name),
+                              const Center(child: BrandSpinner(size: 18)),
+                            ],
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: isDark
-                                ? const Color(0xFF1E293B)
-                                : const Color(0xFFE2E8F0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.movie_filter_outlined,
-                                  size: 32,
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.video.name,
-                                  maxLines: 1,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.lightTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          errorWidget: (context, url, error) =>
+                              BrandPosterFallback(title: widget.video.name),
                         ),
                       ),
 
@@ -252,15 +219,15 @@ class AudiencePosterTile extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     if (video.picture.isEmpty)
-                      const ColoredBox(color: Color(0xFFE7EEF8))
+                      BrandPosterFallback(title: video.name)
                     else
                       CachedNetworkImage(
                         imageUrl: video.picture,
                         fit: BoxFit.cover,
                         errorWidget: (_, _, _) =>
-                            const ColoredBox(color: Color(0xFFE7EEF8)),
+                            BrandPosterFallback(title: video.name),
                         placeholder: (_, _) =>
-                            const ColoredBox(color: Color(0xFFE7EEF8)),
+                            BrandPosterFallback(title: video.name),
                       ),
                     if (video.hits > 0)
                       Positioned(

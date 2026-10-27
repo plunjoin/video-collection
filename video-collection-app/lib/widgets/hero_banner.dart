@@ -31,12 +31,16 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
   @override
   Widget build(BuildContext context) {
     final banners = widget.banners;
+    // 更收一点的横幅：手机 200，桌面 268，把首屏空间让给下方内容
+    final height = MediaQuery.sizeOf(context).width < 600 ? 200.0 : 268.0;
+    final short = height < 250;
+    final inset = EdgeInsets.fromLTRB(22, short ? 18 : 26, 22, short ? 16 : 26);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          height: MediaQuery.sizeOf(context).width < 600 ? 260 : 330,
+          height: height,
           child: Stack(
             children: [
               if (banners.isEmpty)
@@ -72,14 +76,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                           imageUrl: video.picture,
                           fit: BoxFit.cover,
                           alignment: const Alignment(0.35, -0.45),
-                          placeholder: (_, url) =>
-                              const ColoredBox(color: Color(0xFFABBFEB)),
-                          errorWidget: (_, url, error) => const ColoredBox(
-                            color: Color(0xFFABBFEB),
-                            child: Center(
-                              child: BrandLogo(width: 110, symbolOnly: true),
-                            ),
-                          ),
+                          placeholder: (_, url) => const _HeroFallback(),
+                          errorWidget: (_, url, error) => const _HeroFallback(),
                         ),
                         const DecoratedBox(
                           decoration: BoxDecoration(
@@ -91,10 +89,10 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                           ),
                         ),
                         Positioned(
-                          left: 23,
-                          right: 24,
-                          top: 26,
-                          bottom: 26,
+                          left: inset.left,
+                          right: inset.right,
+                          top: inset.top,
+                          bottom: inset.bottom,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -106,12 +104,12 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                                   letterSpacing: 2,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              const Text(
+                              SizedBox(height: short ? 6 : 12),
+                              Text(
                                 '在更多的故事里\n遇见更好的你',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 25,
+                                  fontSize: short ? 20 : 25,
                                   fontWeight: FontWeight.w500,
                                   height: 1.4,
                                   letterSpacing: 1,
@@ -130,7 +128,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 9),
+                              SizedBox(height: short ? 6 : 9),
                               BrandButton(
                                 onPressed: () => widget.onPlayTap(video),
                                 label: '立即观看',
@@ -187,4 +185,33 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
       ),
     );
   }
+}
+
+/// 横幅缺图时的底：深色品牌渐变 + 低透明符号。
+/// 上面还要压白字，所以底色必须够深，不能用海报那种浅色兜底。
+class _HeroFallback extends StatelessWidget {
+  const _HeroFallback();
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF333A63), Color(0xFF4E4585), Color(0xFF7B5288)],
+          ),
+        ),
+      ),
+      Align(
+        alignment: const Alignment(.72, -.05),
+        child: Opacity(
+          opacity: .22,
+          child: const BrandLogo(width: 132, symbolOnly: true),
+        ),
+      ),
+    ],
+  );
 }

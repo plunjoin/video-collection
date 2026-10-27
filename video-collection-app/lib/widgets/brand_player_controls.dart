@@ -399,8 +399,9 @@ class _BrandPlayerPillState extends State<BrandPlayerPill> {
   }
 }
 
-/// 播放器居中主控岛屿 (上一集 / 快退10s / 核心流光播放暂停 / 快进10s / 下一集)
-class BrandPlayerCenterDeck extends StatelessWidget {
+/// 播放器居中主控。只保留一颗悬浮播放键，上一集 / 下一集在鼠标悬停时才浮现，
+/// 避免大块磨砂胶囊挡住画面。
+class BrandPlayerCenterDeck extends StatefulWidget {
   final bool isPlaying;
   final VoidCallback onTogglePlay;
   final VoidCallback? onPlayPrev;
@@ -421,98 +422,76 @@ class BrandPlayerCenterDeck extends StatelessWidget {
   });
 
   @override
+  State<BrandPlayerCenterDeck> createState() => _BrandPlayerCenterDeckState();
+}
+
+class _BrandPlayerCenterDeckState extends State<BrandPlayerCenterDeck> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final mainSize = isCompact ? 48.0 : 60.0;
-    final mainIconSize = isCompact ? 26.0 : 32.0;
-    final subSize = isCompact ? 36.0 : 42.0;
-    final subIconSize = isCompact ? 18.0 : 22.0;
-    final outerSize = isCompact ? 32.0 : 36.0;
-    final outerIconSize = isCompact ? 16.0 : 19.0;
-    final gap = isCompact ? 8.0 : 14.0;
+    final compact = widget.isCompact;
+    final mainSize = compact ? 44.0 : 52.0;
+    final mainIconSize = compact ? 24.0 : 28.0;
+    final sideSize = compact ? 30.0 : 34.0;
+    final sideIconSize = compact ? 15.0 : 17.0;
+    final gap = compact ? 8.0 : 12.0;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(mainSize),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 10 : 16,
-            vertical: isCompact ? 6 : 8,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.52),
-            borderRadius: BorderRadius.circular(mainSize),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 0.8,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 上一集
-              BrandPlayerButton(
-                icon: Icons.skip_previous_rounded,
-                onPressed: onPlayPrev,
-                size: outerSize,
-                iconSize: outerIconSize,
-                tooltip: '上一集',
-              ),
-              SizedBox(width: gap),
-
-              // 快退 10s
-              BrandPlayerButton(
-                icon: Icons.replay_10_rounded,
-                onPressed: onSeekBackward,
-                size: subSize,
-                iconSize: subIconSize,
-                tooltip: '快退 10 秒',
-              ),
-              SizedBox(width: gap),
-
-              // 核心播放/暂停按钮 (呈现 bllii 标志性流光与外发光)
-              BrandPlayerButton(
-                icon: isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                onPressed: onTogglePlay,
-                size: mainSize,
-                iconSize: mainIconSize,
-                gradient: AppColors.brandGradient,
-                glow: true,
-                glowColor: AppColors.purple,
-                tooltip: isPlaying ? '暂停 (空格)' : '播放 (空格)',
-              ),
-              SizedBox(width: gap),
-
-              // 快进 10s
-              BrandPlayerButton(
-                icon: Icons.forward_10_rounded,
-                onPressed: onSeekForward,
-                size: subSize,
-                iconSize: subIconSize,
-                tooltip: '快进 10 秒',
-              ),
-              SizedBox(width: gap),
-
-              // 下一集
-              BrandPlayerButton(
-                icon: Icons.skip_next_rounded,
-                onPressed: onPlayNext,
-                size: outerSize,
-                iconSize: outerIconSize,
-                tooltip: '下一集',
-              ),
-            ],
+    Widget side({required IconData icon, required VoidCallback? onTap,
+        required String tip}) {
+      return IgnorePointer(
+        ignoring: !_hovered || onTap == null,
+        child: AnimatedOpacity(
+          opacity: _hovered && onTap != null ? 1 : 0,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          child: BrandPlayerButton(
+            icon: icon,
+            onPressed: onTap,
+            size: sideSize,
+            iconSize: sideIconSize,
+            tooltip: tip,
+            backgroundColor: Colors.black.withValues(alpha: 0.38),
           ),
         ),
+      );
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          side(
+            icon: Icons.skip_previous_rounded,
+            onTap: widget.onPlayPrev,
+            tip: '上一集',
+          ),
+          SizedBox(width: gap),
+          BrandPlayerButton(
+            icon: widget.isPlaying
+                ? Icons.pause_rounded
+                : Icons.play_arrow_rounded,
+            onPressed: widget.onTogglePlay,
+            size: mainSize,
+            iconSize: mainIconSize,
+            gradient: AppColors.brandGradient,
+            glow: true,
+            glowColor: AppColors.purple,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.28),
+              width: 0.8,
+            ),
+            tooltip: widget.isPlaying ? '暂停 (空格)' : '播放 (空格)',
+          ),
+          SizedBox(width: gap),
+          side(
+            icon: Icons.skip_next_rounded,
+            onTap: widget.onPlayNext,
+            tip: '下一集',
+          ),
+        ],
       ),
     );
   }

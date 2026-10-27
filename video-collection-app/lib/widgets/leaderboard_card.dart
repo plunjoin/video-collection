@@ -25,8 +25,13 @@ class LeaderboardCard extends StatelessWidget {
           const SizedBox(width: 10),
           ClipRRect(borderRadius: BorderRadius.circular(10), child: CachedNetworkImage(imageUrl: video.picture,
             width: 62, height: 82, fit: BoxFit.cover,
-            placeholder: (_, url) => const SizedBox(width: 62, height: 82, child: Center(child: BrandLoading(size: 30))),
-            errorWidget: (_, url, error) => const SizedBox(width: 62, height: 82, child: Center(child: BrandLogo(width: 40, symbolOnly: true))))),
+            placeholder: (_, url) => SizedBox(width: 62, height: 82,
+              child: Stack(fit: StackFit.expand, children: [
+                BrandPosterFallback(title: video.name, showGlyph: false),
+                const Center(child: BrandSpinner(size: 18)),
+              ])),
+            errorWidget: (_, url, error) => SizedBox(width: 62, height: 82,
+              child: BrandPosterFallback(title: video.name)))),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(video.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),

@@ -326,6 +326,17 @@ func lockContent(ctx context.Context, tx *sql.Tx, kind string, id int) (int, str
 	return owner, status, err
 }
 
+// lockContentByID 与 lockContent 相同，但不限定 kind：资讯和社区动态共用点赞表。
+func lockContentByID(ctx context.Context, tx *sql.Tx, id int) (int, string, string, error) {
+	var owner int
+	var kind, status string
+	err := tx.QueryRowContext(ctx, "UPDATE content_entries SET id=id WHERE id=$1 RETURNING author_id,kind,status", id).Scan(&owner, &kind, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = ErrContentNotFound
+	}
+	return owner, kind, status, err
+}
+
 func (s *SQLContentStore) SaveContent(ctx context.Context, c *Content, actor int, admin bool) error {
 	if c.Kind == "news" && !admin {
 		return ErrContentForbidden
@@ -498,7 +509,8 @@ func (s *SQLContentStore) SetPostLike(ctx context.Context, postID, userID int, l
 		return 0, err
 	}
 	defer tx.Rollback()
-	owner, status, err := lockContent(ctx, tx, "post", postID)
+	// 不限定 kind：资讯（news）与社区动态（post）共用 community_likes。
+	owner, kind, status, err := lockContentByID(ctx, tx, postID)
 	if err != nil {
 		return 0, err
 	}
@@ -515,7 +527,11 @@ func (s *SQLContentStore) SetPostLike(ctx context.Context, postID, userID int, l
 			return 0, err
 		}
 		if added > 0 && owner != userID {
-			if err = insertNotification(ctx, tx, &Notification{UserID: owner, ActorID: userID, Type: "like", Title: "你的帖子收到新点赞", TargetType: "post", TargetID: postID}); err != nil {
+			title := "你的帖子收到新点赞"
+			if kind == "news" {
+				title = "你的资讯收到新点赞"
+			}
+			if err = insertNotification(ctx, tx, &Notification{UserID: owner, ActorID: userID, Type: "like", Title: title, TargetType: kind, TargetID: postID}); err != nil {
 				return 0, err
 			}
 		}

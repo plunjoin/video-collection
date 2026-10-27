@@ -1,0 +1,358 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+  <!-- ===== 设计令牌（对齐 installer/design/styles.css） ===== -->
+  <SolidColorBrush x:Key="Ink" Color="#353B58" />
+  <SolidColorBrush x:Key="Body" Color="#484E68" />
+  <SolidColorBrush x:Key="Muted" Color="#7D8299" />
+  <SolidColorBrush x:Key="Subtle" Color="#969AAF" />
+  <SolidColorBrush x:Key="Violet" Color="#7061CE" />
+  <SolidColorBrush x:Key="Blue" Color="#4B9FFF" />
+  <SolidColorBrush x:Key="Purple" Color="#9A83FF" />
+  <SolidColorBrush x:Key="Pink" Color="#FF89C7" />
+  <SolidColorBrush x:Key="Hairline" Color="#E9EBF3" />
+  <SolidColorBrush x:Key="HairlineSoft" Color="#F0F0F6" />
+  <SolidColorBrush x:Key="FieldFill" Color="#FCFCFE" />
+  <SolidColorBrush x:Key="CardFill" Color="#F8F7FC" />
+
+  <!-- 品牌三色渐变（115deg） -->
+  <LinearGradientBrush x:Key="BrandGradient" StartPoint="0.12,0" EndPoint="0.88,1">
+    <GradientStop Color="#4B9FFF" Offset="0" />
+    <GradientStop Color="#9A83FF" Offset="0.57" />
+    <GradientStop Color="#FF89C7" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- 主按钮渐变（110deg） -->
+  <LinearGradientBrush x:Key="PrimaryFill" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#586DCC" Offset="0" />
+    <GradientStop Color="#8064C4" Offset="1" />
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="PrimaryFillHover" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#4D61BA" Offset="0" />
+    <GradientStop Color="#7356B7" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- 左侧品牌面板：150deg 冷紫底 + 右上粉色光斑 -->
+  <LinearGradientBrush x:Key="BrandPanelFill" StartPoint="0.06,0" EndPoint="0.94,1">
+    <GradientStop Color="#EDF5FF" Offset="0" />
+    <GradientStop Color="#EEEAFF" Offset="0.75" />
+    <GradientStop Color="#F5EEFA" Offset="1" />
+  </LinearGradientBrush>
+  <RadialGradientBrush x:Key="BrandPanelGlow" GradientOrigin="1,0.36" Center="1,0.36" RadiusX="0.86" RadiusY="0.62">
+    <GradientStop Color="#F7E6F6" Offset="0" />
+    <GradientStop Color="#00F7E6F6" Offset="0.61" />
+  </RadialGradientBrush>
+
+  <RadialGradientBrush x:Key="UninstallPanelGlow" GradientOrigin="0.95,0.32" Center="0.95,0.32" RadiusX="0.9" RadiusY="0.66">
+    <GradientStop Color="#FBE7F2" Offset="0" />
+    <GradientStop Color="#00FBE7F2" Offset="0.65" />
+  </RadialGradientBrush>
+
+  <!-- ===== 文本 ===== -->
+  <Style x:Key="H1" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="27" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+    <Setter Property="LineHeight" Value="37.8" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+    <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+    <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+  </Style>
+
+  <Style x:Key="Desc" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{StaticResource Muted}" />
+    <Setter Property="LineHeight" Value="22.8" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+  </Style>
+
+  <Style x:Key="FieldLabel" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#686D87" />
+  </Style>
+
+  <Style x:Key="Note" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="{StaticResource Subtle}" />
+    <Setter Property="TextAlignment" Value="Center" />
+  </Style>
+
+  <Style x:Key="BrandH2" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="28" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+    <Setter Property="LineHeight" Value="43.4" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+  </Style>
+
+  <Style x:Key="BrandP" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#7C80A1" />
+    <Setter Property="LineHeight" Value="19.8" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+  </Style>
+
+  <!-- ===== 按钮 ===== -->
+  <Style x:Key="PrimaryButton" TargetType="Button">
+    <Setter Property="Height" Value="44" />
+    <Setter Property="Padding" Value="20,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid>
+            <Border x:Name="Fill" CornerRadius="9" Background="{StaticResource PrimaryFill}">
+              <Border.Effect>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="5" Direction="270" Opacity="0.20" Color="#9382E4" />
+              </Border.Effect>
+            </Border>
+            <Border x:Name="FillHover" CornerRadius="9" Background="{StaticResource PrimaryFillHover}" Opacity="0" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="FillHover" Property="Opacity" Value="1" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Property="RenderTransform">
+                <Setter.Value>
+                  <TranslateTransform Y="1" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.55" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="SecondaryButton" TargetType="Button">
+    <Setter Property="Height" Value="44" />
+    <Setter Property="Padding" Value="20,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Fill" CornerRadius="9" Background="White" BorderBrush="{StaticResource Hairline}" BorderThickness="1">
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="#F7F7FB" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter Property="RenderTransform">
+                <Setter.Value>
+                  <TranslateTransform Y="1" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="SoftButton" TargetType="Button">
+    <Setter Property="Height" Value="44" />
+    <Setter Property="Padding" Value="20,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="#776C9C" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Fill" CornerRadius="9" Background="#F8F7FC" BorderBrush="#EFEDF7" BorderThickness="1">
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="#F2F0FA" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="TextButton" TargetType="Button">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#8D87A8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Padding" Value="6,3" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource Violet}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- 标题栏按钮 -->
+  <Style x:Key="CaptionButton" TargetType="Button">
+    <Setter Property="Width" Value="45" />
+    <Setter Property="Height" Value="43" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#7D8299" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Fill" Background="Transparent">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="#F1F2F8" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Fill" Background="Transparent">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fill" Property="Background" Value="#FFE8F0" />
+              <Setter Property="Foreground" Value="#C04664" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ===== 复选框 / 单选框 ===== -->
+  <Style x:Key="CheckOption" TargetType="CheckBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#7C8098" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <StackPanel Orientation="Horizontal" Background="Transparent">
+            <Border x:Name="Box" Width="14" Height="14" CornerRadius="4" BorderThickness="1"
+                    BorderBrush="#D5D7E4" Background="White" VerticalAlignment="Center">
+              <Path x:Name="Tick" Data="M3,7.3 L5.7,10 L11,4.3" Stroke="White" StrokeThickness="1.7"
+                    StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                    Visibility="Collapsed" />
+            </Border>
+            <ContentPresenter Margin="7,0,0,0" VerticalAlignment="Center" />
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Box" Property="Background" Value="#8B7BE3" />
+              <Setter TargetName="Box" Property="BorderBrush" Value="#8B7BE3" />
+              <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="#B3A6E8" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="RadioOption" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Card" CornerRadius="9" BorderThickness="1" BorderBrush="#ECECF4" Background="White" Padding="12,11">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0">
+                <Ellipse x:Name="Ring" Stroke="#D5D7E4" StrokeThickness="1" Fill="White" />
+                <Ellipse x:Name="Dot" Width="6" Height="6" Fill="White" Visibility="Collapsed" />
+              </Grid>
+              <ContentPresenter Grid.Column="1" Margin="10,0,0,0" />
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Card" Property="BorderBrush" Value="#CFC5F1" />
+              <Setter TargetName="Card" Property="Background" Value="#FAF8FF" />
+              <Setter TargetName="Ring" Property="Fill" Value="#8B7BE3" />
+              <Setter TargetName="Ring" Property="Stroke" Value="#8B7BE3" />
+              <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Card" Property="BorderBrush" Value="#DCD4F2" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ===== 输入框 ===== -->
+  <Style x:Key="BareTextBox" TargetType="TextBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#787E96" />
+    <Setter Property="CaretBrush" Value="{StaticResource Violet}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <ScrollViewer x:Name="PART_ContentHost" Focusable="False" HorizontalScrollBarVisibility="Hidden"
+                        VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ===== 进度条 ===== -->
+  <Style x:Key="BrandProgress" TargetType="ProgressBar">
+    <Setter Property="Height" Value="6" />
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="100" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Border x:Name="PART_Track" Background="#F0EDF9" CornerRadius="5">
+            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="5"
+                    Background="{StaticResource BrandGradient}" />
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- 卡片投影 -->
+  <DropShadowEffect x:Key="SoftCardShadow" BlurRadius="26" ShadowDepth="10" Direction="270"
+                    Opacity="0.10" Color="#525A89" />
+
+</ResourceDictionary>

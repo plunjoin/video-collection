@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../models/update_model.dart';
+import '../providers/app_state_provider.dart';
+import '../services/installer_update_service.dart';
 import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import 'brand_controls.dart';
+import 'brand_widgets.dart';
 
 /// 弹出版本更新弹窗
 Future<void> showUpdateDialog(BuildContext context, AppUpdateInfo info) {
@@ -95,6 +99,11 @@ class UpdateDialog extends StatelessWidget {
         ],
       );
     }
+
+    // 桌面端 Windows 且下载链接为 .exe 安装包时, 走「下载 -> 静默安装」流程
+    final installerMode = InstallerUpdateService.canInstallWithInstaller(
+      info.downloadUrl,
+    );
 
     return PopScope(
       canPop: !info.forceUpdate,
@@ -258,6 +267,80 @@ class UpdateDialog extends StatelessWidget {
                 ),
               ),
             ),
+            // 安装包模式: 下载进度 / 状态提示
+            if (installerMode) ...[
+              const SizedBox(height: 12),
+              Builder(
+                builder: (context) {
+                  final state = context.watch<AppStateProvider>();
+                  if (state.downloadingUpdate) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: state.updateDownloadProgress > 0
+                                ? state.updateDownloadProgress
+                                : null,
+                            minHeight: 6,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '正在下载安装包 ${(state.updateDownloadProgress * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: dark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  if (state.downloadedInstallerPath != null) {
+                    return Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 16, color: primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '安装包已下载完成，点击「安装并重启」后将自动完成更新',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: dark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  if (state.updateDownloadError != null) {
+                    return Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            size: 16, color: Colors.redAccent),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            state.updateDownloadError!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
             if (info.publishTime != null && info.publishTime!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Align(
@@ -281,7 +364,7 @@ class UpdateDialog extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('暂不更新'),
             ),
-          if (info.downloadUrl.isNotEmpty) ...[
+          if (info.downloadUrl.isNotEmpty)
             OutlinedButton(
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: info.downloadUrl));
@@ -291,24 +374,64 @@ class UpdateDialog extends StatelessWidget {
               },
               child: const Text('复制链接'),
             ),
-            FilledButton.icon(
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('立即更新'),
-              onPressed: () async {
-                final ok = await UpdateService.launchUpdate(info.downloadUrl);
-                if (!ok && context.mounted) {
-                  Clipboard.setData(ClipboardData(text: info.downloadUrl));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('无法自动唤起浏览器，下载链接已复制')),
+          Builder(
+            builder: (context) {
+              if (!installerMode) {
+                // 移动端 / 非安装包链接: 打开浏览器下载 (保持原行为)
+                if (info.downloadUrl.isEmpty) {
+                  return FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('确定'),
                   );
                 }
-              },
-            ),
-          ] else
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('确定'),
-            ),
+                return FilledButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('立即更新'),
+                  onPressed: () async {
+                    final ok = await UpdateService.launchUpdate(
+                      info.downloadUrl,
+                    );
+                    if (!ok && context.mounted) {
+                      Clipboard.setData(
+                        ClipboardData(text: info.downloadUrl),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('无法自动唤起浏览器，下载链接已复制'),
+                        ),
+                      );
+                    }
+                  },
+                );
+              }
+
+              // 安装包模式: 下载 -> 安装并重启
+              final state = context.watch<AppStateProvider>();
+              if (state.downloadingUpdate) {
+                return FilledButton.icon(
+                  icon: const BrandSpinner(size: 16),
+                  label: Text(
+                    '下载中 ${(state.updateDownloadProgress * 100).toStringAsFixed(0)}%',
+                  ),
+                  onPressed: null,
+                );
+              }
+              if (state.downloadedInstallerPath != null) {
+                return FilledButton.icon(
+                  icon: const Icon(Icons.system_update_alt_rounded, size: 18),
+                  label: const Text('安装并重启'),
+                  onPressed: () => state.installUpdate(),
+                );
+              }
+              return FilledButton.icon(
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: Text(
+                  state.updateDownloadError != null ? '重新下载' : '下载并安装',
+                ),
+                onPressed: () => state.downloadUpdate(),
+              );
+            },
+          ),
         ],
       ),
     );

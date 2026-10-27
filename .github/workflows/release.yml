@@ -33,6 +33,17 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Set up Android release signing
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: video-collection-app
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PROPERTIES_BASE64: ${{ secrets.ANDROID_KEYSTORE_PROPERTIES_BASE64 }}
+        run: |
+          # key.properties 中 storeFile 填 upload-keystore.jks (相对 android/app 目录), 详见 installer/SIGNING.md
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          echo "$ANDROID_KEYSTORE_PROPERTIES_BASE64" | base64 -d > android/key.properties
+
       - name: Build Android APK
         working-directory: video-collection-app
         run: |
@@ -63,10 +74,25 @@ jobs:
       - name: Build Windows
         working-directory: video-collection-app
         shell: pwsh
+        env:
+          BLLII_CERT_PFX_BASE64: ${{ secrets.BLLII_CERT_PFX_BASE64 }}
+          BLLII_CERT_PASSWORD: ${{ secrets.BLLII_CERT_PASSWORD }}
+          BLLII_CERT_THUMBPRINT: ${{ secrets.BLLII_CERT_THUMBPRINT }}
+          BLLII_AZURE_DLIB: ${{ secrets.BLLII_AZURE_DLIB }}
+          BLLII_AZURE_DMDF: ${{ secrets.BLLII_AZURE_DMDF }}
         run: |
           $tag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter pub get
           flutter build windows --release --dart-define-from-file=env/prod.json
+
+          # 代码签名 (未配置任何签名 Secrets 时自动跳过, 配置方法见 installer/SIGNING.md)
+          if ($env:BLLII_CERT_PFX_BASE64) {
+            $pfx = Join-Path $env:RUNNER_TEMP "bllii-signing.pfx"
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:BLLII_CERT_PFX_BASE64))
+            $env:BLLII_CERT_PFX = $pfx
+          }
+          & scripts\sign-release.ps1 -Path build\windows\x64\runner\Release
+
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "dist\bllii_for_windows_${tag}.zip" -Force
 
@@ -88,6 +114,9 @@ jobs:
             $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           }
           & $iscc /DMyAppVersion="$tag" installer\bllii.iss
+
+          # 安装包签名
+          & scripts\sign-release.ps1 -Path "dist\bllii_setup_windows_${tag}.exe"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -143,13 +172,54 @@ jobs:
 
       - name: Build macOS
         working-directory: video-collection-app
+        env:
+          MACOS_CERT_BASE64: ${{ secrets.MACOS_CERT_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          MACOS_API_KEY_ID: ${{ secrets.MACOS_API_KEY_ID }}
+          MACOS_API_ISSUER: ${{ secrets.MACOS_API_ISSUER }}
+          MACOS_API_KEY_BASE64: ${{ secrets.MACOS_API_KEY_BASE64 }}
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter config --no-enable-swift-package-manager
           flutter pub get
           flutter build macos --release --dart-define-from-file=env/prod.json
           mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/video_collection_app.app dist/bllii_for_mac_${TAG}.zip
+
+          APP=build/macos/Build/Products/Release/video_collection_app.app
+          ZIP="dist/bllii_for_mac_${TAG}.zip"
+
+          if [ -n "$MACOS_CERT_BASE64" ]; then
+            # --- 代码签名 + 公证 (需配置 MACOS_* Secrets, 详见 installer/SIGNING.md) ---
+            CERT_PATH="$RUNNER_TEMP/cert.p12"
+            KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+            echo -n "$MACOS_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+            security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security import "$CERT_PATH" -P "$MACOS_CERT_PASSWORD" -A -t agg -k "$KEYCHAIN_PATH"
+            security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+            IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+
+            ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+
+            # 提交 Apple 公证并等待结果
+            echo -n "$MACOS_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+            xcrun notarytool submit "$ZIP" \
+              --key "$RUNNER_TEMP/AuthKey.p8" \
+              --key-id "$MACOS_API_KEY_ID" \
+              --issuer "$MACOS_API_ISSUER" \
+              --wait
+
+            # 公证票据装订到 app 后重新打包
+            xcrun stapler staple "$APP"
+            rm -f "$ZIP"
+            ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+          else
+            ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+          fi
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4

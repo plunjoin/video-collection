@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Bllii.Setup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\bllii.ico</ApplicationIcon>
+    <AssemblyTitle>Bllii 安装程序</AssemblyTitle>
+    <Product>Bllii</Product>
+    <Company>Bllii</Company>
+    <Version>1.0.1</Version>
+    <FileVersion>1.0.1.0</FileVersion>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS8618</NoWarn>
+  </PropertyGroup>
+
+  <!-- 卸载器：同一份界面代码，不带安装载荷 -->
+  <PropertyGroup Condition="'$(BlliiUninstaller)' == 'true'">
+    <AssemblyName>BlliiUninstall</AssemblyName>
+    <DefineConstants>$(DefineConstants);BLLII_UNINSTALLER</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(BlliiUninstaller)' != 'true'">
+    <AssemblyName>BlliiSetup</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PayloadZip Condition="'$(PayloadZip)' == ''">$(MSBuildProjectDirectory)\.build\payload.zip</PayloadZip>
+    <UninstallerStub Condition="'$(UninstallerStub)' == ''">$(MSBuildProjectDirectory)\.build\stub\BlliiUninstall.exe</UninstallerStub>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\*.png" />
+    <Resource Include="Assets\*.ico" />
+  </ItemGroup>
+
+  <!-- 安装器内嵌：应用载荷 + 卸载器 -->
+  <ItemGroup Condition="'$(BlliiUninstaller)' != 'true'">
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="payload.zip" Condition="Exists('$(PayloadZip)')" />
+    <EmbeddedResource Include="$(UninstallerStub)" LogicalName="BlliiUninstall.exe" Condition="Exists('$(UninstallerStub)')" />
+  </ItemGroup>
+
+</Project>

@@ -5,13 +5,26 @@ import '../providers/app_state_provider.dart';
 import '../screens/account_screen.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
+import 'brand_widgets.dart';
 import 'member_avatar.dart';
 
-/// 番剧详情下的通用评论。社区帖和资讯仍走各自页面，这里对接 `/api/comments`。
+/// 通用评论区，对接 `/api/comments`。番剧、资讯、社区动态共用同一套交互，
+/// 通过 [targetType] 区分对象（video / news / post）。
 class VideoCommentSection extends StatefulWidget {
-  final int videoId;
+  final int targetId;
+  final String targetType;
   final ValueChanged<int>? onTotal;
-  const VideoCommentSection({super.key, required this.videoId, this.onTotal});
+
+  /// 输入框占位文案，按内容类型区分。
+  final String hintText;
+
+  const VideoCommentSection({
+    super.key,
+    required this.targetId,
+    this.targetType = 'video',
+    this.onTotal,
+    this.hintText = '说说这一集的感受',
+  });
 
   @override
   State<VideoCommentSection> createState() => _VideoCommentSectionState();
@@ -39,7 +52,8 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
   @override
   void didUpdateWidget(covariant VideoCommentSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.videoId != widget.videoId) {
+    if (oldWidget.targetId != widget.targetId ||
+        oldWidget.targetType != widget.targetType) {
       _comments.clear();
       _replies.clear();
       _load(refresh: true);
@@ -65,8 +79,8 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
     final page = refresh ? 1 : _page + 1;
     try {
       final result = await ApiService().listComments(
-        targetType: 'video',
-        targetId: widget.videoId,
+        targetType: widget.targetType,
+        targetId: widget.targetId,
         page: page,
       );
       if (!mounted) return;
@@ -98,8 +112,8 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
   Future<void> _loadReplies(int rootId) async {
     try {
       final result = await ApiService().listComments(
-        targetType: 'video',
-        targetId: widget.videoId,
+        targetType: widget.targetType,
+        targetId: widget.targetId,
         rootId: rootId,
         pageSize: 50,
       );
@@ -140,8 +154,8 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
     setState(() => _sending = true);
     try {
       final result = await ApiService().createComment(
-        targetType: 'video',
-        targetId: widget.videoId,
+        targetType: widget.targetType,
+        targetId: widget.targetId,
         content: text,
         parentId: _replyTo,
       );
@@ -266,7 +280,7 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
             maxLines: 4,
             maxLength: 2000,
             decoration: InputDecoration(
-              hintText: _replyTo > 0 ? '回复 $_replyName' : '说说这一集的感受',
+              hintText: _replyTo > 0 ? '回复 $_replyName' : widget.hintText,
               counterText: '',
               filled: true,
               fillColor: dark ? AppColors.darkBg : AppColors.primary50,
@@ -299,7 +313,7 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
           if (_loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: BrandSpinner(size: 26)),
             )
           else if (_error != null && _comments.isEmpty)
             TextButton(onPressed: () => _load(refresh: true), child: Text(_error!))

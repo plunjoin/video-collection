@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/update_model.dart';
 import '../models/video_model.dart';
 import '../services/api_service.dart';
+import '../services/installer_update_service.dart';
 import '../services/update_service.dart';
 
 class PlayHistoryItem {
@@ -187,9 +188,39 @@ class AppStateProvider extends ChangeNotifier {
   AppUpdateInfo? _latestUpdateInfo;
   AppUpdateInfo? get latestUpdateInfo => _latestUpdateInfo;
 
-  AppStateProvider({ApiService? api, UpdateService? updateService})
-      : _api = api ?? ApiService(),
-        _updateService = updateService ?? UpdateService() {
+  // ---- 安装包更新 (桌面端 Windows) ----
+  final InstallerUpdateService _installerUpdate;
+  bool _downloadingUpdate = false;
+  double _updateDownloadProgress = 0;
+  String? _downloadedInstallerPath;
+  String? _updateDownloadError;
+  bool _updateReadyToInstall = false; // 后台下载完成, 等待用户确认安装
+  AppUpdateInfo? _autoPromptUpdate; // 自动检查发现的强制更新, 待 UI 弹窗
+
+  bool get downloadingUpdate => _downloadingUpdate;
+  double get updateDownloadProgress => _updateDownloadProgress;
+  String? get downloadedInstallerPath => _downloadedInstallerPath;
+  String? get updateDownloadError => _updateDownloadError;
+  bool get updateReadyToInstall => _updateReadyToInstall;
+  AppUpdateInfo? get autoPromptUpdate => _autoPromptUpdate;
+
+  /// 当前更新是否可以用「下载安装包直装」方式 (Windows + .exe)
+  bool get canUpdateWithInstaller {
+    final info = _latestUpdateInfo;
+    if (info == null || !info.hasUpdate) return false;
+    return InstallerUpdateService.canInstallWithInstaller(info.downloadUrl);
+  }
+
+  bool _autoUpdateCheckStarted = false;
+  static const Duration _autoCheckMinInterval = Duration(hours: 6);
+
+  AppStateProvider({
+    ApiService? api,
+    UpdateService? updateService,
+    InstallerUpdateService? installerUpdate,
+  })  : _api = api ?? ApiService(),
+        _updateService = updateService ?? UpdateService(),
+        _installerUpdate = installerUpdate ?? InstallerUpdateService() {
     _loadFromPreferences();
   }
 
@@ -535,10 +566,108 @@ class AppStateProvider extends ChangeNotifier {
     try {
       final info = await _updateService.checkUpdate(baseUrl: _apiBaseUrl);
       _latestUpdateInfo = info;
+      // 切换到新版本信息时重置下载状态
+      if (_downloadedInstallerPath != null &&
+          _downloadedInstallerPath!.contains('bllii_update_') &&
+          !_downloadedInstallerPath!.endsWith('bllii_update_${info.version}.exe')) {
+        _downloadedInstallerPath = null;
+        _updateReadyToInstall = false;
+      }
       return info;
     } finally {
       _checkingUpdate = false;
       notifyListeners();
+    }
+  }
+
+  /// 下载安装包更新 (桌面端 Windows)
+  /// [background] 为 true 时下载完成后不打扰用户, 仅置起「待安装」状态
+  Future<void> downloadUpdate({bool background = false}) async {
+    final info = _latestUpdateInfo;
+    if (info == null || !info.hasUpdate) return;
+    if (_downloadingUpdate) return;
+    if (!InstallerUpdateService.canInstallWithInstaller(info.downloadUrl)) {
+      _updateDownloadError = '当前平台不支持安装包直装更新';
+      notifyListeners();
+      return;
+    }
+
+    _downloadingUpdate = true;
+    _updateDownloadProgress = 0;
+    _updateDownloadError = null;
+    notifyListeners();
+    try {
+      final file = await _installerUpdate.downloadInstaller(
+        info.downloadUrl,
+        info.version,
+        onProgress: (p) {
+          _updateDownloadProgress = p;
+          notifyListeners();
+        },
+      );
+      _downloadedInstallerPath = file.path;
+      if (background) _updateReadyToInstall = true;
+    } catch (e) {
+      _updateDownloadError = e.toString();
+    } finally {
+      _downloadingUpdate = false;
+      notifyListeners();
+    }
+  }
+
+  /// 安装已下载的安装包并重启应用
+  Future<void> installUpdate() async {
+    final path = _downloadedInstallerPath;
+    if (path == null) return;
+    try {
+      await _installerUpdate.installAndRelaunch(path);
+    } catch (e) {
+      _updateDownloadError = '安装失败: $e';
+      notifyListeners();
+    }
+  }
+
+  /// 清除「后台下载完成, 待确认安装」提示 (UI 消费后调用)
+  void consumeUpdateReadyPrompt() {
+    if (!_updateReadyToInstall) return;
+    _updateReadyToInstall = false;
+    notifyListeners();
+  }
+
+  /// 消费「自动检查发现的强制更新」弹窗请求 (UI 弹窗后调用)
+  void consumeAutoPromptUpdate() {
+    if (_autoPromptUpdate == null) return;
+    _autoPromptUpdate = null;
+    notifyListeners();
+  }
+
+  /// 启动时自动检查更新 (默认 6 小时内不重复检查)
+  /// - 桌面端 Windows 且存在 .exe 安装包时, 后台静默下载, 下载完成后再提示安装
+  /// - 强制更新 (forceUpdate) 时请求 UI 弹窗
+  Future<void> startAutoUpdateCheck() async {
+    if (_autoUpdateCheckStarted) return;
+    _autoUpdateCheckStarted = true;
+    if (!InstallerUpdateService.isDesktop) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getInt('last_update_check') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - last < _autoCheckMinInterval.inMilliseconds) return;
+      await prefs.setInt('last_update_check', now);
+
+      final info = await checkAppUpdate();
+      if (!info.hasUpdate) return;
+      if (info.forceUpdate) {
+        _autoPromptUpdate = info;
+        notifyListeners();
+        return;
+      }
+      if (InstallerUpdateService.canInstallWithInstaller(info.downloadUrl)) {
+        await downloadUpdate(background: true);
+      }
+    } catch (_) {
+      // 自动检查失败静默忽略, 不影响使用
     }
   }
 

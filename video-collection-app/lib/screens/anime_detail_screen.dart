@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +13,7 @@ import '../theme/app_colors.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_intro.dart';
+import '../widgets/brand_widgets.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/episode_selector.dart';
 import '../widgets/video_comments.dart';
@@ -217,13 +220,13 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                           _actions(dark, favorite, firstPlayable),
                           const SizedBox(height: 8),
                           _tabs(dark),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 18),
                           if (_tab == 0) _about(dark, credits),
                           if (_tab == 1) _episodes(firstPlayable),
                           if (_tab == 2) _cast(dark, credits),
                           if (_tab == 3)
                             VideoCommentSection(
-                              videoId: video.id,
+                              targetId: video.id,
                               onTotal: (total) {
                                 if (_commentTotal == total) return;
                                 setState(() => _commentTotal = total);
@@ -250,7 +253,13 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _cover(video.picture),
+          // 虚化背景：整块封面做高斯模糊，让上层文字与按钮始终清晰可读
+          ClipRect(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Transform.scale(scale: 1.18, child: _cover(video.picture)),
+            ),
+          ),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -343,6 +352,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
         : AppColors.lightTextSecondary;
     final ink = dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final meta = [
+      if (video.hits > 0) '${formatAudienceCount(video.hits)} 次播放',
       video.year,
       video.area,
       ...video.tags.take(3),
@@ -361,51 +371,27 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: SizedBox(width: 92, height: 122, child: _cover(video.picture)),
+          child: SizedBox(
+            width: 92,
+            height: 122,
+            child: _cover(video.picture, title: video.name),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      video.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 20,
-                        height: 1.25,
-                        fontWeight: FontWeight.w800,
-                        color: ink,
-                      ),
-                    ),
-                  ),
-                  if (video.hits > 0) ...[
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatAudienceCount(video.hits),
-                          style: const TextStyle(
-                            color: Color(0xFFFF8A34),
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            height: 1,
-                          ),
-                        ),
-                        Text(
-                          '次播放',
-                          style: TextStyle(fontSize: 10, color: muted),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+              Text(
+                video.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
               ),
               if (chips.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -458,106 +444,131 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
   }
 
   Widget _actions(bool dark, bool favorite, int firstPlayable) {
+    final playable = firstPlayable >= 0;
+    final line = dark ? AppColors.darkBorder : AppColors.lightBorder;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    const violet = Color(0xFF8B6CFF);
+
     return Row(
       children: [
-        Expanded(
+        // 主按钮按内容宽度收窄，右侧动作紧跟其后，不再拉满整行
+        SizedBox(
+          height: 40,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              gradient: firstPlayable < 0
-                  ? null
-                  : const LinearGradient(
+              gradient: playable
+                  ? const LinearGradient(
                       colors: [Color(0xFFFF8BC4), Color(0xFFFF5C9A)],
-                    ),
-              color: firstPlayable < 0 ? AppColors.lightBorder : null,
-              borderRadius: BorderRadius.circular(24),
+                    )
+                  : null,
+              color: playable ? null : line,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: playable
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x26FF5C9A),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ]
+                  : null,
             ),
             child: TextButton.icon(
-              onPressed: firstPlayable < 0
-                  ? null
-                  : () => widget.onPlay(firstPlayable, 0),
-              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-              label: Text(firstPlayable < 0 ? '暂无片源' : '立即观看'),
+              onPressed: playable
+                  ? () => widget.onPlay(firstPlayable, 0)
+                  : null,
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: Text(playable ? '立即观看' : '暂无片源'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 shape: const StadiumBorder(),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        TextButton.icon(
-          onPressed: _savingFavorite ? null : _toggleFavorite,
-          icon: Icon(
-            favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            size: 18,
-          ),
-          label: Text(favorite ? '已追番' : '追番'),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF8B6CFF),
-            backgroundColor: dark
-                ? const Color(0xFF2A2440)
-                : const Color(0xFFF3EEFF),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            shape: const StadiumBorder(),
+        const SizedBox(width: 10),
+        SizedBox(
+          height: 40,
+          child: OutlinedButton.icon(
+            onPressed: _savingFavorite ? null : _toggleFavorite,
+            icon: Icon(
+              favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 17,
+              color: favorite ? violet : muted,
+            ),
+            label: Text(favorite ? '已追番' : '追番'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: favorite ? violet : null,
+              backgroundColor: favorite
+                  ? violet.withValues(alpha: dark ? .18 : .08)
+                  : (dark ? Colors.transparent : Colors.white),
+              side: BorderSide(
+                color: favorite ? violet.withValues(alpha: .35) : line,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              minimumSize: const Size(0, 40),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: const StadiumBorder(),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        _roundIcon(Icons.ios_share_rounded, _share, filled: true),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: OutlinedButton(
+            onPressed: _share,
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(40, 40),
+              backgroundColor: dark ? Colors.transparent : Colors.white,
+              side: BorderSide(color: line),
+              shape: const CircleBorder(),
+            ),
+            child: Icon(Icons.ios_share_rounded, size: 17, color: muted),
+          ),
+        ),
       ],
     );
   }
 
   Widget _tabs(bool dark) {
     const labels = ['详情', '剧集', '角色', '讨论'];
-    final muted = dark
-        ? AppColors.darkTextSecondary
-        : AppColors.lightTextSecondary;
-    return Row(
-      children: [
-        for (var index = 0; index < labels.length; index++)
-          Expanded(
-            child: InkWell(
+    final line = dark ? AppColors.darkBorder : AppColors.lightBorder;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: line, width: .8)),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++)
+            _DetailTab(
+              label: labels[index],
+              first: index == 0,
+              selected: _tab == index,
+              trailing: index == 3 && _commentTotal > 0
+                  ? (_commentTotal > 9999
+                        ? formatAudienceCount(_commentTotal)
+                        : '$_commentTotal')
+                  : null,
               onTap: () => setState(() => _tab = index),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Column(
-                  children: [
-                    Text(
-                      index == 3 && _commentTotal > 0
-                          ? '讨论 ${_commentTotal > 9999 ? formatAudienceCount(_commentTotal) : _commentTotal}'
-                          : labels[index],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: _tab == index
-                            ? FontWeight.w800
-                            : FontWeight.w500,
-                        color: _tab == index
-                            ? (dark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.lightTextPrimary)
-                            : muted,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      height: 3,
-                      width: 22,
-                      decoration: BoxDecoration(
-                        color: _tab == index
-                            ? AppColors.rose
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
-          ),
-      ],
+          const Spacer(),
+        ],
+      ),
     );
   }
 
@@ -686,41 +697,19 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
   }
 
   Widget _creditCard(_Credit credit, bool dark) {
-    final colors = [
-      const Color(0xFF8E7CFF),
-      const Color(0xFF5B8DEF),
-      const Color(0xFFFF7EB3),
-      const Color(0xFF5CC8C2),
-    ];
-    final color = colors[credit.name.hashCode.abs() % colors.length];
     return SizedBox(
       width: 108,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 108,
-            height: 112,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withValues(alpha: .85),
-                  color.withValues(alpha: .45),
-                ],
-              ),
-            ),
-            child: Text(
-              credit.name.isEmpty
-                  ? '?'
-                  : String.fromCharCode(credit.name.runes.first),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 108,
+              height: 112,
+              child: BrandPosterFallback(
+                title: credit.name,
+                forceDark: dark,
               ),
             ),
           ),
@@ -770,16 +759,11 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     );
   }
 
-  Widget _cover(String url) {
-    const fallback = ColoredBox(
-      color: Color(0xFF1C2438),
-      child: Center(
-        child: Icon(
-          Icons.movie_filter_outlined,
-          color: Colors.white54,
-          size: 36,
-        ),
-      ),
+  Widget _cover(String url, {String title = ''}) {
+    final fallback = BrandPosterFallback(
+      title: title,
+      forceDark: true,
+      showGlyph: title.isNotEmpty,
     );
     if (url.isEmpty) return fallback;
     return CachedNetworkImage(
@@ -811,6 +795,113 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             icon,
             size: 18,
             color: filled && !dark ? AppColors.lightTextPrimary : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 详情页页签：左对齐文字 + 贴底粉色指示条，和分类页的 tab 语言一致。
+class _DetailTab extends StatefulWidget {
+  final String label;
+  final bool selected;
+  final bool first;
+  final String? trailing;
+  final VoidCallback onTap;
+
+  const _DetailTab({
+    required this.label,
+    required this.selected,
+    required this.first,
+    required this.onTap,
+    this.trailing,
+  });
+
+  @override
+  State<_DetailTab> createState() => _DetailTabState();
+}
+
+class _DetailTabState extends State<_DetailTab> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final ink = dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 44,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: widget.first ? 0 : 26,
+              right: 2,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.2,
+                        fontWeight: widget.selected
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                        color: widget.selected || _hovered ? ink : muted,
+                      ),
+                    ),
+                    if (widget.trailing != null) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: muted.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          widget.trailing!,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            height: 1.2,
+                            color: muted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (widget.selected)
+                  Positioned(
+                    bottom: 0,
+                    child: Container(
+                      width: 20,
+                      height: 2.5,
+                      decoration: BoxDecoration(
+                        color: AppColors.rose,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

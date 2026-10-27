@@ -1812,7 +1812,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
         VideoCommentSection(
-          videoId: widget.video.id,
+          targetId: widget.video.id,
           onTotal: (total) {
             if (_commentTotal == total) return;
             setState(() => _commentTotal = total);

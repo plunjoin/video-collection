@@ -12,6 +12,7 @@ import '../utils/responsive.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_controls.dart';
+import '../widgets/brand_widgets.dart';
 import '../widgets/member_avatar.dart';
 import 'account_screen.dart';
 import 'anime_detail_screen.dart';
@@ -438,14 +439,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           width: 108,
                                           height: 108,
                                           fit: BoxFit.cover,
-                                          errorWidget: (_, _, _) => Container(
-                                            width: 108,
-                                            height: 108,
-                                            color: AppColors.primary50,
-                                            child: const Icon(
-                                              Icons.movie_outlined,
-                                            ),
-                                          ),
+                                          errorWidget: (_, _, _) =>
+                                              BrandPosterFallback(
+                                                title: video.name,
+                                              ),
                                         ),
                                       ),
                                       const SizedBox(height: 6),
@@ -1047,12 +1044,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 92,
               height: 64,
               fit: BoxFit.cover,
-              errorWidget: (_, _, _) => Container(
-                width: 92,
-                height: 64,
-                color: AppColors.primary50,
-                child: const Icon(Icons.movie_outlined),
-              ),
+              errorWidget: (_, _, _) =>
+                  BrandPosterFallback(title: item.videoName),
             ),
           ),
           const SizedBox(width: 12),
@@ -1417,8 +1410,10 @@ class _HistoryPage extends StatelessWidget {
                           width: 48,
                           height: 64,
                           fit: BoxFit.cover,
-                          errorWidget: (_, _, _) =>
-                              const Icon(Icons.movie_outlined),
+                          errorWidget: (_, _, _) => BrandPosterFallback(
+                            title: item.videoName,
+                            showGlyph: false,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),

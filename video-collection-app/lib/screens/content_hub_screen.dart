@@ -198,11 +198,7 @@ class _ContentHubScreenState extends State<ContentHubScreen>
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             child: Center(
               child: _loadingMore[index]
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const BrandSpinner(size: 22)
                   : BrandButton(
                       label: '加载更多',
                       icon: Icons.expand_more_rounded,
@@ -571,7 +567,7 @@ class _CommunityComposeScreenState extends State<CommunityComposeScreen> {
             const SizedBox(height: 16),
             Center(
               child: _submitting
-                  ? const CircularProgressIndicator()
+                  ? const BrandSpinner(size: 24)
                   : BrandButton(
                       label: '提交动态',
                       icon: Icons.send_rounded,

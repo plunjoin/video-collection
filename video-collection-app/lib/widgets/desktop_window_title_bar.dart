@@ -7,7 +7,8 @@ import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 
-/// 桌面端沉浸式自定义标题栏 (可拖拽窗口 + 自定义标题 + 快速主题切换 + 精致窗口三联按钮)
+/// 桌面端沉浸式自定义标题栏 (可拖拽窗口 + 快速主题切换 + 精致窗口三联按钮)。
+/// 左上角不再放品牌内容：品牌行交给侧栏，避免 titlebar 与 sidebar 视觉重叠。
 class DesktopWindowTitleBar extends StatelessWidget {
   final Widget? leading;
   final Widget? title;
@@ -21,7 +22,7 @@ class DesktopWindowTitleBar extends StatelessWidget {
     this.leading,
     this.title,
     required this.isDark,
-    this.height = 40,
+    this.height = 36,
     this.actions,
     this.showThemeToggle = true,
   });
@@ -57,7 +58,7 @@ class DesktopWindowTitleBar extends StatelessWidget {
                 color: Colors.transparent,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.centerLeft,
-                child: title ?? _buildDefaultTitle(context, isDark),
+                child: title ?? const SizedBox.shrink(),
               ),
             ),
           ),
@@ -78,93 +79,6 @@ class DesktopWindowTitleBar extends StatelessWidget {
     );
   }
 
-  Widget _buildDefaultTitle(BuildContext context, bool isDark) {
-    final width = MediaQuery.sizeOf(context).width;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.play_circle_filled_rounded,
-            size: 13,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: TextStyle(
-                fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.lightTextPrimary,
-              ),
-              children: [
-                const TextSpan(
-                  text: 'bllii',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                TextSpan(
-                  text: ' · More Stories, Together',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (width >= 480) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.primary600.withValues(alpha: 0.15)
-                  : AppColors.primary50,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.primary600.withValues(alpha: 0.25)
-                    : AppColors.primary200,
-                width: 0.6,
-              ),
-            ),
-            child: const Text(
-              'Desktop',
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary500,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 }
 
 class _TitleBarNavButton extends StatefulWidget {

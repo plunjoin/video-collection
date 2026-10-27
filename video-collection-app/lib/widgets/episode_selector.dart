@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/video_model.dart';
 import '../theme/app_colors.dart';
 import 'brand_controls.dart';
+import 'brand_widgets.dart';
 import 'desktop_horizontal_scroll.dart';
 
 /// 把播放量收成「1.2万」这种短数字，详情和播放页共用。
@@ -122,6 +123,9 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     if (widget.playGroups.isEmpty) {
       return Container(
@@ -161,11 +165,9 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 头部：线路切换与排序
+        // 头部：线路切换 · 集数 · 排序
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // 播放源切换 Chips
             Expanded(
               child: DesktopHorizontalScroll(
                 child: SingleChildScrollView(
@@ -173,18 +175,15 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
                   child: Row(
                     children: List.generate(widget.playGroups.length, (index) {
                       final group = widget.playGroups[index];
-                      final isSelected = _selectedGroupIndex == index;
                       final label = group.server.isNotEmpty
                           ? group.server
                           : '播放源 ${index + 1}';
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: BrandPill(
-                          label: Text(label),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) _selectGroup(index);
-                          },
+                        child: _SourcePill(
+                          label: label,
+                          selected: _selectedGroupIndex == index,
+                          onTap: () => _selectGroup(index),
                         ),
                       );
                     }),
@@ -192,44 +191,21 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
                 ),
               ),
             ),
-
-            // 排序按钮 (正序 / 倒序)
-            InkWell(
-              onTap: () {
-                setState(() {
-                  _isAscending = !_isAscending;
-                });
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      _isAscending
-                          ? Icons.arrow_upward_rounded
-                          : Icons.arrow_downward_rounded,
-                      size: 14,
-                      color: AppColors.primary500,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _isAscending ? '正序' : '倒序',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary500,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(width: 10),
+            Text(
+              '共 ${originalEpisodes.length} 话',
+              style: TextStyle(fontSize: 11, color: muted),
+            ),
+            const SizedBox(width: 2),
+            _SortToggle(
+              ascending: _isAscending,
+              onTap: () => setState(() => _isAscending = !_isAscending),
             ),
           ],
         ),
 
         if (ranges.length > 1) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           DesktopHorizontalScroll(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -237,11 +213,11 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
                 children: List.generate(ranges.length, (index) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: BrandPill(
-                      label: Text(ranges[index].label),
+                    child: _SourcePill(
+                      label: ranges[index].label,
                       selected: safeRange == index,
-                      onSelected: (selected) {
-                        if (!selected) return;
+                      onTap: () {
+                        if (safeRange == index) return;
                         setState(() {
                           _rangeIndex = index;
                           _expanded = false;
@@ -255,92 +231,39 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
           ),
         ],
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
-        // 剧集网格
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 2.2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: visibleIndices.length,
-          itemBuilder: (context, idx) {
-            final actualIdx = visibleIndices[idx];
-            final episode = originalEpisodes[actualIdx];
-            final isPlaying =
-                _selectedGroupIndex == widget.currentGroupIndex &&
-                actualIdx == widget.currentEpisodeIndex;
-
-            return InkWell(
-              onTap: () {
-                widget.onSelected(_selectedGroupIndex, actualIdx);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: isPlaying
-                      ? (isDark
-                            ? AppColors.purple.withValues(alpha: 0.15)
-                            : const Color(0xFFFFF5FC))
-                      : (isDark ? AppColors.darkCard : AppColors.primary50),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isPlaying
-                        ? AppColors.rose
-                        : (isDark
-                              ? AppColors.darkBorder
-                              : AppColors.lightBorder),
-                    width: isPlaying ? 1.5 : 1,
-                  ),
-                  boxShadow: isPlaying
-                      ? [
-                          BoxShadow(
-                            color: AppColors.rose.withValues(alpha: 0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isPlaying) ...[
-                      const Icon(
-                        Icons.bar_chart_rounded,
-                        size: 16,
-                        color: AppColors.rose,
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    Flexible(
-                      child: Text(
-                        episode.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isPlaying
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          color: isPlaying
-                              ? AppColors.rose
-                              : (isDark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.lightTextPrimary),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        // 剧集矩阵：只留序号，密而有序
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const gap = 8.0;
+            const cell = 44.0;
+            final columns = ((constraints.maxWidth + gap) / (cell + gap))
+                .floor()
+                .clamp(4, 14);
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                mainAxisExtent: cell,
+                crossAxisSpacing: gap,
+                mainAxisSpacing: gap,
               ),
+              itemCount: visibleIndices.length,
+              itemBuilder: (context, idx) {
+                final actualIdx = visibleIndices[idx];
+                final episode = originalEpisodes[actualIdx];
+                return _EpisodeCell(
+                  number: episodeNumberLabel(episode.name, actualIdx),
+                  title: episode.name,
+                  playing:
+                      _selectedGroupIndex == widget.currentGroupIndex &&
+                      actualIdx == widget.currentEpisodeIndex,
+                  onTap: () =>
+                      widget.onSelected(_selectedGroupIndex, actualIdx),
+                );
+              },
             );
           },
         ),
@@ -625,11 +548,9 @@ class _EpisodeCardListState extends State<EpisodeCardList> {
   }
 
   Widget _thumb(bool dark) {
-    final fallback = ColoredBox(
-      color: dark ? const Color(0xFF243049) : const Color(0xFFE7EEF8),
-      child: const Center(
-        child: Icon(Icons.movie_filter_outlined, color: AppColors.primary400),
-      ),
+    final fallback = BrandPosterFallback(
+      title: widget.posterUrl,
+      showGlyph: false,
     );
     if (widget.posterUrl.isEmpty) return fallback;
     return CachedNetworkImage(
@@ -637,6 +558,227 @@ class _EpisodeCardListState extends State<EpisodeCardList> {
       fit: BoxFit.cover,
       placeholder: (_, _) => fallback,
       errorWidget: (_, _, _) => fallback,
+    );
+  }
+}
+
+/// 从剧集名里取出序号：优先用名字里的数字，取不到就用下标。
+String episodeNumberLabel(String name, int index) {
+  final matches = RegExp(r'\d+').allMatches(name);
+  if (matches.isEmpty) return '${index + 1}';
+  return matches.last.group(0)!;
+}
+
+/// 播放源 / 分页：安静的胶囊，选中才染色。
+class _SourcePill extends StatefulWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SourcePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  State<_SourcePill> createState() => _SourcePillState();
+}
+
+class _SourcePillState extends State<_SourcePill> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? primary.withValues(alpha: dark ? .20 : .09)
+                : (_hovered
+                      ? (dark
+                            ? const Color(0xFF222E43)
+                            : const Color(0xFFF4F7FF))
+                      : Colors.transparent),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: widget.selected
+                  ? primary.withValues(alpha: .32)
+                  : (dark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+          ),
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1,
+              fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+              color: widget.selected ? primary : muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SortToggle extends StatefulWidget {
+  final bool ascending;
+  final VoidCallback onTap;
+
+  const _SortToggle({required this.ascending, required this.onTap});
+
+  @override
+  State<_SortToggle> createState() => _SortToggleState();
+}
+
+class _SortToggleState extends State<_SortToggle> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? (dark ? const Color(0xFF222E43) : const Color(0xFFF4F7FF))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                widget.ascending
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
+                size: 13,
+                color: muted,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                widget.ascending ? '正序' : '倒序',
+                style: TextStyle(fontSize: 11, color: muted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 剧集序号格：44×44 的软底方块，正在播放时整块染上品牌渐变。
+class _EpisodeCell extends StatefulWidget {
+  final String number;
+  final String title;
+  final bool playing;
+  final VoidCallback onTap;
+
+  const _EpisodeCell({
+    required this.number,
+    required this.title,
+    required this.playing,
+    required this.onTap,
+  });
+
+  @override
+  State<_EpisodeCell> createState() => _EpisodeCellState();
+}
+
+class _EpisodeCellState extends State<_EpisodeCell> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final ink = dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    return Tooltip(
+      message: widget.title,
+      waitDuration: const Duration(milliseconds: 500),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 170),
+            curve: Curves.easeOut,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: widget.playing
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFF8BC4), Color(0xFF9A83FF)],
+                    )
+                  : null,
+              color: widget.playing
+                  ? null
+                  : (_hovered
+                        ? (dark
+                              ? const Color(0xFF2A3852)
+                              : const Color(0xFFE8EFFF))
+                        : (dark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF6F8FD))),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: widget.playing
+                  ? [
+                      BoxShadow(
+                        color: AppColors.rose.withValues(alpha: .30),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              widget.number,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1,
+                fontWeight: widget.playing ? FontWeight.w800 : FontWeight.w600,
+                color: widget.playing ? Colors.white : ink,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
