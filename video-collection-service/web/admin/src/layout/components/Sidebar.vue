@@ -2,7 +2,7 @@
   <aside class="entropy-sidebar" :class="{ 'is-collapsed': isCollapsed }" :data-collapsed="isCollapsed || undefined">
     <header class="sidebar-brand-row">
       <div v-if="!isCollapsed" class="brand-lockup" @click="goDashboard" title="返回仪表盘">
-        <span class="brand-mark" aria-hidden="true">B</span>
+        <span class="brand-mark" aria-hidden="true"><img :src="'/brand/bllii-symbol-white.svg'" alt="" /></span>
         <span class="brand-copy">
           <strong>Bllii Studio</strong>
           <small>动漫聚合与运营工作台</small>
@@ -11,7 +11,7 @@
 
       <r-tooltip v-if="isCollapsed" content="打开边栏" side="right" :delay-duration="120">
         <button class="collapsed-brand-toggle" type="button" aria-label="打开边栏" :aria-expanded="false" @click="toggleCollapsed">
-          <span class="brand-mark collapsed-mark" aria-hidden="true">B</span>
+          <span class="brand-mark collapsed-mark" aria-hidden="true"><img :src="'/brand/bllii-symbol-white.svg'" alt="" /></span>
           <span class="collapsed-toggle-icon" aria-hidden="true"><PanelLeftOpen :size="19" /></span>
         </button>
       </r-tooltip>
@@ -229,8 +229,7 @@ const handleCommand = async (command: string) => {
   } else if (command === 'docs') {
     window.open('/docs', '_blank', 'noopener,noreferrer')
   } else if (command === 'portal') {
-    const url = import.meta.env.VITE_PORTAL_URL || '/'
-    window.open(url, '_blank', 'noopener,noreferrer')
+    window.open('/', '_blank', 'noopener,noreferrer')
   }
 }
 
@@ -304,12 +303,15 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     align-items: center;
     justify-content: center;
     border-radius: 9px;
-    color: #fff;
-    background: linear-gradient(135deg, #5d7af5 0%, #3d5ce0 100%);
-    box-shadow: 0 2px 8px rgba(79, 110, 242, .24);
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: -.04em;
+    background: var(--brand-gradient, linear-gradient(135deg, #4b9fff 0%, #9a83ff 100%));
+    box-shadow: 0 2px 8px rgba(75, 159, 255, .26);
+
+    img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      display: block;
+    }
   }
 
   .brand-copy {

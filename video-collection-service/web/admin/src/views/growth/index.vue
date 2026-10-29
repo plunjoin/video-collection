@@ -155,7 +155,7 @@ p {
   &__fill {
     height: 100%;
     border-radius: var(--radius-pill);
-    background: linear-gradient(90deg, var(--brand, #4f6ef2), #8b5cf6);
+    background: linear-gradient(90deg, var(--brand, #4b9fff), #9a83ff);
     transition: width 0.4s ease;
 
     &--alt {

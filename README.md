@@ -13,7 +13,7 @@
 
 <p>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.26-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go 1.26"></a>
-  <a href="https://astro.build/"><img src="https://img.shields.io/badge/Astro-5-BC52EE?style=flat-square&amp;logo=astro&amp;logoColor=white" alt="Astro 5"></a>
+  <a href="https://github.com/plunjoin/webfront"><img src="https://img.shields.io/badge/webfront-SSR%20%2F%20SPA-4B9FFF?style=flat-square" alt="webfront"></a>
   <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square&amp;logo=vuedotjs&amp;logoColor=white" alt="Vue 3"></a>
   <a href="https://flutter.dev/"><img src="https://img.shields.io/badge/Flutter-Multi--Platform-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Flutter 多平台客户端"></a>
   <a href="#系统架构"><img src="https://img.shields.io/badge/Storage-PostgreSQL%20%2F%20SQLite-4169E1?style=flat-square&amp;logo=postgresql&amp;logoColor=white" alt="PostgreSQL / SQLite"></a>
@@ -55,7 +55,7 @@ flowchart TB
     service["video-collection-service<br/>Go · RESTful API + 管理后台（go:embed）"]
     db[("PostgreSQL / SQLite")]
     redis[("Redis (radix)<br/>会话与缓存 · 可选")]
-    web["Web 门户<br/>Astro + Tailwind CSS"]
+    web["Web 门户<br/>React 18 + webfront（Go 托管 SSR/SPA）"]
     app["跨端客户端<br/>Flutter + Material 3"]
     adminClient["浏览器管理后台<br/>Vue 3 · Reka UI (Radix Vue)（Go 托管）"]
 
@@ -85,8 +85,7 @@ flowchart TB
 | 目录 / 文件 | 职责 | 技术栈 / 用途 |
 | :--- | :--- | :--- |
 | [`video-collection-service/`](./video-collection-service/) | **统一服务**：RESTful API + Go 托管管理后台，含 radix 缓存/会话层 | Go 1.26 · radix v4 |
-| [`video-collection-service/web/admin/`](./video-collection-service/web/admin/) | 管理后台前端（Gemini 风格，Radix 原语驱动，构建产物 go:embed 进服务） | Vue 3 · Reka UI (Radix Vue) · TypeScript · Vite 6 |
-| [`video-collection-web/`](./video-collection-web/) | 用户门户与播放页面 | Astro 5 · Tailwind CSS |
+| [`video-collection-service/web/`](./video-collection-service/web/) | 前端工作区：`admin/` 管理后台 + `portal/` 用户门户，依赖统一由 pnpm workspace 管理，构建产物 go:embed 进服务 | Vue 3 · Vite 6 · React 18 · webfront |
 | [`video-collection-app/`](./video-collection-app/) | 桌面、移动与 Web 客户端 | Flutter · Material 3 |
 | [`bllii-brand-kit/`](./bllii-brand-kit/) | 标志、图标、品牌动画与预览 | SVG · PNG · GIF · MP4 |
 | [`run.ps1`](./run.ps1) / [`run.sh`](./run.sh) | 多服务启动器 | Windows PowerShell / Bash |
@@ -100,8 +99,9 @@ flowchart TB
 | 工具 | 要求 | 用于 |
 | :--- | :--- | :--- |
 | [Go](https://go.dev/dl/) | 1.26.0 或更高，参见 [`go.mod`](./video-collection-service/go.mod) | 统一服务 |
-| [Node.js](https://nodejs.org/) | 建议使用当前 LTS 版本 | 管理后台 / Web / 门户 |
-| [pnpm](https://pnpm.io/installation) | 启动器使用的前端包管理器 | 管理后台 / Web / 门户 |
+| [Node.js](https://nodejs.org/) | 建议使用当前 LTS 版本 | 前端工作区（admin / portal） |
+| [pnpm](https://pnpm.io/installation) | 启动器使用的前端包管理器 | 前端工作区（依赖统一装在 `video-collection-service/web/`） |
+| [Go 内置 wf CLI](https://github.com/plunjoin/webfront) | 仓库根已提供 `wf.exe` / `wf.ps1` / `wf.cmd` | 门户构建（纯 Go，零 Node） |
 | [Flutter SDK](https://docs.flutter.dev/get-started/install) | 需包含 Dart `^3.13.3`，参见 [`pubspec.yaml`](./video-collection-app/pubspec.yaml)；安装目标平台工具链 | App |
 | [PostgreSQL](https://www.postgresql.org/download/) | 可选；本地可使用 SQLite | 服务存储 |
 
@@ -129,11 +129,14 @@ chmod +x run.sh
 
 `service` 为合并后的统一服务（API + 管理后台）；旧参数 `api` / `admin` 仍指向合并前的两个子项目，保留兼容。启动器会检查所选目标需要的运行时，并执行 `go mod download`，在缺少依赖时执行 `pnpm install` / `flutter pub get`。缺少 pnpm 时会尝试通过 Corepack 或 npm 安装；其他运行时缺失时会给出安装提示并退出。
 
-> 管理后台首次运行前需先构建前端（之后由 `go:embed` 随二进制分发）：
+> 前端依赖统一在 `video-collection-service/web/` 工作区（pnpm workspace）。首次构建前端：
 > ```bash
-> cd video-collection-service/web/admin
-> pnpm install --frozen-lockfile && pnpm build
+> cd video-collection-service/web
+> pnpm install                       # 单份 node_modules，admin / portal 共用
+> cd admin && pnpm build             # 管理后台 → web/admin/dist
+> cd ../portal && ../../wf.exe build .   # 门户 → web/portal/dist（或从仓库根 wf build）
 > ```
+> 之后由 `go:embed` 随二进制分发；仅改门户时重跑 wf build，仅改后台时重跑 pnpm build。
 
 所有服务在**同一个终端并行运行**，日志带 `[api]`、`[admin]`、`[web]`、`[app]` 前缀，按 **Ctrl+C** 停止全部。Windows 启动器会设置 UTF-8 控制台编码。
 
@@ -143,9 +146,8 @@ chmod +x run.sh
 
 | 入口 | 本地地址 | 说明 |
 | :--- | :--- | :--- |
-| **Web 门户** | [localhost:4321](http://localhost:4321/) | 用户浏览与播放入口 |
+| **Web 门户** | [localhost:8080/](http://localhost:8080/) | 用户浏览与播放入口（SSR + SPA，统一服务托管） |
 | **管理后台** | [localhost:8080/admin](http://localhost:8080/admin) | 管理与采集配置入口（统一服务托管） |
-| **根路径 → 后台** | [localhost:8080/](http://localhost:8080/) | 默认端口根目录自动跳转管理后台（服务即后台） |
 | **服务状态（程序）** | [localhost:8080/status](http://localhost:8080/status) | 在线状态、缓存与接口索引（JSON） |
 | **Swagger UI** | [localhost:8080/docs](http://localhost:8080/docs) | 在线查看与调试接口 |
 | **Redoc** | [localhost:8080/redoc](http://localhost:8080/redoc) | 接口参考文档 |
@@ -183,12 +185,12 @@ chmod +x run.sh
 
 | 参数 | 含义 |
 | :--- | :--- |
-| `api` / `admin` / `web` | 分别启动 Go API / Vue 后台 / Astro 门户，可组合使用 |
+| `api` / `admin` / `web` | `api`（等同 `service`）启动 Go 统一服务；`admin` 启动 Vue 后台开发服务器；`web` 启动门户（门户由统一服务内嵌托管，启动即服务本体），可组合使用 |
 | `app` | 启动 Flutter 客户端；默认平台为 Windows → `windows`、macOS → `macos`、Linux → `linux` |
 | `all` | 启动 API + Admin + Web + App |
 | `windows` / `android` / `ios` / `macos` / `linux` / `chrome` / `edge` / `web-server` | 指定 Flutter 目标平台，同时启用 App；需具备对应工具链与可用设备 |
 
-**`web` 表示 Astro 门户。** Flutter Web 使用 `chrome`、`edge` 或 `web-server`；iOS / macOS 构建需要 macOS 环境。
+**`web` 表示门户，由统一服务内嵌托管（webfront 引擎），效果等同 `service`。** Flutter Web 使用 `chrome`、`edge` 或 `web-server`；iOS / macOS 构建需要 macOS 环境。
 
 <details>
 <summary><strong>手动安装依赖与单独启动</strong></summary>
@@ -203,20 +205,20 @@ go mod download
 go run .
 ```
 
-启动后访问 `/admin` 即为管理后台（SPA 已内嵌，无需单独启动前端）；仅当前台有改动时，才需进入 `web/admin` 构建：
+启动后访问 `/` 即为门户、`/admin` 即为管理后台（前端已内嵌，无需单独启动前端）。前端改动后重建：
 
 ```bash
-cd video-collection-service/web/admin
-pnpm install
-pnpm build
-```
+# 依赖统一装在 web 工作区（首次或依赖变更时）
+cd video-collection-service/web && pnpm install
 
-**Web**
+# 管理后台（Vue + Vite）
+cd web/admin && pnpm build
 
-```bash
-cd video-collection-web
-pnpm install
-pnpm start
+# 门户（React + webfront，纯 Go 构建）
+cd ../portal && ../../wf.exe build .
+
+# 门户开发模式（esbuild 按需转译 + HMR，免打包）
+cd video-collection-service && go run -tags dev .
 ```
 
 **App · Windows 示例**
@@ -257,12 +259,12 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 | 子项目 | 配置入口 | 本地默认行为 |
 | :--- | :--- | :--- |
 | **Admin** | 服务直接托管 `/admin`；[`vite.config.ts`](./video-collection-service/web/admin/vite.config.ts) → `server.proxy` | 独立开发时 `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
-| **Web** | [`astro.config.mjs`](./video-collection-web/astro.config.mjs)；`PUBLIC_API_URL` / `INTERNAL_API_URL` | 浏览器未设置 `PUBLIC_API_URL` 时使用同源请求；开发 `/api` 代理到 `http://localhost:80`；服务端优先读取 `INTERNAL_API_URL` |
+| **Portal** | 浏览器同源 `/api`，无独立配置 | 生产 SSR / SPA 由统一服务托管；开发模式 `go run -tags dev .` 同源取数 |
 | **App** | 调试包可在设置中修改；正式包使用构建参数 `API_BASE_URL` | 调试时 Android 模拟器使用 `http://10.0.2.2:80`，其他平台默认 `http://127.0.0.1:80`。正式包执行 `flutter build ... --dart-define=API_BASE_URL=https://api.example.com`，不再显示服务端地址配置 |
 
-Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBLIC_API_URL`，浏览器使用同源 `/api`；开发代理和生产 Node 服务代理默认连接 `http://localhost:80`，生产服务可通过运行时的 `INTERNAL_API_URL` 修改后端地址。调试真机访问 API 时，App 应在设置里填写宿主机局域网 IP，不能使用真机自己的 `localhost`。正式包只读取构建时的 `API_BASE_URL`。
+门户的浏览器请求全部走同源 `/api`，无需跨域或独立环境变量；开发模式（`go run -tags dev .`）下门户与 API 同进程同源。调试真机访问 API 时，App 应在设置里填写宿主机局域网 IP，不能使用真机自己的 `localhost`。正式包只读取构建时的 `API_BASE_URL`。
 
-生产环境的反向代理、数据库、构建与服务部署步骤见 [统一服务文档](./video-collection-service/README.md)与 [Web 文档](./video-collection-web/README.md)。
+生产环境的反向代理、数据库、构建与服务部署步骤见 [统一服务文档](./video-collection-service/README.md) 与 [部署与维护](./deploy/README.md)。
 
 ## 文档导航
 
@@ -272,7 +274,7 @@ Web 的 [`.env.example`](./video-collection-web/.env.example) 默认留空 `PUBL
 | [可配置采集规则](./video-collection-service/docs/collection-rules.md) | 模板目录、自定义请求、字段映射与分页 |
 | [统一服务 API 使用与部署](./video-collection-service/README.md) | 采集协议、鉴权、存储、OpenAPI、radix 缓存、二进制构建与部署 |
 | [管理后台](./video-collection-service/README.md) | Gemini 风格后台界面、模块、开发与构建 |
-| [Web 门户](./video-collection-web/README.md) | 页面组件、开发、构建与接口调用 |
+| [Web 门户](./video-collection-service/web/portal/README.md) | 页面组件、开发、构建与接口调用 |
 | [Flutter 客户端](./video-collection-app/README.md) | 多端运行、API 配置与发布构建 |
 | [通用采集规则工作台](./video-collection-service/docs/collection-studio.md) | 来源配置、字段映射、预览、入库与能力边界 |
 | [内容与通知 API](./video-collection-service/docs/content-api.md) | 资讯、社区、站内通知与权限规则 |
@@ -289,11 +291,11 @@ Web 与 App 沿用 **Bllii / bllii** 视觉体系，以蓝、紫、粉为主色�
 | :---: | :---: | :---: | :---: |
 | `#4B9FFF` | `#9A83FF` | `#FF89C7` | `#353B58` |
 
-更新功能图标 `bllii-brand-kit/svg/bllii-ui.svg` 后，在 Web 目录执行：
+更新功能图标 `bllii-brand-kit/svg/bllii-ui.svg` 后，在门户目录执行：
 
 ```bash
-cd video-collection-web
-pnpm brand:sync
+cd video-collection-service/web/portal
+node scripts/sync-brand.mjs
 ```
 
 该命令同步图标预览、Web 图标资源，以及 Web / API 两份播放器中的图标。完整资产与动画预览可在本地打开 [`bllii-brand-kit/index.html`](./bllii-brand-kit/index.html)，功能图标总览见 [`ui-icons.html`](./bllii-brand-kit/ui-icons.html)。
@@ -310,7 +312,7 @@ pnpm brand:sync
 <details>
 <summary><strong>前端已启动，但接口请求失败</strong></summary>
 
-先检查 Service 是否启动，再确认端口和连接地址一致。服务默认端口为 `80`，服务 `.env.example` 中为 `8080`；Admin / Web 开发代理默认连接 `80`。Web 设置了 `PUBLIC_API_URL` 时，浏览器会使用该地址，也应确认后端跨域配置。
+先检查 Service 是否启动，再确认端口和连接地址一致。服务默认端口为 `80`，服务 `.env.example` 中为 `8080`；Admin 开发代理默认连接 `80`。门户与 API 同源同进程，无需跨域配置。
 
 </details>
 

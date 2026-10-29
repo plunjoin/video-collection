@@ -65,23 +65,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-  web:
-    build:
-      context: .
-      dockerfile: video-collection-web/Dockerfile
-    restart: unless-stopped
-    environment:
-      INTERNAL_API_URL: http://service:8080
-      VITE_PORTAL_URL: ${PORTAL_URL:-/}
-      SITE_URL: ${SITE_URL:-}
-      PUBLIC_SITE_URL: ${SITE_URL:-}
-    ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-4321}:4321"
-    depends_on:
-      service:
-        condition: service_healthy
   # 管理后台不再需要独立容器：统一服务已通过 go:embed 托管 /admin，
   # 地址为 http://<host>:${API_PORT:-8080}/admin
+  # 前台门户同样内嵌进统一服务二进制（webfront 托管 /，SSR + SPA），
+  # 旧的独立 Web 容器（Astro/Node，4321 端口）已废弃移除。
 volumes:
   postgres-data:
   redis-data:

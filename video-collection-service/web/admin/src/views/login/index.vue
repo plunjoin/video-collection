@@ -3,7 +3,7 @@
     <div class="login-card">
       <!-- 品牌头 -->
       <div class="login-header">
-        <span class="logo-mark" v-html="sparkleSvg" />
+        <img class="logo-mark" :src="'/brand/bllii-symbol.svg'" alt="bllii" />
         <h1 class="title">视频采集管理</h1>
         <p class="subtitle">可配置多源采集 • 智能清洗聚合 • 统一服务架构</p>
       </div>
@@ -88,9 +88,6 @@ const quickFill = () => {
   form.password = 'admin123'
 }
 
-const sparkleSvg =
-  "<svg viewBox='0 0 24 24' width='44' height='44' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='lg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#4285f4'/><stop offset='.55' stop-color='#9b72cb'/><stop offset='1' stop-color='#d96570'/></linearGradient></defs><path fill='url(#lg)' d='M12 1.8c.6 4.9 3.9 8.3 8.7 9.1C15.9 11.7 12.6 15.1 12 20c-.6-4.9-3.9-8.3-8.7-9.1C8.1 10.1 11.4 6.7 12 1.8z'/></svg>"
-
 const handleLogin = async () => {
   if (!loginFormRef.value) return
   await loginFormRef.value.validate(async (valid) => {
@@ -140,6 +137,9 @@ const handleLogin = async () => {
 
       .logo-mark {
         display: inline-flex;
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
         margin-bottom: 14px;
       }
       .title {

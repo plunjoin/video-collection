@@ -84,7 +84,7 @@ for token in "$@"; do
     all) WANT_SERVICE=1; WANT_ADMIN=1; WANT_WEB=1; WANT_APP=1 ;;
     service|api) WANT_SERVICE=1 ;;
     admin) WANT_ADMIN=1 ;;
-    web|astro) WANT_WEB=1 ;;
+    web) WANT_WEB=1 ;;
     app) WANT_APP=1 ;;
     *)
       if is_flutter_device "$t"; then
@@ -181,11 +181,14 @@ ensure_go_deps() {
 ensure_pnpm_deps() {
   local name="$1" dir="$2"
   [[ -d "$dir" ]] || { warn "[跳过] $name 目录不存在"; return 0; }
-  if [[ ! -d "$dir/node_modules" ]]; then
-    info "[依赖] $name: pnpm install ..."
-    (cd "$dir" && pnpm install)
+  # 前端依赖统一在 web/ 工作区（pnpm workspace，hoisted 单份 node_modules）
+  local workspace
+  workspace="$(dirname "$dir")"
+  if [[ ! -d "$workspace/node_modules" ]]; then
+    info "[依赖] $name: pnpm install (web 工作区) ..."
+    (cd "$workspace" && pnpm install)
   else
-    dim "[依赖] $name: node_modules 已存在，跳过"
+    dim "[依赖] $name: web 工作区 node_modules 已存在，跳过"
   fi
 }
 
@@ -200,7 +203,8 @@ echo ""
 ok "=== 检查 / 安装项目依赖 ==="
 [[ "$WANT_SERVICE" -eq 1 ]] && ensure_go_deps "$ROOT/video-collection-service"
 [[ "$WANT_ADMIN" -eq 1 ]] && ensure_pnpm_deps "Admin" "$ROOT/video-collection-service/web/admin"
-[[ "$WANT_WEB" -eq 1 ]] && ensure_pnpm_deps "Web" "$ROOT/video-collection-web"
+# web 目标：前台门户已内嵌进 service（webfront 托管），启动即 go run service
+[[ "$WANT_WEB" -eq 1 ]] && ensure_go_deps "$ROOT/video-collection-service"
 [[ "$WANT_APP" -eq 1 ]] && ensure_flutter_deps
 
 # ---------- 同一终端并行启动 ----------
@@ -264,7 +268,8 @@ echo ""
 
 [[ "$WANT_ADMIN" -eq 1 ]] && start_one "admin" "$ROOT/video-collection-service/web/admin" "pnpm dev"
 [[ "$WANT_SERVICE" -eq 1 ]] && start_one "service" "$ROOT/video-collection-service" "go run ."
-[[ "$WANT_WEB" -eq 1 ]] && start_one "web" "$ROOT/video-collection-web" "pnpm start"
+# web 目标：门户已由 service 内嵌托管（webfront SSR 引擎）
+[[ "$WANT_WEB" -eq 1 ]] && start_one "web" "$ROOT/video-collection-service" "go run ."
 
 if [[ "$WANT_APP" -eq 1 ]]; then
   cmd="flutter run"

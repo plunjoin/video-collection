@@ -25,7 +25,7 @@ body {
 // ---------------------------------------------------------------- 设计令牌 --
 :root {
   // 画布与表面（玻璃材质）
-  --bg-color: #edf0f7; // 页面画布基础色（背景系统叠加其上）
+  --bg-color: #f7faff; // 页面画布基础色（背景系统叠加其上）
   --surface: rgba(255, 255, 255, 0.62); // L2 玻璃面板
   --surface-solid: #ffffff; // 需要不透明的表面
   --surface-hover: rgba(255, 255, 255, 0.78); // 悬停 / 选中药丸
@@ -34,15 +34,16 @@ body {
   --border-strong: rgba(20, 32, 57, 0.16);
 
   // 文本
-  --text-primary: #182136; // 近墨蓝
-  --text-regular: #3f4d66;
-  --text-secondary: #71809b;
+  --text-primary: #353b58; // 近墨蓝
+  --text-regular: #4a5273;
+  --text-secondary: #7d88aa;
 
   // 品牌与语义色（低饱和靛蓝主调）
-  --brand: #4f6ef2;
-  --brand-hover: #3d5ce0;
-  --brand-soft: rgba(79, 110, 242, 0.1);
-  --accent: #4f6ef2;
+  --brand: #4b9fff;
+  --brand-hover: #3a8ef0;
+  --brand-soft: rgba(75, 159, 255, 0.12);
+  --brand-gradient: linear-gradient(110deg, #4b9fff, #9a83ff 60%, #ff89c7);
+  --accent: #9a83ff;
   --success: #2f9e6e;
   --warning: #d9820b;
   --danger: #e5484d;
@@ -81,7 +82,7 @@ body {
   --sidebar-active-bg: var(--surface-hover);
   --nav-border-light: rgba(20, 32, 57, 0.05);
   --nav-bg-subtle: rgba(255, 255, 255, 0.55);
-  --nav-bg-active: rgba(79, 110, 242, 0.1);
+  --nav-bg-active: rgba(75, 159, 255, 0.1);
   --nav-primary: var(--brand);
   --text-color-primary: var(--text-primary);
   --text-color-regular: var(--text-regular);
@@ -96,9 +97,9 @@ body {
 body {
   background-color: var(--bg-color);
   background-image:
-    radial-gradient(56rem 36rem at 8% -12%, rgba(96, 122, 255, 0.13), transparent 62%),
+    radial-gradient(56rem 36rem at 8% -12%, rgba(75, 159, 255, 0.13), transparent 62%),
     radial-gradient(48rem 30rem at 96% 8%, rgba(64, 186, 213, 0.1), transparent 60%),
-    radial-gradient(52rem 40rem at 55% 118%, rgba(139, 124, 246, 0.1), transparent 65%),
+    radial-gradient(52rem 40rem at 55% 118%, rgba(154, 131, 255, 0.1), transparent 65%),
     linear-gradient(180deg, #eef1f8 0%, #eceff7 100%);
   background-attachment: fixed;
   color: var(--text-primary);
@@ -117,10 +118,10 @@ html.dark {
   --text-primary: #e8ecf6;
   --text-regular: #c3cbdd;
   --text-secondary: #8f9cb5;
-  --brand: #7e94ff;
-  --brand-hover: #93a7ff;
-  --brand-soft: rgba(126, 148, 255, 0.14);
-  --accent: #7e94ff;
+  --brand: #6fb0ff;
+  --brand-hover: #8abdff;
+  --brand-soft: rgba(111, 176, 255, 0.16);
+  --accent: #a99bff;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.32);
   --shadow-pop: 0 24px 64px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.34);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -131,14 +132,14 @@ html.dark {
   --glass-panel-strong: linear-gradient(180deg, rgba(28, 35, 56, 0.94), rgba(22, 28, 46, 0.86));
   --nav-border-light: rgba(255, 255, 255, 0.06);
   --nav-bg-subtle: rgba(255, 255, 255, 0.06);
-  --nav-bg-active: rgba(126, 148, 255, 0.14);
-  --nav-primary: #7e94ff;
+  --nav-bg-active: rgba(111, 176, 255, 0.14);
+  --nav-primary: #6fb0ff;
 
   body {
     background-image:
-      radial-gradient(56rem 36rem at 8% -12%, rgba(96, 122, 255, 0.1), transparent 62%),
+      radial-gradient(56rem 36rem at 8% -12%, rgba(75, 159, 255, 0.1), transparent 62%),
       radial-gradient(48rem 30rem at 96% 8%, rgba(64, 186, 213, 0.07), transparent 60%),
-      radial-gradient(52rem 40rem at 55% 118%, rgba(139, 124, 246, 0.09), transparent 65%),
+      radial-gradient(52rem 40rem at 55% 118%, rgba(154, 131, 255, 0.09), transparent 65%),
       linear-gradient(180deg, #0b1020 0%, #0a0e1c 100%);
     background-color: var(--bg-color);
     color: var(--text-primary);
@@ -300,7 +301,7 @@ html .r-button {
     transform: translateY(-1px);
     color: var(--text-primary);
     background: var(--nav-bg-subtle);
-    border-color: rgba(79, 110, 242, 0.28);
+    border-color: rgba(75, 159, 255, 0.28);
     box-shadow: 0 2px 8px rgba(22, 33, 58, 0.06);
   }
 
@@ -315,7 +316,7 @@ html.dark .r-button {
 
   &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(126, 148, 255, 0.3);
+    border-color: rgba(111, 176, 255, 0.3);
   }
 }
 
@@ -381,22 +382,22 @@ html .r-icon {
 }
 
 html .r-button--primary {
-  background: linear-gradient(135deg, #5d7af5 0%, #3d5ce0 100%);
+  background: linear-gradient(135deg, #4b9fff 0%, #9a83ff 100%);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(79, 110, 242, 0.24);
+  box-shadow: 0 2px 8px rgba(75, 159, 255, 0.24);
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #6a86f7 0%, #4a67e8 100%);
+    background: linear-gradient(135deg, #5ea9ff 0%, #a18fff 100%);
     border-color: transparent;
-    box-shadow: 0 4px 14px rgba(79, 110, 242, 0.32);
+    box-shadow: 0 4px 14px rgba(75, 159, 255, 0.32);
   }
 }
 
 html .r-button--plain.r-button--primary {
   color: var(--brand);
   background: var(--nav-bg-active);
-  border-color: rgba(79, 110, 242, 0.25);
+  border-color: rgba(75, 159, 255, 0.25);
   box-shadow: none;
 
   &:hover:not(:disabled) {
@@ -477,15 +478,15 @@ html .r-input {
   }
 
   &:hover {
-    border-color: rgba(79, 110, 242, 0.3);
+    border-color: rgba(75, 159, 255, 0.3);
     background: rgba(20, 32, 57, 0.05);
   }
 
   &:focus,
   &:focus-visible {
     background: rgba(255, 255, 255, 0.88);
-    border-color: rgba(79, 110, 242, 0.35);
-    box-shadow: 0 0 0 3px rgba(79, 110, 242, 0.1);
+    border-color: rgba(75, 159, 255, 0.35);
+    box-shadow: 0 0 0 3px rgba(75, 159, 255, 0.1);
   }
 }
 
@@ -495,14 +496,14 @@ html.dark .r-input {
 
   &:hover {
     background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(126, 148, 255, 0.35);
+    border-color: rgba(111, 176, 255, 0.35);
   }
 
   &:focus,
   &:focus-visible {
     background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(126, 148, 255, 0.4);
-    box-shadow: 0 0 0 3px rgba(126, 148, 255, 0.14);
+    border-color: rgba(111, 176, 255, 0.4);
+    box-shadow: 0 0 0 3px rgba(111, 176, 255, 0.14);
   }
 }
 
@@ -589,14 +590,14 @@ html .r-radio-group > .r-radio-button {
 
   &:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.25);
+    box-shadow: 0 0 0 2px rgba(75, 159, 255, 0.25);
   }
 
   &[data-state="checked"] {
     background: var(--surface-solid);
     color: var(--brand);
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(22, 33, 58, 0.08), 0 2px 8px rgba(79, 110, 242, 0.14);
+    box-shadow: 0 1px 2px rgba(22, 33, 58, 0.08), 0 2px 8px rgba(75, 159, 255, 0.14);
   }
 
   &[data-disabled] {
@@ -658,7 +659,7 @@ html.dark .r-radio-group > .r-radio-button {
   }
 
   &[data-state="checked"] {
-    background: rgba(126, 148, 255, 0.18);
+    background: rgba(111, 176, 255, 0.18);
     color: #c3cdfd;
     box-shadow: none;
   }
@@ -690,15 +691,15 @@ html .r-select__control {
     transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
     &:hover {
-      border-color: rgba(79, 110, 242, 0.3);
+      border-color: rgba(75, 159, 255, 0.3);
       background: rgba(20, 32, 57, 0.05);
     }
 
     &:focus-visible,
     &[data-state="open"] {
       background: rgba(255, 255, 255, 0.88);
-      border-color: rgba(79, 110, 242, 0.35);
-      box-shadow: 0 0 0 3px rgba(79, 110, 242, 0.1);
+      border-color: rgba(75, 159, 255, 0.35);
+      box-shadow: 0 0 0 3px rgba(75, 159, 255, 0.1);
     }
   }
 
@@ -740,14 +741,14 @@ html.dark .r-select__control {
 
     &:hover {
       background: rgba(255, 255, 255, 0.07);
-      border-color: rgba(126, 148, 255, 0.35);
+      border-color: rgba(111, 176, 255, 0.35);
     }
 
     &:focus-visible,
     &[data-state="open"] {
       background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(126, 148, 255, 0.4);
-      box-shadow: 0 0 0 3px rgba(126, 148, 255, 0.14);
+      border-color: rgba(111, 176, 255, 0.4);
+      box-shadow: 0 0 0 3px rgba(111, 176, 255, 0.14);
     }
   }
 }
@@ -785,14 +786,14 @@ html .r-select__item {
 
   &:hover,
   &[data-highlighted] {
-    background: var(--nav-bg-subtle, rgba(79, 110, 242, 0.08));
+    background: var(--nav-bg-subtle, rgba(75, 159, 255, 0.08));
     color: var(--brand);
   }
 
   &[data-state="checked"] {
     font-weight: 600;
     color: var(--brand);
-    background: var(--nav-bg-active, rgba(79, 110, 242, 0.12));
+    background: var(--nav-bg-active, rgba(75, 159, 255, 0.12));
   }
 
   &[data-disabled] {
@@ -838,11 +839,11 @@ html .r-switch {
   flex-shrink: 0;
 
   &:focus-visible {
-    box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.4);
+    box-shadow: 0 0 0 2px rgba(75, 159, 255, 0.4);
   }
 
   &[data-state="checked"] {
-    background: linear-gradient(135deg, #5d7af5 0%, #3d5ce0 100%);
+    background: linear-gradient(135deg, #4b9fff 0%, #9a83ff 100%);
   }
 
   &:disabled {
@@ -878,7 +879,7 @@ html.dark .r-switch {
   background: rgba(255, 255, 255, 0.18);
 
   &[data-state="checked"] {
-    background: linear-gradient(135deg, #6a86f7 0%, #4a67e8 100%);
+    background: linear-gradient(135deg, #5ea9ff 0%, #a18fff 100%);
   }
 }
 
@@ -1015,7 +1016,7 @@ html .r-table {
   }
 
   tbody tr:hover td {
-    background: rgba(79, 110, 242, 0.05);
+    background: rgba(75, 159, 255, 0.05);
   }
 }
 
@@ -1024,7 +1025,7 @@ html.dark .r-table th {
 }
 
 html.dark .r-table tbody tr:hover td {
-  background: rgba(126, 148, 255, 0.08);
+  background: rgba(111, 176, 255, 0.08);
 }
 
 // 表格内操作按钮：相邻按钮留出间距，避免圆角互相贴合
@@ -1145,7 +1146,7 @@ html .r-pagination {
 
     &:hover:not(:disabled) {
       background: var(--nav-bg-subtle);
-      border-color: rgba(79, 110, 242, 0.3);
+      border-color: rgba(75, 159, 255, 0.3);
     }
   }
 
@@ -1213,11 +1214,11 @@ html.dark .r-tabs__trigger[data-state="active"] {
 // 焦点可见性（无障碍）
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.55);
+  box-shadow: 0 0 0 2px rgba(75, 159, 255, 0.55);
 }
 
 html.dark :focus-visible {
-  box-shadow: 0 0 0 2px rgba(126, 148, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(111, 176, 255, 0.6);
 }
 
 // 顶部进度条

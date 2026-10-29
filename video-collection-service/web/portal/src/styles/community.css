@@ -1,0 +1,55 @@
+/* 社区（列表 + 详情）。选择器改用 React 类名约定；详情变体以 .community-post-detail 作用域覆盖。 */
+.community-post-form { border: 1px solid #eceffa; border-radius: 18px; background: #fff; padding: 22px; margin-bottom: 20px; }
+.community-post-form__header { display: flex; align-items: center; gap: 12px; }
+.community-post-form__avatar { width: 42px; height: 42px; border-radius: 50%; border: 3px solid #f5eafb; object-fit: cover; }
+.community-post-form__intro { flex: 1; }
+.community-post-form__intro strong { font-size: 13px; font-weight: 600; }
+.community-post-form__intro small { display: block; margin-top: 3px; font-size: 11px; color: #99a2be; }
+.community-login-btn { padding: 8px 18px; border-radius: 99px; background: var(--brand-gradient); color: #fff; font-size: 12px; font-weight: 600; }
+.community-post-form__body { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f1fa; }
+.community-input { width: 100%; height: 42px; border: 1px solid #e2e7f8; border-radius: 12px; background: #f8faff; padding: 0 14px; font-size: 13px; outline: none; margin-bottom: 10px; }
+.community-textarea { width: 100%; border: 1px solid #e2e7f8; border-radius: 12px; background: #f8faff; padding: 12px 14px; font-size: 13px; outline: none; resize: vertical; margin-bottom: 10px; line-height: 1.7; }
+.community-input:focus, .community-textarea:focus { border-color: #b8a8f0; }
+.community-post-form__actions { display: flex; align-items: center; gap: 14px; }
+.community-alert { font-size: 12px; }
+.community-post { padding: 22px; border: 1px solid #eceffa; border-radius: 18px; background: #fff; margin-bottom: 18px; }
+.community-post h2 { font-size: 15px; font-weight: 650; margin: 12px 0 0; }
+.community-post h2 a { color: #30375b; }
+.community-post h2 a:hover { color: #597bea; }
+.community-post-summary { font-size: 12px; color: #8b94b1; line-height: 1.8; margin-bottom: 14px; }
+.community-post footer { display: flex; align-items: center; gap: 18px; margin-top: 14px; }
+.community-like-btn { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 12px; color: #9ba5c1; padding: 0; transition: color .2s; }
+.community-like-btn:hover { color: #e88080; }
+.community-like-btn[data-liked="true"] { color: #e88080; }
+.community-comment-link { font-size: 12px; color: #9ba5c1; }
+.community-pin-badge { margin-left: auto; font-size: 10px; background: #fff3e0; color: #e8a040; padding: 3px 10px; border-radius: 99px; }
+.community-read-more { margin-left: auto; font-size: 12px; color: #8e81b7; }
+.community-read-more:hover { color: #9271d9; }
+.community-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 34px; align-items: start; }
+.community-aside { position: sticky; top: 96px; display: flex; flex-direction: column; gap: 13px; padding: 26px; border: 1px solid #eceffa; border-radius: 20px; background: #fff; }
+.community-aside h2 { font-size: 15px; font-weight: 700; color: #30375b; margin-bottom: 4px; }
+.community-aside a { font-size: 12px; color: #7e89ab; }
+.community-aside a:hover { color: #9271d9; }
+.community-aside img { width: 64px; height: 64px; object-fit: contain; margin-top: 14px; opacity: .8; }
+@media (max-width: 900px) { .community-layout { grid-template-columns: 1fr; } .community-aside { display: none; } }
+
+/* 详情页（原 community/[id].astro 作用域样式，收敛到 .community-post-detail 下） */
+.community-post-detail { margin-bottom: 28px; }
+.community-post-detail { padding: 26px; }
+.community-post-detail h1 { font-size: 20px; font-weight: 700; margin: 18px 0 12px; color: #30375b; }
+.community-post-detail .community-post-summary { font-size: 13px; color: #6b7390; line-height: 1.8; }
+.community-post-detail .community-like-btn { color: #69748a; }
+.community-post-detail .community-like-btn[data-liked="true"] { color: #cf4b63; }
+.community-post-detail .community-like-btn:disabled { opacity: .55; }
+.community-post-detail .community-pin-badge { color: #b67519; }
+.community-post-content { font-size: 14px; line-height: 2; color: #4a5273; margin-top: 12px; }
+.community-post-content p { margin-bottom: 14px; }
+.community-post-content img { max-width: 100%; border-radius: 12px; margin: 12px 0; }
+.community-post-content a { color: #597bea; text-decoration: underline; }
+.community-meta-info { font-size: 12px; color: #7e8ba0; display: inline-flex; align-items: center; gap: 5px; }
+.news-back { display: inline-block; margin-bottom: 20px; font-size: 12px; color: #65748a; }
+.news-back:hover { color: #9271d9; }
+.news-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 32px; }
+.news-page-btn { padding: 9px 20px; border: 1px solid #e7eafa; border-radius: 99px; font-size: 12px; color: #7e89ab; background: #f8faff; transition: all .2s; }
+.news-page-btn:hover { border-color: #c4c9f1; color: #9271d9; }
+.news-page-info { font-size: 13px; font-weight: 600; color: #6b7390; }

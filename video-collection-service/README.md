@@ -38,12 +38,16 @@ video-collection-service/
 
 ## 快速开始
 
-### 1. 构建管理后台（一次性，改动前端后重跑）
+### 1. 构建前端（一次性，改动前端后重跑）
+
+前端依赖统一在 `web/` 工作区（pnpm workspace，单份 node_modules）：
 
 ```bash
-cd web/admin
-pnpm install --frozen-lockfile
-pnpm build          # 输出至 web/admin/dist
+cd web
+pnpm install
+
+cd admin && pnpm build              # 管理后台（Vue + Vite）→ web/admin/dist
+cd ../portal && ../../wf.exe build . # 门户（React + webfront）→ web/portal/dist
 ```
 
 ### 2. 编译并运行服务
@@ -56,7 +60,7 @@ go build -o video-collection-service .
 
 | 入口 | 地址 |
 | :--- | :--- |
-| **根路径（默认）** | `http://localhost:8080/` → 自动跳转 `/admin` |
+| **门户（webfront 托管）** | `http://localhost:8080/`（SSR + SPA，根路径即门户） |
 | **管理后台（Go 托管）** | `http://localhost:8080/admin` |
 | 服务状态（程序访问） | `/status` |
 | OpenAPI 交互文档 | `/docs` |
@@ -65,7 +69,7 @@ go build -o video-collection-service .
 | RSS 订阅 | `/rss.xml` |
 | 健康检查 | `/healthz` |
 
-前端开发模式（热更新）也可独立运行：`cd web/admin && pnpm dev`（默认 3000 端口，`/api` 代理到 `API_PROXY_TARGET`，默认 `http://localhost:8080`）。
+前端开发模式：管理后台 `cd web/admin && pnpm dev`（默认 3000 端口，`/api` 代理到 `API_PROXY_TARGET`，默认 `http://localhost:8080`）；门户 `go run -tags dev .`（webfront DevServer，esbuild 按需转译 + HMR，与 API 同进程同源）。
 
 ## 基础配置（SQLite bootstrap）
 
@@ -163,7 +167,7 @@ postgres://用户名:密码@主机:端口/库名?sslmode=disable
 
 ```bash
 docker compose --env-file deploy/.env up -d --build
-# 门户      http://127.0.0.1:4321
+# 门户      http://127.0.0.1:8080/（统一服务托管）
 # 管理后台  http://127.0.0.1:8080/admin
 ```
 
@@ -226,5 +230,3 @@ Liquid Glass 玻璃风侧边导航 → 路由 → 后端接口对照：
 | 运行日志 | `/logs` | `/api/admin/logs` 实时日志流 |
 
 角色权限：`super_admin` / `admin` / `observer`（只读）/ `operator`（运营，需审核后发布），与旧版一致。
-
-> AI生成

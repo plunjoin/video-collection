@@ -1,8 +1,8 @@
 # 部署与维护
 
-本目录提供统一服务（RESTful API + Go 托管管理后台）、PostgreSQL、Redis 与 Web SSR 的 Docker Compose 部署。Flutter 客户端独立发布，构建步骤见 `video-collection-app/README.md`。
+本目录提供统一服务的 Docker Compose 部署：单个 Go 容器同时托管 RESTful API、管理后台（/admin）与用户门户（/，webfront SSR/SPA，go:embed 内嵌）。Flutter 客户端独立发布，构建步骤见 `video-collection-app/README.md`。
 
-自「video-collection-service」合并版起，原来的 API 与管理后台两个容器已合并为一个 Go 服务：管理后台 SPA 经 `go:embed` 打进二进制，由服务直接托管在 `/admin`，不再需要 Nginx 容器分发后台静态资源。
+自「video-collection-service」合并版起，原 API、管理后台、Web 门户三个容器已合并为一个 Go 服务：管理后台 SPA 与门户前端均经 `go:embed` 打进二进制，分别由服务直接托管在 `/admin` 与 `/`，不再需要 Nginx 与 Node 容器。
 
 ## Docker Compose
 
@@ -21,12 +21,12 @@ cp deploy/.env.example deploy/.env
 docker compose --env-file deploy/.env config --quiet
 docker compose --env-file deploy/.env up -d --build
 docker compose --env-file deploy/.env ps
-docker compose --env-file deploy/.env logs --tail=100 service web
+docker compose --env-file deploy/.env logs --tail=100 service
 ```
 
-默认入口为 `http://127.0.0.1:4321`（门户）、`http://127.0.0.1:8080/admin`（管理后台，端口由 `API_PORT` 控制）。管理员用户名为 `admin`，密码为环境文件中的 `ADMIN_INITIAL_PASSWORD`。该变量仅对空数据库首次初始化有效，修改变量不会重置既有账号。
+默认入口为 `http://127.0.0.1:8080/`（门户，webfront 托管）与 `http://127.0.0.1:8080/admin`（管理后台），端口由 `API_PORT` 控制。管理员用户名为 `admin`，密码为环境文件中的 `ADMIN_INITIAL_PASSWORD`。该变量仅对空数据库首次初始化有效，修改变量不会重置既有账号。
 
-统一服务和数据库仅在 Compose 内部网络开放（8080 通过 `API_PORT` 映射到宿主机，供 /admin、/api、/docs 使用）。Web 服务端使用 `INTERNAL_API_URL=http://service:8080`，浏览器使用同源 `/api`。端口可通过 `WEB_PORT`、`API_PORT` 修改。管理后台由 Go 直接托管，管理后台不再需要独立容器。
+统一服务和数据库仅在 Compose 内部网络开放（8080 通过 `API_PORT` 映射到宿主机，供门户、/admin、/api、/docs 使用）。浏览器与门户同源取数，无需跨域配置。默认绑定本机回环地址，适合宿主机上的 HTTPS 反向代理；局域网测试可将 `BIND_ADDRESS` 改为 `0.0.0.0`。
 
 默认绑定本机回环地址，适合宿主机上的 HTTPS 反向代理。局域网测试可将 `BIND_ADDRESS` 改为 `0.0.0.0` 后重新执行 `up -d`。生产入口配置见下面的 Nginx 示例。
 
@@ -59,7 +59,6 @@ sudo certbot --nginx -d video.example.com -d admin.example.com   # 后台与 API
 
 成长站升级会自动创建任务、等级、心愿公开设置与助力表；已有安装也会执行本次迁移。默认任务只初始化一次，不覆盖后台修改；等级初始数据按缺失项补齐。历史求片仍为私密，只有本人主动公开的未完成心愿进入公共心愿墙。上线后检查任务奖励配置、用户任务领取及公开/收回心愿流程。
 
-后台门户跳转地址可通过构建变量 `VITE_PORTAL_URL` 配置为门户的完整地址并以 `/` 结尾；Compose 的 `PORTAL_URL` 会传入该变量。后台 `/docs` 使用同源代理。
 
 接入 Redis（compose 默认已包含，并注入 `REDIS_ADDR=redis:6379`）后，登录会话改由 radix 托管，多副本部署与重启免登录均可支持；未配置 `REDIS_ADDR` 时自动降级为进程内存会话。公开读接口（视频列表/详情、分类、排行榜、最近更新、站点配置、播放器）启用 Redis 缓存，管理端写操作后自动失效。审核、库存及积分均持久化，重启不会重复发奖。回滚服务前应先恢复升级前的完整备份，新角色无法由旧版正确识别。
 
@@ -82,7 +81,7 @@ Windows 也使用上述 `cp` 命令，避免通过旧版 PowerShell 的文本重
 恢复数据库前先停止 Web、后台和 API，保留 PostgreSQL：
 
 ```bash
-docker compose --env-file deploy/.env stop web service
+docker compose --env-file deploy/.env stop service
 docker compose --env-file deploy/.env cp ./videodb.dump postgres:/tmp/videodb.dump
 docker compose --env-file deploy/.env exec -T postgres pg_restore -U video -d videodb --clean --if-exists --no-owner /tmp/videodb.dump
 docker compose --env-file deploy/.env up -d
@@ -114,7 +113,7 @@ cd ../.. && go build -o video-collection-service .
 
 管理后台 `dist` 由 `go:embed` 打进二进制，运行时保持工作目录及 `config`、`players`、`themes`、`data` 可用。通过 `.env` 设置 `PORT=8080`、数据库地址、`DB_REQUIRE_PRIMARY=true`、初始管理员密码，以及可选的 `REDIS_ADDR` 等缓存配置。
 
-Web 在其目录执行 `pnpm install --frozen-lockfile && pnpm build`，随后用 `HOST=0.0.0.0 PORT=4321 INTERNAL_API_URL=http://127.0.0.1:8080 node dist/server/entry.mjs` 启动。PowerShell 先分别设置 `$env:HOST`、`$env:PORT`、`$env:INTERNAL_API_URL`。
+门户（web/portal）构建用仓库根 `wf build video-collection-service/web/portal`（纯 Go，零 Node；依赖由 `web/` 工作区提供）；构建产物经 `go:embed` 随服务分发，无需单独启动 Node 进程。
 
 管理后台不再独立分发：构建 `web/admin` 后由统一服务托管 `/admin`。使用 systemd 等进程管理器运行服务与 Web，工作目录必须对应子项目目录。
 

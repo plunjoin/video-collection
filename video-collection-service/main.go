@@ -21,7 +21,7 @@ import (
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
 	"video-collection-service/pkg/theme"
-	videoAdmin "video-collection-service/web/admin"
+	webui "video-collection-service/web"
 )
 
 func main() {
@@ -231,18 +231,13 @@ func main() {
 
 	// (D) 管理后台 SPA (Go 直接托管，构建产物经 go:embed 随二进制分发)
 	// 注意：需在根路径兜底之前注册，/admin/* 由 SPA history 路由处理
-	adminHandler := videoAdmin.Handler()
+	adminHandler := webui.AdminHandler()
 	mux.Handle("/admin", adminHandler)
 	mux.Handle("/admin/", adminHandler)
 
-	// (E) 根路径直接跳转管理后台（服务即后台：默认端口 80 的根目录即登录页）
+	// (E) 前台门户：生产走 webfront 内嵌 SSR/SPA（portal_prod.go），dev 构建走 DevServer+HMR（portal_dev.go，go run -tags dev .）
+	portalHandler := newPortalHandler(dbStore)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || r.URL.Path == "" {
-			// 不论浏览器还是程序访问，统一跳转到管理后台
-			http.Redirect(w, r, "/admin", http.StatusFound)
-			return
-		}
-
 		// 严防 API 路径意外穿透，统一输出规范 JSON 404
 		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/api.php") {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -254,14 +249,7 @@ func main() {
 			return
 		}
 
-		// 其他未注册路径均统一以规范 JSON 404 响应
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"code":     0,
-			"error":    "Not Found: " + r.URL.Path,
-			"docs_url": "/docs",
-		})
+		portalHandler.ServeHTTP(w, r)
 	})
 
 	// (F) 服务状态索引（供程序 / 运维访问；浏览器访问根路径会直接落到 /admin）
@@ -300,7 +288,7 @@ func main() {
 	addr := ":" + port
 
 	fmt.Println("\n------------------------------------------------------------------")
-	fmt.Printf("  >> 根路径即后台 (默认端口 %s):    http://localhost:%s/   ->   /admin\n", port, port)
+	fmt.Printf("  >> 门户前台 (webfront 托管):        http://localhost:%s/\n", port)
 	fmt.Printf("  >> 管理后台 (Go 托管 SPA):        http://localhost:%s/admin\n", port)
 	fmt.Printf("  >> OpenAPI 交互文档 (Swagger UI): http://localhost:%s/docs\n", port)
 	fmt.Printf("  >> 服务状态 (程序访问):           http://localhost:%s/status\n", port)

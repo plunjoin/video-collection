@@ -1,4 +1,4 @@
-﻿# 一键启动 video-collection（同一终端并行，Ctrl+C 全部停止）
+# 一键启动 video-collection（同一终端并行，Ctrl+C 全部停止）
 # 用法: .\run.ps1 admin web windows
 
 param(
@@ -132,12 +132,14 @@ function Ensure-GoDeps {
 function Ensure-PnpmDeps {
     param([string]$Name, [string]$Dir)
     if (-not (Test-Path $Dir)) { Write-Host "[跳过] ${Name} 目录不存在" -ForegroundColor Yellow; return }
-    if (-not (Test-Path (Join-Path $Dir "node_modules"))) {
-        Write-Host "[依赖] ${Name}: pnpm install ..." -ForegroundColor Cyan
-        Push-Location $Dir
+    # 前端依赖统一在 web/ 工作区（pnpm workspace，hoisted 单份 node_modules）
+    $workspace = Split-Path $Dir -Parent
+    if (-not (Test-Path (Join-Path $workspace "node_modules"))) {
+        Write-Host "[依赖] ${Name}: pnpm install (web 工作区) ..." -ForegroundColor Cyan
+        Push-Location $workspace
         try { & pnpm install } finally { Pop-Location }
     } else {
-        Write-Host "[依赖] ${Name}: node_modules 已存在，跳过" -ForegroundColor DarkGray
+        Write-Host "[依赖] ${Name}: web 工作区 node_modules 已存在，跳过" -ForegroundColor DarkGray
     }
 }
 
@@ -269,7 +271,7 @@ foreach ($token in $normalized) {
         "admin"   { [void]$wantProjects.Add("admin") }
         "service" { [void]$wantProjects.Add("service") }
         "web"   { [void]$wantProjects.Add("web") }
-        "astro" { [void]$wantProjects.Add("web") }
+
         "app"   { $wantApp = $true }
         default {
             if ($FlutterDevices.ContainsKey($token)) {
@@ -297,7 +299,7 @@ if ($wantProjects.Count -eq 0 -and -not $wantApp) {
 Write-Host ""
 Write-Host "=== video-collection 环境检查 ===" -ForegroundColor Green
 $missing = $false
-$needNode = $wantProjects.Contains("admin") -or $wantProjects.Contains("web")
+$needNode = $wantProjects.Contains("admin")
 
 if ($wantProjects.Contains("service")) {
     if (Test-CommandExists "go") { Write-Host "[OK] $(go version)" -ForegroundColor Green }
@@ -325,7 +327,11 @@ Write-Host ""
 Write-Host "=== 检查 / 安装项目依赖 ===" -ForegroundColor Green
 if ($wantProjects.Contains("service")) { Ensure-GoDeps -Dir (Join-Path $Root "video-collection-service") }
 if ($wantProjects.Contains("admin")) { Ensure-PnpmDeps -Name "Admin" -Dir (Join-Path $Root "video-collection-service/web/admin") }
-if ($wantProjects.Contains("web")) { Ensure-PnpmDeps -Name "Web" -Dir (Join-Path $Root "video-collection-web") }
+     = Join-Path  "wf.exe"
+    if (Test-Path ) {
+        Write-Host "[wf] 正在通过 webfront CLI 编译前台门户..." -ForegroundColor Cyan
+        &  build (Join-Path  "video-collection-service/web/portal")
+    }
 if ($wantApp) { Ensure-FlutterDeps }
 
 # ---------- 同一终端启动 ----------
@@ -347,7 +353,11 @@ if ($wantProjects.Contains("admin")) {
     Start-ServiceProcess -Tag "admin" -WorkDir (Join-Path $Root "video-collection-service/web/admin") -Command "pnpm dev" -Color Magenta
 }
 if ($wantProjects.Contains("web")) {
-    Start-ServiceProcess -Tag "web" -WorkDir (Join-Path $Root "video-collection-web") -Command "pnpm start" -Color Cyan
+    if (-not .Contains("service")) {
+        Start-ServiceProcess -Tag "web" -WorkDir (Join-Path  "video-collection-service") -Command "go run ." -Color Cyan
+    } else {
+        Write-Host "[web] 前台门户已由 video-collection-service 内嵌托管（webfront SSR 引擎）" -ForegroundColor Cyan
+    }
 }
 if ($wantApp) {
     $cmd = if ($flutterDevice) { "flutter run -d $flutterDevice" } else { "flutter run" }
