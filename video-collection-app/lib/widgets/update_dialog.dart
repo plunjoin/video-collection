@@ -418,10 +418,24 @@ class UpdateDialog extends StatelessWidget {
                 );
               }
               if (state.downloadedInstallerPath != null) {
-                return FilledButton.icon(
-                  icon: const BrandIcon(BIcons.download, size: 18),
-                  label: const Text('安装并重启'),
-                  onPressed: () => state.installUpdate(),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      icon: const BrandIcon(BIcons.download, size: 18),
+                      label: const Text('安装并重启'),
+                      onPressed: () => state.installUpdate(),
+                    ),
+                    const SizedBox(height: 6),
+                    // 静默安装被安全软件拦截/中止时的兜底:打开完整向导,
+                    // 用户可以直接看到安装器的报错并手动完成更新
+                    TextButton.icon(
+                      icon: const BrandIcon(BIcons.sidebar, size: 16),
+                      label: const Text('手动安装(显示安装向导)'),
+                      onPressed: () => state.installUpdate(silent: false),
+                    ),
+                  ],
                 );
               }
               return FilledButton.icon(

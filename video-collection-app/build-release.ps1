@@ -7,7 +7,7 @@
 #   .\build-release.ps1 -SkipSign        # 跳过代码签名 (默认自动签名, 未配置证书时也会跳过)
 
 param(
-    [string]$Version = "v1.0.1",
+    [string]$Version = "",
     [string]$Target = "all",
     [switch]$SkipSign
 )
@@ -17,6 +17,20 @@ $AppDir = $PSScriptRoot
 $DistDir = Join-Path $AppDir "dist"
 $SignScript = Join-Path $AppDir "scripts\sign-release.ps1"
 New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
+
+# 从 pubspec.yaml 推导版本号并注入构建 (APP_VERSION / APP_BUILD_NUMBER)
+# 更新检查依赖这两个 dart-define, 缺失时客户端版本会被识别为 1.0.0
+$pubspecVersion = (Select-String -Path (Join-Path $AppDir "pubspec.yaml") -Pattern '^version:\s*(.+)\+(.+)$').Matches[0]
+$AppVersion = $pubspecVersion.Groups[1].Value
+$AppBuildNumber = $pubspecVersion.Groups[2].Value
+$VersionDefines = @(
+    "--dart-define=APP_VERSION=$AppVersion",
+    "--dart-define=APP_BUILD_NUMBER=$AppBuildNumber"
+)
+Write-Host "[版本] APP_VERSION=$AppVersion APP_BUILD_NUMBER=$AppBuildNumber" -ForegroundColor Yellow
+
+# 未显式指定 -Version 时按 pubspec 版本打 tag 名 (如 v1.0.2)
+if (-not $Version) { $Version = "v$AppVersion" }
 
 $ConfigFile = Join-Path $AppDir "env/prod.json"
 if (-not (Test-Path $ConfigFile)) {
@@ -36,7 +50,7 @@ if ($Target -eq "all" -or $Target -eq "windows") {
     Write-Host ""
     Write-Host "[1/2] 开始构建 Windows 桌面端..." -ForegroundColor Green
     Set-Location $AppDir
-    flutter build windows --release --dart-define-from-file=env/prod.json
+    flutter build windows --release --dart-define-from-file=env/prod.json @VersionDefines
     
     $winReleaseDir = Join-Path $AppDir "build\windows\x64\runner\Release"
     $winZip = Join-Path $DistDir "bllii_for_windows_${Version}.zip"
@@ -107,7 +121,7 @@ if ($Target -eq "all" -or $Target -eq "android") {
     Write-Host ""
     Write-Host "[2/2] 开始构建 Android APK..." -ForegroundColor Green
     Set-Location $AppDir
-    flutter build apk --release --dart-define-from-file=env/prod.json
+    flutter build apk --release --dart-define-from-file=env/prod.json @VersionDefines
     
     $apkSrc = Join-Path $AppDir "build\app\outputs\flutter-apk\app-release.apk"
     $apkDest = Join-Path $DistDir "bllii_for_android_${Version}.apk"

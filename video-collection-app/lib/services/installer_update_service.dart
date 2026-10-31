@@ -13,13 +13,24 @@ class InstallerUpdateService {
 
   final http.Client _client;
 
-  static const List<String> _silentArgs = [
-    '/VERYSILENT',
-    '/SUPPRESSMSGBOXES',
-    '/NORESTART',
-    '/SP-',
-    '/CLOSEAPPLICATIONS',
-  ];
+  /// 静默安装参数。刻意不带 /SUPPRESSMSGBOXES:
+  /// 安装器初始化失败(如安全软件拦截、签名/版本校验)时必须把错误弹窗露出来,
+  /// 否则静默流程会无声中止,用户只看到"更新后版本没变"。
+  static List<String> silentArgs(String logPath) => [
+        '/VERYSILENT',
+        '/NORESTART',
+        '/SP-',
+        '/CLOSEAPPLICATIONS',
+        '/LOG=$logPath',
+      ];
+
+  /// 手动向导安装参数:展示完整向导,便于看清报错并手动完成安装。
+  static List<String> wizardArgs(String logPath) => [
+        '/NORESTART',
+        '/SP-',
+        '/CLOSEAPPLICATIONS',
+        '/LOG=$logPath',
+      ];
 
   /// 是否桌面端 (Windows / macOS / Linux)
   static bool get isDesktop =>
@@ -82,9 +93,14 @@ class InstallerUpdateService {
 
   /// 执行安装并重启应用
   ///
+  /// [silent] 为 true 时走静默覆盖安装;为 false 时弹出完整安装向导
+  /// (静默失败后的兜底路径,用户可以直接看到安装器的报错)。
   /// 启动一个独立进程等待安装完成后重新打开应用, 然后立即退出当前进程,
   /// 让安装包能够正常覆盖正在运行的程序文件。
-  Future<void> installAndRelaunch(String installerPath) async {
+  Future<void> installAndRelaunch(
+    String installerPath, {
+    bool silent = true,
+  }) async {
     if (!Platform.isWindows) {
       throw const UpdateDownloadException('安装包直装更新仅支持 Windows');
     }
@@ -93,13 +109,19 @@ class InstallerUpdateService {
       throw const UpdateDownloadException('安装包不存在, 请重新下载');
     }
 
+    final logPath =
+        '${Directory.systemTemp.path}${Platform.pathSeparator}bllii_setup_update.log';
+    final args = [
+      ...(silent ? silentArgs(logPath) : wizardArgs(logPath)),
+    ];
+
     final appExe = Platform.resolvedExecutable;
     // PowerShell 单引号字符串: 内部单引号需翻倍转义
     String psQuote(String value) => "'${value.replaceAll("'", "''")}'";
 
     final script =
         'Start-Process -FilePath ${psQuote(file.path)} '
-        '-ArgumentList ${_silentArgs.map(psQuote).join(',')} -Wait; '
+        '-ArgumentList ${args.map(psQuote).join(',')} -Wait; '
         'Start-Process -FilePath ${psQuote(appExe)}';
 
     await Process.start(

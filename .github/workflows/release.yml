@@ -53,7 +53,10 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter pub get
-          flutter build apk --release --dart-define-from-file=env/prod.json
+          APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          APP_BUILD=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f2)
+          flutter build apk --release --dart-define-from-file=env/prod.json \
+            --dart-define=APP_VERSION=$APP_VERSION --dart-define=APP_BUILD_NUMBER=$APP_BUILD
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/bllii_for_android_${TAG}.apk
 
@@ -86,8 +89,12 @@ jobs:
           BLLII_AZURE_DMDF: ${{ secrets.BLLII_AZURE_DMDF }}
         run: |
           $tag = "${{ github.event.inputs.tag_name || github.ref_name }}"
+          $v = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)\+(.+)$').Matches[0]
+          $appVersion = $v.Groups[1].Value
+          $appBuild = $v.Groups[2].Value
+          Write-Host "APP_VERSION=$appVersion APP_BUILD_NUMBER=$appBuild"
           flutter pub get
-          flutter build windows --release --dart-define-from-file=env/prod.json
+          flutter build windows --release --dart-define-from-file=env/prod.json --dart-define="APP_VERSION=$appVersion" --dart-define="APP_BUILD_NUMBER=$appBuild"
 
           # 代码签名 (未配置任何签名 Secrets 时自动跳过, 配置方法见 installer/SIGNING.md)
           if ($env:BLLII_CERT_PFX_BASE64) {
@@ -152,7 +159,10 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter pub get
-          flutter build linux --release --dart-define-from-file=env/prod.json
+          APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          APP_BUILD=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f2)
+          flutter build linux --release --dart-define-from-file=env/prod.json \
+            --dart-define=APP_VERSION=$APP_VERSION --dart-define=APP_BUILD_NUMBER=$APP_BUILD
           mkdir -p dist
           tar -czf dist/bllii_for_linux_${TAG}.tar.gz -C build/linux/x64/release/bundle .
 
@@ -187,7 +197,10 @@ jobs:
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter config --no-enable-swift-package-manager
           flutter pub get
-          flutter build macos --release --dart-define-from-file=env/prod.json
+          APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          APP_BUILD=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f2)
+          flutter build macos --release --dart-define-from-file=env/prod.json \
+            --dart-define=APP_VERSION=$APP_VERSION --dart-define=APP_BUILD_NUMBER=$APP_BUILD
           mkdir -p dist
 
           APP=build/macos/Build/Products/Release/video_collection_app.app
@@ -248,7 +261,10 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           flutter pub get
-          flutter build ios --release --no-codesign --dart-define-from-file=env/prod.json
+          APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          APP_BUILD=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f2)
+          flutter build ios --release --no-codesign --dart-define-from-file=env/prod.json \
+            --dart-define=APP_VERSION=$APP_VERSION --dart-define=APP_BUILD_NUMBER=$APP_BUILD
           mkdir -p dist
           cd build/ios/iphoneos
           mkdir -p Payload

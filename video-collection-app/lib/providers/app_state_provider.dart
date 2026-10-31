@@ -616,11 +616,14 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// 安装已下载的安装包并重启应用
-  Future<void> installUpdate() async {
+  ///
+  /// [silent] 静默覆盖安装;静默被拦截/中止时可用向导模式重试,向导里能看到
+  /// 安装器的具体报错(如安全软件提示签名不同)。
+  Future<void> installUpdate({bool silent = true}) async {
     final path = _downloadedInstallerPath;
     if (path == null) return;
     try {
-      await _installerUpdate.installAndRelaunch(path);
+      await _installerUpdate.installAndRelaunch(path, silent: silent);
     } catch (e) {
       _updateDownloadError = '安装失败: $e';
       notifyListeners();

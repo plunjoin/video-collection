@@ -38,9 +38,9 @@ class _FakeInstallerUpdate extends InstallerUpdateService {
   }
 
   @override
-  Future<void> installAndRelaunch(String installerPath) {
+  Future<void> installAndRelaunch(String installerPath, {bool silent = true}) {
     if (onInstall != null) return onInstall!(installerPath);
-    return super.installAndRelaunch(installerPath);
+    return super.installAndRelaunch(installerPath, silent: silent);
   }
 }
 
