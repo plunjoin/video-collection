@@ -34,12 +34,16 @@ jobs:
           cache: true
 
       - name: Set up Android release signing
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         working-directory: video-collection-app
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PROPERTIES_BASE64: ${{ secrets.ANDROID_KEYSTORE_PROPERTIES_BASE64 }}
         run: |
+          # 注意：secrets 上下文不能用于步骤级 if 表达式，判空在 shell 里做
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "未配置 Android 签名 Secrets，跳过签名（使用调试签名）"
+            exit 0
+          fi
           # key.properties 中 storeFile 填 upload-keystore.jks (相对 android/app 目录), 详见 installer/SIGNING.md
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
           echo "$ANDROID_KEYSTORE_PROPERTIES_BASE64" | base64 -d > android/key.properties
