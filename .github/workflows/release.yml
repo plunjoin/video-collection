@@ -174,7 +174,7 @@ jobs:
 
   build-macos:
     name: Build macOS Application
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -246,7 +246,7 @@ jobs:
 
   build-ios:
     name: Build iOS Application
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
