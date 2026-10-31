@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import 'brand_intro.dart';
+import '../theme/brand_icons.dart';
 export 'brand_components.dart';
 export 'brand_player_controls.dart';
 
@@ -284,12 +285,12 @@ class BrandPosterFallback extends StatelessWidget {
 class BrandButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final String label;
-  final IconData icon;
+  final BrandIconData icon;
   const BrandButton({
     super.key,
     required this.onPressed,
     required this.label,
-    this.icon = Icons.play_arrow_rounded,
+    this.icon = BIcons.play,
   });
 
   @override
@@ -310,7 +311,8 @@ class BrandButton extends StatelessWidget {
         minimumSize: const Size(44, 44),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 18), const SizedBox(width: 7),
+        BrandIcon(icon, size: 18, filled: true, monochrome: true),
+        const SizedBox(width: 7),
         Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
       ]),
@@ -366,7 +368,7 @@ class BrandStoryBanner extends StatelessWidget {
                   BrandButton(
                     onPressed: onTap,
                     label: '我的追番',
-                    icon: Icons.favorite_rounded,
+                    icon: BIcons.heart,
                   ),
                 ],
               ],
@@ -394,18 +396,11 @@ class BrandBottomNav extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     const labels = ['首页', '发现', '排行', '资讯', '我的'];
     const icons = [
-      Icons.home_outlined,
-      Icons.explore_outlined,
-      Icons.star_outline_rounded,
-      Icons.article_outlined,
-      Icons.person_outline_rounded,
-    ];
-    const activeIcons = [
-      Icons.home_rounded,
-      Icons.explore_rounded,
-      Icons.star_rounded,
-      Icons.article_rounded,
-      Icons.person_rounded,
+      BIcons.home,
+      BIcons.compass,
+      BIcons.rank,
+      BIcons.news,
+      BIcons.user,
     ];
     return Container(
       decoration: BoxDecoration(
@@ -454,23 +449,27 @@ class BrandBottomNav extends StatelessWidget {
                                       : AppColors.lightBorder,
                                 ),
                               ),
-                              child: const BrandLogo(
-                                width: 42,
-                                symbolOnly: true,
+                              // 排行 tab 语义是榜单,放播放 logo 会被当成播放键
+                              child: BrandIcon(
+                                BIcons.rank,
+                                size: 22,
+                                color: currentIndex == index
+                                    ? AppColors.purple
+                                    : AppColors.lightTextSecondary,
+                                monochrome: true,
                               ),
                             ),
                           )
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                currentIndex == index
-                                    ? activeIcons[index]
-                                    : icons[index],
+                              BrandIcon(
+                                icons[index],
                                 size: 23,
                                 color: currentIndex == index
                                     ? Theme.of(context).colorScheme.primary
                                     : AppColors.lightTextSecondary,
+                                monochrome: true,
                               ),
                               const SizedBox(height: 4),
                               Text(

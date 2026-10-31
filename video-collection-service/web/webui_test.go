@@ -12,8 +12,9 @@ func TestAdminHandler(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	body := rec.Body.String()
-	if rec.Code != 200 || !strings.Contains(body, `<div id="app">`) {
-		t.Fatalf("/admin -> %d, app mount = %v", rec.Code, strings.Contains(body, `<div id="app">`))
+	// wf 生成的外壳统一用 #root 挂载点（admin 与 portal 一致）
+	if rec.Code != 200 || !strings.Contains(body, `<div id="root">`) {
+		t.Fatalf("/admin -> %d, root mount = %v", rec.Code, strings.Contains(body, `<div id="root">`))
 	}
 }
 

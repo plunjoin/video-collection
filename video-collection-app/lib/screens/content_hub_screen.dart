@@ -10,6 +10,7 @@ import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
 import 'account_screen.dart';
 import 'content_detail_screen.dart';
+import '../theme/brand_icons.dart';
 
 class ContentHubScreen extends StatefulWidget {
   const ContentHubScreen({super.key});
@@ -148,7 +149,7 @@ class _ContentHubScreenState extends State<ContentHubScreen>
         subtitle: _errors[index]!,
         action: BrandButton(
           label: '重新加载',
-          icon: Icons.refresh_rounded,
+          icon: BIcons.refresh,
           onPressed: () => _loadFeed(index, refresh: true),
         ),
       );
@@ -180,7 +181,7 @@ class _ContentHubScreenState extends State<ContentHubScreen>
               action: index == 1
                   ? BrandButton(
                       label: '发布动态',
-                      icon: Icons.edit_rounded,
+                      icon: BIcons.edit,
                       onPressed: _composePost,
                     )
                   : null,
@@ -201,7 +202,7 @@ class _ContentHubScreenState extends State<ContentHubScreen>
                   ? const BrandSpinner(size: 22)
                   : BrandButton(
                       label: '加载更多',
-                      icon: Icons.expand_more_rounded,
+                      icon: BIcons.chevronDown,
                       onPressed: () => _loadFeed(index),
                     ),
             ),
@@ -240,7 +241,7 @@ class _ContentHubScreenState extends State<ContentHubScreen>
               onPressed: _composePost,
               backgroundColor: AppColors.primary600,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.edit_rounded),
+              icon: const BrandIcon(BIcons.edit),
               label: const Text('发布动态'),
             )
           : null,
@@ -363,8 +364,8 @@ class _ContentFeedCard extends StatelessWidget {
                           ),
                         ),
                         if (!isNews) ...[
-                          const Icon(
-                            Icons.favorite_border_rounded,
+                          const BrandIcon(
+                            BIcons.heart,
                             size: 14,
                             color: AppColors.rose,
                           ),
@@ -375,8 +376,8 @@ class _ContentFeedCard extends StatelessWidget {
                                 : _text('like_count'),
                           ),
                           const SizedBox(width: 10),
-                          const Icon(
-                            Icons.chat_bubble_outline_rounded,
+                          const BrandIcon(
+                            BIcons.message,
                             size: 14,
                             color: AppColors.primary500,
                           ),
@@ -443,8 +444,8 @@ class _CoverFallback extends StatelessWidget {
       height: 96,
       child: ColoredBox(
         color: dark ? AppColors.darkBg : AppColors.primary50,
-        child: const Icon(
-          Icons.auto_stories_rounded,
+        child: const BrandIcon(
+          BIcons.book,
           color: AppColors.primary500,
         ),
       ),
@@ -529,7 +530,7 @@ class _CommunityComposeScreenState extends State<CommunityComposeScreen> {
               decoration: const InputDecoration(
                 labelText: '标题',
                 hintText: '给这条动态起个名字',
-                prefixIcon: Icon(Icons.title_rounded),
+                prefixIcon: BrandIcon(BIcons.title),
               ),
             ),
             const SizedBox(height: 12),
@@ -540,7 +541,7 @@ class _CommunityComposeScreenState extends State<CommunityComposeScreen> {
               decoration: const InputDecoration(
                 labelText: '话题分类（选填）',
                 hintText: '例如：观后感、作品推荐',
-                prefixIcon: Icon(Icons.sell_outlined),
+                prefixIcon: BrandIcon(BIcons.tag),
               ),
             ),
             const SizedBox(height: 12),
@@ -570,7 +571,7 @@ class _CommunityComposeScreenState extends State<CommunityComposeScreen> {
                   ? const BrandSpinner(size: 24)
                   : BrandButton(
                       label: '提交动态',
-                      icon: Icons.send_rounded,
+                      icon: BIcons.send,
                       onPressed: _submit,
                     ),
             ),

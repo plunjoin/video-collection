@@ -8,6 +8,7 @@ import '../utils/responsive.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/leaderboard_card.dart';
 import 'anime_detail_screen.dart';
+import '../theme/brand_icons.dart';
 
 class RankScreen extends StatefulWidget {
   const RankScreen({super.key});
@@ -119,7 +120,7 @@ class _RankScreenState extends State<RankScreen>
           IconButton(
             tooltip: '刷新榜单',
             onPressed: _loadRankings,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const BrandIcon(BIcons.refresh),
           ),
         ],
         bottom: BrandTabs(

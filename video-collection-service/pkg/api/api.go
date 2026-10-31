@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -44,6 +46,31 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 	}
 	if cs, ok := s.(store.ContentStore); ok {
 		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
+	}
+	// 采集入库后自动冷启动 Wiki 词条与 RAG 索引，打通 采集 → Wiki → RAG → 详情页聚合 的链路。
+	// 同步通过单工作队列串行执行：词条按名称先查后写，并发同步会为同一人物创建重复词条。
+	// 幂等：词条按名称查重；可用 WIKI_AUTO_SYNC=0 关闭。
+	if srv.rag != nil && sc != nil && os.Getenv("WIKI_AUTO_SYNC") != "0" {
+		syncQueue := make(chan int, 1024)
+		go func() {
+			for videoID := range syncQueue {
+				sub, err := srv.store.SyncVideoToWikiSubject(context.Background(), videoID)
+				if err != nil {
+					log.Printf("[wiki] 自动同步视频 %d 失败: %v", videoID, err)
+					continue
+				}
+				if sub != nil {
+					srv.rag.IndexWikiNeighborhoodAsync(sub.ID)
+				}
+			}
+		}()
+		sc.WikiAutoSync = func(videoID int, _ string) {
+			select {
+			case syncQueue <- videoID:
+			default:
+				log.Printf("[wiki] 自动同步队列已满，跳过视频 %d", videoID)
+			}
+		}
 	}
 	// 默认不透传任何 Redis：命名空间全部为 nil（serveCached 自动降级直连数据库），
 	// 接入 Redis 后由 UseCache 覆盖。
@@ -800,6 +827,8 @@ func (srv *Server) handleAdminUpdatePlayerConfig(w http.ResponseWriter, r *http.
 }
 
 // 视频详情与相关推荐接口 (公开，支持按 ID 精确获取全部线路与剧集)
+// 响应在 video/related 之外聚合 wiki（关联词条含演职员图谱）与 related_news（词条相关资讯），
+// 使详情页无需额外请求即可展示 Wiki 与资讯数据；未关联词条时两字段为空。
 func (srv *Server) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	id, _ := strconv.Atoi(idStr)
@@ -817,12 +846,49 @@ func (srv *Server) handleVideoDetail(w http.ResponseWriter, r *http.Request) {
 		// 相关推荐：严格按照 名称/同系列/类型 顺序智能推荐 (提取系列名 -> 同系列 -> 同类型补齐)
 		related := srv.getRelatedVideos(ctx, video, 10)
 
+		var wikiDetail *store.WikiSubjectDetail
+		var relatedNews []store.Content
+		if sub := srv.resolveVideoWikiSubject(ctx, video); sub != nil {
+			if detail, err := srv.store.GetWikiSubjectByID(ctx, sub.ID); err == nil {
+				wikiDetail = detail
+			}
+			if news, _, err := srv.store.ListContent(ctx, store.ContentQuery{
+				Kind: "news", Status: "published", SubjectID: sub.ID, PageSize: 6,
+			}); err == nil {
+				relatedNews = news
+			}
+		}
+
 		return map[string]any{
-			"code":    1,
-			"data":    video,
-			"related": related,
+			"code":         1,
+			"data":         video,
+			"related":      related,
+			"wiki":         wikiDetail,
+			"related_news": relatedNews,
 		}, nil
 	})
+}
+
+// resolveVideoWikiSubject 解析视频对应的 Wiki 词条：优先取已绑定的 subject_id，
+// 其次按片名精确匹配词条并回填绑定（幂等），使历史数据无需手动同步即可串联。
+func (srv *Server) resolveVideoWikiSubject(ctx context.Context, video *store.VideoRecord) *store.WikiSubject {
+	sub, err := srv.store.GetWikiSubjectByVideoID(ctx, video.ID)
+	if err != nil {
+		return nil
+	}
+	if sub != nil {
+		return sub
+	}
+	name := strings.TrimSpace(video.Name)
+	if name == "" {
+		return nil
+	}
+	sub, err = srv.store.GetWikiSubjectByName(ctx, name)
+	if err != nil || sub == nil {
+		return nil
+	}
+	_ = srv.store.LinkVideoToSubject(ctx, video.ID, sub.ID)
+	return sub
 }
 
 var (
@@ -1161,16 +1227,16 @@ func (srv *Server) handleAppLatest(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code": 1,
 		"data": map[string]any{
-			"version":       latestVer,
-			"version_code":  versionCode,
-			"title":         fmt.Sprintf("发现新版本 v%s", cleanVer),
-			"changelog":     changelog,
-			"force_update":  forceUpdate,
-			"download_url":  targetDownloadURL,
-			"platforms":     platforms,
-			"release_url":   downloadURL,
-			"has_update":    hasUpdate,
-			"publish_time":  time.Now().Format("2006-01-02 15:04:05"),
+			"version":      latestVer,
+			"version_code": versionCode,
+			"title":        fmt.Sprintf("发现新版本 v%s", cleanVer),
+			"changelog":    changelog,
+			"force_update": forceUpdate,
+			"download_url": targetDownloadURL,
+			"platforms":    platforms,
+			"release_url":  downloadURL,
+			"has_update":   hasUpdate,
+			"publish_time": time.Now().Format("2006-01-02 15:04:05"),
 		},
 	})
 }
@@ -1354,10 +1420,12 @@ func (srv *Server) handleFeedback(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req struct {
-			Type    string `json:"type"`
-			Title   string `json:"title"`
-			Content string `json:"content"`
-			Contact string `json:"contact"`
+			Type       string `json:"type"`
+			Title      string `json:"title"`
+			Content    string `json:"content"`
+			Contact    string `json:"contact"`
+			TargetType string `json:"target_type"`
+			TargetID   int    `json:"target_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			errorResponse(w, http.StatusBadRequest, "参数解析失败")
@@ -1372,17 +1440,46 @@ func (srv *Server) handleFeedback(w http.ResponseWriter, r *http.Request) {
 		if req.Type == "" {
 			req.Type = "request"
 		}
+		// 纠错上下文：target_type 限定白名单，避免自由文本注入到后台列表
+		req.TargetType = strings.TrimSpace(req.TargetType)
+		if req.TargetType != "" {
+			switch req.TargetType {
+			case "video", "news", "post", "wiki_subject":
+			default:
+				errorResponse(w, http.StatusBadRequest, "无效的纠错对象类型")
+				return
+			}
+			if req.TargetID <= 0 {
+				errorResponse(w, http.StatusBadRequest, "纠错对象 ID 无效")
+				return
+			}
+		} else if req.TargetID != 0 {
+			errorResponse(w, http.StatusBadRequest, "缺少 target_type")
+			return
+		}
 		fb := &store.Feedback{
-			Type:    req.Type,
-			Title:   req.Title,
-			Content: req.Content,
-			Contact: req.Contact,
-			Status:  "pending",
+			Type:       req.Type,
+			Title:      req.Title,
+			Content:    req.Content,
+			Contact:    req.Contact,
+			TargetType: req.TargetType,
+			TargetID:   req.TargetID,
+			Status:     "pending",
 		}
 		if err := srv.store.CreateFeedback(ctx, fb); err != nil {
 			errorResponse(w, http.StatusInternalServerError, "提交失败: "+err.Error())
 			return
 		}
+		contextNote := ""
+		if fb.TargetType != "" {
+			contextNote = "（纠错对象：" + fb.TargetType + "#" + strconv.Itoa(fb.TargetID) + "）"
+		}
+		srv.logSystemActor(r, 0, "", "info", "feedback", "收到反馈/纠错"+contextNote, map[string]any{
+			"feedback_id": fb.ID,
+			"type":        fb.Type,
+			"target_type": fb.TargetType,
+			"target_id":   fb.TargetID,
+		})
 		jsonResponse(w, http.StatusOK, map[string]any{
 			"code": 1,
 			"msg":  "留言提交成功，管理员会尽快跟进处理！",

@@ -548,7 +548,7 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .config-hint { margin: 6px 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
 .webhook-secret-row { display: flex; gap: 8px; width: 100%; align-items: center; flex-wrap: wrap; }
 .webhook-secret-row .webhook-secret-input { flex: 1; min-width: 220px; }

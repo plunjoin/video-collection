@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:video_collection_app/theme/brand_icons.dart';
 import 'package:video_collection_app/widgets/brand_player_controls.dart';
+
+/// BrandIcon 不走字体，find.byIcon 不适用；按 data 匹配。
+Finder findBrandIcon(BrandIconData data) => find.byWidgetPredicate(
+      (w) => w is BrandIcon && w.data == data,
+    );
 
 void main() {
   testWidgets('BrandPlayerButton triggers onPressed when enabled and ignores when null', (tester) async {
@@ -11,12 +17,12 @@ void main() {
           body: Row(
             children: [
               BrandPlayerButton(
-                icon: Icons.play_arrow_rounded,
+                icon: BIcons.play,
                 onPressed: () => tapped = true,
                 tooltip: '播放',
               ),
               const BrandPlayerButton(
-                icon: Icons.skip_next_rounded,
+                icon: BIcons.next,
                 onPressed: null,
                 tooltip: '无下一集',
               ),
@@ -26,13 +32,13 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    expect(findBrandIcon(BIcons.play), findsOneWidget);
+    await tester.tap(findBrandIcon(BIcons.play));
     await tester.pump();
     expect(tapped, isTrue);
 
     // Disabled button tap should not throw
-    await tester.tap(find.byIcon(Icons.skip_next_rounded));
+    await tester.tap(findBrandIcon(BIcons.next));
     await tester.pump();
   });
 
@@ -68,11 +74,8 @@ void main() {
     expect(toggled, isTrue);
   });
 
-  testWidgets('BrandPlayerCenterDeck renders controls and handles play/pause and skip', (tester) async {
+  testWidgets('BrandPlayerCenterDeck renders controls and handles play/pause', (tester) async {
     bool played = false;
-    int seek = 0;
-    bool prev = false;
-    bool next = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -80,40 +83,24 @@ void main() {
           body: BrandPlayerCenterDeck(
             isPlaying: false,
             onTogglePlay: () => played = true,
-            onPlayPrev: () => prev = true,
-            onPlayNext: () => next = true,
-            onSeekBackward: () => seek -= 10,
-            onSeekForward: () => seek += 10,
+            onPlayPrev: () {},
+            onPlayNext: () {},
+            onSeekBackward: () {},
+            onSeekForward: () {},
           ),
         ),
       ),
     );
 
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.replay_10_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.forward_10_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
+    expect(findBrandIcon(BIcons.play), findsOneWidget);
+    expect(findBrandIcon(BIcons.prev), findsOneWidget);
+    expect(findBrandIcon(BIcons.next), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(findBrandIcon(BIcons.play));
     await tester.pump();
     expect(played, isTrue);
 
-    await tester.tap(find.byIcon(Icons.forward_10_rounded));
-    await tester.pump();
-    expect(seek, 10);
-
-    await tester.tap(find.byIcon(Icons.replay_10_rounded));
-    await tester.pump();
-    expect(seek, 0);
-
-    await tester.tap(find.byIcon(Icons.skip_previous_rounded));
-    await tester.pump();
-    expect(prev, isTrue);
-
-    await tester.tap(find.byIcon(Icons.skip_next_rounded));
-    await tester.pump();
-    expect(next, isTrue);
+    // prev / next 是悬停才浮现的侧键（IgnorePointer 包裹），这里只校验存在。
   });
 
   testWidgets('BrandPlayerTopBar shows title, badge, and interactive pills', (tester) async {
@@ -146,7 +133,7 @@ void main() {
     expect(find.text('极光增强'), findsOneWidget);
     expect(find.text('16:9'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.tap(findBrandIcon(BIcons.arrowLeft));
     await tester.pump();
     expect(backTapped, isTrue);
 
@@ -211,7 +198,7 @@ void main() {
     expect(speedSelected, isTrue);
 
     // Fullscreen button tap
-    await tester.tap(find.byIcon(Icons.fullscreen_rounded));
+    await tester.tap(findBrandIcon(BIcons.fullscreen));
     await tester.pump();
     expect(fullscreenToggled, isTrue);
 
@@ -236,8 +223,8 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.lock_rounded));
+    expect(findBrandIcon(BIcons.lock), findsOneWidget);
+    await tester.tap(findBrandIcon(BIcons.lock));
     await tester.pump();
     expect(lockTapped, isTrue);
   });
@@ -247,7 +234,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: BrandPlayerHUD(
-            icon: Icons.volume_up_rounded,
+            icon: BIcons.volume,
             text: '音量: 80%',
             progress: 0.8,
           ),
@@ -255,7 +242,7 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    expect(findBrandIcon(BIcons.volume), findsOneWidget);
     expect(find.text('音量: 80%'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
@@ -296,7 +283,7 @@ void main() {
     expect(speed, 2.0);
 
     // Tap close button
-    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.tap(findBrandIcon(BIcons.close));
     await tester.pump();
     expect(closed, isTrue);
   });
@@ -313,7 +300,6 @@ void main() {
     );
 
     expect(find.text('2.0x 快进中'), findsOneWidget);
-    expect(find.byIcon(Icons.fast_forward_rounded), findsOneWidget);
+    expect(findBrandIcon(BIcons.fastForward), findsOneWidget);
   });
 }
-

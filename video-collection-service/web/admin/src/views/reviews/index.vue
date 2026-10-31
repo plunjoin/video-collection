@@ -43,7 +43,7 @@ async function resubmit(){let payload:any;try{payload=JSON.parse(editPayload.val
  saving.value=true;try{const r:any=await request.post(paths[kind],payload);notify(r.msg, 'success');resubmitVisible.value=false;selected.value=null;status.value='pending';await load()}finally{saving.value=false}}
 onMounted(load)
 </script>
-<style scoped lang="scss">
+<style scoped>
 .toolbar {
   display: flex;
   gap: 12px;

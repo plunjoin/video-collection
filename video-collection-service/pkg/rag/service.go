@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"unicode"
 
 	"video-collection-service/pkg/store"
 )
@@ -55,6 +56,12 @@ func (s *Service) EmbedderName() string {
 		return "none"
 	}
 	return s.embedder.Name()
+}
+
+// ChatConfigured 报告是否配置了对话模型（OPENAI_API_KEY）。
+// 未配置时 Ask 无法生成自然语言答案，调用方应降级为纯检索模式。
+func (s *Service) ChatConfigured() bool {
+	return s.chat != nil && s.chat.apiKey != ""
 }
 
 // RebuildAll 全量重建索引（管理员一键）。
@@ -267,6 +274,8 @@ func (s *Service) persistChunks(ctx context.Context, chunks []DocumentChunk) (in
 }
 
 // Search 向量相似度检索（本地默认全表扫描 + 余弦相似度）。
+// 在向量分数上叠加轻量 bigram 重叠加成（混合检索），
+// 使短查询（作品名+疑问词）在伪向量模式下也能命中正确实体，远程嵌入下同样有益。
 func (s *Service) Search(ctx context.Context, query string, topK int, sourceType string) (*SearchResponse, error) {
 	query = stringsTrim(query)
 	if query == "" {
@@ -283,6 +292,7 @@ func (s *Service) Search(ctx context.Context, query string, topK int, sourceType
 		return nil, err
 	}
 	qvec := vecs[0]
+	qBigrams := textBigrams(query)
 	rows, err := s.indexer.ListRAGChunksForSearch(ctx, sourceType)
 	if err != nil {
 		return nil, err
@@ -290,7 +300,10 @@ func (s *Service) Search(ctx context.Context, query string, topK int, sourceType
 	hits := make([]StoredChunk, 0, len(rows))
 	for _, row := range rows {
 		vec := DecodeFloat32Slice(row.Embedding, row.Dimensions)
-		sim := CosineSimilarity(qvec, vec)
+		sim := CosineSimilarity(qvec, vec) + hybridBoost(qBigrams, row.Text)
+		if sim > 1 {
+			sim = 1
+		}
 		hits = append(hits, StoredChunk{
 			ID:         row.ID,
 			SourceType: row.SourceType,
@@ -307,6 +320,34 @@ func (s *Service) Search(ctx context.Context, query string, topK int, sourceType
 		hits = hits[:topK]
 	}
 	return &SearchResponse{Query: query, TopK: topK, Results: hits}, nil
+}
+
+// textBigrams 提取去除空白后的字符二元组集合。
+func textBigrams(s string) map[string]struct{} {
+	runes := []rune(strings.ToLower(s))
+	set := make(map[string]struct{}, len(runes))
+	for i := 0; i+1 < len(runes); i++ {
+		if unicode.IsSpace(runes[i]) || unicode.IsSpace(runes[i+1]) {
+			continue
+		}
+		set[string(runes[i:i+2])] = struct{}{}
+	}
+	return set
+}
+
+// hybridBoost 依据查询与文本的 bigram 覆盖率给出加成分数（最高 0.3）。
+func hybridBoost(queryBigrams map[string]struct{}, text string) float64 {
+	if len(queryBigrams) == 0 {
+		return 0
+	}
+	tb := textBigrams(text)
+	overlap := 0
+	for b := range queryBigrams {
+		if _, ok := tb[b]; ok {
+			overlap++
+		}
+	}
+	return 0.3 * (float64(overlap) / float64(len(queryBigrams)))
 }
 
 func sortHits(hits []StoredChunk) {

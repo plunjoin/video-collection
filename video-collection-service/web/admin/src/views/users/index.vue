@@ -226,7 +226,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .users-page {
   .table-card {
     .table-header {

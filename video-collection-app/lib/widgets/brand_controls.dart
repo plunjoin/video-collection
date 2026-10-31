@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import 'brand_widgets.dart';
+import '../theme/brand_icons.dart';
 
 /// Compact, explicitly styled selection controls shared by filters and sources.
 class BrandPill extends StatelessWidget {
@@ -193,8 +194,8 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
                           IconButton(
                             onPressed: () => Navigator.of(context).maybePop(),
                             tooltip: '返回',
-                            icon: const Icon(
-                              Icons.chevron_left_rounded,
+                            icon: const BrandIcon(
+                              BIcons.chevronLeft,
                               size: 25,
                             ),
                             style: IconButton.styleFrom(

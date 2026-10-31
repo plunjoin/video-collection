@@ -22,6 +22,7 @@ import 'content_detail_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
 import 'timeline_screen.dart';
+import '../theme/brand_icons.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int tabIndex) onSwitchTab;
@@ -143,12 +144,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.forum_outlined),
+                  icon: const BrandIcon(BIcons.forum),
                   tooltip: '资讯与社区',
                   onPressed: () => widget.onSwitchTab(3),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const BrandIcon(BIcons.refresh),
                   tooltip: '刷新数据',
                   onPressed: _loadData,
                 ),
@@ -177,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.forum_outlined),
+                  icon: const BrandIcon(BIcons.forum),
                   tooltip: '资讯与社区',
                   onPressed: () => widget.onSwitchTab(3),
                 ),
@@ -361,17 +362,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            SizedBox(
-                              height: 92,
-                              child: cover.isEmpty
-                                  ? placeholder
-                                  : CachedNetworkImage(
-                                      imageUrl: cover,
-                                      fit: BoxFit.cover,
-                                      placeholder: (_, _) => placeholder,
-                                      errorWidget: (_, _, _) => placeholder,
-                                    ),
-                            ),
+                            // 没有封面的资讯直接铺满文字区，不再保留图片占位
+                            if (cover.isNotEmpty)
+                              SizedBox(
+                                height: 92,
+                                child: CachedNetworkImage(
+                                  imageUrl: cover,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, _) => placeholder,
+                                  errorWidget: (_, _, _) => placeholder,
+                                ),
+                              ),
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
@@ -493,8 +494,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right_rounded,
+                      BrandIcon(
+                        BIcons.chevronRight,
                         size: 16,
                         color: AppColors.primary500,
                       ),

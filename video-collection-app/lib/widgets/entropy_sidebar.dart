@@ -6,6 +6,7 @@ import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import 'brand_widgets.dart';
 import 'member_avatar.dart';
+import '../theme/brand_icons.dart';
 
 const sidebarExpandedWidth = 256.0;
 const sidebarCollapsedWidth = 64.0;
@@ -35,21 +36,21 @@ class EntropySidebar extends StatefulWidget {
 
 class _EntropySidebarState extends State<EntropySidebar> {
   static const _nav = [
-    _NavEntry(0, Icons.home_outlined, Icons.home_rounded, '首页'),
-    _NavEntry(1, Icons.grid_view_outlined, Icons.grid_view_rounded, '番剧分类'),
+    _NavEntry(0, BIcons.home, BIcons.home, '首页'),
+    _NavEntry(1, BIcons.grid, BIcons.grid, '番剧分类'),
     _NavEntry(
       2,
-      Icons.emoji_events_outlined,
-      Icons.emoji_events_rounded,
+      BIcons.rank,
+      BIcons.rank,
       '热度排行',
     ),
     _NavEntry(
       3,
-      Icons.article_outlined,
-      Icons.article_rounded,
+      BIcons.news,
+      BIcons.news,
       '资讯',
     ),
-    _NavEntry(4, Icons.person_outline_rounded, Icons.person_rounded, '个人中心'),
+    _NavEntry(4, BIcons.user, BIcons.user, '个人中心'),
   ];
 
   bool _collapsed = false;
@@ -162,8 +163,8 @@ class _EntropySidebarState extends State<EntropySidebar> {
 
 class _NavEntry {
   final int index;
-  final IconData icon;
-  final IconData activeIcon;
+  final BrandIconData icon;
+  final BrandIconData activeIcon;
   final String label;
   const _NavEntry(this.index, this.icon, this.activeIcon, this.label);
 }
@@ -197,10 +198,11 @@ class _BrandRow extends StatelessWidget {
               child: _HoverSwapButton(
                 tooltip: '打开边栏',
                 onTap: onToggle,
-                hoverChild: Icon(
-                  Icons.view_sidebar_outlined,
+                hoverChild: BrandIcon(
+                  BIcons.sidebar,
                   size: 20,
                   color: ink,
+                  monochrome: true,
                 ),
                 child: const BrandLogo(symbolOnly: true, width: 32),
               ),
@@ -242,10 +244,11 @@ class _BrandRow extends StatelessWidget {
                 IconButton(
                   onPressed: onToggle,
                   tooltip: '收起边栏',
-                  icon: Icon(
-                    Icons.view_sidebar_outlined,
+                  icon: BrandIcon(
+                    BIcons.sidebar,
                     size: 20,
                     color: muted,
+                    monochrome: true,
                   ),
                 ),
               ],
@@ -333,7 +336,7 @@ class _SearchSlot extends StatelessWidget {
         padding: const EdgeInsets.only(top: 10, bottom: 4),
         child: _RoundIconButton(
           tooltip: '搜索番剧 (Ctrl+K)',
-          icon: Icons.search_rounded,
+          icon: BIcons.search,
           onTap: onSearch,
         ),
       );
@@ -357,7 +360,7 @@ class _SearchSlot extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.search_rounded, size: 16, color: muted),
+                BrandIcon(BIcons.search, size: 20, color: muted, monochrome: true),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -436,10 +439,12 @@ class _NavButtonState extends State<_NavButton> {
         : _hover
         ? ink
         : idle;
-    final icon = Icon(
+    // 导航图标单色:速度线点缀在大尺寸导航里会被误读成未读角标
+    final icon = BrandIcon(
       widget.selected ? widget.entry.activeIcon : widget.entry.icon,
-      size: 18,
+      size: 22,
       color: color,
+      monochrome: true,
     );
     final button = MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -453,7 +458,7 @@ class _NavButtonState extends State<_NavButton> {
           customBorder: widget.collapsed ? const CircleBorder() : null,
           borderRadius: widget.collapsed ? null : BorderRadius.circular(8),
           child: widget.collapsed
-              ? SizedBox(width: 40, height: 40, child: icon)
+              ? SizedBox(width: 44, height: 44, child: icon)
               : Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -584,9 +589,9 @@ class _UserCard extends StatelessWidget {
                           width: 32,
                           height: 32,
                         ),
-                        icon: Icon(
-                          Icons.settings_outlined,
-                          size: 18,
+                        icon: BrandIcon(
+                          BIcons.settings,
+                          size: 20,
                           color: isDark
                               ? AppColors.darkTextSecondary
                               : const Color(0xFF94A3B8),
@@ -603,7 +608,7 @@ class _UserCard extends StatelessWidget {
 
 class _RoundIconButton extends StatelessWidget {
   final String tooltip;
-  final IconData icon;
+  final BrandIconData icon;
   final VoidCallback onTap;
 
   const _RoundIconButton({
@@ -627,9 +632,10 @@ class _RoundIconButton extends StatelessWidget {
             child: SizedBox(
               width: 40,
               height: 40,
-              child: Icon(
+              child: BrandIcon(
                 icon,
-                size: 18,
+                size: 20,
+                monochrome: true,
                 color: isDark
                     ? AppColors.darkTextSecondary
                     : const Color(0xFF94A3B8),

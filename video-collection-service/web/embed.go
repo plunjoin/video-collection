@@ -11,6 +11,7 @@
 package webui
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"io"
@@ -25,6 +26,28 @@ import (
 
 	"video-collection-service/pkg/store"
 )
+
+// resolveVideoWikiSubject 解析视频对应的 Wiki 词条：优先取已绑定的 subject_id，
+// 其次按片名精确匹配词条并回填绑定（幂等）。与 pkg/api 中的同名逻辑保持一致。
+func resolveVideoWikiSubject(ctx context.Context, dbStore store.Store, video *store.VideoRecord) *store.WikiSubject {
+	sub, err := dbStore.GetWikiSubjectByVideoID(ctx, video.ID)
+	if err != nil {
+		return nil
+	}
+	if sub != nil {
+		return sub
+	}
+	name := strings.TrimSpace(video.Name)
+	if name == "" {
+		return nil
+	}
+	sub, err = dbStore.GetWikiSubjectByName(ctx, name)
+	if err != nil || sub == nil {
+		return nil
+	}
+	_ = dbStore.LinkVideoToSubject(ctx, video.ID, sub.ID)
+	return sub
+}
 
 //go:embed all:admin/dist
 var adminFiles embed.FS
@@ -64,8 +87,13 @@ func AdminHandler() http.Handler {
 			_ = f.Close()
 			if upath == "/index.html" {
 				w.Header().Set("Cache-Control", "no-cache")
-			} else if strings.HasPrefix(upath, "/assets/") {
+			} else if strings.HasPrefix(upath, "/assets/chunks/") {
+				// 带 content-hash 的分包允许强缓存
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else if strings.HasPrefix(upath, "/assets/") {
+				// 入口产物（assets/client.js / client.css）文件名固定不带 hash，
+				// 发布后必须立即生效，走协商缓存（与 PortalHandler 同策略）
+				w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 			}
 			http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
 			return
@@ -227,14 +255,30 @@ func PortalHandler(dbStore store.Store) http.Handler {
 						for i := range related {
 							related[i].FillCompatFields()
 						}
+						// Wiki 词条与相关资讯首屏注水：与 /api/video 聚合逻辑一致，
+						// 先按绑定反查，再按片名回填绑定，保证详情页直出演职员与资讯。
+						var wikiDetail *store.WikiSubjectDetail
+						var relatedNews []store.Content
+						if sub := resolveVideoWikiSubject(ctx, dbStore, video); sub != nil {
+							if d, err := dbStore.GetWikiSubjectByID(ctx, sub.ID); err == nil {
+								wikiDetail = d
+							}
+							if news, _, err := dbStore.ListContent(ctx, store.ContentQuery{
+								Kind: "news", Status: "published", SubjectID: sub.ID, PageSize: 6,
+							}); err == nil {
+								relatedNews = news
+							}
+						}
 						pageProps := map[string]any{
 							"path":        cleanPath,
 							"id":          strconv.Itoa(id),
 							"title":       video.Name + " 在线播放与全集选集 — bllii",
 							"description": video.Name + " 在线观看",
 							"detail": map[string]any{
-								"video":   video,
-								"related": related,
+								"video":        video,
+								"related":      related,
+								"wiki":         wikiDetail,
+								"related_news": relatedNews,
 							},
 						}
 						err = eng.Render(w, r, webfront.Page{

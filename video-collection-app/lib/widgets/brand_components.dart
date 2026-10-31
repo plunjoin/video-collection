@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../theme/brand_icons.dart';
 
 /// 具有 bllii 品牌流光边框、平滑上浮动效与柔和阴影的现代悬浮卡片
 class BrandHoverCard extends StatefulWidget {
@@ -245,8 +246,8 @@ class _BrandSearchPillState extends State<BrandSearchPill> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.search_rounded,
+              BrandIcon(
+                BIcons.search,
                 size: 16,
                 color: _isHovered
                     ? AppColors.purple
@@ -356,7 +357,7 @@ class BrandGlassPanel extends StatelessWidget {
 class BrandBadge extends StatelessWidget {
   final String label;
   final Color? color;
-  final IconData? icon;
+  final BrandIconData? icon;
   final bool isGradient;
 
   const BrandBadge({
@@ -388,8 +389,8 @@ class BrandBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(
-              icon,
+            BrandIcon(
+              icon!,
               size: 11,
               color: isGradient ? Colors.white : effectiveColor,
             ),

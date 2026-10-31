@@ -455,7 +455,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .videos-page {
   display: flex;
   flex-direction: column;

@@ -9,6 +9,7 @@ import '../utils/responsive.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/desktop_horizontal_scroll.dart';
 import 'anime_detail_screen.dart';
+import '../theme/brand_icons.dart';
 
 class CategoryScreen extends StatefulWidget {
   final int? initialTypeId;
@@ -313,7 +314,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   action: _hasMore
                       ? BrandButton(
                           label: '继续加载',
-                          icon: Icons.expand_more_rounded,
+                          icon: BIcons.chevronDown,
                           onPressed: _isLoadingMore ? null : _loadMore,
                         )
                       : null,
@@ -351,8 +352,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 : IconButton(
                                     tooltip: '加载更多',
                                     onPressed: _loadMore,
-                                    icon: const Icon(
-                                      Icons.expand_more_rounded,
+                                    icon: const BrandIcon(
+                                      BIcons.chevronDown,
                                       color: AppColors.primary500,
                                     ),
                                   ),
@@ -526,7 +527,7 @@ class _FilterButtonState<T> extends State<_FilterButton<T>> {
                   ),
                 ),
                 if (option.$1 == widget.value)
-                  Icon(Icons.check_rounded, size: 15, color: primary),
+                  BrandIcon(BIcons.check, size: 15, color: primary),
               ],
             ),
           ),
@@ -568,8 +569,8 @@ class _FilterButtonState<T> extends State<_FilterButton<T>> {
                 ),
               ),
               const SizedBox(width: 1),
-              Icon(
-                Icons.expand_more_rounded,
+              BrandIcon(
+                BIcons.chevronDown,
                 size: 14,
                 color: active ? primary : muted,
               ),

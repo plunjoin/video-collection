@@ -8,7 +8,7 @@ import FeedbackHost from './components/radix/FeedbackHost.vue'
 </script>
 
 <style>
-#app {
+#root {
   width: 100%;
   height: 100%;
 }

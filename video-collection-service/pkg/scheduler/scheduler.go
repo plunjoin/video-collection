@@ -58,6 +58,8 @@ type Scheduler struct {
 	autoIntervalHours int
 	lastAutoRun       time.Time
 	nextAutoRun       time.Time
+	// WikiAutoSync 视频入库成功后的异步回调（同步 Wiki 词条并重建 RAG 索引），nil 表示关闭。
+	WikiAutoSync func(videoID int, name string)
 }
 
 // NewScheduler 创建调度器并启动自动轮询工作线程
@@ -462,6 +464,9 @@ func (sc *Scheduler) runCollectTask(ctx context.Context, src config.SourceConfig
 				savedThisPage++
 				sc.AddTaskLog(prog.TaskID, src.ID, src.Name, "SUCCESS", fmt.Sprintf("入库成功 [ID:%d]: %s (播放源:%d个, 分类:%s)",
 					vid, cleaned.Name, len(cleaned.PlayGroups), cleaned.TargetTypeName))
+				if sc.WikiAutoSync != nil {
+					go sc.WikiAutoSync(vid, cleaned.Name)
+				}
 			}
 		}
 

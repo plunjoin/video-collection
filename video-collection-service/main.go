@@ -21,7 +21,6 @@ import (
 	"video-collection-service/pkg/scheduler"
 	"video-collection-service/pkg/store"
 	"video-collection-service/pkg/theme"
-	webui "video-collection-service/web"
 )
 
 func main() {
@@ -229,9 +228,10 @@ func main() {
 	}
 	apiServer.RegisterRoutes(mux)
 
-	// (D) 管理后台 SPA (Go 直接托管，构建产物经 go:embed 随二进制分发)
+	// (D) 管理后台 SPA：生产走内嵌产物（admin_prod.go，go:embed），dev 构建走
+	// webfront DevServer（admin_dev.go，/admin 也支持 HMR）
 	// 注意：需在根路径兜底之前注册，/admin/* 由 SPA history 路由处理
-	adminHandler := webui.AdminHandler()
+	adminHandler := newAdminHandler()
 	mux.Handle("/admin", adminHandler)
 	mux.Handle("/admin/", adminHandler)
 

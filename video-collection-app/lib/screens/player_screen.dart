@@ -28,6 +28,7 @@ import '../widgets/episode_selector.dart';
 import '../widgets/video_comments.dart';
 import 'account_screen.dart';
 import 'anime_detail_screen.dart';
+import '../theme/brand_icons.dart';
 
 enum AspectRatioMode {
   contain, // 居中自适应
@@ -111,7 +112,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _volume = 100.0; // 0.0 ~ 100.0
   double _brightness = 1.0; // 0.2 ~ 1.0 软调节滤镜
   String _hudText = '';
-  IconData? _hudIcon;
+  BrandIconData? _hudIcon;
   bool _showHud = false;
   Timer? _hideHudTimer;
 
@@ -473,7 +474,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _showHudMessage(String text, IconData icon) {
+  void _showHudMessage(String text, BrandIconData icon) {
     _hideHudTimer?.cancel();
     setState(() {
       _hudText = text;
@@ -587,7 +588,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         : ((speed * 10) % 1 == 0
             ? speed.toStringAsFixed(1)
             : speed.toStringAsFixed(2));
-    _showHudMessage('${speedStr}x 倍速', Icons.speed_rounded);
+    _showHudMessage('${speedStr}x 倍速', BIcons.speed);
   }
 
   void _startLongPressSpeedUp() {
@@ -615,19 +616,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       switch (_aspectMode) {
         case AspectRatioMode.contain:
           _aspectMode = AspectRatioMode.widescreen;
-          _showHudMessage('画面比例: 16:9 宽屏', Icons.aspect_ratio_rounded);
+          _showHudMessage('画面比例: 16:9 宽屏', BIcons.ratio);
           break;
         case AspectRatioMode.widescreen:
           _aspectMode = AspectRatioMode.classic;
-          _showHudMessage('画面比例: 4:3 经典', Icons.aspect_ratio_rounded);
+          _showHudMessage('画面比例: 4:3 经典', BIcons.ratio);
           break;
         case AspectRatioMode.classic:
           _aspectMode = AspectRatioMode.fill;
-          _showHudMessage('画面比例: 铺满全屏', Icons.fullscreen_rounded);
+          _showHudMessage('画面比例: 铺满全屏', BIcons.fullscreen);
           break;
         case AspectRatioMode.fill:
           _aspectMode = AspectRatioMode.contain;
-          _showHudMessage('画面比例: 居中自适应', Icons.fit_screen_rounded);
+          _showHudMessage('画面比例: 居中自适应', BIcons.fit);
           break;
       }
     });
@@ -639,7 +640,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     _showHudMessage(
       _isEnhanced ? '极光超清画质增强: 已开启' : '极光画质增强: 已关闭',
-      Icons.auto_awesome_rounded,
+      BIcons.sparkles,
     );
   }
 
@@ -662,7 +663,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final newVol = (_volume + 10).clamp(0.0, 100.0);
         setState(() => _volume = newVol);
         _player.setVolume(newVol);
-        _showHudMessage('音量: ${newVol.toInt()}%', Icons.volume_up_rounded);
+        _showHudMessage('音量: ${newVol.toInt()}%', BIcons.volume);
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         final newVol = (_volume - 10).clamp(0.0, 100.0);
@@ -670,7 +671,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _player.setVolume(newVol);
         _showHudMessage(
           '音量: ${newVol.toInt()}%',
-          newVol == 0 ? Icons.volume_off_rounded : Icons.volume_down_rounded,
+          newVol == 0 ? BIcons.muted : BIcons.volumeLow,
         );
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.bracketRight) {
@@ -691,7 +692,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _player.setVolume(newVol);
         _showHudMessage(
           newVol == 0 ? '静音' : '音量: ${newVol.toInt()}%',
-          newVol == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+          newVol == 0 ? BIcons.muted : BIcons.volume,
         );
         return KeyEventResult.handled;
       }
@@ -704,7 +705,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _appState.setDanmakuEnabled(next);
     _showHudMessage(
       next ? '弹幕: 已开启' : '弹幕: 已关闭',
-      next ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
+      next ? BIcons.message : BIcons.message,
     );
     _resetHideControlsTimer();
   }
@@ -776,7 +777,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _player.setVolume(newVol);
                 _showHudMessage(
                   '音量: ${newVol.toInt()}%',
-                  newVol == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  newVol == 0 ? BIcons.muted : BIcons.volume,
                 );
               } else {
                 // 左半屏调亮度
@@ -784,7 +785,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 setState(() => _brightness = newBri);
                 _showHudMessage(
                   '亮度: ${(newBri * 100).toInt()}%',
-                  Icons.brightness_6_rounded,
+                  BIcons.sun,
                 );
               }
             },
@@ -808,7 +809,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               final diffStr = diff >= 0 ? '+$diff秒' : '$diff秒';
               _showHudMessage(
                 '$diffStr (${_formatDuration(targetDur)} / ${_formatDuration(_duration)})',
-                Icons.fast_forward_rounded,
+                BIcons.fastForward,
               );
             },
             onHorizontalDragEnd: (details) {
@@ -856,8 +857,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (_showQuickSeekTip)
                 BrandPlayerHUD(
                   icon: _quickSeekTip.startsWith('+')
-                      ? Icons.fast_forward_rounded
-                      : Icons.fast_rewind_rounded,
+                      ? BIcons.fastForward
+                      : BIcons.rewind,
                   text: _quickSeekTip,
                 ),
 
@@ -887,8 +888,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
+                        const BrandIcon(
+                          BIcons.alert,
                           color: AppColors.rose,
                           size: 40,
                         ),
@@ -907,8 +908,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           children: [
                             ElevatedButton.icon(
                               onPressed: () => _loadAndPlayCurrentEpisode(),
-                              icon: const Icon(
-                                Icons.refresh_rounded,
+                              icon: const BrandIcon(
+                                BIcons.refresh,
                                 size: 16,
                                 color: Colors.white,
                               ),
@@ -1099,7 +1100,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             DesktopWindowTitleBar(
               isDark: isDark,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                icon: const BrandIcon(BIcons.arrowLeft, size: 18),
                 tooltip: '返回',
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -1140,10 +1141,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: Icon(
-                      _isEnhanced
-                          ? Icons.auto_awesome_rounded
-                          : Icons.auto_awesome_outlined,
+                    icon: BrandIcon(
+                      BIcons.sparkles,
                       color: _isEnhanced ? AppColors.gold : null,
                       size: 16,
                     ),
@@ -1529,8 +1528,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.local_fire_department_rounded,
+                    const BrandIcon(
+                      BIcons.flame,
                       size: 14,
                       color: Color(0xFFFF8A34),
                     ),
@@ -1562,8 +1561,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.play_circle_fill_rounded,
+                    const BrandIcon(
+                      BIcons.playCircle,
                       size: 12,
                       color: AppColors.primary500,
                     ),
@@ -1614,20 +1613,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _actionItem(
-            icon: Icons.thumb_up_alt_outlined,
+            icon: BIcons.thumbUp,
             label: widget.video.hits > 0
                 ? formatAudienceCount(widget.video.hits)
                 : '点赞',
             color: muted,
           ),
           _actionItem(
-            icon: _favorite ? Icons.star_rounded : Icons.star_border_rounded,
+            icon: _favorite ? BIcons.star : BIcons.star,
             label: _favorite ? '已追番' : '追番',
             color: _favorite ? const Color(0xFFFFB020) : muted,
             onTap: _savingFavorite ? null : _toggleFavorite,
           ),
           _actionItem(
-            icon: Icons.download_rounded,
+            icon: BIcons.download,
             label: '下载',
             color: muted,
             onTap: () {
@@ -1637,7 +1636,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             },
           ),
           _actionItem(
-            icon: Icons.share_outlined,
+            icon: BIcons.share,
             label: '分享',
             color: muted,
             onTap: _sharePlayback,
@@ -1648,7 +1647,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _actionItem({
-    required IconData icon,
+    required BrandIconData icon,
     required String label,
     Color? color,
     VoidCallback? onTap,
@@ -1663,7 +1662,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 22),
+            BrandIcon(icon, color: color, size: 22),
             const SizedBox(height: 5),
             Text(
               label,
@@ -1702,7 +1701,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 : AppColors.lightTextPrimary,
           ),
         ),
-        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+        BrandIcon(BIcons.chevronRight, size: 18, color: muted),
         const Spacer(),
         if (trailing.isNotEmpty)
           Text(trailing, style: TextStyle(fontSize: 12, color: muted)),
@@ -1736,7 +1735,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 : AppColors.lightTextPrimary,
           ),
         ),
-        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+        BrandIcon(BIcons.chevronRight, size: 18, color: muted),
       ],
     );
   }
@@ -1792,7 +1791,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ? IconButton(
                       tooltip: '删除',
                       onPressed: () => _removeDanmaku(item),
-                      icon: const Icon(Icons.delete_outline_rounded),
+                      icon: const BrandIcon(BIcons.trash),
                     )
                   : null,
             ),
@@ -1973,8 +1972,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.keyboard_rounded,
+            const BrandIcon(
+              BIcons.keyboard,
               size: 16,
               color: AppColors.primary500,
             ),
@@ -2138,7 +2137,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 });
                 _showHudMessage(
                   _isLocked ? '屏幕已锁定 (防误触)' : '屏幕已解锁',
-                  _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                  _isLocked ? BIcons.lock : BIcons.unlock,
                 );
                 _resetHideControlsTimer();
               },
@@ -2297,7 +2296,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ],
                     ),
                     BrandPlayerButton(
-                      icon: Icons.close_rounded,
+                      icon: BIcons.close,
                       size: 32,
                       iconSize: 18,
                       onPressed: () {

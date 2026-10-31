@@ -9,6 +9,7 @@ import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/update_dialog.dart';
+import '../theme/brand_icons.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -271,7 +272,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: const InputDecoration(
                           labelText: '屏蔽词',
                           hintText: '用逗号分开，例如：剧透，广告',
-                          prefixIcon: Icon(Icons.block_rounded),
+                          prefixIcon: BrandIcon(BIcons.ban),
                         ),
                         onSubmitted: state.setDanmakuBlocked,
                         onEditingComplete: () =>
@@ -281,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _heading('数据'),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.history_rounded),
+                        leading: const BrandIcon(BIcons.history),
                         title: const Text('搜索记录'),
                         subtitle: Text(
                           state.searchHistory.isEmpty
@@ -329,8 +330,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     .withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                Icons.system_update_alt_rounded,
+                              child: BrandIcon(
+                                BIcons.download,
                                 color: Theme.of(context).colorScheme.primary,
                                 size: 20,
                               ),
@@ -410,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           keyboardType: TextInputType.url,
                           decoration: const InputDecoration(
                             labelText: '服务端地址',
-                            prefixIcon: Icon(Icons.link_rounded),
+                            prefixIcon: BrandIcon(BIcons.link),
                           ),
                         ),
                         const SizedBox(height: 10),

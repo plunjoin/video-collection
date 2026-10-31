@@ -291,7 +291,7 @@ const trendOption = computed(() => {
 onMounted(loadData)
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .analytics-page {
   display: flex;
   flex-direction: column;
@@ -339,7 +339,7 @@ onMounted(loadData)
   }
 }
 
-// ---------- KPI ----------
+/* ---------- KPI ---------- */
 
 .kpi-card :deep(.r-card__body) {
   padding: 0;
@@ -412,7 +412,7 @@ onMounted(loadData)
   }
 }
 
-// ---------- 分区 ----------
+/* ---------- 分区 ---------- */
 
 .section-grid {
   display: grid;
@@ -448,7 +448,7 @@ onMounted(loadData)
   height: 280px;
 }
 
-// ---------- 平台分布 ----------
+/* ---------- 平台分布 ---------- */
 
 .platform-list {
   display: flex;
@@ -553,7 +553,7 @@ onMounted(loadData)
   line-height: 1.7;
 }
 
-// ---------- 热门页面 / 事件 ----------
+/* ---------- 热门页面 / 事件 ---------- */
 
 .page-path {
   padding: 2px 8px;
@@ -626,7 +626,7 @@ onMounted(loadData)
   }
 }
 
-// ---------- 响应式 ----------
+/* ---------- 响应式 ---------- */
 
 @media (max-width: 1080px) {
   .section-grid,
@@ -653,7 +653,7 @@ onMounted(loadData)
   }
 }
 
-// ---------- 暗黑模式 ----------
+/* ---------- 暗黑模式 ---------- */
 html.dark .platform-item {
   background: rgba(255, 255, 255, 0.04);
 

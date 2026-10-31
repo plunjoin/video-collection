@@ -30,14 +30,15 @@ void main() {
       (int, int)? selected;
       await tester.pumpWidget(ChangeNotifierProvider(create: (_) => AppStateProvider(), child: MaterialApp(
         theme: AppTheme.lightTheme, home: Scaffold(body: AnimeDetailContent(video: video, related: [video],
-          onPlay: (group, episode) => selected = (group, episode), onRelated: (_) {})))));
+          onPlay: (group, episode) => selected = (group, episode), onRelated: (_) {}, onOpenNews: (_) {})))));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('desktop-detail-columns')), width >= 840 ? findsOneWidget : findsNothing);
       await tester.tap(find.text('剧集'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('第 2 话'));
-      await tester.tap(find.text('第 2 话'));
+      // 选集矩阵只显示序号（“第 2 话” → “2”）
+      await tester.ensureVisible(find.text('2'));
+      await tester.tap(find.text('2'));
       expect(selected, (0, 1));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

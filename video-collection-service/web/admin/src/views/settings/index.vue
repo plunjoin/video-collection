@@ -339,7 +339,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .settings-page {
   .main-card {
     border-radius: 12px;

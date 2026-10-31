@@ -811,7 +811,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .database-page {
   display: flex;
   flex-direction: column;

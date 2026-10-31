@@ -32,28 +32,38 @@ video-collection-service/
 │       ├── src/             # 前端源码
 │       └── dist/            # 构建产物（打入二进制）
 ├── players/ themes/ data/   # 运行时目录
-├── Dockerfile               # node 构建前端 + go 构建服务的合并镜像
+├── Dockerfile               # wf 构建前端（纯 Go，零 Node）+ go 构建服务的合并镜像
 └── .env.example
 ```
 
 ## 快速开始
 
-### 1. 构建前端（一次性，改动前端后重跑）
+### 1. 安装 wf CLI（一次性）
 
-前端依赖统一在 `web/` 工作区（pnpm workspace，单份 node_modules）：
+前端（管理后台 + 门户）统一由 [webfront](https://github.com/plunjoin/webfront) 的 wf CLI 构建，esbuild 内核、纯 Go 实现，**全程不需要 Node**：
 
 ```bash
-cd web
-pnpm install
-
-cd admin && pnpm build              # 管理后台（Vue + Vite）→ web/admin/dist
-cd ../portal && ../../wf.exe build . # 门户（React + webfront）→ web/portal/dist
+go install github.com/plunjoin/webfront/cmd/wf@v0.1.0
 ```
 
-### 2. 编译并运行服务
+### 2. 安装前端依赖并构建（改动前端后重跑）
 
 ```bash
-cd ../..             # 回到 video-collection-service
+cd video-collection-service
+
+wf install -modules wf_modules .   # 首次或依赖变更（按 web/package-lock.json 锁定版本，产物在 web/wf_modules）
+
+MSYS_NO_PATHCONV=1 wf build -mode spa -base /admin -modules ../wf_modules web/admin
+# 管理后台（Vue 3）→ web/admin/dist（PowerShell/cmd 去掉 MSYS_NO_PATHCONV=1 前缀）
+
+wf build -modules ../wf_modules web/portal
+# 门户（React SSR）→ web/portal/dist
+```
+
+### 3. 编译并运行服务
+
+```bash
+cd ..                # 若在上面 web 目录中，回到 video-collection-service
 go build -o video-collection-service .
 ./video-collection-service  # 默认 80 端口，PORT=8080 可改
 ```
@@ -69,7 +79,7 @@ go build -o video-collection-service .
 | RSS 订阅 | `/rss.xml` |
 | 健康检查 | `/healthz` |
 
-前端开发模式：管理后台 `cd web/admin && pnpm dev`（默认 3000 端口，`/api` 代理到 `API_PROXY_TARGET`，默认 `http://localhost:8080`）；门户 `go run -tags dev .`（webfront DevServer，esbuild 按需转译 + HMR，与 API 同进程同源）。
+前端开发模式：`go run -tags dev .`（webfront DevServer，esbuild 按需转译 + HMR，与 API 同进程同源）——门户与管理后台都在 dev 壳下从源码实时编译，改完源码保存即热更。生产构建用 `wf build`（见 [`web/admin/README.md`](web/admin/README.md)）。
 
 ## 基础配置（SQLite bootstrap）
 

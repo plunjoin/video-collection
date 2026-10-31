@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,6 +20,7 @@ func (srv *Server) registerWikiRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/wiki/subjects", auth.AdminRequired(srv.store, srv.handleAdminWikiSubjects))
 	mux.HandleFunc("/api/admin/wiki/relations", auth.AdminRequired(srv.store, srv.handleAdminWikiRelations))
 	mux.HandleFunc("/api/admin/wiki/sync-video", auth.AdminRequired(srv.store, srv.handleAdminWikiSyncVideo))
+	mux.HandleFunc("/api/admin/wiki/sync-videos", auth.AdminRequired(srv.store, srv.handleAdminWikiSyncVideos))
 }
 
 // handleWikiSubjects 公开检索词条列表
@@ -83,9 +85,18 @@ func (srv *Server) handleWikiSubjectDetail(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// 词条相关资讯（按 subject_id 关联），供词条详情页直接展示
+	var relatedNews []store.Content
+	if news, _, err := srv.store.ListContent(r.Context(), store.ContentQuery{
+		Kind: "news", Status: "published", SubjectID: id, PageSize: 10,
+	}); err == nil {
+		relatedNews = news
+	}
+
 	jsonResponse(w, http.StatusOK, map[string]any{
-		"code": 1,
-		"data": detail,
+		"code":         1,
+		"data":         detail,
+		"related_news": relatedNews,
 	})
 }
 
@@ -272,5 +283,78 @@ func (srv *Server) handleAdminWikiSyncVideo(w http.ResponseWriter, r *http.Reque
 		"code":    1,
 		"msg":     "视频已成功同步入库并生成知识图谱",
 		"subject": subject,
+	})
+}
+
+// handleAdminWikiSyncVideos 批量将视频库影片同步为 Wiki 词条与人物图谱。
+// body: {"video_ids": [1,2,3]} 指定列表，或 {"all": true} 同步全库；幂等可重复执行。
+func (srv *Server) handleAdminWikiSyncVideos(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return
+	}
+
+	var req struct {
+		VideoIDs []int `json:"video_ids"`
+		All      bool  `json:"all"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "参数解析失败")
+		return
+	}
+
+	if req.All {
+		for page := 1; ; page++ {
+			videos, _, err := srv.store.QueryVideos(r.Context(), store.VideoQuery{Page: page, PageSize: 100})
+			if err != nil {
+				errorResponse(w, http.StatusInternalServerError, "读取视频库失败: "+err.Error())
+				return
+			}
+			for _, v := range videos {
+				req.VideoIDs = append(req.VideoIDs, v.ID)
+			}
+			if len(videos) < 100 {
+				break
+			}
+		}
+	}
+	if len(req.VideoIDs) == 0 {
+		errorResponse(w, http.StatusBadRequest, "请提供 video_ids 或 all=true")
+		return
+	}
+	if len(req.VideoIDs) > 500 {
+		errorResponse(w, http.StatusBadRequest, "单次最多同步 500 个视频，请分批执行")
+		return
+	}
+
+	type syncResult struct {
+		VideoID   int    `json:"video_id"`
+		SubjectID int    `json:"subject_id,omitempty"`
+		Name      string `json:"name,omitempty"`
+		Error     string `json:"error,omitempty"`
+	}
+	results := make([]syncResult, 0, len(req.VideoIDs))
+	okCount := 0
+	for _, videoID := range req.VideoIDs {
+		sub, err := srv.store.SyncVideoToWikiSubject(r.Context(), videoID)
+		if err != nil {
+			results = append(results, syncResult{VideoID: videoID, Error: err.Error()})
+			continue
+		}
+		okCount++
+		if sub != nil {
+			results = append(results, syncResult{VideoID: videoID, SubjectID: sub.ID, Name: sub.Name})
+			if srv.rag != nil {
+				srv.rag.IndexWikiNeighborhoodAsync(sub.ID)
+			}
+		}
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"code":    1,
+		"msg":     fmt.Sprintf("同步完成：成功 %d / 共 %d", okCount, len(req.VideoIDs)),
+		"total":   len(req.VideoIDs),
+		"synced":  okCount,
+		"results": results,
 	})
 }

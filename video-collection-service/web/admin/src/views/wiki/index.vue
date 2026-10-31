@@ -906,7 +906,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .usage-guide {
   margin-bottom: 14px;
   font-size: 12px;
@@ -1248,7 +1248,7 @@ onMounted(() => {
 </style>
 
 <!-- 独立顶层样式：专门作用于被 Teleport 传送至 document.body 的各种弹窗内容 -->
-<style lang="scss">
+<style>
 .relation-guide { font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
 
 /* 1. 词条编辑弹窗内部 */

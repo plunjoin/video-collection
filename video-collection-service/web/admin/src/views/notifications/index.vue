@@ -18,11 +18,11 @@ const user=useUserStore(),router=useRouter(),canSend=computed(()=>['super_admin'
 const items=ref<any[]>([]),unread=ref(0),page=ref(1),pageSize=ref(20),total=ref(0),sendVisible=ref(false),title=ref(''),body=ref(''),broadcast=ref(false),recipients=ref(''),busy=ref(false)
 async function load(){const r:any=await request.get('/api/user/notifications',{params:{page:page.value,page_size:pageSize.value}});items.value=r.data;unread.value=r.unread_count;total.value=r.total;window.dispatchEvent(new Event('inbox-updated'))}
 async function readAll(){await request.post('/api/user/notifications/read',{all:true});await load()}
-async function open(n:any){if(!n.is_read){await request.post('/api/user/notifications/read',{ids:[n.id]});await load()}if(n.target_type==='review')router.push('/reviews');if(n.target_type==='movie_request')router.push('/growth');if(n.target_type==='points')window.open((import.meta.env.VITE_PORTAL_URL || '/')+'points','_blank')}
+async function open(n:any){if(!n.is_read){await request.post('/api/user/notifications/read',{ids:[n.id]});await load()}if(n.target_type==='review')router.push('/reviews');if(n.target_type==='movie_request')router.push('/growth');if(n.target_type==='points')window.open('/points','_blank')}
 async function send(){if(broadcast.value)await confirmAction('向所有正常用户发送此通知？','发送确认');busy.value=true;try{await request.post('/api/admin/notifications',{title:title.value,content:body.value,broadcast:broadcast.value,user_ids:broadcast.value?[]:recipients.value.split(/[,，\s]+/).filter(Boolean).map(Number)});sendVisible.value=false;title.value='';body.value='';notify('通知已发送', 'success');await load()}finally{busy.value=false}}
 onMounted(load)
 </script>
-<style scoped lang="scss">
+<style scoped>
 .toolbar {
   display: flex;
   align-items: center;

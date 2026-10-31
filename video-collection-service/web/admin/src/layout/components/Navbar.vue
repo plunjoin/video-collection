@@ -71,8 +71,8 @@ import {
 const appStore = useAppStore()
 const route = useRoute()
 const router = useRouter()
-const portalUrl = import.meta.env.VITE_PORTAL_URL || '/'
-const envLabel = import.meta.env.DEV ? 'dev' : 'prod'
+const portalUrl = '/'
+const envLabel = 'prod'
 
 const unread = ref(0)
 let inboxTimer: ReturnType<typeof setInterval>
@@ -103,7 +103,7 @@ const toggleFullScreen = () => {
 }
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .topbar {
   display: flex;
   flex-shrink: 0;

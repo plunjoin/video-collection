@@ -388,7 +388,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .community-page {
   .table-card {
     .table-header {

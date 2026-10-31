@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/brand_icons.dart';
 
 class QuickNavWidget extends StatelessWidget {
   final Function(int targetTab) onNavTap;
@@ -16,11 +17,11 @@ class QuickNavWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final items = [
-      ('番剧', Icons.live_tv_rounded, AppColors.primary500, () => onNavTap(1)),
-      ('新番', Icons.video_library_rounded, AppColors.rose, onTimelineTap),
-      ('排行榜', Icons.star_rounded, AppColors.primary500, () => onNavTap(2)),
-      ('我的追番', Icons.favorite_rounded, AppColors.purple, () => onNavTap(4)),
-      ('观看历史', Icons.history_rounded, AppColors.rose, onHistoryTap),
+      ('番剧', BIcons.live, AppColors.primary500, () => onNavTap(1)),
+      ('新番', BIcons.library, AppColors.rose, onTimelineTap),
+      ('排行榜', BIcons.star, AppColors.primary500, () => onNavTap(2)),
+      ('我的追番', BIcons.heart, AppColors.purple, () => onNavTap(4)),
+      ('观看历史', BIcons.history, AppColors.rose, onHistoryTap),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
@@ -42,7 +43,7 @@ class QuickNavWidget extends StatelessWidget {
                             color: item.$3.withValues(alpha: dark ? 0.2 : 0.1),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Icon(item.$2, size: 27, color: item.$3),
+                          child: BrandIcon(item.$2, size: 27, color: item.$3),
                         ),
                         const SizedBox(height: 8),
                         Text(

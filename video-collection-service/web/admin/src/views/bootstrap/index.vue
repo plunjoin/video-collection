@@ -273,7 +273,7 @@ async function handleSave() {
 onMounted(loadConfig)
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .bootstrap-page {
   display: flex;
   flex-direction: column;

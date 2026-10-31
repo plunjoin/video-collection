@@ -389,7 +389,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .news-page {
   .batch-bar {
     display: flex;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/brand_icons.dart';
 
 class QuoteBannerWidget extends StatelessWidget {
   const QuoteBannerWidget({super.key});
@@ -38,8 +39,8 @@ class QuoteBannerWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.format_quote_rounded,
+              BrandIcon(
+                BIcons.quote,
                 size: 20,
                 color: AppColors.primary500.withValues(alpha: 0.8),
               ),

@@ -408,7 +408,7 @@ const statusLabel = (s: string) =>
 onMounted(loadList)
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .webhooks-page {
   .table-card {
     border-radius: 12px;

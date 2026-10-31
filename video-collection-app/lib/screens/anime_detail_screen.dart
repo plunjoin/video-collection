@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
+import '../models/wiki_model.dart';
 import '../providers/app_state_provider.dart';
 import '../services/analytics_tracker.dart';
 import '../services/api_service.dart';
@@ -16,8 +17,13 @@ import '../widgets/brand_intro.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/episode_selector.dart';
+import '../widgets/rag_ask_sheet.dart';
+import '../widgets/report_dialog.dart';
 import '../widgets/video_comments.dart';
+import 'content_detail_screen.dart';
+import 'wiki_subject_screen.dart';
 import 'player_screen.dart';
+import '../theme/brand_icons.dart';
 
 class AnimeDetailScreen extends StatefulWidget {
   final int videoId;
@@ -30,6 +36,8 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
   bool _loading = true;
   VideoRecord? _video;
   List<VideoRecord> _related = [];
+  WikiSubject? _wiki;
+  List<Map<String, dynamic>> _relatedNews = [];
   @override
   void initState() {
     super.initState();
@@ -44,6 +52,10 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
     setState(() {
       _video = result['video'] as VideoRecord?;
       _related = result['related'] as List<VideoRecord>;
+      _wiki = result['wiki'] as WikiSubject?;
+      _relatedNews =
+          (result['relatedNews'] as List<Map<String, dynamic>>?) ??
+          const <Map<String, dynamic>>[];
       _loading = false;
     });
   }
@@ -76,6 +88,8 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
                 : AnimeDetailContent(
                     video: _video!,
                     related: _related,
+                    wiki: _wiki,
+                    relatedNews: _relatedNews,
                     onPlay: (group, episode) => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PlayerScreen(
@@ -90,6 +104,25 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
                         builder: (_) => AnimeDetailScreen(videoId: video.id),
                       ),
                     ),
+                    onOpenWiki: _wiki == null
+                        ? null
+                        : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  WikiSubjectScreen(subjectId: _wiki!.id),
+                            ),
+                          ),
+                    onOpenNews: (news) {
+                      final id =
+                          int.tryParse(news['id']?.toString() ?? '') ?? 0;
+                      if (id <= 0) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ContentDetailScreen(kind: 'news', contentId: id),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
@@ -101,7 +134,8 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
 class _Credit {
   final String name;
   final String role;
-  const _Credit(this.name, this.role);
+  final int subjectId; // Wiki 人物词条，>0 时卡片可点击跳转
+  const _Credit(this.name, this.role, {this.subjectId = 0});
 }
 
 List<_Credit> _creditsOf(VideoRecord video) {
@@ -128,18 +162,43 @@ List<_Credit> _creditsOf(VideoRecord video) {
   ];
 }
 
+/// Wiki 关系到演职员卡片的映射：人物名 + 角色描述（缺省用关系类型名）。
+List<_Credit> _wikiCredits(WikiSubject wiki) {
+  final subject = wiki;
+  final credits = <_Credit>[];
+  final seen = <String>{};
+  for (final relation in [...wiki.forwardRelations, ...wiki.reverseRelations]) {
+    final peer = relation.peerOf(subject.id);
+    if (peer == null || !peer.isPerson || peer.name.isEmpty) continue;
+    final role = relation.roleDescription.isNotEmpty
+        ? relation.roleDescription
+        : WikiSubject.relationLabel(relation.relationType);
+    if (!seen.add('${peer.name}:$role')) continue;
+    credits.add(_Credit(peer.name, role, subjectId: peer.id));
+  }
+  return credits;
+}
+
 /// Layout is driven by the actual available width, including resized windows.
 class AnimeDetailContent extends StatefulWidget {
   final VideoRecord video;
   final List<VideoRecord> related;
+  final WikiSubject? wiki;
+  final List<Map<String, dynamic>> relatedNews;
   final void Function(int group, int episode) onPlay;
   final ValueChanged<VideoRecord> onRelated;
+  final VoidCallback? onOpenWiki;
+  final ValueChanged<Map<String, dynamic>> onOpenNews;
   const AnimeDetailContent({
     super.key,
     required this.video,
     required this.related,
     required this.onPlay,
     required this.onRelated,
+    required this.onOpenNews,
+    this.wiki,
+    this.relatedNews = const <Map<String, dynamic>>[],
+    this.onOpenWiki,
   });
   @override
   State<AnimeDetailContent> createState() => _AnimeDetailContentState();
@@ -187,7 +246,9 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     final video = widget.video;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final favorite = context.watch<AppStateProvider>().isFavorite(video.id);
-    final credits = _creditsOf(video);
+    final credits = (widget.wiki != null && _wikiCredits(widget.wiki!).isNotEmpty)
+        ? _wikiCredits(widget.wiki!)
+        : _creditsOf(video);
     final firstPlayable = video.playGroups.indexWhere(
       (group) => group.episodes.isNotEmpty,
     );
@@ -201,7 +262,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
               key: desktop ? const ValueKey('desktop-detail-columns') : null,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _hero(dark, firstPlayable),
+                _hero(dark, firstPlayable, desktop: desktop),
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 920),
@@ -215,7 +276,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _heading(dark),
+                          _heading(dark, desktop: desktop),
                           const SizedBox(height: 16),
                           _actions(dark, favorite, firstPlayable),
                           const SizedBox(height: 8),
@@ -245,11 +306,13 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     );
   }
 
-  Widget _hero(bool dark, int firstPlayable) {
+  Widget _hero(bool dark, int firstPlayable, {bool desktop = false}) {
     final video = widget.video;
     final quote = video.subName.trim();
+    // 移动端状态栏是透明沉浸式的，悬浮按钮必须避开安全区，否则点不到
+    final topInset = MediaQuery.paddingOf(context).top;
     return SizedBox(
-      height: 248,
+      height: desktop ? 320 : 248,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -276,17 +339,29 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
           ),
           if (Navigator.of(context).canPop())
             Positioned(
-              top: 8,
+              top: topInset + 8,
               left: 8,
               child: _roundIcon(
-                Icons.chevron_left_rounded,
+                BIcons.chevronLeft,
                 () => Navigator.of(context).maybePop(),
               ),
             ),
           Positioned(
-            top: 8,
+            top: topInset + 8,
             right: 8,
-            child: _roundIcon(Icons.ios_share_rounded, _share),
+            child: Row(
+              children: [
+                _roundIcon(
+                  BIcons.sparkles,
+                  () => showRagAskSheet(
+                    context,
+                    seedQuestion: '${video.name}的导演是谁？',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _roundIcon(BIcons.share, _share),
+              ],
+            ),
           ),
           Center(
             child: Material(
@@ -297,13 +372,16 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                 onTap: firstPlayable < 0
                     ? null
                     : () => widget.onPlay(firstPlayable, 0),
-                child: const SizedBox(
-                  width: 58,
-                  height: 58,
-                  child: Icon(
-                    Icons.play_arrow_rounded,
-                    color: Color(0xFFFF5C9A),
-                    size: 36,
+                child: SizedBox(
+                  width: desktop ? 68 : 58,
+                  height: desktop ? 68 : 58,
+                  child: BrandIcon(
+                    BIcons.play,
+                    color: const Color(0xFFFF5C9A),
+                    size: desktop ? 42 : 36,
+                    // 播放键要一眼可读:实心三角,不带速度线点缀
+                    filled: true,
+                    monochrome: true,
                   ),
                 ),
               ),
@@ -345,7 +423,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     );
   }
 
-  Widget _heading(bool dark) {
+  Widget _heading(bool dark, {bool desktop = false}) {
     final video = widget.video;
     final muted = dark
         ? AppColors.darkTextSecondary
@@ -362,18 +440,19 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
       video.remarks,
     ].where((item) => item.isNotEmpty).join(' · ');
     final chips = [
+      if (widget.wiki != null && widget.onOpenWiki != null) '_wiki_chip_',
       if (video.remarks.isNotEmpty) video.remarks,
       if (video.area.isNotEmpty) video.area,
       if (video.language.isNotEmpty) video.language,
-    ].take(3);
+    ].take(4);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(desktop ? 16 : 12),
           child: SizedBox(
-            width: 92,
-            height: 122,
+            width: desktop ? 128 : 92,
+            height: desktop ? 170 : 122,
             child: _cover(video.picture, title: video.name),
           ),
         ),
@@ -387,7 +466,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: desktop ? 26 : 20,
                   height: 1.25,
                   fontWeight: FontWeight.w800,
                   color: ink,
@@ -400,26 +479,28 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                   runSpacing: 6,
                   children: [
                     for (final chip in chips)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: AppColors.rose.withValues(alpha: .45),
-                          ),
-                        ),
-                        child: Text(
-                          chip,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: AppColors.rose,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      chip == '_wiki_chip_'
+                          ? _wikiChip()
+                          : Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: AppColors.rose.withValues(alpha: .45),
+                                ),
+                              ),
+                              child: Text(
+                                chip,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.rose,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                   ],
                 ),
               ],
@@ -443,6 +524,38 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     );
   }
 
+  /// Wiki 词条徽章：点击进入词条档案（演职员关系、属性卡与相关资讯）。
+  Widget _wikiChip() {
+    const violet = Color(0xFF8B6CFF);
+    return InkWell(
+      borderRadius: BorderRadius.circular(4),
+      onTap: widget.onOpenWiki,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: violet.withValues(alpha: .1),
+          border: Border.all(color: violet.withValues(alpha: .45)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            BrandIcon(BIcons.book, size: 10, color: violet),
+            SizedBox(width: 3),
+            Text(
+              'Wiki 词条',
+              style: TextStyle(
+                fontSize: 10,
+                color: violet,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _actions(bool dark, bool favorite, int firstPlayable) {
     final playable = firstPlayable >= 0;
     final line = dark ? AppColors.darkBorder : AppColors.lightBorder;
@@ -451,7 +564,11 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
         : AppColors.lightTextSecondary;
     const violet = Color(0xFF8B6CFF);
 
-    return Row(
+    // 窄屏（320 级别）放不下一整行时自动换行，避免 RenderFlex 溢出
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         // 主按钮按内容宽度收窄，右侧动作紧跟其后，不再拉满整行
         SizedBox(
@@ -479,7 +596,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
               onPressed: playable
                   ? () => widget.onPlay(firstPlayable, 0)
                   : null,
-              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              icon: const BrandIcon(BIcons.play, size: 18),
               label: Text(playable ? '立即观看' : '暂无片源'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
@@ -495,15 +612,15 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
         SizedBox(
           height: 40,
           child: OutlinedButton.icon(
             onPressed: _savingFavorite ? null : _toggleFavorite,
-            icon: Icon(
-              favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            icon: BrandIcon(
+              BIcons.heart,
               size: 17,
               color: favorite ? violet : muted,
+              filled: favorite,
             ),
             label: Text(favorite ? '已追番' : '追番'),
             style: OutlinedButton.styleFrom(
@@ -525,7 +642,6 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
         SizedBox(
           width: 40,
           height: 40,
@@ -538,7 +654,29 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
               side: BorderSide(color: line),
               shape: const CircleBorder(),
             ),
-            child: Icon(Icons.ios_share_rounded, size: 17, color: muted),
+            child: BrandIcon(BIcons.share, size: 17, color: muted),
+          ),
+        ),
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: OutlinedButton(
+            onPressed: () => showReportDialog(
+              context,
+              ReportTarget(
+                targetType: 'video',
+                targetId: widget.video.id,
+                label: '作品：${widget.video.name}',
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(40, 40),
+              backgroundColor: dark ? Colors.transparent : Colors.white,
+              side: BorderSide(color: line),
+              shape: const CircleBorder(),
+            ),
+            child: BrandIcon(BIcons.alert, size: 17, color: muted),
           ),
         ),
       ],
@@ -645,6 +783,25 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             ),
           ),
         ],
+        const SizedBox(height: 22),
+        _askCard(dark),
+        if (widget.relatedNews.isNotEmpty) ...[
+          const SizedBox(height: 22),
+          _sectionTitle('相关资讯'),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 92,
+            child: DesktopHorizontalScroll(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.relatedNews.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) =>
+                    _newsCard(widget.relatedNews[index], dark),
+              ),
+            ),
+          ),
+        ],
         if (widget.related.isNotEmpty) ...[
           const SizedBox(height: 22),
           _sectionTitle('相关推荐'),
@@ -668,6 +825,139 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
           ),
         ],
       ],
+    );
+  }
+
+  /// AI 知识库问答入口卡：基于站内 Wiki 与资讯回答，带可跳转引用。
+  Widget _askCard(bool dark) {
+    final line = dark ? AppColors.darkBorder : AppColors.lightBorder;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => showRagAskSheet(
+        context,
+        seedQuestion: '${widget.video.name}的导演是谁？',
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark
+                ? [const Color(0xFF3A3556), const Color(0xFF31415E)]
+                : [const Color(0xFFF3F0FF), const Color(0xFFEDF3FF)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: line),
+        ),
+        child: Row(
+          children: [
+            const BrandIcon(BIcons.sparkles,
+                size: 20, color: Color(0xFF8B6CFF)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '问问 AI 使魔',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '基于站内 Wiki 与资讯知识库回答',
+                    style: TextStyle(fontSize: 11.5, color: muted),
+                  ),
+                ],
+              ),
+            ),
+            BrandIcon(BIcons.chevronRight, size: 20, color: muted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 相关资讯横滑卡片。
+  Widget _newsCard(Map<String, dynamic> news, bool dark) {
+    final title = news['title']?.toString() ?? '';
+    final cover = news['cover']?.toString() ?? '';
+    final summary = news['summary']?.toString() ?? '';
+    final line = dark ? AppColors.darkBorder : AppColors.lightBorder;
+    final cardColor = dark ? AppColors.darkCard : Colors.white;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    return SizedBox(
+      width: 240,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => widget.onOpenNews(news),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: line),
+          ),
+          child: Row(
+            children: [
+              // 没有封面的资讯不再保留图片占位，正文文字直接铺满卡片
+              if (cover.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 64,
+                    height: 68,
+                    child: CachedNetworkImage(
+                      imageUrl: cover,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          BrandPosterFallback(title: title, forceDark: dark),
+                      errorWidget: (_, _, _) =>
+                          BrandPosterFallback(title: title, forceDark: dark),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (summary.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 10.5, color: muted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -697,7 +987,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
   }
 
   Widget _creditCard(_Credit credit, bool dark) {
-    return SizedBox(
+    final card = SizedBox(
       width: 108,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,6 +1024,37 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
         ],
       ),
     );
+    // 有 Wiki 人物词条直接进入词条档案；没有绑定时按名字解析
+    // （服务端 /api/wiki/subject?name= 支持精确匹配）。
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _openCredit(credit),
+      child: card,
+    );
+  }
+
+  Future<void> _openCredit(_Credit credit) async {
+    if (credit.subjectId > 0) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WikiSubjectScreen(subjectId: credit.subjectId),
+        ),
+      );
+      return;
+    }
+    final subject = await ApiService().getWikiSubjectByName(credit.name);
+    if (!mounted) return;
+    if (subject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('还没有「${credit.name}」的词条档案')),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WikiSubjectScreen(subjectId: subject.id),
+      ),
+    );
   }
 
   Widget _sectionTitle(String title, {String? action, VoidCallback? onTap}) {
@@ -748,12 +1069,12 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             title,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+          BrandIcon(BIcons.chevronRight, size: 18, color: muted),
           const Spacer(),
           if (action != null)
             Text(action, style: TextStyle(fontSize: 12, color: muted)),
           if (action != null)
-            Icon(Icons.chevron_right_rounded, size: 16, color: muted),
+            BrandIcon(BIcons.chevronRight, size: 16, color: muted),
         ],
       ),
     );
@@ -775,7 +1096,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
   }
 
   Widget _roundIcon(
-    IconData icon,
+    BrandIconData icon,
     VoidCallback onPressed, {
     bool filled = false,
   }) {
@@ -791,7 +1112,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
         child: SizedBox(
           width: 36,
           height: 36,
-          child: Icon(
+          child: BrandIcon(
             icon,
             size: 18,
             color: filled && !dark ? AppColors.lightTextPrimary : Colors.white,

@@ -160,6 +160,8 @@ func (s *SQLiteStore) initSchema() error {
 		title TEXT NOT NULL,
 		content TEXT NOT NULL,
 		contact TEXT DEFAULT '',
+		target_type TEXT NOT NULL DEFAULT '',
+		target_id INTEGER NOT NULL DEFAULT 0,
 		status TEXT NOT NULL DEFAULT 'pending',
 		reply TEXT DEFAULT '',
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -209,6 +211,9 @@ func (s *SQLiteStore) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_id TEXT DEFAULT '';")
 	_, _ = s.db.Exec("ALTER TABLE play_sources ADD COLUMN source_name TEXT DEFAULT '';")
 	_, _ = s.db.Exec("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';")
+	// 纠错反馈上下文：feedbacks 关联到具体内容（video/news/post/wiki_subject）
+	_, _ = s.db.Exec("ALTER TABLE feedbacks ADD COLUMN target_type TEXT NOT NULL DEFAULT '';")
+	_, _ = s.db.Exec("ALTER TABLE feedbacks ADD COLUMN target_id INTEGER NOT NULL DEFAULT 0;")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_play_sources_v_s_p ON play_sources(video_id, source_id, player_code);")
 	return nil
 }
@@ -1103,10 +1108,10 @@ func (s *SQLiteStore) CreateFeedback(ctx context.Context, fb *Feedback) error {
 		fb.Status = "pending"
 	}
 	query := `
-		INSERT INTO feedbacks (type, title, content, contact, status, reply, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO feedbacks (type, title, content, contact, target_type, target_id, status, reply, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	res, err := s.db.ExecContext(ctx, query, fb.Type, fb.Title, fb.Content, fb.Contact, fb.Status, fb.Reply, fb.CreatedAt, fb.UpdatedAt)
+	res, err := s.db.ExecContext(ctx, query, fb.Type, fb.Title, fb.Content, fb.Contact, fb.TargetType, fb.TargetID, fb.Status, fb.Reply, fb.CreatedAt, fb.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -1147,7 +1152,7 @@ func (s *SQLiteStore) ListFeedbacks(ctx context.Context, page, pageSize int, sta
 
 	offset := (page - 1) * pageSize
 	querySQL := fmt.Sprintf(`
-		SELECT id, type, title, content, contact, status, reply, created_at, updated_at
+		SELECT id, type, title, content, contact, COALESCE(target_type,''), COALESCE(target_id,0), status, reply, created_at, updated_at
 		FROM feedbacks
 		%s
 		ORDER BY created_at DESC
@@ -1163,7 +1168,7 @@ func (s *SQLiteStore) ListFeedbacks(ctx context.Context, page, pageSize int, sta
 	var list []Feedback
 	for rows.Next() {
 		var f Feedback
-		if err := rows.Scan(&f.ID, &f.Type, &f.Title, &f.Content, &f.Contact, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err == nil {
+		if err := rows.Scan(&f.ID, &f.Type, &f.Title, &f.Content, &f.Contact, &f.TargetType, &f.TargetID, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err == nil {
 			list = append(list, f)
 		}
 	}

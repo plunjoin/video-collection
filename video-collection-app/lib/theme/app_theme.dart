@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -74,6 +75,23 @@ class AppTheme {
       highlightColor: Colors.transparent,
       hoverColor: AppColors.purple.withValues(alpha: .05),
       dividerColor: line,
+      // 移动端统一 iOS 风格的推入/返回转场（含右滑返回手势）；
+      // 桌面端保留 Material 缩放转场，窗口操作更干脆。
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: ZoomPageTransitionsBuilder(
+            allowEnterRouteSnapshotting: false,
+          ),
+          TargetPlatform.macOS: const ZoomPageTransitionsBuilder(
+            allowEnterRouteSnapshotting: false,
+          ),
+          TargetPlatform.linux: const ZoomPageTransitionsBuilder(
+            allowEnterRouteSnapshotting: false,
+          ),
+        },
+      ),
       colorScheme:
           ColorScheme.fromSeed(
             seedColor: accent,

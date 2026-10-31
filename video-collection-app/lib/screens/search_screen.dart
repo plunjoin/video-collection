@@ -16,6 +16,7 @@ import '../utils/responsive.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'anime_detail_screen.dart';
+import '../theme/brand_icons.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialKeyword;
@@ -238,7 +239,7 @@ class _SearchScreenState extends State<SearchScreen> {
         subtitle: '试试更短的名字，或者换一个关键词。',
         action: BrandButton(
           label: '重新寻找',
-          icon: Icons.search_rounded,
+          icon: BIcons.search,
           onPressed: () {
             _searchRequestId++;
             setState(() {
@@ -369,7 +370,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      icon: const BrandIcon(BIcons.trash, size: 18),
                       tooltip: '清空历史',
                       onPressed: () => appState.clearSearchHistory(),
                     ),

@@ -11,7 +11,7 @@
 <script setup lang="ts">
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .app-main-container {
   position: relative;
   flex: 1 1 auto;

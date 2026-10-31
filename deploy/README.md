@@ -104,17 +104,20 @@ docker compose --env-file deploy/.env up -d
 
 ## 不使用 Docker
 
-安装 Go 1.26+、Node.js 22 LTS 和 pnpm；PostgreSQL 可独立部署。在 `video-collection-service` 内先构建管理后台再编译服务：
+安装 Go 1.26+ 和 wf CLI（`go install github.com/plunjoin/webfront/cmd/wf@v0.1.0`）；PostgreSQL 可独立部署。在 `video-collection-service` 内先装前端依赖、构建双前端，再编译服务：
 
 ```bash
-cd video-collection-service/web/admin && pnpm install --frozen-lockfile && pnpm build
-cd ../.. && go build -o video-collection-service .
+cd video-collection-service
+wf install -modules wf_modules .                                    # 首次或依赖变更时
+wf build -mode spa -base /admin -modules ../wf_modules web/admin    # 管理后台 → web/admin/dist
+wf build -modules ../wf_modules web/portal                          # 门户 → web/portal/dist
+go build -o service .
 ```
 
-管理后台 `dist` 由 `go:embed` 打进二进制，运行时保持工作目录及 `config`、`players`、`themes`、`data` 可用。通过 `.env` 设置 `PORT=8080`、数据库地址、`DB_REQUIRE_PRIMARY=true`、初始管理员密码，以及可选的 `REDIS_ADDR` 等缓存配置。
+> Git Bash 下 `-base /admin` 需加前缀 `MSYS_NO_PATHCONV=1`；PowerShell / cmd 直接执行。
 
-门户（web/portal）构建用仓库根 `wf build video-collection-service/web/portal`（纯 Go，零 Node；依赖由 `web/` 工作区提供）；构建产物经 `go:embed` 随服务分发，无需单独启动 Node 进程。
+前端 `dist` 由 `go:embed` 打进二进制（全程零 Node），运行时保持工作目录及 `config`、`players`、`themes`、`data` 可用。通过 `.env` 设置 `PORT=8080`、数据库地址、`DB_REQUIRE_PRIMARY=true`、初始管理员密码，以及可选的 `REDIS_ADDR` 等缓存配置。
 
-管理后台不再独立分发：构建 `web/admin` 后由统一服务托管 `/admin`。使用 systemd 等进程管理器运行服务与 Web，工作目录必须对应子项目目录。
+管理后台与门户均不独立分发：构建后由统一服务托管 `/admin` 与 `/`。使用 systemd 等进程管理器运行服务，工作目录必须对应子项目目录。
 
 本次配置已通过 Compose 配置校验与本地 Go / 前端构建验证；当前开发环境 Docker 守护进程未运行，容器镜像构建和容器间联通仍需在部署主机执行上面的启动与健康检查。

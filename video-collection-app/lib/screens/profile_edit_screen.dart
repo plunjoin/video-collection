@@ -5,6 +5,7 @@ import '../providers/app_state_provider.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/member_avatar.dart';
+import '../theme/brand_icons.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -110,7 +111,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           enabled: !_busy,
                           decoration: const InputDecoration(
                             labelText: '昵称',
-                            prefixIcon: Icon(Icons.badge_outlined),
+                            prefixIcon: BrandIcon(BIcons.badge),
                           ),
                           validator: (value) {
                             final text = value?.trim() ?? '';
@@ -130,7 +131,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           decoration: const InputDecoration(
                             labelText: '个人简介',
                             alignLabelWithHint: true,
-                            prefixIcon: Icon(Icons.notes_rounded),
+                            prefixIcon: BrandIcon(BIcons.notes),
                           ),
                           validator: (value) =>
                               (value?.trim().runes.length ?? 0) > 80
@@ -146,7 +147,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           decoration: const InputDecoration(
                             labelText: '头像链接',
                             hintText: 'https:// 开头，留空则使用默认头像',
-                            prefixIcon: Icon(Icons.image_outlined),
+                            prefixIcon: BrandIcon(BIcons.image),
                           ),
                           validator: (value) {
                             final text = value?.trim() ?? '';

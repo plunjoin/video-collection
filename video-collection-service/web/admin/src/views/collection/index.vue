@@ -1142,7 +1142,7 @@ onMounted(() => { listBusinessTypes().then(res => { businessTypes.value = res.da
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .collection-studio { max-width: 1600px; margin: auto; color: var(--text-primary); }
 .studio-header, .editor-heading, .section-title, .editor-footer, .library-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .studio-header {
@@ -1234,7 +1234,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 </style>
 
 <!-- 独立顶层样式：作用于采集结果工作台与数据校正弹窗（Teleport 至 body） -->
-<style lang="scss">
+<style>
 .workbench-bar {
   display: flex;
   justify-content: space-between;

@@ -1,5 +1,5 @@
-# 一键启动 video-collection（同一终端并行，Ctrl+C 全部停止）
-# 用法: .\run.ps1 admin web windows
+﻿# 一键启动 video-collection（同一终端并行，Ctrl+C 全部停止）
+# 用法: .\run.ps1 service web windows
 
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -39,26 +39,31 @@ function Show-Help {
     @"
 一键启动 video-collection 子项目
 
-所有服务在当前终端并行运行，日志带 [service]/[admin]/[web]/[app] 前缀。
+所有服务在当前终端并行运行，日志带 [service]/[web]/[app] 前缀。
 按 Ctrl+C 停止全部。
 
 用法:
   .\run.ps1 <目标...>
-  .\run.cmd <目标...>
   ./run.sh <目标...>          # macOS / Linux
 
 项目目标:
   service / admin / web / app / all
-  （api 为 service 的别名；admin 为管理后台前端开发服务器，生产构建已内嵌于 service）
+  （api 为 service 的别名）
+  service  统一服务：/ 门户（webfront 托管）+ /admin 管理后台（内嵌产物）+ /api
+  admin    先用 wf 构建管理后台（webfront CLI，零 Node）打进二进制，再启动统一服务在 /admin 查看
+  web      以开发模式启动统一服务（go run -tags dev .）：门户与管理后台都挂
+           webfront DevServer（HMR）；与 service 同时选择时只启动一个进程（无 HMR）
   Flutter 平台: windows android ios macos linux chrome edge web-server
 
 示例:
-  .\run.ps1 service web
-  .\run.ps1 api web android     # api 等同于 service
+  .\run.ps1 service
+  .\run.ps1 admin              # 构建管理后台并启动服务
+  .\run.ps1 web                # 门户开发模式（HMR）
+  .\run.ps1 api web android    # api 等同于 service
   .\run.ps1 all
-  .\run.ps1 web
 
 说明:
+  - 前端构建统一走 webfront wf CLI（纯 Go），本脚本不依赖 Node
   - 缺少运行时会提示安装方式并退出
   - 缺少项目依赖会自动安装
   - 脚本会自动切换控制台为 UTF-8，避免中文乱码
@@ -77,13 +82,10 @@ function Write-InstallHint {
             Write-Host "  缺少 Go" -ForegroundColor Red
             Write-Host "  安装: https://go.dev/dl/ | winget install GoLang.Go" -ForegroundColor Yellow
         }
-        "node" {
-            Write-Host "  缺少 Node.js" -ForegroundColor Red
-            Write-Host "  安装: https://nodejs.org/ | winget install OpenJS.NodeJS.LTS" -ForegroundColor Yellow
-        }
-        "pnpm" {
-            Write-Host "  缺少 pnpm" -ForegroundColor Red
-            Write-Host "  corepack enable; corepack prepare pnpm@latest --activate" -ForegroundColor Yellow
+        "wf" {
+            Write-Host "  缺少 webfront wf CLI" -ForegroundColor Red
+            Write-Host "  安装: go install github.com/plunjoin/webfront/cmd/wf@v0.1.0" -ForegroundColor Yellow
+            Write-Host "  （仓库根已自带 wf.exe / wf.ps1，启动器会优先使用）" -ForegroundColor Yellow
         }
         "flutter" {
             Write-Host "  缺少 Flutter SDK" -ForegroundColor Red
@@ -92,32 +94,12 @@ function Write-InstallHint {
     }
 }
 
-function Ensure-Pnpm {
-    if (Test-CommandExists "pnpm") { return $true }
-    if (-not (Test-CommandExists "node")) { return $false }
-    Write-Host "[环境] 未找到 pnpm，尝试 corepack / npm ..." -ForegroundColor Cyan
-    if (Test-CommandExists "corepack") {
-        try {
-            & corepack enable 2>$null | Out-Null
-            & corepack prepare pnpm@latest --activate 2>$null | Out-Null
-            if (Test-CommandExists "pnpm") {
-                Write-Host "[环境] pnpm 已就绪: $(pnpm -v)" -ForegroundColor Green
-                return $true
-            }
-        } catch {}
-    }
-    if (Test-CommandExists "npm") {
-        try {
-            & npm install -g pnpm 2>$null | Out-Null
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-                        [System.Environment]::GetEnvironmentVariable("Path", "User")
-            if (Test-CommandExists "pnpm") {
-                Write-Host "[环境] pnpm 已就绪: $(pnpm -v)" -ForegroundColor Green
-                return $true
-            }
-        } catch {}
-    }
-    return $false
+# wf 解析顺序：仓库根 wf.exe（wf.ps1 同目录包装）→ PATH
+function Get-WfCommand {
+    $local = Join-Path $Root "wf.exe"
+    if (Test-Path $local) { return $local }
+    if (Test-CommandExists "wf") { return "wf" }
+    return $null
 }
 
 function Ensure-GoDeps {
@@ -125,22 +107,43 @@ function Ensure-GoDeps {
     if (-not $Dir) { $Dir = Join-Path $Root "video-collection-service" }
     if (-not (Test-Path $Dir)) { Write-Host "[跳过] Service 目录不存在" -ForegroundColor Yellow; return }
     Write-Host "[依赖] Service: go mod download" -ForegroundColor Cyan
-    Push-Location $dir
+    Push-Location $Dir
     try { & go mod download } finally { Pop-Location }
 }
 
-function Ensure-PnpmDeps {
-    param([string]$Name, [string]$Dir)
-    if (-not (Test-Path $Dir)) { Write-Host "[跳过] ${Name} 目录不存在" -ForegroundColor Yellow; return }
-    # 前端依赖统一在 web/ 工作区（pnpm workspace，hoisted 单份 node_modules）
-    $workspace = Split-Path $Dir -Parent
-    if (-not (Test-Path (Join-Path $workspace "node_modules"))) {
-        Write-Host "[依赖] ${Name}: pnpm install (web 工作区) ..." -ForegroundColor Cyan
-        Push-Location $workspace
-        try { & pnpm install } finally { Pop-Location }
-    } else {
-        Write-Host "[依赖] ${Name}: web 工作区 node_modules 已存在，跳过" -ForegroundColor DarkGray
+function Ensure-WfDeps {
+    param([string]$Wf)
+    $serviceDir = Join-Path $Root "video-collection-service"
+    $store = Join-Path $serviceDir "web/wf_modules/.store/manifest.json"
+    if (Test-Path $store) {
+        Write-Host "[依赖] 前端: wf_modules 已存在，跳过" -ForegroundColor DarkGray
+        return
     }
+    Write-Host "[依赖] 前端: wf install（零 Node，按 web/package-lock.json 锁定版本）..." -ForegroundColor Cyan
+    Push-Location $serviceDir
+    try { & $Wf install -modules wf_modules . } finally { Pop-Location }
+}
+
+function Build-AdminFrontend {
+    param([string]$Wf)
+    $serviceDir = Join-Path $Root "video-collection-service"
+    Write-Host "[构建] 管理后台: wf build（esbuild，秒级）..." -ForegroundColor Cyan
+    Push-Location $serviceDir
+    try {
+        & $Wf build -mode spa -base /admin -modules ../wf_modules web/admin
+        if ($LASTEXITCODE -ne 0) { throw "wf build admin 失败" }
+    } finally { Pop-Location }
+}
+
+function Build-PortalFrontend {
+    param([string]$Wf)
+    $serviceDir = Join-Path $Root "video-collection-service"
+    Write-Host "[构建] 门户: wf build（SSR bundle + 分包）..." -ForegroundColor Cyan
+    Push-Location $serviceDir
+    try {
+        & $Wf build -modules ../wf_modules web/portal
+        if ($LASTEXITCODE -ne 0) { throw "wf build portal 失败" }
+    } finally { Pop-Location }
 }
 
 function Ensure-FlutterDeps {
@@ -268,11 +271,10 @@ foreach ($token in $normalized) {
             $wantApp = $true
         }
         "api"     { [void]$wantProjects.Add("service") }
-        "admin"   { [void]$wantProjects.Add("admin") }
         "service" { [void]$wantProjects.Add("service") }
-        "web"   { [void]$wantProjects.Add("web") }
-
-        "app"   { $wantApp = $true }
+        "admin"   { [void]$wantProjects.Add("admin") }
+        "web"     { [void]$wantProjects.Add("web") }
+        "app"     { $wantApp = $true }
         default {
             if ($FlutterDevices.ContainsKey($token)) {
                 $flutterDevice = $FlutterDevices[$token]
@@ -286,11 +288,19 @@ foreach ($token in $normalized) {
     }
 }
 
+# admin / web 都是"启动统一服务"的不同形态：
+#   admin → 先 wf 构建管理后台，再启动服务（内嵌）
+#   web   → 开发模式启动（go run -tags dev .，门户 HMR）；选了 service 时让位
+$needService = $wantProjects.Contains("service") -or $wantProjects.Contains("admin") -or $wantProjects.Contains("web")
+$buildAdmin  = $wantProjects.Contains("admin")
+$buildPortal = $normalized -contains "all"
+$devMode     = -not $wantProjects.Contains("service") -and $wantProjects.Contains("web")
+
 if ($wantApp -and -not $flutterDevice) {
     if ($IsWindows -or $env:OS -match "Windows") { $flutterDevice = "windows" }
 }
 
-if ($wantProjects.Count -eq 0 -and -not $wantApp) {
+if (-not $needService -and -not $wantApp) {
     Show-Help
     exit 0
 }
@@ -299,19 +309,15 @@ if ($wantProjects.Count -eq 0 -and -not $wantApp) {
 Write-Host ""
 Write-Host "=== video-collection 环境检查 ===" -ForegroundColor Green
 $missing = $false
-$needNode = $wantProjects.Contains("admin")
 
-if ($wantProjects.Contains("service")) {
+if ($needService) {
     if (Test-CommandExists "go") { Write-Host "[OK] $(go version)" -ForegroundColor Green }
     else { Write-InstallHint "go"; $missing = $true }
-}
-if ($needNode) {
-    if (Test-CommandExists "node") { Write-Host "[OK] node $(node -v)" -ForegroundColor Green }
-    else { Write-InstallHint "node"; $missing = $true }
-    if (-not $missing) {
-        if (Ensure-Pnpm) { Write-Host "[OK] pnpm $(pnpm -v)" -ForegroundColor Green }
-        else { Write-InstallHint "pnpm"; $missing = $true }
-    }
+
+    $wfCmd = Get-WfCommand
+    if ($wfCmd) { Write-Host "[OK] wf CLI: $wfCmd" -ForegroundColor Green }
+    else { Write-InstallHint "wf"; $missing = $true }
+    $script:WfCmd = $wfCmd
 }
 if ($wantApp) {
     if (Test-CommandExists "flutter") {
@@ -323,41 +329,37 @@ if ($missing) {
     exit 1
 }
 
+# ---------- 检查 / 安装项目依赖 ----------
 Write-Host ""
 Write-Host "=== 检查 / 安装项目依赖 ===" -ForegroundColor Green
-if ($wantProjects.Contains("service")) { Ensure-GoDeps -Dir (Join-Path $Root "video-collection-service") }
-if ($wantProjects.Contains("admin")) { Ensure-PnpmDeps -Name "Admin" -Dir (Join-Path $Root "video-collection-service/web/admin") }
-     = Join-Path  "wf.exe"
-    if (Test-Path ) {
-        Write-Host "[wf] 正在通过 webfront CLI 编译前台门户..." -ForegroundColor Cyan
-        &  build (Join-Path  "video-collection-service/web/portal")
-    }
-if ($wantApp) { Ensure-FlutterDeps }
+if ($needService) {
+    Ensure-GoDeps -Dir (Join-Path $Root "video-collection-service")
+    Ensure-WfDeps -Wf $script:WfCmd
+}
+if ($buildAdmin)  { Build-AdminFrontend -Wf $script:WfCmd }
+if ($buildPortal) { Build-PortalFrontend -Wf $script:WfCmd }
+if ($wantApp)     { Ensure-FlutterDeps }
 
 # ---------- 同一终端启动 ----------
 Write-Host ""
 Write-Host "=== 启动服务（同一终端） ===" -ForegroundColor Green
-$projectList = ($wantProjects | Sort-Object) -join ", "
-if (-not $projectList) { $projectList = "(none)" }
 $appInfo = if ($wantApp) { "app/$flutterDevice" } else { "(none)" }
-Write-Host "projects: $projectList"
 Write-Host "app     : $appInfo"
 Write-Host ""
 Write-Host "日志前缀区分服务。按 Ctrl+C 停止全部。" -ForegroundColor Yellow
 Write-Host ""
 
-if ($wantProjects.Contains("service")) {
-    Start-ServiceProcess -Tag "service" -WorkDir (Join-Path $Root "video-collection-service") -Command "go run ." -Color Green
-}
-if ($wantProjects.Contains("admin")) {
-    Start-ServiceProcess -Tag "admin" -WorkDir (Join-Path $Root "video-collection-service/web/admin") -Command "pnpm dev" -Color Magenta
-}
-if ($wantProjects.Contains("web")) {
-    if (-not .Contains("service")) {
-        Start-ServiceProcess -Tag "web" -WorkDir (Join-Path  "video-collection-service") -Command "go run ." -Color Cyan
-    } else {
-        Write-Host "[web] 前台门户已由 video-collection-service 内嵌托管（webfront SSR 引擎）" -ForegroundColor Cyan
+if ($needService) {
+    $runCmd = "go run ."
+    $tag    = "service"
+    if ($devMode) {
+        $runCmd = "go run -tags dev ."
+        $tag    = "web"
+        Write-Host "[web] 门户与管理后台均挂 webfront DevServer（HMR）" -ForegroundColor Cyan
+    } elseif ($wantProjects.Contains("web")) {
+        Write-Host "[web] 与 service 同进程，门户走内嵌产物；需要 HMR 请单选 web" -ForegroundColor DarkGray
     }
+    Start-ServiceProcess -Tag $tag -WorkDir (Join-Path $Root "video-collection-service") -Command $runCmd -Color Green
 }
 if ($wantApp) {
     $cmd = if ($flutterDevice) { "flutter run -d $flutterDevice" } else { "flutter run" }

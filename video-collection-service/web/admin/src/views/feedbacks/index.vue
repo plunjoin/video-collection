@@ -225,7 +225,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .feedbacks-page {
   .table-card {
     border-radius: 12px;

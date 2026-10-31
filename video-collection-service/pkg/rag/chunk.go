@@ -145,7 +145,8 @@ func BuildWikiRelationChunks(d *store.WikiSubjectDetail) []DocumentChunk {
 	return chunks
 }
 
-// BuildContentChunks 将资讯/社区正文拆块（subject_id 为 0）。
+// BuildContentChunks 将资讯/社区正文拆块；关联了 Wiki 词条时块携带 subject_id，
+// 检索命中即可回链到对应作品/人物详情。
 func BuildContentChunks(c *store.Content) []DocumentChunk {
 	if c == nil {
 		return nil
@@ -159,6 +160,9 @@ func BuildContentChunks(c *store.Content) []DocumentChunk {
 		"kind":     c.Kind,
 		"category": c.Category,
 		"status":   c.Status,
+	}
+	if c.SubjectID > 0 {
+		metaBase["subject_id"] = c.SubjectID
 	}
 	header := fmt.Sprintf("[%s] %s", c.Kind, c.Title)
 	var bodyParts []string
@@ -177,7 +181,7 @@ func BuildContentChunks(c *store.Content) []DocumentChunk {
 		chunks = append(chunks, DocumentChunk{
 			SourceType: sourceType,
 			SourceID:   fmt.Sprintf("%d", c.ID),
-			SubjectID:  0,
+			SubjectID:  c.SubjectID,
 			ChunkIndex: i,
 			Text:       part,
 			Metadata:   copyMeta(metaBase),

@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import '../providers/app_state_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../theme/brand_icons.dart';
 
 /// 桌面端沉浸式自定义标题栏 (可拖拽窗口 + 快速主题切换 + 精致窗口三联按钮)。
 /// 左上角不再放品牌内容：品牌行交给侧栏，避免 titlebar 与 sidebar 视觉重叠。
@@ -82,7 +83,7 @@ class DesktopWindowTitleBar extends StatelessWidget {
 }
 
 class _TitleBarNavButton extends StatefulWidget {
-  final IconData icon;
+  final BrandIconData icon;
   final String tooltip;
   final bool isDark;
   final VoidCallback onTap;
@@ -124,9 +125,10 @@ class _TitleBarNavButtonState extends State<_TitleBarNavButton> {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(
+            child: BrandIcon(
               widget.icon,
               size: 13,
+              monochrome: true,
               color: widget.isDark
                   ? AppColors.darkTextPrimary
                   : AppColors.lightTextPrimary,
@@ -181,10 +183,11 @@ class _ThemeQuickToggleState extends State<_ThemeQuickToggle> {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(
+            child: BrandIcon(
               widget.isDark
-                  ? Icons.light_mode_rounded
-                  : Icons.dark_mode_rounded,
+                  ? BIcons.sun
+                  : BIcons.moon,
+              monochrome: true,
               size: 15,
               color: widget.isDark
                   ? AppColors.gold
@@ -263,7 +266,7 @@ class _DesktopWindowControlsState extends State<DesktopWindowControls>
         mainAxisSize: MainAxisSize.min,
         children: [
           _WindowHoverButton(
-            icon: Icons.remove_rounded,
+            icon: BIcons.minus,
             tooltip: '最小化',
             onTap: () => windowManager.minimize(),
             iconColor: iconColor,
@@ -271,8 +274,8 @@ class _DesktopWindowControlsState extends State<DesktopWindowControls>
           const SizedBox(width: 2),
           _WindowHoverButton(
             icon: _isMaximized
-                ? Icons.filter_none_rounded
-                : Icons.crop_square_rounded,
+                ? BIcons.restore
+                : BIcons.square,
             iconSize: _isMaximized ? 11 : 13,
             tooltip: _isMaximized ? '还原' : '最大化',
             onTap: () async {
@@ -286,7 +289,7 @@ class _DesktopWindowControlsState extends State<DesktopWindowControls>
           ),
           const SizedBox(width: 2),
           _WindowHoverButton(
-            icon: Icons.close_rounded,
+            icon: BIcons.close,
             tooltip: '关闭',
             onTap: () => windowManager.close(),
             isClose: true,
@@ -299,7 +302,7 @@ class _DesktopWindowControlsState extends State<DesktopWindowControls>
 }
 
 class _WindowHoverButton extends StatefulWidget {
-  final IconData icon;
+  final BrandIconData icon;
   final String tooltip;
   final VoidCallback onTap;
   final Color iconColor;
@@ -371,7 +374,7 @@ class _WindowHoverButtonState extends State<_WindowHoverButton> {
               boxShadow: shadows,
             ),
             alignment: Alignment.center,
-            child: Icon(widget.icon, size: widget.iconSize, color: iconColor),
+            child: BrandIcon(widget.icon, size: widget.iconSize, color: iconColor, monochrome: true),
           ),
         ),
       ),

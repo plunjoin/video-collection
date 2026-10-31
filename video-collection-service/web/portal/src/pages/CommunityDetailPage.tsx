@@ -3,21 +3,26 @@ import Layout from '../layouts/Layout';
 import BrandIcon from '../components/BrandIcon';
 import MemberIdentity from '../components/MemberIdentity';
 import Comments from '../components/Comments';
-import { getCommunityPostDetail, togglePostLike } from '../lib/api';
+import { getCommunityPostDetail, togglePostLike, type ContentItem, type WikiSubjectBrief } from '../lib/api';
 import { getToken } from '../lib/auth';
 
 export default function CommunityDetailPage({ id }: { id: number }) {
   const [post, setPost] = useState<ContentItem | null>(null);
+  const [authorSubject, setAuthorSubject] = useState<WikiSubjectBrief | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [commentDelta, setCommentDelta] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    getCommunityPostDetail(id).then((item) => {
+    getCommunityPostDetail(id).then((result) => {
       if (!alive) return;
-      if (!item) setMissing(true);
-      else setPost(item);
+      if (!result) {
+        setMissing(true);
+        return;
+      }
+      setPost(result.item);
+      setAuthorSubject(result.authorSubject);
     });
     return () => { alive = false; };
   }, [id]);
@@ -68,14 +73,32 @@ export default function CommunityDetailPage({ id }: { id: number }) {
         <a href="/community" className="news-back">‹ 返回社区</a>
         <article className="community-post community-post-detail">
           <div className="community-author">
-            <MemberIdentity
-              name={post.author_name || '匿名用户'}
-              avatar={post.author_avatar}
-              frame={post.author_frame}
-              badge={post.author_badge}
-              color={post.author_color}
-              metadata={`${new Date(post.created_at).toLocaleString('zh-CN')}${post.category ? ` · ${post.category}` : ''}`}
-            />
+            {authorSubject ? (
+              <a
+                href={`/wiki/${authorSubject.id}`}
+                className="inline-flex items-center gap-1.5 hover:opacity-80"
+                title={`查看 ${authorSubject.name} 的词条档案（作品、关系网络）`}
+              >
+                <MemberIdentity
+                  name={post.author_name || '匿名用户'}
+                  avatar={post.author_avatar}
+                  frame={post.author_frame}
+                  badge={post.author_badge}
+                  color={post.author_color}
+                  metadata={`${new Date(post.created_at).toLocaleString('zh-CN')}${post.category ? ` · ${post.category}` : ''}`}
+                />
+                <span className="text-[11px] font-semibold text-purple-500 bg-purple-50 border border-purple-100 rounded-full px-2 py-0.5">词条 ›</span>
+              </a>
+            ) : (
+              <MemberIdentity
+                name={post.author_name || '匿名用户'}
+                avatar={post.author_avatar}
+                frame={post.author_frame}
+                badge={post.author_badge}
+                color={post.author_color}
+                metadata={`${new Date(post.created_at).toLocaleString('zh-CN')}${post.category ? ` · ${post.category}` : ''}`}
+              />
+            )}
             {post.pinned ? <span className="community-pin-badge">置顶</span> : null}
           </div>
           <h1>{post.title}</h1>

@@ -237,12 +237,12 @@ onMounted(() => window.addEventListener('keydown', handleGlobalShortcut))
 onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .entropy-sidebar {
   --sidebar-width: 256px;
   --sidebar-collapsed-width: 64px;
-  --nav-bg: var(--glass-panel); // 与内容区卡片同一玻璃材质
-  --nav-border: var(--border-color); // 与内容区卡片同边框色
+  --nav-bg: var(--glass-panel);/* 与内容区卡片同一玻璃材质 */
+  --nav-border: var(--border-color);/* 与内容区卡片同边框色 */
   --nav-border-light: rgba(20, 32, 57, 0.05);
   --nav-text-primary: var(--text-primary);
   --nav-text-secondary: var(--text-regular);
@@ -262,9 +262,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
   overflow: hidden;
   color: var(--nav-text-primary);
   background: var(--nav-bg);
-  border: 1px solid var(--nav-border); // 与内容区卡片同款完整玻璃边框
-  border-radius: var(--radius-lg); // 与内容区卡片同圆角语言
-  box-shadow: 0 1px 2px rgba(22, 33, 58, 0.04), 0 8px 24px rgba(22, 33, 58, 0.05), var(--glass-highlight); // 更轻的浮起，与内容卡片层级一致
+  border: 1px solid var(--nav-border);/* 与内容区卡片同款完整玻璃边框 */
+  border-radius: var(--radius-lg);/* 与内容区卡片同圆角语言 */
+  box-shadow: 0 1px 2px rgba(22, 33, 58, 0.04), 0 8px 24px rgba(22, 33, 58, 0.05), var(--glass-highlight);/* 更轻的浮起，与内容卡片层级一致 */
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1), flex-basis 300ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -488,7 +488,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     overflow-y: auto;
     padding: 8px 10px 14px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(113, 128, 155, 0.32) transparent; // 与全局滚动条一致
+    scrollbar-color: rgba(113, 128, 155, 0.32) transparent;/* 与全局滚动条一致 */
   }
 
   .nav-section + .nav-section { margin-top: 11px; }
@@ -637,7 +637,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
     justify-content: center;
     overflow: hidden;
     color: #fff;
-    background: linear-gradient(135deg, #5d7af5, #3d5ce0); // 与品牌主色同族
+    background: linear-gradient(135deg, #5d7af5, #3d5ce0);/* 与品牌主色同族 */
     border: 1px solid rgba(255, 255, 255, .82);
     border-radius: 50%;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
@@ -689,7 +689,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalShortcut))
 }
 
 html.dark .entropy-sidebar {
-  --nav-bg: var(--glass-panel); // 暗色令牌自动翻转，与暗色卡片同材质
+  --nav-bg: var(--glass-panel);/* 暗色令牌自动翻转，与暗色卡片同材质 */
   --nav-border: rgba(255, 255, 255, 0.09);
   --nav-border-light: rgba(255, 255, 255, 0.06);
   --nav-text-primary: #f1f4fb;

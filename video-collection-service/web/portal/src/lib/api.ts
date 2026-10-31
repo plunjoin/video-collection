@@ -200,19 +200,121 @@ export async function getAnimeVideos(limit = 18): Promise<VideoRecord[]> {
   return list.slice(0, limit);
 }
 
-// 2. 获取视频详情，未找到时返回 null
+// 2. 获取视频详情，未找到时返回 null（响应同时聚合关联 Wiki 词条与相关资讯）
+export interface WikiRelationItem {
+  id: number;
+  source_id: number;
+  target_id: number;
+  relation_type: string;
+  role_description: string;
+  sort_order: number;
+  target_subject?: WikiSubjectBrief;
+  source_subject?: WikiSubjectBrief;
+}
+
+export interface WikiSubjectBrief {
+  id: number;
+  name: string;
+  type: string;
+  sub_type: string;
+  cover_image?: string;
+}
+
+export interface WikiSubjectInfo extends WikiSubjectBrief {
+  original_name?: string;
+  summary?: string;
+  infobox?: Record<string, any>;
+  aliases?: string[];
+  forward_relations?: WikiRelationItem[];
+  reverse_relations?: WikiRelationItem[];
+  linked_videos?: VideoRecord[];
+}
+
 export async function getVideoDetail(id: number | string) {
   const numId = Number(id);
   if (!numId) return null;
-  const res = await apiFetch<{ code: number; data: VideoRecord; related: VideoRecord[] }>("/api/video?id=" + numId);
+  const res = await apiFetch<{
+    code: number;
+    data: VideoRecord;
+    related: VideoRecord[];
+    wiki: WikiSubjectInfo | null;
+    related_news: ContentItem[] | null;
+  }>("/api/video?id=" + numId);
   if (!res || res.code !== 1 || !res.data) return null;
 
   const relatedAnime = (res.related || []).filter(isAnimeRecord).map(formatVideo);
   const related = relatedAnime.length > 0 ? relatedAnime : (await getAnimeVideos(10)).filter(v => v.id !== numId);
   return {
     video: formatVideo(res.data),
-    related: related.slice(0, 10)
+    related: related.slice(0, 10),
+    wiki: res.wiki || null,
+    relatedNews: res.related_news || []
   };
+}
+
+// 获取 Wiki 词条详情（含演职员关系与关联视频）
+export async function getWikiSubject(id: number): Promise<WikiSubjectInfo | null> {
+  if (!id) return null;
+  const res = await apiFetch<{ code: number; data: WikiSubjectInfo }>(`/api/wiki/subject?id=${id}`);
+  if (res && res.code === 1 && res.data) return res.data;
+  return null;
+}
+
+// ==================== RAG 知识库问答（公开接口） ====================
+
+export interface RagCitation {
+  id: number;
+  source_type: string;
+  source_id: string;
+  subject_id: number;
+  chunk_index: number;
+  text: string;
+  metadata?: Record<string, any>;
+  similarity: number;
+}
+
+export interface RagRef {
+  source_type: string;
+  source_id: string;
+  subject_id?: number;
+  title?: string;
+  url?: string;
+}
+
+export interface RagAskResult {
+  query: string;
+  answer: string;
+  mode: 'chat' | 'retrieval';
+  note?: string;
+  citations: RagCitation[];
+  refs?: RagRef[];
+  model?: string;
+  embedder?: string;
+  graph_note?: string;
+}
+
+// 向知识库提问；未配置对话模型时服务端自动降级为检索模式
+export async function ragAsk(query: string, topK = 6): Promise<RagAskResult | null> {
+  if (!query.trim()) return null;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const base = API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') : '';
+    const res = await fetch(`${base}/api/rag/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query, top_k: topK }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.code === 1 && json.data) return json.data as RagAskResult;
+    return null;
+  } catch (e) {
+    console.error('[RAG Ask Error]', e);
+    return null;
+  }
 }
 
 // 3. 获取排行榜数据 (直接请求 /api/rankings，并提供平滑兜底)
@@ -347,6 +449,7 @@ export interface ContentItem {
   content: string;
   cover: string;
   category: string;
+  subject_id?: number;
   status: string;
   pinned: boolean;
   like_count: number;
@@ -399,11 +502,34 @@ export async function getNewsList(params: { page?: number; pageSize?: number; ke
   return { code: 0, data: [], total: 0, page, page_size: pageSize };
 }
 
-// 9. 获取资讯详情
-export async function getNewsDetail(id: number): Promise<ContentItem | null> {
-  const res = await apiFetch<{ code: number; data: ContentItem }>(`/api/news?id=${id}`);
-  if (res && res.code === 1 && res.data) return res.data;
+// 9. 获取资讯详情（作者显示名命中人物词条时附带 author_subject，用于作者跳转）
+export async function getNewsDetail(id: number): Promise<{ item: ContentItem; authorSubject: WikiSubjectBrief | null } | null> {
+  const res = await apiFetch<{ code: number; data: ContentItem; author_subject?: WikiSubjectBrief | null }>(`/api/news?id=${id}`);
+  if (res && res.code === 1 && res.data) return { item: res.data, authorSubject: res.author_subject || null };
   return null;
+}
+
+// 提交反馈/纠错。targetType/targetId 标识纠错对象（video/news/post/wiki_subject）。
+export async function submitFeedback(payload: {
+  type?: string;
+  title: string;
+  content: string;
+  contact?: string;
+  target_type?: string;
+  target_id?: number;
+}): Promise<{ ok: boolean; msg?: string }> {
+  try {
+    const base = API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') : '';
+    const res = await fetch(`${base}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ type: 'report', ...payload }),
+    });
+    const json = await res.json();
+    return { ok: json?.code === 1, msg: json?.msg || json?.error };
+  } catch {
+    return { ok: false, msg: '网络错误' };
+  }
 }
 
 // 10. 获取社区帖子列表
@@ -417,10 +543,10 @@ export async function getCommunityPosts(params: { page?: number; pageSize?: numb
   return { code: 0, data: [], total: 0, page, page_size: pageSize };
 }
 
-// 11. 获取社区帖子详情
-export async function getCommunityPostDetail(id: number): Promise<ContentItem | null> {
-  const res = await apiFetch<{ code: number; data: ContentItem }>(`/api/community/posts?id=${id}`);
-  if (res && res.code === 1 && res.data) return res.data;
+// 11. 获取社区帖子详情（作者显示名命中人物词条时附带 author_subject）
+export async function getCommunityPostDetail(id: number): Promise<{ item: ContentItem; authorSubject: WikiSubjectBrief | null } | null> {
+  const res = await apiFetch<{ code: number; data: ContentItem; author_subject?: WikiSubjectBrief | null }>(`/api/community/posts?id=${id}`);
+  if (res && res.code === 1 && res.data) return { item: res.data, authorSubject: res.author_subject || null };
   return null;
 }
 

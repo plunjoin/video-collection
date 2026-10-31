@@ -33,6 +33,7 @@ type Content struct {
 	Content      string    `json:"content"`
 	Cover        string    `json:"cover"`
 	Category     string    `json:"category"`
+	SubjectID    int       `json:"subject_id,omitempty"` // 关联的 Wiki 词条（作品/人物），0 表示未关联
 	SourceURL    string    `json:"source_url,omitempty"`
 	SourceName   string    `json:"source_name,omitempty"`
 	PublishedAt  string    `json:"published_at,omitempty"`
@@ -48,6 +49,7 @@ type Content struct {
 type ContentQuery struct {
 	Page, PageSize, ViewerID, AuthorID int
 	Kind, Status, Keyword, Category    string
+	SubjectID                          int
 	Admin                              bool
 }
 
@@ -126,6 +128,7 @@ CREATE TABLE IF NOT EXISTS content_entries (
  id %s, kind TEXT NOT NULL CHECK(kind IN ('news','post')), author_id INTEGER NOT NULL,
  title TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', content TEXT NOT NULL,
  cover TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '',
+ subject_id INTEGER NOT NULL DEFAULT 0,
  source_url TEXT NOT NULL DEFAULT '', source_name TEXT NOT NULL DEFAULT '',
  published_at TEXT NOT NULL DEFAULT '',
  status TEXT NOT NULL CHECK(status IN ('draft','published','hidden')),
@@ -206,6 +209,8 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web'")
 		_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN IF NOT EXISTS subject_id INTEGER DEFAULT 0")
 		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id)")
+		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS subject_id INTEGER NOT NULL DEFAULT 0")
+		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_content_subject ON content_entries(subject_id)")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS source_url TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS source_name TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS published_at TEXT NOT NULL DEFAULT ''")
@@ -214,6 +219,8 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
 		_, _ = s.db.Exec("ALTER TABLE videos ADD COLUMN subject_id INTEGER DEFAULT 0")
 		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id)")
+		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN subject_id INTEGER NOT NULL DEFAULT 0")
+		_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_content_subject ON content_entries(subject_id)")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN source_name TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN published_at TEXT NOT NULL DEFAULT ''")
@@ -239,7 +246,7 @@ const identityColumns = `COALESCE((SELECT c.value FROM cosmetic_equipment eq JOI
  COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='badge'),''),
  COALESCE((SELECT c.value FROM cosmetic_equipment eq JOIN cosmetic_catalog c ON c.id=eq.item_id WHERE eq.user_id=u.id AND eq.slot='nickname_color'),'')`
 const contentColumns = `e.id,e.kind,e.author_id,COALESCE(NULLIF(u.nickname,''),u.username,''),` + identityColumns + `,
- e.title,e.summary,e.content,e.cover,e.category,
+ e.title,e.summary,e.content,e.cover,e.category,COALESCE(e.subject_id,0),
  COALESCE(e.source_url,''),COALESCE(e.source_name,''),COALESCE(e.published_at,''),
  e.status,e.pinned,
  (SELECT COUNT(*) FROM community_likes l WHERE l.post_id=e.id),
@@ -251,7 +258,7 @@ type contentScanner interface{ Scan(...any) error }
 func scanContent(row contentScanner) (*Content, error) {
 	var c Content
 	var pinned, liked int
-	err := row.Scan(&c.ID, &c.Kind, &c.AuthorID, &c.AuthorName, &c.AuthorAvatar, &c.AuthorFrame, &c.AuthorBadge, &c.AuthorColor, &c.Title, &c.Summary, &c.Content, &c.Cover, &c.Category, &c.SourceURL, &c.SourceName, &c.PublishedAt, &c.Status, &pinned, &c.LikeCount, &c.CommentCount, &liked, &c.CreatedAt, &c.UpdatedAt)
+	err := row.Scan(&c.ID, &c.Kind, &c.AuthorID, &c.AuthorName, &c.AuthorAvatar, &c.AuthorFrame, &c.AuthorBadge, &c.AuthorColor, &c.Title, &c.Summary, &c.Content, &c.Cover, &c.Category, &c.SubjectID, &c.SourceURL, &c.SourceName, &c.PublishedAt, &c.Status, &pinned, &c.LikeCount, &c.CommentCount, &liked, &c.CreatedAt, &c.UpdatedAt)
 	c.Pinned, c.Liked = pinned != 0, liked != 0
 	return &c, err
 }
@@ -272,6 +279,9 @@ func (s *SQLContentStore) ListContent(ctx context.Context, q ContentQuery) ([]Co
 	}
 	if q.Category != "" {
 		add(" AND e.category=$%d", q.Category)
+	}
+	if q.SubjectID > 0 {
+		add(" AND e.subject_id=$%d", q.SubjectID)
 	}
 	if q.Keyword != "" {
 		// Search literally, including percent and underscore characters.
@@ -366,8 +376,8 @@ func saveContentTx(ctx context.Context, tx *sql.Tx, c *Content, actor int, admin
 			c.Pinned = false
 		}
 		c.CreatedAt = now
-		err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,source_url,source_name,published_at,status,pinned,created_at,updated_at)
- VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13) RETURNING id`, c.Kind, c.AuthorID, c.Title, c.Summary, c.Content, c.Cover, c.Category, c.SourceURL, c.SourceName, c.PublishedAt, c.Status, boolInt(c.Pinned), now).Scan(&c.ID)
+		err = tx.QueryRowContext(ctx, `INSERT INTO content_entries(kind,author_id,title,summary,content,cover,category,subject_id,source_url,source_name,published_at,status,pinned,created_at,updated_at)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING id`, c.Kind, c.AuthorID, c.Title, c.Summary, c.Content, c.Cover, c.Category, c.SubjectID, c.SourceURL, c.SourceName, c.PublishedAt, c.Status, boolInt(c.Pinned), now).Scan(&c.ID)
 	} else {
 		owner, status, lockErr := lockContent(ctx, tx, c.Kind, c.ID)
 		if lockErr != nil {
@@ -385,7 +395,7 @@ func saveContentTx(ctx context.Context, tx *sql.Tx, c *Content, actor int, admin
 		if admin {
 			pinSQL = fmt.Sprint(boolInt(c.Pinned))
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,source_url=$6,source_name=$7,published_at=$8,status=$9,pinned=`+pinSQL+`,updated_at=$10 WHERE id=$11`, c.Title, c.Summary, c.Content, c.Cover, c.Category, c.SourceURL, c.SourceName, c.PublishedAt, c.Status, now, c.ID)
+		_, err = tx.ExecContext(ctx, `UPDATE content_entries SET title=$1,summary=$2,content=$3,cover=$4,category=$5,subject_id=$6,source_url=$7,source_name=$8,published_at=$9,status=$10,pinned=`+pinSQL+`,updated_at=$11 WHERE id=$12`, c.Title, c.Summary, c.Content, c.Cover, c.Category, c.SubjectID, c.SourceURL, c.SourceName, c.PublishedAt, c.Status, now, c.ID)
 	}
 	if err != nil {
 		return err

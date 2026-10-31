@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import '../theme/brand_icons.dart';
 
 const danmakuPalette = <String>[
   '#FFFFFF',
@@ -409,7 +410,7 @@ class _DanmakuComposerState extends State<_DanmakuComposer> {
             onSubmitted: (_) => _submit(),
             decoration: const InputDecoration(
               hintText: '发一条应景的弹幕',
-              prefixIcon: Icon(Icons.subtitles_outlined),
+              prefixIcon: BrandIcon(BIcons.subtitles),
             ),
           ),
           const SizedBox(height: 8),

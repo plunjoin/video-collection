@@ -9,7 +9,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/mediocregopher/radix/v4 v4.1.5
 	github.com/microsoft/go-mssqldb v1.11.2
-	github.com/plunjoin/webfront v0.0.1
+	github.com/plunjoin/webfront v0.1.0
 	github.com/xuri/excelize/v2 v2.11.0
 	golang.org/x/crypto v0.57.0
 	gopkg.in/yaml.v3 v3.0.1

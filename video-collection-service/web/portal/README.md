@@ -27,15 +27,17 @@ Go 侧为首页、详情、播放、分类、排行、时间表注入首屏数�
 
 ## 构建与开发
 
-依赖统一由上一级 [web 工作区](../)管理（pnpm workspace，hoisted 单份 `web/node_modules`），本目录**不需要单独安装依赖**。
+依赖由 webfront 的版本化 store 统一管理（`web/wf_modules`，由 `web/package-lock.json` 锁定版本），本目录**不需要单独安装依赖**。
 
 ```bash
-# 从仓库根或 service 目录执行
-cd video-collection-service/web
-pnpm install            # 首次或依赖变更时
+# 0. 一次性安装 wf CLI（webfront 构建器）
+go install github.com/plunjoin/webfront/cmd/wf@v0.1.0
+
+# 1. 安装依赖（在 video-collection-service 根目录执行；首次或依赖变更时）
+wf install -modules wf_modules .
 
 # 生产构建（esbuild：SSR bundle + 分包 client）
-cd portal && ../../wf.exe build .     # Windows；macOS/Linux 用 wf
+wf build -modules ../wf_modules web/portal     # Windows Git Bash 与 macOS/Linux 相同
 # 产物：portal/dist（ssr.js、assets/client.js、assets/chunks/*、index.html）
 
 # 开发模式（免打包：esbuild 按需转译 + HMR）
@@ -49,7 +51,6 @@ go run -tags dev .      # 门户挂 webfront DevServer，与 /api 同进程同�
 
 - `public/brand/`：标志与品牌资产，生产构建时整体拷贝进 dist，由服务托管 `/brand/*`（管理后台也复用这套资产）。
 - `public/players/`：video.js 播放器皮肤与脚本。
-- 品牌图标更新后执行 `node scripts/sync-brand.mjs`，同步 `bllii-brand-kit` 预览、本目录 brand 资源与两份播放器（Web / API）中的图标精灵。
 
 ## 目录结构
 
@@ -68,5 +69,5 @@ portal/
 │   ├── entry-client.tsx # 生产水合入口（读取 __WF_DATA__）
 │   ├── entry-server.tsx # SSR 渲染入口（render(url, props)）
 │   └── main.tsx        # dev 专用入口（webfront DevServer 约定）
-└── package.json        # 工作区成员清单（react / react-dom / scheduler）
+└── package.json        # 依赖清单（react / react-dom / scheduler）
 ```

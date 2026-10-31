@@ -30,14 +30,14 @@ import { useUserStore } from '@/store/user'
 const userStore = useUserStore()
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .layout-wrapper {
   display: flex;
   gap: 14px;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  // 背景系统由 body 提供（基础色 + 环境光 + 局部空间光），外壳保持透明
+  /* 背景系统由 body 提供（基础色 + 环境光 + 局部空间光），外壳保持透明 */
   background-color: transparent;
 
   .main-container {

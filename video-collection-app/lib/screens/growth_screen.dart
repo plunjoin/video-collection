@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/member_avatar.dart';
+import '../theme/brand_icons.dart';
 
 class GrowthScreen extends StatefulWidget {
   final int initialTab;
@@ -158,12 +159,12 @@ class _GrowthScreenState extends State<GrowthScreen>
     children: [
       IconButton(
         onPressed: page > 1 && !_busy ? () => change(page - 1) : null,
-        icon: const Icon(Icons.chevron_left),
+        icon: const BrandIcon(BIcons.chevronLeft),
       ),
       Text('$page / ${((total + 19) ~/ 20).clamp(1, 1000000)}'),
       IconButton(
         onPressed: page * 20 < total && !_busy ? () => change(page + 1) : null,
-        icon: const Icon(Icons.chevron_right),
+        icon: const BrandIcon(BIcons.chevronRight),
       ),
     ],
   );
@@ -177,7 +178,7 @@ class _GrowthScreenState extends State<GrowthScreen>
         actions: [
           IconButton(
             onPressed: _busy ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const BrandIcon(BIcons.refresh),
           ),
         ],
         bottom: BrandTabs(
@@ -594,7 +595,7 @@ class _GrowthScreenState extends State<GrowthScreen>
                       );
                       return '为这份期待亮了一盏灯';
                     }),
-              icon: const Icon(Icons.favorite_outline),
+              icon: const BrandIcon(BIcons.heart),
               label: Text(
                 wish['supported'] == true
                     ? '已亮灯'
@@ -635,7 +636,7 @@ class _GrowthScreenState extends State<GrowthScreen>
           Row(
             children: [
               if (n['is_read'] != true)
-                const Icon(Icons.circle, size: 10, color: Colors.indigo),
+                Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.indigo)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

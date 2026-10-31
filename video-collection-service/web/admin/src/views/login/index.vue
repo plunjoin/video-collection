@@ -71,7 +71,7 @@ const userStore = useUserStore()
 
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
-const isDevelopment = import.meta.env.DEV
+const isDevelopment = false
 
 const form = reactive({
   username: 'admin',
@@ -107,7 +107,7 @@ const handleLogin = async () => {
 }
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .login-wrapper {
   width: 100vw;
   height: 100vh;
@@ -124,7 +124,7 @@ const handleLogin = async () => {
     width: 100%;
     max-width: 400px;
     padding: 44px 40px 32px;
-    background: var(--glass-panel-strong); // 与浮层/大面板同族玻璃材质
+    background: var(--glass-panel-strong);/* 与浮层/大面板同族玻璃材质 */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-pop), var(--glass-highlight);

@@ -47,4 +47,4 @@ schema 行 API（使用现有管理员认证）：
 
 RAG 仍按既有 source_type 索引 wiki 与 news/post。自定义业务表本阶段不自动进入 RAG；`upsertBusinessRow` 留有 TODO，后续需显式注册 source_type 与索引适配器。
 
-验证：`TZ=Asia/Shanghai go test ./pkg/store/ ./pkg/ingest/ ./pkg/api/ ./pkg/scheduler/ -count=1`。现有 analytics 测试的日期使用进程时区，需与服务的北京时间业务日一致；ingest 的现有 live 测试需要网络。管理端执行 `cd web/admin && pnpm build`；生成的 dist 按仓库规则忽略，由 go:embed 在构建服务时读取。
+验证：`TZ=Asia/Shanghai go test ./pkg/store/ ./pkg/ingest/ ./pkg/api/ ./pkg/scheduler/ -count=1`。现有 analytics 测试的日期使用进程时区，需与服务的北京时间业务日一致；ingest 的现有 live 测试需要网络。管理端执行 `MSYS_NO_PATHCONV=1 wf build -mode spa -base /admin -modules ../wf_modules web/admin`（PowerShell/cmd 去掉前缀；详见 `web/admin/README.md`）；生成的 dist 按仓库规则忽略，由 go:embed 在构建服务时读取。

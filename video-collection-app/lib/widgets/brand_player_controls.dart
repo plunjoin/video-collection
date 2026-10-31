@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import 'brand_components.dart';
+import '../theme/brand_icons.dart';
 
 /// 具有 bllii 品牌渐变色与缓冲指示的高精度进度条轨道
 class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
@@ -158,7 +159,7 @@ class BrandSliderThumbShape extends SliderComponentShape {
 
 /// 磨砂亚克力微交互按钮，专为播放器控制栏定制
 class BrandPlayerButton extends StatefulWidget {
-  final IconData icon;
+  final BrandIconData icon;
   final VoidCallback? onPressed;
   final double size;
   final double iconSize;
@@ -244,7 +245,7 @@ class _BrandPlayerButtonState extends State<BrandPlayerButton> {
                   : null,
             ),
             child: Center(
-              child: Icon(
+              child: BrandIcon(
                 widget.icon,
                 size: widget.iconSize,
                 color: widget.iconColor ??
@@ -437,7 +438,7 @@ class _BrandPlayerCenterDeckState extends State<BrandPlayerCenterDeck> {
     final sideIconSize = compact ? 15.0 : 17.0;
     final gap = compact ? 8.0 : 12.0;
 
-    Widget side({required IconData icon, required VoidCallback? onTap,
+    Widget side({required BrandIconData icon, required VoidCallback? onTap,
         required String tip}) {
       return IgnorePointer(
         ignoring: !_hovered || onTap == null,
@@ -464,15 +465,15 @@ class _BrandPlayerCenterDeckState extends State<BrandPlayerCenterDeck> {
         mainAxisSize: MainAxisSize.min,
         children: [
           side(
-            icon: Icons.skip_previous_rounded,
+            icon: BIcons.prev,
             onTap: widget.onPlayPrev,
             tip: '上一集',
           ),
           SizedBox(width: gap),
           BrandPlayerButton(
             icon: widget.isPlaying
-                ? Icons.pause_rounded
-                : Icons.play_arrow_rounded,
+                ? BIcons.pause
+                : BIcons.play,
             onPressed: widget.onTogglePlay,
             size: mainSize,
             iconSize: mainIconSize,
@@ -487,7 +488,7 @@ class _BrandPlayerCenterDeckState extends State<BrandPlayerCenterDeck> {
           ),
           SizedBox(width: gap),
           side(
-            icon: Icons.skip_next_rounded,
+            icon: BIcons.next,
             onTap: widget.onPlayNext,
             tip: '下一集',
           ),
@@ -535,7 +536,7 @@ class BrandPlayerTopBar extends StatelessWidget {
         children: [
           // 圆形磨砂返回键
           BrandPlayerButton(
-            icon: Icons.arrow_back_rounded,
+            icon: BIcons.arrowLeft,
             onPressed: onBack,
             size: isCompact ? 34 : 38,
             iconSize: isCompact ? 18 : 20,
@@ -575,8 +576,8 @@ class BrandPlayerTopBar extends StatelessWidget {
 
           // 极光超清画质增强按键
           BrandPlayerPill(
-            leading: Icon(
-              Icons.auto_awesome_rounded,
+            leading: BrandIcon(
+              BIcons.sparkles,
               size: isCompact ? 12 : 14,
               color: isEnhanced ? Colors.white : AppColors.gold,
             ),
@@ -591,8 +592,8 @@ class BrandPlayerTopBar extends StatelessWidget {
 
           // 画面比例胶囊
           BrandPlayerPill(
-            leading: Icon(
-              Icons.aspect_ratio_rounded,
+            leading: BrandIcon(
+              BIcons.ratio,
               size: isCompact ? 12 : 14,
               color: Colors.white70,
             ),
@@ -605,8 +606,8 @@ class BrandPlayerTopBar extends StatelessWidget {
           if (onSelectRoute != null) ...[
             const SizedBox(width: 6),
             BrandPlayerPill(
-              leading: Icon(
-                Icons.alt_route_rounded,
+              leading: BrandIcon(
+                BIcons.routes,
                 size: isCompact ? 12 : 14,
                 color: AppColors.primary400,
               ),
@@ -741,8 +742,8 @@ class BrandPlayerBottomDock extends StatelessWidget {
                     // Mini 播放/暂停键
                     BrandPlayerButton(
                       icon: isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
+                          ? BIcons.pause
+                          : BIcons.play,
                       onPressed: onTogglePlay,
                       size: isCompact ? 28 : 32,
                       iconSize: isCompact ? 16 : 18,
@@ -753,7 +754,7 @@ class BrandPlayerBottomDock extends StatelessWidget {
                     // 下一集快捷键
                     if (onPlayNext != null) ...[
                       BrandPlayerButton(
-                        icon: Icons.skip_next_rounded,
+                        icon: BIcons.next,
                         onPressed: onPlayNext,
                         size: isCompact ? 28 : 32,
                         iconSize: isCompact ? 16 : 18,
@@ -791,10 +792,10 @@ class BrandPlayerBottomDock extends StatelessWidget {
 
                     // 弹幕开关微胶囊
                     BrandPlayerPill(
-                      leading: Icon(
+                      leading: BrandIcon(
                         danmakuEnabled
-                            ? Icons.chat_bubble_rounded
-                            : Icons.chat_bubble_outline_rounded,
+                            ? BIcons.message
+                            : BIcons.message,
                         size: isCompact ? 11 : 13,
                         color: danmakuEnabled
                             ? AppColors.rose
@@ -827,8 +828,8 @@ class BrandPlayerBottomDock extends StatelessWidget {
                     // 选集抽屉按钮 (全屏或支持时)
                     if (onToggleDrawer != null) ...[
                       BrandPlayerPill(
-                        leading: Icon(
-                          Icons.playlist_play_rounded,
+                        leading: BrandIcon(
+                          BIcons.playlist,
                           size: isCompact ? 13 : 15,
                           color: Colors.white70,
                         ),
@@ -843,8 +844,8 @@ class BrandPlayerBottomDock extends StatelessWidget {
                     // 全屏切换按钮
                     BrandPlayerButton(
                       icon: isFullscreen
-                          ? Icons.fullscreen_exit_rounded
-                          : Icons.fullscreen_rounded,
+                          ? BIcons.fullscreenExit
+                          : BIcons.fullscreen,
                       onPressed: onToggleFullscreen,
                       size: isCompact ? 28 : 32,
                       iconSize: isCompact ? 18 : 20,
@@ -881,7 +882,7 @@ class BrandPlayerScreenLock extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.only(left: isCompact ? 10 : 16),
         child: BrandPlayerButton(
-          icon: isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+          icon: isLocked ? BIcons.lock : BIcons.unlock,
           onPressed: onToggleLock,
           size: isCompact ? 36 : 42,
           iconSize: isCompact ? 18 : 22,
@@ -906,7 +907,7 @@ class BrandPlayerScreenLock extends StatelessWidget {
 
 /// 统一的播放器手势与状态 HUD 提示浮层
 class BrandPlayerHUD extends StatelessWidget {
-  final IconData? icon;
+  final BrandIconData? icon;
   final String text;
   final double? progress; // 可选的 0.0 ~ 1.0 进度条显示 (用于音量、亮度)
 
@@ -948,7 +949,7 @@ class BrandPlayerHUD extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (icon != null) ...[
-                      Icon(icon, color: AppColors.primary400, size: 22),
+                      BrandIcon(icon!, color: AppColors.primary400, size: 22),
                       const SizedBox(width: 10),
                     ],
                     Text(
@@ -1035,8 +1036,8 @@ class BrandPlayerSpeedBoostBadge extends StatelessWidget {
               ShaderMask(
                 shaderCallback: (bounds) =>
                     AppColors.brandGradient.createShader(bounds),
-                child: Icon(
-                  Icons.fast_forward_rounded,
+                child: BrandIcon(
+                  BIcons.fastForward,
                   color: Colors.white,
                   size: isCompact ? 18 : 22,
                 ),
@@ -1181,8 +1182,8 @@ class _BrandPlayerSpeedPanelState extends State<BrandPlayerSpeedPanel> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.speed_rounded,
+                        const BrandIcon(
+                          BIcons.speed,
                           color: AppColors.primary400,
                           size: 18,
                         ),
@@ -1229,7 +1230,7 @@ class _BrandPlayerSpeedPanelState extends State<BrandPlayerSpeedPanel> {
                         ),
                         const SizedBox(width: 8),
                         BrandPlayerButton(
-                          icon: Icons.close_rounded,
+                          icon: BIcons.close,
                           size: 26,
                           iconSize: 15,
                           onPressed: widget.onClose,

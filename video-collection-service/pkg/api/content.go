@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -42,6 +43,20 @@ func contentMethod(w http.ResponseWriter, r *http.Request, methods ...string) bo
 	w.Header().Set("Allow", strings.Join(methods, ", "))
 	errorResponse(w, http.StatusMethodNotAllowed, "Method Not Allowed")
 	return false
+}
+
+// resolveAuthorSubject 按作者显示名精确匹配 Wiki 人物词条；未命中返回 nil。
+// 匹配仅用于详情页作者跳转，不参与鉴权与数据写入。
+func (srv *Server) resolveAuthorSubject(ctx context.Context, item *store.Content) *store.WikiSubject {
+	name := strings.TrimSpace(item.AuthorName)
+	if name == "" {
+		return nil
+	}
+	sub, err := srv.store.GetWikiSubjectByName(ctx, name)
+	if err != nil || sub == nil || sub.Type != "person" {
+		return nil
+	}
+	return sub
 }
 
 func contentError(w http.ResponseWriter, err error) {
@@ -166,7 +181,13 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 					contentError(w, err)
 					return
 				}
-				jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": item})
+				// 作者昵称/用户名与 Wiki 人物词条同名时返回 author_subject，
+				// 客户端可点击作者进入人物词条页查看其参演作品等信息。
+				jsonResponse(w, http.StatusOK, map[string]any{
+					"code":           1,
+					"data":           item,
+					"author_subject": srv.resolveAuthorSubject(r.Context(), item),
+				})
 				return
 			}
 			page, size, ok := contentPagination(w, r)
@@ -180,6 +201,12 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			}
 			if r.URL.Query().Has("author_id") {
 				q.AuthorID, ok = contentID(w, r.URL.Query().Get("author_id"))
+				if !ok {
+					return
+				}
+			}
+			if r.URL.Query().Has("subject_id") {
+				q.SubjectID, ok = contentID(w, r.URL.Query().Get("subject_id"))
 				if !ok {
 					return
 				}
@@ -225,6 +252,7 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			Content     string `json:"content"`
 			Cover       string `json:"cover"`
 			Category    string `json:"category"`
+			SubjectID   int    `json:"subject_id"`
 			SourceURL   string `json:"source_url"`
 			SourceName  string `json:"source_name"`
 			PublishedAt string `json:"published_at"`
@@ -238,9 +266,20 @@ func (srv *Server) contentHandler(kind string, admin bool) http.HandlerFunc {
 			errorResponse(w, 403, "仅管理员可以设置状态和置顶")
 			return
 		}
-		c := store.Content{ID: req.ID, Kind: kind, Title: strings.TrimSpace(req.Title), Summary: strings.TrimSpace(req.Summary), Content: strings.TrimSpace(req.Content), Cover: strings.TrimSpace(req.Cover), Category: strings.TrimSpace(req.Category), SourceURL: strings.TrimSpace(req.SourceURL), SourceName: strings.TrimSpace(req.SourceName), PublishedAt: strings.TrimSpace(req.PublishedAt), Status: req.Status}
+		if !admin && req.SubjectID != 0 {
+			errorResponse(w, 403, "仅管理员可以关联 Wiki 词条")
+			return
+		}
+		c := store.Content{ID: req.ID, Kind: kind, Title: strings.TrimSpace(req.Title), Summary: strings.TrimSpace(req.Summary), Content: strings.TrimSpace(req.Content), Cover: strings.TrimSpace(req.Cover), Category: strings.TrimSpace(req.Category), SubjectID: req.SubjectID, SourceURL: strings.TrimSpace(req.SourceURL), SourceName: strings.TrimSpace(req.SourceName), PublishedAt: strings.TrimSpace(req.PublishedAt), Status: req.Status}
 		if req.Pinned != nil {
 			c.Pinned = *req.Pinned
+		}
+		if c.SubjectID > 0 {
+			sub, err := srv.store.GetWikiSubjectByID(r.Context(), c.SubjectID)
+			if err != nil || sub == nil {
+				errorResponse(w, 400, "关联的 Wiki 词条不存在")
+				return
+			}
 		}
 		if c.Status == "" {
 			if kind == "news" {

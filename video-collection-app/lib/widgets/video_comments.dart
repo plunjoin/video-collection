@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import 'brand_widgets.dart';
 import 'member_avatar.dart';
+import '../theme/brand_icons.dart';
 
 /// 通用评论区，对接 `/api/comments`。番剧、资讯、社区动态共用同一套交互，
 /// 通过 [targetType] 区分对象（video / news / post）。
@@ -291,8 +292,8 @@ class _VideoCommentSectionState extends State<VideoCommentSection> {
               suffixIcon: IconButton(
                 tooltip: '发送评论',
                 onPressed: _sending ? null : _send,
-                icon: Icon(
-                  Icons.send_rounded,
+                icon: BrandIcon(
+                  BIcons.send,
                   color: _sending ? muted : AppColors.primary500,
                 ),
               ),

@@ -14,6 +14,7 @@ import CommunityPage from './pages/CommunityPage';
 import CommunityDetailPage from './pages/CommunityDetailPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PointsPage from './pages/PointsPage';
+import WikiSubjectPage from './pages/WikiSubjectPage';
 
 export const RouteContext = React.createContext<{ url: string }>({ url: '/' });
 
@@ -119,6 +120,12 @@ export default function App({ url = '/', ...props }: AppProps) {
     if (path.startsWith('/community/')) {
       const id = path.replace('/community/', '').replace(/\/.*$/, '');
       return <CommunityDetailPage id={parseInt(id, 10) || 0} {...props} />;
+    }
+
+    // Wiki 知识库词条档案：/wiki/:id 或 /wiki-subject/:id
+    if (path.startsWith('/wiki/') || path.startsWith('/wiki-subject/')) {
+      const id = path.replace(/^\/(wiki|wiki-subject)\//, '').replace(/\/.*$/, '');
+      return <WikiSubjectPage id={parseInt(id, 10) || 0} {...props} />;
     }
 
     if (path === '/notifications') {

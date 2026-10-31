@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../models/wiki_model.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
+import '../widgets/report_dialog.dart';
 import '../widgets/video_comments.dart';
 import 'account_screen.dart';
+import 'anime_detail_screen.dart';
+import 'wiki_subject_screen.dart';
+import '../theme/brand_icons.dart';
 
 /// 资讯 / 社区动态详情。两者共用同一套点赞与评论能力：
 /// 点赞走 `/api/community/likes`，评论走 `/api/comments`（按 target_type 区分）。
@@ -30,6 +36,7 @@ class ContentDetailScreen extends StatefulWidget {
 class _ContentDetailScreenState extends State<ContentDetailScreen> {
   final ApiService _api = ApiService();
   Map<String, dynamic>? _item;
+  WikiSubject? _subject;
   bool _loading = true;
   bool _liking = false;
   int _commentTotal = 0;
@@ -67,6 +74,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         _commentTotal = _asInt(item['comment_count']);
         _loading = false;
       });
+      // 关联了 Wiki 词条时拉取词条档案，正文前展示关联卡片。
+      final subjectId = _asInt(item['subject_id']);
+      if (subjectId > 0) {
+        final wiki = await _api.getWikiSubject(subjectId);
+        if (!mounted) return;
+        setState(() => _subject = wiki?['subject'] as WikiSubject?);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -74,6 +88,35 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _openSubject() {
+    final subject = _subject;
+    if (subject == null) return;
+    final linkedVideo = subject.linkedVideos.isNotEmpty
+        ? subject.linkedVideos.first
+        : null;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => linkedVideo != null && linkedVideo.id > 0
+            ? AnimeDetailScreen(videoId: linkedVideo.id)
+            : WikiSubjectScreen(subjectId: subject.id),
+      ),
+    );
+  }
+
+  // 作者显示名命中人物词条时返回，用于作者跳转（服务端按名解析）。
+  WikiSubjectBrief? get _authorSubject =>
+      WikiSubjectBrief.fromJson(_item?['author_subject']);
+
+  void _openAuthor() {
+    final author = _authorSubject;
+    if (author == null || author.id <= 0) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WikiSubjectScreen(subjectId: author.id),
+      ),
+    );
   }
 
   Future<bool> _ensureLogin() async {
@@ -111,6 +154,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
   Widget _buildArticle(bool dark) {
     final item = _item!;
+    // 桌面端不再是“手机页面投屏”：阅读宽度收窄的同时放大标题与正文
+    final desktop = Responsive.isDesktop(context);
     final title = item['title']?.toString() ?? '';
     final summary = item['summary']?.toString() ?? '';
     final content = item['content']?.toString() ?? '';
@@ -168,19 +213,95 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ),
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 23,
+                style: TextStyle(
+                  fontSize: desktop ? 27 : 23,
                   height: 1.45,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
-                [
-                  if (author.isNotEmpty) author,
-                  createdAt,
-                ].where((value) => value.isNotEmpty).join(' · '),
-                style: TextStyle(fontSize: 11, color: muted),
+              Row(
+                children: [
+                  if (author.isNotEmpty)
+                    _authorSubject != null
+                        ? InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: _openAuthor,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    author,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: muted,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor:
+                                          muted.withValues(alpha: .5),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8B6CFF)
+                                          .withValues(alpha: .12),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      '词条 ›',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF8B6CFF),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Text(author,
+                            style: TextStyle(fontSize: 11, color: muted)),
+                  if (author.isNotEmpty) const SizedBox(width: 6),
+                  if (createdAt.isNotEmpty)
+                    Text(createdAt,
+                        style: TextStyle(fontSize: 11, color: muted)),
+                  const Spacer(),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => showReportDialog(
+                      context,
+                      ReportTarget(
+                        targetType: widget.kind == 'news' ? 'news' : 'post',
+                        targetId: widget.contentId,
+                        label: '${_isNews ? '资讯' : '动态'}：$title',
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          BrandIcon(BIcons.alert,
+                              size: 13, color: muted),
+                          const SizedBox(width: 3),
+                          Text('纠错',
+                              style: TextStyle(
+                                  fontSize: 11, color: muted)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (cover.isNotEmpty) ...[
                 const SizedBox(height: 17),
@@ -189,12 +310,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   child: CachedNetworkImage(
                     imageUrl: cover,
                     width: double.infinity,
-                    height: 220,
+                    height: desktop ? 340 : 220,
                     fit: BoxFit.cover,
                     placeholder: (_, _) => const _DetailCoverFallback(),
                     errorWidget: (_, _, _) => const _DetailCoverFallback(),
                   ),
                 ),
+              ],
+              if (_subject != null) ...[
+                const SizedBox(height: 14),
+                _SubjectCard(subject: _subject!, onTap: _openSubject),
               ],
               if (summary.isNotEmpty) ...[
                 const SizedBox(height: 17),
@@ -214,7 +339,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               ),
               SelectableText(
                 content,
-                style: const TextStyle(fontSize: 14, height: 1.9),
+                style: TextStyle(
+                  fontSize: desktop ? 15 : 14,
+                  height: desktop ? 2.0 : 1.9,
+                ),
               ),
               const SizedBox(height: 18),
               const Divider(height: 1),
@@ -239,8 +367,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       child: Row(
         children: [
           _ReactionAction(
-            icon: Icons.favorite_border_rounded,
-            activeIcon: Icons.favorite_rounded,
+            icon: BIcons.heart,
+            activeIcon: BIcons.heart,
             count: _asInt(item['like_count']),
             unit: '人喜欢',
             color: AppColors.rose,
@@ -255,8 +383,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 4),
           ),
           _ReactionAction(
-            icon: Icons.chat_bubble_outline_rounded,
-            activeIcon: Icons.chat_bubble_rounded,
+            icon: BIcons.message,
+            activeIcon: BIcons.message,
             count: _commentTotal,
             unit: '条评论',
             color: AppColors.primary500,
@@ -297,7 +425,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               subtitle: _error ?? '请检查网络后重试。',
               action: BrandButton(
                 label: '重新加载',
-                icon: Icons.refresh_rounded,
+                icon: BIcons.refresh,
                 onPressed: _loadDetail,
               ),
             )
@@ -324,8 +452,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
 /// 动作项：图标 + 数字 + 单位，平时透明，悬停浮出一层淡底
 class _ReactionAction extends StatefulWidget {
-  final IconData icon;
-  final IconData activeIcon;
+  final BrandIconData icon;
+  final BrandIconData activeIcon;
   final int count;
   final String unit;
   final Color color;
@@ -384,10 +512,11 @@ class _ReactionActionState extends State<_ReactionAction> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                BrandIcon(
                   widget.active ? widget.activeIcon : widget.icon,
                   size: 17,
                   color: accent,
+                  filled: widget.active,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -413,6 +542,123 @@ class _ReactionActionState extends State<_ReactionAction> {
   }
 }
 
+/// 关联词条卡：资讯归属的作品 / 人物，点击进入词条档案或直接观看。
+class _SubjectCard extends StatelessWidget {
+  final WikiSubject subject;
+  final VoidCallback onTap;
+
+  const _SubjectCard({required this.subject, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    const violet = Color(0xFF8B6CFF);
+    final linkedVideo = subject.linkedVideos.isNotEmpty
+        ? subject.linkedVideos.first
+        : null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: dark
+                ? [const Color(0xFF3A3556), const Color(0xFF31415E)]
+                : [const Color(0xFFF6F2FF), const Color(0xFFEDF3FF)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: violet.withValues(alpha: .3)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 48,
+                height: 64,
+                child: subject.coverImage.isEmpty
+                    ? ColoredBox(
+                        color: violet.withValues(alpha: .18),
+                        child: const BrandIcon(
+                          BIcons.book,
+                          size: 22,
+                          color: violet,
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: subject.coverImage,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) => const SizedBox(),
+                        errorWidget: (_, _, _) => const SizedBox(),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '关联词条 · ${subject.typeLabel}',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: violet,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subject.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (subject.summary.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subject.summary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF597BEA), Color(0xFF8B6CFF)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                linkedVideo != null ? '去观看' : '查看',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DetailCoverFallback extends StatelessWidget {
   const _DetailCoverFallback();
   @override
@@ -423,8 +669,8 @@ class _DetailCoverFallback extends StatelessWidget {
       height: 220,
       child: ColoredBox(
         color: dark ? AppColors.darkBg : AppColors.primary50,
-        child: const Icon(
-          Icons.auto_stories_rounded,
+        child: const BrandIcon(
+          BIcons.book,
           size: 44,
           color: AppColors.primary500,
         ),

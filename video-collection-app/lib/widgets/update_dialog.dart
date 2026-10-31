@@ -9,6 +9,7 @@ import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import 'brand_controls.dart';
 import 'brand_widgets.dart';
+import '../theme/brand_icons.dart';
 
 /// 弹出版本更新弹窗
 Future<void> showUpdateDialog(BuildContext context, AppUpdateInfo info) {
@@ -39,7 +40,7 @@ class UpdateDialog extends StatelessWidget {
                 color: primary.withValues(alpha: dark ? 0.25 : 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.check_circle_rounded, color: primary, size: 24),
+              child: BrandIcon(BIcons.checkCircle, color: primary, size: 24),
             ),
             const SizedBox(width: 12),
             const Text('已是最新版本'),
@@ -68,8 +69,8 @@ class UpdateDialog extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.auto_awesome_rounded,
+                  BrandIcon(
+                    BIcons.sparkles,
                     size: 18,
                     color: primary,
                   ),
@@ -118,8 +119,8 @@ class UpdateDialog extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.rocket_launch_rounded,
+              child: const BrandIcon(
+                BIcons.rocket,
                 color: Colors.white,
                 size: 22,
               ),
@@ -197,8 +198,8 @@ class UpdateDialog extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_forward_rounded,
+                  BrandIcon(
+                    BIcons.arrowRight,
                     size: 18,
                     color: primary.withValues(alpha: 0.7),
                   ),
@@ -302,7 +303,7 @@ class UpdateDialog extends StatelessWidget {
                   if (state.downloadedInstallerPath != null) {
                     return Row(
                       children: [
-                        Icon(Icons.check_circle_rounded,
+                        BrandIcon(BIcons.checkCircle,
                             size: 16, color: primary),
                         const SizedBox(width: 6),
                         Expanded(
@@ -322,7 +323,7 @@ class UpdateDialog extends StatelessWidget {
                   if (state.updateDownloadError != null) {
                     return Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded,
+                        const BrandIcon(BIcons.alert,
                             size: 16, color: Colors.redAccent),
                         const SizedBox(width: 6),
                         Expanded(
@@ -385,7 +386,7 @@ class UpdateDialog extends StatelessWidget {
                   );
                 }
                 return FilledButton.icon(
-                  icon: const Icon(Icons.download_rounded, size: 18),
+                  icon: const BrandIcon(BIcons.download, size: 18),
                   label: const Text('立即更新'),
                   onPressed: () async {
                     final ok = await UpdateService.launchUpdate(
@@ -418,13 +419,13 @@ class UpdateDialog extends StatelessWidget {
               }
               if (state.downloadedInstallerPath != null) {
                 return FilledButton.icon(
-                  icon: const Icon(Icons.system_update_alt_rounded, size: 18),
+                  icon: const BrandIcon(BIcons.download, size: 18),
                   label: const Text('安装并重启'),
                   onPressed: () => state.installUpdate(),
                 );
               }
               return FilledButton.icon(
-                icon: const Icon(Icons.download_rounded, size: 18),
+                icon: const BrandIcon(BIcons.download, size: 18),
                 label: Text(
                   state.updateDownloadError != null ? '重新下载' : '下载并安装',
                 ),

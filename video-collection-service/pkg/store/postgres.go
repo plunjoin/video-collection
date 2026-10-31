@@ -214,6 +214,8 @@ func (s *PostgresStore) initSchema() error {
 		title VARCHAR(255) NOT NULL,
 		content TEXT NOT NULL,
 		contact VARCHAR(128) DEFAULT '',
+		target_type VARCHAR(32) NOT NULL DEFAULT '',
+		target_id INT NOT NULL DEFAULT 0,
 		status VARCHAR(32) NOT NULL DEFAULT 'pending',
 		reply TEXT DEFAULT '',
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -259,6 +261,8 @@ func (s *PostgresStore) initSchema() error {
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_hits ON videos(hits DESC);")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_videos_subject_id ON videos(subject_id);")
 	_, _ = s.db.Exec("ALTER TABLE user_history ADD COLUMN IF NOT EXISTS play_time INT DEFAULT 0;")
+	_, _ = s.db.Exec("ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS target_type VARCHAR(32) NOT NULL DEFAULT '';")
+	_, _ = s.db.Exec("ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS target_id INT NOT NULL DEFAULT 0;")
 	return nil
 }
 
@@ -1173,11 +1177,11 @@ func (s *PostgresStore) CreateFeedback(ctx context.Context, fb *Feedback) error 
 		fb.Status = "pending"
 	}
 	query := `
-		INSERT INTO feedbacks (type, title, content, contact, status, reply, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO feedbacks (type, title, content, contact, target_type, target_id, status, reply, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`
-	return s.db.QueryRowContext(ctx, query, fb.Type, fb.Title, fb.Content, fb.Contact, fb.Status, fb.Reply, fb.CreatedAt, fb.UpdatedAt).Scan(&fb.ID)
+	return s.db.QueryRowContext(ctx, query, fb.Type, fb.Title, fb.Content, fb.Contact, fb.TargetType, fb.TargetID, fb.Status, fb.Reply, fb.CreatedAt, fb.UpdatedAt).Scan(&fb.ID)
 }
 
 func (s *PostgresStore) ListFeedbacks(ctx context.Context, page, pageSize int, status, fbType string) ([]Feedback, int, error) {
@@ -1213,7 +1217,7 @@ func (s *PostgresStore) ListFeedbacks(ctx context.Context, page, pageSize int, s
 
 	offset := (page - 1) * pageSize
 	querySQL := fmt.Sprintf(`
-		SELECT id, type, title, content, contact, status, reply, created_at, updated_at
+		SELECT id, type, title, content, contact, COALESCE(target_type,''), COALESCE(target_id,0), status, reply, created_at, updated_at
 		FROM feedbacks
 		%s
 		ORDER BY created_at DESC
@@ -1229,7 +1233,7 @@ func (s *PostgresStore) ListFeedbacks(ctx context.Context, page, pageSize int, s
 	var list []Feedback
 	for rows.Next() {
 		var f Feedback
-		if err := rows.Scan(&f.ID, &f.Type, &f.Title, &f.Content, &f.Contact, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err == nil {
+		if err := rows.Scan(&f.ID, &f.Type, &f.Title, &f.Content, &f.Contact, &f.TargetType, &f.TargetID, &f.Status, &f.Reply, &f.CreatedAt, &f.UpdatedAt); err == nil {
 			list = append(list, f)
 		}
 	}

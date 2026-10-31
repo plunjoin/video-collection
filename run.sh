@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 一键启动 video-collection（同一终端并行，Ctrl+C 全部停止）
-# 用法: ./run.sh admin web macos
+# 用法: ./run.sh service web macos
 
 set -euo pipefail
 
@@ -32,7 +32,7 @@ show_help() {
   cat <<'EOF'
 一键启动 video-collection 子项目（macOS / Linux）
 
-所有服务在当前终端并行运行，日志带 [service]/[admin]/[web]/[app] 前缀。
+所有服务在当前终端并行运行，日志带 [service]/[web]/[app] 前缀。
 按 Ctrl+C 停止全部。
 
 用法:
@@ -41,22 +41,26 @@ show_help() {
 
 项目目标:
   service / admin / web / app / all
-  service 为合并后的统一服务（API + Go 托管管理后台，见 video-collection-service/）；api 为其别名
-  admin 为管理后台前端开发服务器，生产构建已内嵌于 service
+  （api 为 service 的别名）
+  service  统一服务：/ 门户（webfront 托管）+ /admin 管理后台（内嵌产物）+ /api
+  admin    先用 wf 构建管理后台（webfront CLI，零 Node）打进二进制，再启动统一服务在 /admin 查看
+  web      以开发模式启动统一服务（go run -tags dev .）：门户与管理后台都挂
+           webfront DevServer（HMR）；与 service 同时选择时只启动一个进程（无 HMR）
   Flutter 平台: windows android ios macos linux chrome edge web-server
 
 示例:
-  ./run.sh service web
-  ./run.sh admin web macos
+  ./run.sh service
+  ./run.sh admin
+  ./run.sh web
   ./run.sh api web android
   ./run.sh all
-  ./run.sh web
 
 说明:
+  - 前端构建统一走 webfront wf CLI（纯 Go），本脚本不依赖 Node
   - 缺少运行时会提示安装方式并退出
   - 缺少项目依赖会自动安装
   - 自动使用 UTF-8 locale，避免中文乱码
-  - Windows 请使用 run.ps1 或 run.cmd
+  - Windows 请使用 run.ps1
 EOF
 }
 
@@ -69,6 +73,7 @@ WANT_ADMIN=0
 WANT_SERVICE=0
 WANT_WEB=0
 WANT_APP=0
+WANT_ALL=0
 FLUTTER_DEVICE=""
 
 is_flutter_device() {
@@ -81,7 +86,7 @@ is_flutter_device() {
 for token in "$@"; do
   t="$(printf '%s' "$token" | tr '[:upper:]' '[:lower:]')"
   case "$t" in
-    all) WANT_SERVICE=1; WANT_ADMIN=1; WANT_WEB=1; WANT_APP=1 ;;
+    all) WANT_ALL=1; WANT_SERVICE=1; WANT_ADMIN=1; WANT_WEB=1; WANT_APP=1 ;;
     service|api) WANT_SERVICE=1 ;;
     admin) WANT_ADMIN=1 ;;
     web) WANT_WEB=1 ;;
@@ -107,58 +112,42 @@ if [[ "$WANT_APP" -eq 1 && -z "$FLUTTER_DEVICE" ]]; then
   esac
 fi
 
-if [[ "$WANT_ADMIN$WANT_WEB$WANT_SERVICE$WANT_APP" == "0000" ]]; then
+if [[ "$WANT_SERVICE$WANT_ADMIN$WANT_WEB$WANT_APP" == "0000" ]]; then
   show_help
   exit 0
 fi
 
-MISSING=0
-NEED_NODE=0
-[[ "$WANT_ADMIN" -eq 1 || "$WANT_WEB" -eq 1 ]] && NEED_NODE=1
+NEED_SERVICE=$((WANT_SERVICE + WANT_ADMIN + WANT_WEB))
+DEV_MODE=0
+[[ "$WANT_SERVICE" -eq 0 && "$WANT_WEB" -eq 1 ]] && DEV_MODE=1
 
 print_install_hint() {
   case "$1" in
     go)
       err "  缺少 Go"; warn "  https://go.dev/dl/ | brew install go | sudo apt install golang-go" ;;
-    node)
-      err "  缺少 Node.js"; warn "  https://nodejs.org/ | brew install node" ;;
-    pnpm)
-      err "  缺少 pnpm"; warn "  corepack enable && corepack prepare pnpm@latest --activate" ;;
+    wf)
+      err "  缺少 webfront wf CLI"
+      warn "  go install github.com/plunjoin/webfront/cmd/wf@v0.1.0" ;;
     flutter)
       err "  缺少 Flutter"; warn "  https://docs.flutter.dev/get-started/install" ;;
   esac
 }
 
-ensure_pnpm() {
-  have_cmd pnpm && return 0
-  have_cmd node || return 1
-  info "[环境] 未找到 pnpm，尝试 corepack / npm ..."
-  if have_cmd corepack; then
-    corepack enable >/dev/null 2>&1 || true
-    corepack prepare pnpm@latest --activate >/dev/null 2>&1 || true
-    have_cmd pnpm && { ok "[环境] pnpm $(pnpm -v)"; return 0; }
-  fi
-  if have_cmd npm; then
-    npm install -g pnpm >/dev/null 2>&1 || true
-    have_cmd pnpm && { ok "[环境] pnpm $(pnpm -v)"; return 0; }
-  fi
-  return 1
-}
-
 echo ""
 ok "=== video-collection 环境检查 ==="
 
-if [[ "$WANT_SERVICE" -eq 1 ]]; then
+MISSING=0
+WF_CMD=""
+if [[ "$NEED_SERVICE" -gt 0 ]]; then
   if have_cmd go; then ok "[OK] go $(go version 2>/dev/null | awk '{print $3}')"
   else print_install_hint go; MISSING=1; fi
-fi
 
-if [[ "$NEED_NODE" -eq 1 ]]; then
-  if have_cmd node; then ok "[OK] node $(node -v)"
-  else print_install_hint node; MISSING=1; fi
-  if [[ "$MISSING" -eq 0 ]]; then
-    if ensure_pnpm; then ok "[OK] pnpm $(pnpm -v)"
-    else print_install_hint pnpm; MISSING=1; fi
+  # 仓库根的 wf.exe 是 Windows 二进制，macOS / Linux 用 PATH 里的 wf
+  if have_cmd wf; then
+    WF_CMD="wf"
+    ok "[OK] wf CLI: $(command -v wf)"
+  else
+    print_install_hint wf; MISSING=1
   fi
 fi
 
@@ -171,25 +160,31 @@ if [[ "$MISSING" -eq 1 ]]; then
   echo ""; err "[中止] 请先安装缺失的运行环境后再重试。"; exit 1
 fi
 
+SERVICE_DIR="$ROOT/video-collection-service"
+
 ensure_go_deps() {
-  local dir="${1:-$ROOT/video-collection-service}"
-  [[ -d "$dir" ]] || { warn "[跳过] Service 目录不存在"; return 0; }
+  [[ -d "$SERVICE_DIR" ]] || { warn "[跳过] Service 目录不存在"; return 0; }
   info "[依赖] Service: go mod download"
-  (cd "$dir" && go mod download)
+  (cd "$SERVICE_DIR" && go mod download)
 }
 
-ensure_pnpm_deps() {
-  local name="$1" dir="$2"
-  [[ -d "$dir" ]] || { warn "[跳过] $name 目录不存在"; return 0; }
-  # 前端依赖统一在 web/ 工作区（pnpm workspace，hoisted 单份 node_modules）
-  local workspace
-  workspace="$(dirname "$dir")"
-  if [[ ! -d "$workspace/node_modules" ]]; then
-    info "[依赖] $name: pnpm install (web 工作区) ..."
-    (cd "$workspace" && pnpm install)
-  else
-    dim "[依赖] $name: web 工作区 node_modules 已存在，跳过"
+ensure_wf_deps() {
+  if [[ -f "$SERVICE_DIR/web/wf_modules/.store/manifest.json" ]]; then
+    dim "[依赖] 前端: wf_modules 已存在，跳过"
+    return 0
   fi
+  info "[依赖] 前端: wf install（零 Node，按 web/package-lock.json 锁定版本）..."
+  (cd "$SERVICE_DIR" && "$WF_CMD" install -modules wf_modules .)
+}
+
+build_admin_frontend() {
+  info "[构建] 管理后台: wf build（esbuild，秒级）..."
+  (cd "$SERVICE_DIR" && "$WF_CMD" build -mode spa -base /admin -modules ../wf_modules web/admin)
+}
+
+build_portal_frontend() {
+  info "[构建] 门户: wf build（SSR bundle + 分包）..."
+  (cd "$SERVICE_DIR" && "$WF_CMD" build -modules ../wf_modules web/portal)
 }
 
 ensure_flutter_deps() {
@@ -201,10 +196,10 @@ ensure_flutter_deps() {
 
 echo ""
 ok "=== 检查 / 安装项目依赖 ==="
-[[ "$WANT_SERVICE" -eq 1 ]] && ensure_go_deps "$ROOT/video-collection-service"
-[[ "$WANT_ADMIN" -eq 1 ]] && ensure_pnpm_deps "Admin" "$ROOT/video-collection-service/web/admin"
-# web 目标：前台门户已内嵌进 service（webfront 托管），启动即 go run service
-[[ "$WANT_WEB" -eq 1 ]] && ensure_go_deps "$ROOT/video-collection-service"
+[[ "$NEED_SERVICE" -gt 0 ]] && ensure_go_deps
+[[ "$NEED_SERVICE" -gt 0 ]] && ensure_wf_deps
+[[ "$WANT_ADMIN" -eq 1 ]] && build_admin_frontend
+[[ "$WANT_ALL" -eq 1 ]] && build_portal_frontend
 [[ "$WANT_APP" -eq 1 ]] && ensure_flutter_deps
 
 # ---------- 同一终端并行启动 ----------
@@ -255,21 +250,23 @@ start_one() {
 
 echo ""
 ok "=== 启动服务（同一终端） ==="
-projects=""
-[[ "$WANT_SERVICE" -eq 1 ]] && projects+="service "
-[[ "$WANT_ADMIN" -eq 1 ]] && projects+="admin "
-[[ "$WANT_WEB" -eq 1 ]] && projects+="web "
-echo "projects: ${projects:-"(none)"}"
-if [[ "$WANT_APP" -eq 1 ]]; then echo "app     : app/${FLUTTER_DEVICE:-default}"
-else echo "app     : (none)"; fi
+echo "app     : $( [[ "$WANT_APP" -eq 1 ]] && echo "app/${FLUTTER_DEVICE:-default}" || echo "(none)" )"
 echo ""
 warn "日志前缀区分服务。按 Ctrl+C 停止全部。"
 echo ""
 
-[[ "$WANT_ADMIN" -eq 1 ]] && start_one "admin" "$ROOT/video-collection-service/web/admin" "pnpm dev"
-[[ "$WANT_SERVICE" -eq 1 ]] && start_one "service" "$ROOT/video-collection-service" "go run ."
-# web 目标：门户已由 service 内嵌托管（webfront SSR 引擎）
-[[ "$WANT_WEB" -eq 1 ]] && start_one "web" "$ROOT/video-collection-service" "go run ."
+if [[ "$NEED_SERVICE" -gt 0 ]]; then
+  cmd="go run ."
+  tag="service"
+  if [[ "$DEV_MODE" -eq 1 ]]; then
+    cmd="go run -tags dev ."
+    tag="web"
+    info "[web] 门户与管理后台均挂 webfront DevServer（HMR）"
+  elif [[ "$WANT_WEB" -eq 1 ]]; then
+    dim "[web] 与 service 同进程，门户走内嵌产物；需要 HMR 请单选 web"
+  fi
+  start_one "$tag" "$SERVICE_DIR" "$cmd"
+fi
 
 if [[ "$WANT_APP" -eq 1 ]]; then
   cmd="flutter run"

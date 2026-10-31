@@ -101,7 +101,8 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('第 2 话'));
+    // 选集矩阵只显示序号（“第 2 话” → “2”）
+    await tester.tap(find.text('2'));
     expect(selected, (0, 1));
     expect(tester.takeException(), isNull);
   });

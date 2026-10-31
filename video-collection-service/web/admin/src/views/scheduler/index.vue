@@ -596,7 +596,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .scheduler-page {
   .status-card, .config-card, .mechanism-card, .runs-card {
     border-radius: 12px;

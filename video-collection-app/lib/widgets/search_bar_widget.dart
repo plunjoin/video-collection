@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/brand_icons.dart';
 
 class SearchBarWidget extends StatelessWidget {
   final VoidCallback onTap;
@@ -39,8 +40,8 @@ class SearchBarWidget extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.search_rounded,
+            const BrandIcon(
+              BIcons.search,
               size: 18,
               color: AppColors.primary500,
             ),
@@ -100,8 +101,8 @@ class SearchBarWidget extends StatelessWidget {
                     },
                     child: Padding(
                       padding: const EdgeInsets.only(left: 6),
-                      child: Icon(
-                        Icons.cancel_rounded,
+                      child: BrandIcon(
+                        BIcons.cancel,
                         size: 16,
                         color: isDark
                             ? AppColors.darkTextSecondary

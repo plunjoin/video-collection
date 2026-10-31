@@ -150,15 +150,17 @@ type VideoQuery struct {
 
 // Feedback 用户留言求片与播放故障报错
 type Feedback struct {
-	ID        int       `json:"id"`
-	Type      string    `json:"type"`    // "request" (求片), "report" (报错), "suggest" (建议)
-	Title     string    `json:"title"`   // 影片名或反馈主题
-	Content   string    `json:"content"` // 详细内容/失效集数
-	Contact   string    `json:"contact"` // 联系方式 (邮箱/QQ/微信)
-	Status    string    `json:"status"`  // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
-	Reply     string    `json:"reply"`   // 管理员答复内容
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         int       `json:"id"`
+	Type       string    `json:"type"`         // "request" (求片), "report" (报错), "suggest" (建议)
+	Title      string    `json:"title"`        // 影片名或反馈主题
+	Content    string    `json:"content"`      // 详细内容/失效集数
+	Contact    string    `json:"contact"`      // 联系方式 (邮箱/QQ/微信)
+	TargetType string    `json:"target_type"`  // 纠错对象类型：video/news/post/wiki_subject，空表示无上下文
+	TargetID   int       `json:"target_id"`    // 纠错对象 ID
+	Status     string    `json:"status"`       // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
+	Reply      string    `json:"reply"`        // 管理员答复内容
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // UserHistoryItem 用户播放历史与进度云端记录

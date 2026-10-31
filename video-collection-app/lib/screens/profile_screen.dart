@@ -23,6 +23,7 @@ import 'profile_edit_screen.dart';
 import 'settings_screen.dart';
 import 'timeline_screen.dart';
 import '../widgets/update_dialog.dart';
+import '../theme/brand_icons.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -325,7 +326,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             children: [
                               _Shortcut(
-                                icon: Icons.smart_display_rounded,
+                                icon: BIcons.library,
                                 color: const Color(0xFF4DA3FF),
                                 label: '我的追番',
                                 badge: favorites.isEmpty
@@ -334,19 +335,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 onTap: () => _openFavorites(favorites),
                               ),
                               _Shortcut(
-                                icon: Icons.history_rounded,
+                                icon: BIcons.history,
                                 color: const Color(0xFF4DA3FF),
                                 label: '观看历史',
                                 onTap: () => _openHistory(history, appState),
                               ),
                               _Shortcut(
-                                icon: Icons.download_rounded,
+                                icon: BIcons.download,
                                 color: const Color(0xFF4DA3FF),
                                 label: '离线缓存',
                                 onTap: () => _soon('离线缓存'),
                               ),
                               _Shortcut(
-                                icon: Icons.star_rounded,
+                                icon: BIcons.star,
                                 color: const Color(0xFF4DA3FF),
                                 label: '我的收藏',
                                 onTap: () => _openFavorites(favorites),
@@ -357,13 +358,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             children: [
                               _Shortcut(
-                                icon: Icons.sports_esports_rounded,
+                                icon: BIcons.gamepad,
                                 color: const Color(0xFF4DA3FF),
                                 label: '我的游戏',
                                 onTap: () => _soon('我的游戏'),
                               ),
                               _Shortcut(
-                                icon: Icons.file_download_outlined,
+                                icon: BIcons.download,
                                 color: const Color(0xFFB07CFF),
                                 label: '创作中心',
                                 onTap: () => Navigator.of(context).push(
@@ -373,13 +374,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               _Shortcut(
-                                icon: Icons.checkroom_rounded,
+                                icon: BIcons.hanger,
                                 color: const Color(0xFFFF7EB6),
                                 label: '主题换肤',
                                 onTap: _openSettings,
                               ),
                               _Shortcut(
-                                icon: Icons.flag_rounded,
+                                icon: BIcons.flag,
                                 color: const Color(0xFFFF7EB6),
                                 label: '活动中心',
                                 onTap: () => _openGrowth(3),
@@ -586,8 +587,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: AppColors.primary500,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.add_rounded,
+                            child: const BrandIcon(
+                              BIcons.plus,
                               color: Colors.white,
                               size: 18,
                             ),
@@ -642,8 +643,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.workspace_premium_rounded,
+                                  const BrandIcon(
+                                    BIcons.medal,
                                     size: 14,
                                     color: Color(0xFFE2A100),
                                   ),
@@ -688,7 +689,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (isLoggedIn) ...[
                 OutlinedButton.icon(
                   onPressed: _openProfileEdit,
-                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  icon: const BrandIcon(BIcons.edit, size: 16),
                   label: const Text('编辑资料'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
@@ -699,20 +700,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(width: 10),
                 _CircleIcon(
-                  icon: Icons.notifications_none_rounded,
+                  icon: BIcons.bell,
                   badge: _unread > 0,
                   onTap: () => _openGrowth(4),
                 ),
                 const SizedBox(width: 6),
                 _CircleIcon(
-                  icon: Icons.settings_outlined,
+                  icon: BIcons.settings,
                   tooltip: '设置',
                   onTap: _openSettings,
                 ),
               ] else ...[
                 FilledButton.icon(
                   onPressed: _openAccount,
-                  icon: const Icon(Icons.login_rounded, size: 18),
+                  icon: const BrandIcon(BIcons.login, size: 18),
                   label: const Text('立即登录'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary500,
@@ -783,13 +784,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           children: [
             _CircleIcon(
-              icon: Icons.settings_outlined,
+              icon: BIcons.settings,
               tooltip: '设置',
               onTap: _openSettings,
             ),
             const Spacer(),
             _CircleIcon(
-              icon: Icons.notifications_none_rounded,
+              icon: BIcons.bell,
               badge: _unread > 0,
               onTap: () => _openGrowth(4),
             ),
@@ -823,8 +824,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: AppColors.primary500,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.add_rounded,
+                        child: const BrandIcon(
+                          BIcons.plus,
                           color: Colors.white,
                           size: 16,
                         ),
@@ -884,8 +885,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.workspace_premium_rounded,
+                                const BrandIcon(
+                                  BIcons.medal,
                                   size: 14,
                                   color: Color(0xFFE2A100),
                                 ),
@@ -989,7 +990,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title,
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
         ),
-        Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+        BrandIcon(BIcons.chevronRight, color: Colors.grey.shade400),
         const Spacer(),
         GestureDetector(
           onTap: onTrailing,
@@ -1001,8 +1002,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
-        const Icon(
-          Icons.chevron_right_rounded,
+        const BrandIcon(
+          BIcons.chevronRight,
           size: 18,
           color: AppColors.lightTextSecondary,
         ),
@@ -1094,8 +1095,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: BoxShape.circle,
                 gradient: AppColors.brandGradient,
               ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
+              child: const BrandIcon(
+                BIcons.play,
                 color: Colors.white,
                 size: 22,
               ),
@@ -1140,7 +1141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Icon(Icons.north_east_rounded, size: 16),
+                      const BrandIcon(BIcons.arrowUpRight, size: 16),
                     ],
                   ),
                 ),
@@ -1154,7 +1155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _CircleIcon extends StatelessWidget {
-  final IconData icon;
+  final BrandIconData icon;
   final VoidCallback onTap;
   final bool badge;
   final String? tooltip;
@@ -1174,7 +1175,7 @@ class _CircleIcon extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(width: 36, height: 36, child: Icon(icon, size: 18)),
+        child: SizedBox(width: 36, height: 36, child: BrandIcon(icon, size: 18)),
       ),
     );
     return Stack(
@@ -1258,7 +1259,7 @@ class _Stat extends StatelessWidget {
 }
 
 class _Shortcut extends StatelessWidget {
-  final IconData icon;
+  final BrandIconData icon;
   final Color color;
   final String label;
   final String? badge;
@@ -1281,7 +1282,7 @@ class _Shortcut extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(icon, color: color, size: 28),
+                BrandIcon(icon, color: color, size: 28),
                 if (badge != null)
                   Positioned(
                     right: -14,
@@ -1380,7 +1381,7 @@ class _HistoryPage extends StatelessWidget {
                         onClear();
                         Navigator.of(context).maybePop();
                       },
-                      icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                      icon: const BrandIcon(BIcons.trash, size: 16),
                       label: const Text('清空历史记录'),
                     ),
                   );
@@ -1448,8 +1449,8 @@ class _HistoryPage extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(
-                          Icons.play_circle_fill_rounded,
+                        icon: const BrandIcon(
+                          BIcons.playCircle,
                           color: AppColors.primary500,
                           size: 28,
                         ),

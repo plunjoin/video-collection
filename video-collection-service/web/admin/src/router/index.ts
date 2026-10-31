@@ -152,7 +152,7 @@ export const routes: RouteRecordRaw[] = [
 
 // 管理后台作为 /admin/ 子应用由 Go 服务托管（vite base 与 go:embed 对齐）
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory('/admin'),
   routes
 })
 

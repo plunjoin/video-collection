@@ -105,7 +105,7 @@ function editItem(row?:any){Object.assign(item,row?{id:row.id,name:row.name,kind
 async function saveItem(){busy.value=true;try{await request.post('/api/admin/shop',item);itemVisible.value=false;await loadShop();notify('装扮已保存', 'success')}finally{busy.value=false}}
 onMounted(async()=>{const results=await Promise.allSettled([request.get('/api/admin/growth'),request.get('/api/admin/growth/rules'),loadRequests(),loadShop(),loadMissions(),loadRetention()]);if(results[0].status==='fulfilled')days.value=(results[0].value as any).data;if(results[1].status==='fulfilled')Object.assign(rules,(results[1].value as any).data)})
 </script>
-<style scoped lang="scss">
+<style scoped>
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

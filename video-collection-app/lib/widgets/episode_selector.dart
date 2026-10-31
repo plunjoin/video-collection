@@ -6,6 +6,8 @@ import '../theme/app_colors.dart';
 import 'brand_controls.dart';
 import 'brand_widgets.dart';
 import 'desktop_horizontal_scroll.dart';
+import '../theme/brand_icons.dart';
+
 
 /// 把播放量收成「1.2万」这种短数字，详情和播放页共用。
 String formatAudienceCount(int count) {
@@ -273,10 +275,10 @@ class _EpisodeSelectorWidgetState extends State<EpisodeSelectorWidget> {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: () => setState(() => _expanded = !_expanded),
-              icon: Icon(
+              icon: BrandIcon(
                 _expanded
-                    ? Icons.expand_less_rounded
-                    : Icons.expand_more_rounded,
+                    ? BIcons.chevronUp
+                    : BIcons.chevronDown,
                 size: 18,
               ),
               label: Text(
@@ -494,8 +496,8 @@ class _EpisodeCardListState extends State<EpisodeCardList> {
                         if (playing) const ColoredBox(color: Color(0x33000000)),
                         if (playing)
                           const Center(
-                            child: Icon(
-                              Icons.play_arrow_rounded,
+                            child: BrandIcon(
+                              BIcons.play,
                               color: Colors.white,
                               size: 28,
                             ),
@@ -679,10 +681,10 @@ class _SortToggleState extends State<_SortToggle> {
           ),
           child: Row(
             children: [
-              Icon(
+              BrandIcon(
                 widget.ascending
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
+                    ? BIcons.arrowUp
+                    : BIcons.arrowDown,
                 size: 13,
                 color: muted,
               ),

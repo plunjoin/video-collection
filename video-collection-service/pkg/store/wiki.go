@@ -57,11 +57,11 @@ type WikiSubjectQuery struct {
 
 // WikiGraphNode 图谱节点
 type WikiGraphNode struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	SubType  string `json:"sub_type"`
-	Cover    string `json:"cover"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	SubType string `json:"sub_type"`
+	Cover   string `json:"cover"`
 }
 
 // WikiGraphEdge 图谱边
@@ -94,6 +94,7 @@ type WikiStore interface {
 	GetWikiGraph(ctx context.Context, rootID int, depth int) (*WikiGraphData, error)
 
 	LinkVideoToSubject(ctx context.Context, videoID int, subjectID int) error
+	GetWikiSubjectByVideoID(ctx context.Context, videoID int) (*WikiSubject, error)
 	SyncVideoToWikiSubject(ctx context.Context, videoID int) (*WikiSubject, error)
 }
 
@@ -580,6 +581,31 @@ func (s *SQLContentStore) GetWikiGraph(ctx context.Context, rootID int, depth in
 func (s *SQLContentStore) LinkVideoToSubject(ctx context.Context, videoID int, subjectID int) error {
 	_, err := s.db.ExecContext(ctx, "UPDATE videos SET subject_id = $1 WHERE id = $2", subjectID, videoID)
 	return err
+}
+
+// GetWikiSubjectByVideoID 返回视频绑定的词条（videos.subject_id），未绑定时返回 nil 而非错误。
+func (s *SQLContentStore) GetWikiSubjectByVideoID(ctx context.Context, videoID int) (*WikiSubject, error) {
+	query := `SELECT w.id, w.name, w.original_name, w.type, w.sub_type, w.summary, w.cover_image, w.infobox, w.aliases, w.created_at, w.updated_at
+	          FROM wiki_subjects w JOIN videos v ON v.subject_id = w.id WHERE v.id = $1 LIMIT 1`
+
+	var sub WikiSubject
+	var infoboxRaw, aliasesRaw, createdStr, updatedStr string
+	err := s.db.QueryRowContext(ctx, query, videoID).Scan(
+		&sub.ID, &sub.Name, &sub.OriginalName, &sub.Type, &sub.SubType,
+		&sub.Summary, &sub.CoverImage, &infoboxRaw, &aliasesRaw,
+		&createdStr, &updatedStr,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal([]byte(infoboxRaw), &sub.Infobox)
+	_ = json.Unmarshal([]byte(aliasesRaw), &sub.Aliases)
+	sub.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdStr)
+	sub.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedStr)
+	return &sub, nil
 }
 
 // SyncVideoToWikiSubject 智能桥接：从已有视频冷启动生成对应 Wiki 作品条目与演职员关系网

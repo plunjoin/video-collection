@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:http/http.dart' as http;
 
 import '../models/video_model.dart';
+import '../models/wiki_model.dart';
 
 /// 构建正式包时通过 `--dart-define=API_BASE_URL=https://api.example.com` 写入。
 const configuredApiBaseUrl = String.fromEnvironment('API_BASE_URL');
@@ -170,7 +171,7 @@ class ApiService {
     return {'total': 0, 'list': <VideoRecord>[]};
   }
 
-  // 2. 获取视频详情
+  // 2. 获取视频详情（响应聚合关联 Wiki 词条与相关资讯）
   Future<Map<String, dynamic>> getVideoDetail(int id) async {
     try {
       final uri = Uri.parse('$_baseUrl/api/video?id=$id');
@@ -192,12 +193,101 @@ class ApiService {
               );
             }
           }
-          return {'video': video, 'related': related};
+          List<Map<String, dynamic>> relatedNews = [];
+          if (decoded['related_news'] is List) {
+            for (var item in decoded['related_news']) {
+              if (item is Map) {
+                relatedNews.add(Map<String, dynamic>.from(item));
+              }
+            }
+          }
+          return {
+            'video': video,
+            'related': related,
+            'wiki': WikiSubject.fromJson(decoded['wiki']),
+            'relatedNews': relatedNews,
+          };
         }
       }
     } catch (_) {}
 
-    return {'video': null, 'related': <VideoRecord>[]};
+    return {
+      'video': null,
+      'related': <VideoRecord>[],
+      'wiki': null,
+      'relatedNews': <Map<String, dynamic>>[],
+    };
+  }
+
+  /// 按名称解析 Wiki 词条（演职员名 → 人物词条）。服务端支持精确匹配，
+  /// 用于详情页角色卡没有绑定 subject_id 时的兜底跳转。
+  Future<WikiSubject?> getWikiSubjectByName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final uri = Uri.parse(
+        '$_baseUrl/api/wiki/subject?name=${Uri.encodeComponent(trimmed)}',
+      );
+      final res = await _client
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 5));
+      if (res.statusCode != 200) return null;
+      final decoded = json.decode(utf8.decode(res.bodyBytes));
+      if (decoded['code'] != 1 || decoded['data'] == null) return null;
+      return WikiSubject.fromJson(decoded['data']);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 获取 Wiki 词条详情（含演职员关系、关联正片与相关资讯）。
+  Future<Map<String, dynamic>?> getWikiSubject(int id) async {
+    if (id <= 0) return null;
+    try {
+      final uri = Uri.parse('$_baseUrl/api/wiki/subject?id=$id');
+      final res = await _client
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 5));
+      if (res.statusCode != 200) return null;
+      final decoded = json.decode(utf8.decode(res.bodyBytes));
+      if (decoded['code'] != 1 || decoded['data'] == null) return null;
+      final relatedNews = <Map<String, dynamic>>[];
+      if (decoded['related_news'] is List) {
+        for (var item in decoded['related_news']) {
+          if (item is Map) relatedNews.add(Map<String, dynamic>.from(item));
+        }
+      }
+      return {
+        'subject': WikiSubject.fromJson(decoded['data']),
+        'relatedNews': relatedNews,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 知识库 AI 问答。未配置对话模型时服务端降级为检索模式（mode=retrieval）。
+  Future<RagAskResult?> ragAsk(String query, {int topK = 6}) async {
+    final text = query.trim();
+    if (text.isEmpty) return null;
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/rag/ask'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({'query': text, 'top_k': topK.clamp(1, 20)}),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (res.statusCode != 200) return null;
+      final decoded = json.decode(utf8.decode(res.bodyBytes));
+      if (decoded['code'] != 1) return null;
+      return RagAskResult.fromJson(decoded['data']);
+    } catch (_) {
+      return null;
+    }
   }
 
   // 3. 获取排行榜

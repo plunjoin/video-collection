@@ -144,7 +144,7 @@ async function remove(row: any) {
 onMounted(load)
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .toolbar-card {
   margin-bottom: 12px;
 
@@ -166,7 +166,7 @@ onMounted(load)
     gap: 10px;
     flex-wrap: wrap;
     min-width: 0;
-    flex: 1 1 300px; // 基准宽度而非内容宽度，窄屏时让提示文案换行而不是把按钮挤到下一行
+    flex: 1 1 300px;/* 基准宽度而非内容宽度，窄屏时让提示文案换行而不是把按钮挤到下一行 */
   }
 
   &__right {
@@ -183,7 +183,7 @@ onMounted(load)
     line-height: 1.5;
     max-width: 640px;
     min-width: 0;
-    flex: 1 1 200px; // 与筛选框同排，空间不足时自身换行
+    flex: 1 1 200px;/* 与筛选框同排，空间不足时自身换行 */
   }
 }
 

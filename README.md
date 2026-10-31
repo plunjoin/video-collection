@@ -85,7 +85,7 @@ flowchart TB
 | 目录 / 文件 | 职责 | 技术栈 / 用途 |
 | :--- | :--- | :--- |
 | [`video-collection-service/`](./video-collection-service/) | **统一服务**：RESTful API + Go 托管管理后台，含 radix 缓存/会话层 | Go 1.26 · radix v4 |
-| [`video-collection-service/web/`](./video-collection-service/web/) | 前端工作区：`admin/` 管理后台 + `portal/` 用户门户，依赖统一由 pnpm workspace 管理，构建产物 go:embed 进服务 | Vue 3 · Vite 6 · React 18 · webfront |
+| [`video-collection-service/web/`](./video-collection-service/web/) | 前端工程区：`admin/` 管理后台 + `portal/` 用户门户，依赖由 wf CLI 版本化 store（`wf_modules`）管理，构建产物 go:embed 进服务 | Vue 3 · React 18 · webfront |
 | [`video-collection-app/`](./video-collection-app/) | 桌面、移动与 Web 客户端 | Flutter · Material 3 |
 | [`bllii-brand-kit/`](./bllii-brand-kit/) | 标志、图标、品牌动画与预览 | SVG · PNG · GIF · MP4 |
 | [`run.ps1`](./run.ps1) / [`run.sh`](./run.sh) | 多服务启动器 | Windows PowerShell / Bash |
@@ -98,10 +98,8 @@ flowchart TB
 
 | 工具 | 要求 | 用于 |
 | :--- | :--- | :--- |
-| [Go](https://go.dev/dl/) | 1.26.0 或更高，参见 [`go.mod`](./video-collection-service/go.mod) | 统一服务 |
-| [Node.js](https://nodejs.org/) | 建议使用当前 LTS 版本 | 前端工作区（admin / portal） |
-| [pnpm](https://pnpm.io/installation) | 启动器使用的前端包管理器 | 前端工作区（依赖统一装在 `video-collection-service/web/`） |
-| [Go 内置 wf CLI](https://github.com/plunjoin/webfront) | 仓库根已提供 `wf.exe` / `wf.ps1` / `wf.cmd` | 门户构建（纯 Go，零 Node） |
+| [Go](https://go.dev/dl/) | 1.26.0 或更高，参见 [`go.mod`](./video-collection-service/go.mod) | 统一服务 + 前端构建 |
+| [wf CLI](https://github.com/plunjoin/webfront) | `go install github.com/plunjoin/webfront/cmd/wf@v0.1.0`；仓库根已自带 `wf.exe` / `wf.ps1`（Windows 可直接用） | 前端依赖安装与构建（esbuild 内核，纯 Go，零 Node） |
 | [Flutter SDK](https://docs.flutter.dev/get-started/install) | 需包含 Dart `^3.13.3`，参见 [`pubspec.yaml`](./video-collection-app/pubspec.yaml)；安装目标平台工具链 | App |
 | [PostgreSQL](https://www.postgresql.org/download/) | 可选；本地可使用 SQLite | 服务存储 |
 
@@ -127,18 +125,18 @@ chmod +x run.sh
 ./run.sh service web
 ```
 
-`service` 为合并后的统一服务（API + 管理后台）；旧参数 `api` / `admin` 仍指向合并前的两个子项目，保留兼容。启动器会检查所选目标需要的运行时，并执行 `go mod download`，在缺少依赖时执行 `pnpm install` / `flutter pub get`。缺少 pnpm 时会尝试通过 Corepack 或 npm 安装；其他运行时缺失时会给出安装提示并退出。
+启动器会检查所选目标需要的运行时，执行 `go mod download`，前端依赖缺失时执行 `wf install`（按 `web/package-lock.json` 锁定版本，物料化到 `web/wf_modules`），Flutter 目标执行 `flutter pub get`；运行时缺失时给出安装提示并退出。
 
-> 前端依赖统一在 `video-collection-service/web/` 工作区（pnpm workspace）。首次构建前端：
+> 前端构建统一走 webfront wf CLI（esbuild 内核，纯 Go，零 Node）。首次构建前端：
 > ```bash
-> cd video-collection-service/web
-> pnpm install                       # 单份 node_modules，admin / portal 共用
-> cd admin && pnpm build             # 管理后台 → web/admin/dist
-> cd ../portal && ../../wf.exe build .   # 门户 → web/portal/dist（或从仓库根 wf build）
+> cd video-collection-service
+> wf install -modules wf_modules .                            # 首次或依赖变更时
+> wf build -mode spa -base /admin -modules ../wf_modules web/admin   # 管理后台 → web/admin/dist
+> wf build -modules ../wf_modules web/portal                  # 门户 → web/portal/dist
 > ```
-> 之后由 `go:embed` 随二进制分发；仅改门户时重跑 wf build，仅改后台时重跑 pnpm build。
+> 之后由 `go:embed` 随二进制分发；改完前端重跑对应 `wf build` 并重新编译服务。`.\run.ps1 admin`（或 `./run.sh admin`）会自动完成"构建管理后台 + 启动服务"。
 
-所有服务在**同一个终端并行运行**，日志带 `[api]`、`[admin]`、`[web]`、`[app]` 前缀，按 **Ctrl+C** 停止全部。Windows 启动器会设置 UTF-8 控制台编码。
+所有服务在**同一个终端并行运行**，日志带 `[service]`、`[web]`、`[app]` 前缀，按 **Ctrl+C** 停止全部。Windows 启动器会设置 UTF-8 控制台编码。
 
 ### 4. 打开服务
 
@@ -185,9 +183,9 @@ chmod +x run.sh
 
 | 参数 | 含义 |
 | :--- | :--- |
-| `api` / `admin` / `web` | `api`（等同 `service`）启动 Go 统一服务；`admin` 启动 Vue 后台开发服务器；`web` 启动门户（门户由统一服务内嵌托管，启动即服务本体），可组合使用 |
+| `api` / `admin` / `web` | `api`（等同 `service`）启动 Go 统一服务；`admin` 先用 wf 构建管理后台再启动服务（在 `/admin` 查看，构建产物内嵌）；`web` 以开发模式启动服务（门户与管理后台都挂 webfront DevServer，支持 HMR），可组合使用 |
 | `app` | 启动 Flutter 客户端；默认平台为 Windows → `windows`、macOS → `macos`、Linux → `linux` |
-| `all` | 启动 API + Admin + Web + App |
+| `all` | 构建双前端（wf build）+ 启动统一服务 + App |
 | `windows` / `android` / `ios` / `macos` / `linux` / `chrome` / `edge` / `web-server` | 指定 Flutter 目标平台，同时启用 App；需具备对应工具链与可用设备 |
 
 **`web` 表示门户，由统一服务内嵌托管（webfront 引擎），效果等同 `service`。** Flutter Web 使用 `chrome`、`edge` 或 `web-server`；iOS / macOS 构建需要 macOS 环境。
@@ -208,18 +206,22 @@ go run .
 启动后访问 `/` 即为门户、`/admin` 即为管理后台（前端已内嵌，无需单独启动前端）。前端改动后重建：
 
 ```bash
-# 依赖统一装在 web 工作区（首次或依赖变更时）
-cd video-collection-service/web && pnpm install
+cd video-collection-service
 
-# 管理后台（Vue + Vite）
-cd web/admin && pnpm build
+# 依赖（版本化 store，首次或依赖变更时）
+wf install -modules wf_modules .
 
-# 门户（React + webfront，纯 Go 构建）
-cd ../portal && ../../wf.exe build .
+# 管理后台（Vue 3 + webfront，esbuild 秒级构建）
+wf build -mode spa -base /admin -modules ../wf_modules web/admin
 
-# 门户开发模式（esbuild 按需转译 + HMR，免打包）
-cd video-collection-service && go run -tags dev .
+# 门户（React + webfront，SSR bundle + 分包）
+wf build -modules ../wf_modules web/portal
+
+# 前端开发模式（门户 + 管理后台均挂 DevServer，esbuild 按需转译 + HMR，免打包）
+go run -tags dev .
 ```
+
+> PowerShell / cmd 直接用上面的命令；Git Bash 下 `-base /admin` 需加前缀 `MSYS_NO_PATHCONV=1`。
 
 **App · Windows 示例**
 
@@ -252,13 +254,13 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 | `WEBHOOK_ENCRYPTION_KEY` | Webhook 密钥信封加密主密钥 | 可选；缺省时由 `ADMIN_INITIAL_PASSWORD` 派生，见 [Webhook 文档](./video-collection-service/docs/webhook-api.md) |
 
 > [!NOTE]
-> **本地端口需要统一。** Admin 和 Web 的开发代理默认指向 `http://localhost:80`。直接复制 API 的 `.env.example` 会把 API 端口改为 `8080`，请将 `.env` 中的 `PORT` 改为 `80`，或同步调整各端连接配置。Linux / macOS 监听 `80` 可能需要额外权限，可使用 `8080` 并同步修改客户端地址。
+> **本地端口。** API 默认监听 `80`（示例 `.env` 为 `8080`）。Linux / macOS 监听 `80` 可能需要额外权限，可使用 `8080` 并同步修改 App 端连接地址；门户与管理后台与 API 同进程同源，无需额外配置。
 
 ### 各端连接地址
 
 | 子项目 | 配置入口 | 本地默认行为 |
 | :--- | :--- | :--- |
-| **Admin** | 服务直接托管 `/admin`；[`vite.config.ts`](./video-collection-service/web/admin/vite.config.ts) → `server.proxy` | 独立开发时 `/api` 与 `/rss.xml` 代理到 `http://localhost:80` |
+| **Admin** | 服务直接托管 `/admin`（内嵌产物） | 与 API 同源，`/api`、`/brand/*` 同进程直出，无独立配置 |
 | **Portal** | 浏览器同源 `/api`，无独立配置 | 生产 SSR / SPA 由统一服务托管；开发模式 `go run -tags dev .` 同源取数 |
 | **App** | 调试包可在设置中修改；正式包使用构建参数 `API_BASE_URL` | 调试时 Android 模拟器使用 `http://10.0.2.2:80`，其他平台默认 `http://127.0.0.1:80`。正式包执行 `flutter build ... --dart-define=API_BASE_URL=https://api.example.com`，不再显示服务端地址配置 |
 
@@ -278,6 +280,7 @@ API 支持系统环境变量、工作目录下的 `.env` 和 YAML 配置，优�
 | [Flutter 客户端](./video-collection-app/README.md) | 多端运行、API 配置与发布构建 |
 | [通用采集规则工作台](./video-collection-service/docs/collection-studio.md) | 来源配置、字段映射、预览、入库与能力边界 |
 | [内容与通知 API](./video-collection-service/docs/content-api.md) | 资讯、社区、站内通知与权限规则 |
+| [Wiki/RAG/详情页数据串联](./video-collection-service/docs/wiki-rag-integration.md) | 采集→词条→向量索引→详情聚合的链路、公开 AI 问答与测试数据 |
 | [通用评论 API](./video-collection-service/docs/comments-api.md) | 多级回复、点赞、通知与内容类型扩展 |
 | [数据库管理 API](./video-collection-service/docs/database-api.md) | 数据浏览、备份恢复、维护与管理 SQL |
 | [Webhook 回调采集 API](./video-collection-service/docs/webhook-api.md) | 回调端点、HMAC 验签、防重放、原始报文留痕与密钥管理 |
