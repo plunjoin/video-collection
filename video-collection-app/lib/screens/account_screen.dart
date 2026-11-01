@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import '../widgets/brand_controls.dart';
+import 'reset_password_screen.dart';
 import '../widgets/brand_widgets.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -135,6 +136,30 @@ class _AccountScreenState extends State<AccountScreen> {
                                   }),
                             child: Text(_register ? '已有账号，去登录' : '还没有账号？注册'),
                           ),
+                          if (!_register)
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () async {
+                                      final reset = await Navigator.of(context)
+                                          .push<bool>(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ResetPasswordScreen(),
+                                            ),
+                                          );
+                                      if (reset == true && context.mounted) {
+                                        setState(() => _error = null);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              const SnackBar(
+                                                content: Text('密码已重置，请用新密码登录'),
+                                              ),
+                                            );
+                                      }
+                                    },
+                              child: const Text('忘记密码？'),
+                            ),
                         ],
                       ),
                     ),

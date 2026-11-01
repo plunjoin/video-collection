@@ -17,6 +17,7 @@ class Listener extends fw.SingleChildRenderObjectWidget {
   final PointerMoveEventListener? onPointerMove;
   final PointerUpEventListener? onPointerUp;
   final PointerCancelEventListener? onPointerCancel;
+  final PointerSignalEventListener? onPointerSignal;
   final PointerPanZoomStartEventListener? onPointerPanZoomStart;
   final PointerPanZoomUpdateEventListener? onPointerPanZoomUpdate;
   final PointerPanZoomEndEventListener? onPointerPanZoomEnd;
@@ -27,6 +28,7 @@ class Listener extends fw.SingleChildRenderObjectWidget {
     this.onPointerMove,
     this.onPointerUp,
     this.onPointerCancel,
+    this.onPointerSignal,
     this.onPointerPanZoomStart,
     this.onPointerPanZoomUpdate,
     this.onPointerPanZoomEnd,
@@ -40,6 +42,7 @@ class Listener extends fw.SingleChildRenderObjectWidget {
       onPointerMove: onPointerMove,
       onPointerUp: onPointerUp,
       onPointerCancel: onPointerCancel,
+      onPointerSignal: onPointerSignal,
       onPointerPanZoomStart: onPointerPanZoomStart,
       onPointerPanZoomUpdate: onPointerPanZoomUpdate,
       onPointerPanZoomEnd: onPointerPanZoomEnd,
@@ -56,6 +59,7 @@ class Listener extends fw.SingleChildRenderObjectWidget {
       ..onPointerMove = onPointerMove
       ..onPointerUp = onPointerUp
       ..onPointerCancel = onPointerCancel
+      ..onPointerSignal = onPointerSignal
       ..onPointerPanZoomStart = onPointerPanZoomStart
       ..onPointerPanZoomUpdate = onPointerPanZoomUpdate
       ..onPointerPanZoomEnd = onPointerPanZoomEnd;

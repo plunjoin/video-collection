@@ -214,6 +214,31 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  /// 忘记密码：用验证码重置（无需登录）。成功返回 null。
+  Future<String?> resetPassword({
+    required String channel,
+    required String target,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _api.userRequest(
+        '/api/auth/reset-password',
+        method: 'POST',
+        authenticated: false,
+        body: {
+          'channel': channel,
+          'target': target,
+          'code': code,
+          'new_password': newPassword,
+        },
+      );
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
   /// 绑定邮箱 / 手机，成功返回 null。
   Future<String?> bindContact({
     required String channel,
