@@ -105,36 +105,8 @@ class ButtonStyle {
   }
 }
 
-/// 圆角矩形轮廓(自研;StadiumBorder/RoundedRectangleBorder 等价物)。
-class OutlinedBorder {
-  final BorderRadius borderRadius;
-  final BorderSide side;
-
-  const OutlinedBorder({
-    this.borderRadius = BorderRadius.zero,
-    this.side = BorderSide.none,
-  });
-
-  OutlinedBorder copyWith({BorderSide? side}) {
-    return OutlinedBorder(
-      borderRadius: borderRadius,
-      side: side ?? this.side,
-    );
-  }
-}
-
-/// 圆角矩形按钮形状。
-class RoundedRectangleBorder extends OutlinedBorder {
-  const RoundedRectangleBorder({
-    super.borderRadius = BorderRadius.zero,
-    super.side,
-  });
-}
-
-/// 药丸形按钮形状(两端全圆)。
-class StadiumBorder extends OutlinedBorder {
-  const StadiumBorder({super.side});
-}
+// 按钮形状直接使用框架 painting 层的 OutlinedBorder/RoundedRectangleBorder/
+// StadiumBorder(绘制原语,非组件)。
 
 /// 按钮基类:状态(hover/press)解析 + 绘制。
 class _ButtonBase extends fw.StatefulWidget {
@@ -187,6 +159,12 @@ class _ButtonBaseState extends fw.State<_ButtonBase> {
 
     final shape = style.shape ?? const RoundedRectangleBorder();
     final side = style.side ?? shape.side;
+    BorderRadius shapeRadius = BorderRadius.zero;
+    if (shape is RoundedRectangleBorder) {
+      shapeRadius = shape.borderRadius.resolve(TextDirection.ltr);
+    } else if (shape is StadiumBorder) {
+      shapeRadius = BorderRadius.circular(999);
+    }
     final elevation = _enabled ? (style.elevation ?? 0.0) : 0.0;
     final minSize = style.minimumSize ?? const Size(44, 44);
     final padding = style.padding ??
@@ -206,7 +184,7 @@ class _ButtonBaseState extends fw.State<_ButtonBase> {
 
     var decoration = BoxDecoration(
       color: bg,
-      borderRadius: shape.borderRadius,
+      borderRadius: shapeRadius,
       border: side != BorderSide.none
           ? Border.all(
               color: side.color,

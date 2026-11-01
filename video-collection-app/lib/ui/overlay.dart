@@ -5,6 +5,7 @@
 import 'dart:math' as math;
 import 'dart:async' show Completer, Timer;
 import 'dart:ui' show Brightness;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'package:flutter/painting.dart';
@@ -16,6 +17,7 @@ import 'text.dart';
 import 'gestures.dart';
 import 'layout.dart';
 import 'scroll.dart';
+import 'nav.dart';
 import 'theme.dart';
 
 // ---------------------------------------------------------------------------
@@ -216,13 +218,16 @@ Future<T?> showDialog<T>({
             entry.remove();
           }
         },
-        child: DialogPopBridge<T>(
-          onPopped: (result) {
-            if (!completer.isCompleted) {
-              completer.complete(result);
-              entry.remove();
-            }
-          },
+        child: DialogNavigatorScope(
+          navigatorState: createDialogNavigator(
+            context: ctx,
+            onClose: (result) {
+              if (!completer.isCompleted) {
+                completer.complete(result as T?);
+                entry.remove();
+              }
+            },
+          ),
           child: builder(ctx),
         ),
       );
@@ -592,7 +597,7 @@ enum SnackBarBehavior { fixed, floating }
 
 /// SnackBar 管理器(自研;ScaffoldMessenger.of(context).showSnackBar 兼容)。
 class ScaffoldMessenger extends fw.InheritedWidget {
-  final ScaffoldMessengerState state;
+  final SnackBarController state;
 
   const ScaffoldMessenger({
     fw.Key? key,
@@ -600,10 +605,10 @@ class ScaffoldMessenger extends fw.InheritedWidget {
     required fw.Widget child,
   }) : super(key: key, child: child);
 
-  static ScaffoldMessengerState of(fw.BuildContext context) {
+  static SnackBarController of(fw.BuildContext context) {
     final scope =
         context.getInheritedWidgetOfExactType<ScaffoldMessenger>();
-    assert(scope != null, 'ScaffoldMessenger 未挂载');
+    assert(scope != null, 'ScaffoldMessengerHost 未挂载(AppRoot)');
     return scope!.state;
   }
 
@@ -611,11 +616,15 @@ class ScaffoldMessenger extends fw.InheritedWidget {
   bool updateShouldNotify(ScaffoldMessenger oldWidget) => false;
 }
 
-class ScaffoldMessengerState extends fw.State<fw.StatefulWidget> {
+/// 轻提示控制器:队列 + 当前展示。
+class SnackBarController extends ChangeNotifier {
   final List<SnackBar> _queue = [];
   SnackBar? _current;
   Timer? _hideTimer;
   bool _visible = false;
+
+  SnackBar? get current => _current;
+  bool get visible => _visible;
 
   void showSnackBar(SnackBar snackBar) {
     _queue.add(snackBar);
@@ -634,23 +643,20 @@ class ScaffoldMessengerState extends fw.State<fw.StatefulWidget> {
   }
 
   void _showNext() {
-    if (_queue.isEmpty || !mounted) return;
-    setState(() {
-      _current = _queue.removeAt(0);
-      _visible = true;
-    });
+    if (_queue.isEmpty) return;
+    _current = _queue.removeAt(0);
+    _visible = true;
+    notifyListeners();
     _hideTimer?.cancel();
     _hideTimer = Timer(_current!.duration, _dismissCurrent);
   }
 
   void _dismissCurrent() {
     _hideTimer?.cancel();
-    if (!mounted) return;
-    setState(() {
-      _visible = false;
-      _current = null;
-    });
-    Timer(const Duration(milliseconds: 200), _showNext);
+    _visible = false;
+    _current = null;
+    notifyListeners();
+    Timer(const Duration(milliseconds: 120), _showNext);
   }
 
   @override
@@ -658,23 +664,57 @@ class ScaffoldMessengerState extends fw.State<fw.StatefulWidget> {
     _hideTimer?.cancel();
     super.dispose();
   }
+}
+
+/// 轻提示宿主:在内容之上渲染浮出消息(由 AppRoot 挂载)。
+class ScaffoldMessengerHost extends fw.StatefulWidget {
+  final fw.Widget child;
+
+  const ScaffoldMessengerHost({fw.Key? key, required this.child})
+      : super(key: key);
+
+  @override
+  fw.State<ScaffoldMessengerHost> createState() =>
+      _ScaffoldMessengerHostState();
+}
+
+class _ScaffoldMessengerHostState extends fw.State<ScaffoldMessengerHost> {
+  final SnackBarController _controller = SnackBarController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   fw.Widget build(fw.BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        if (_visible && _current != null)
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 28,
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _SnackBarView(snackBar: _current!),
-            ),
+    return ScaffoldMessenger(
+      state: _controller,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          widget.child,
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              final current = _controller.current;
+              if (!_controller.visible || current == null) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                left: 24,
+                right: 24,
+                bottom: 28,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _SnackBarView(snackBar: current),
+                ),
+              );
+            },
           ),
-      ],
+        ],
+      ),
     );
   }
 }
