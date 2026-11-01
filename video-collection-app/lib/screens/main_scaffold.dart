@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../services/analytics_tracker.dart';
 import '../utils/responsive.dart';
-import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/entropy_sidebar.dart';
 import '../widgets/brand_widgets.dart';
 import 'account_screen.dart';
@@ -26,7 +25,6 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   late int _currentIndex;
-  double _sidebarWidth = sidebarExpandedWidth;
 
   static const List<String> _pageNames = [
     'home',
@@ -81,7 +79,6 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
 
     final screens = [
@@ -97,36 +94,23 @@ class _MainScaffoldState extends State<MainScaffold> {
         autofocus: true,
         onKeyEvent: _handleGlobalKeys,
         child: Scaffold(
-          body: Column(
+          // Dart 自绘标题栏已完全移除：右上角为 windows/runner 原生实现的
+          // 最小化/最大化/关闭按钮；窗口拖拽由页面标题栏承担。
+          body: Row(
             children: [
-              // 桌面端无边框沉浸式自定义窗口标题栏
-              DesktopWindowTitleBar(isDark: isDark),
-
-              // 主体区域：左侧侧边栏 + 右侧页面视窗
+              EntropySidebar(
+                currentIndex: _currentIndex,
+                onSelect: _switchTab,
+                onSettings: _openSettings,
+                onAccount: _openAccount,
+              ),
               Expanded(
-                child: Row(
-                  children: [
-                    EntropySidebar(
-                      currentIndex: _currentIndex,
-                      onSelect: _switchTab,
-                      onSearch: _openSearch,
-                      onSettings: _openSettings,
-                      onAccount: _openAccount,
-                      onWidthChanged: (width) {
-                        if (_sidebarWidth == width) return;
-                        setState(() => _sidebarWidth = width);
-                      },
-                    ),
-                    Expanded(
-                      child: DesktopInset(
-                        sidebarWidth: _sidebarWidth,
-                        child: IndexedStack(
-                          index: _currentIndex,
-                          children: screens,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: DesktopInset(
+                  sidebarWidth: sidebarExpandedWidth,
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: screens,
+                  ),
                 ),
               ),
             ],

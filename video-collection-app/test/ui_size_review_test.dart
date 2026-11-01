@@ -102,10 +102,8 @@ void main() {
                   child: EntropySidebar(
                     currentIndex: 0,
                     onSelect: (_) {},
-                    onSearch: () {},
                     onSettings: () {},
                     onAccount: () {},
-                    onWidthChanged: (_) {},
                   ),
                 ),
                 const VerticalDivider(width: 1),
@@ -120,16 +118,6 @@ void main() {
     await expectLater(
       find.byType(Scaffold),
       matchesGoldenFile('goldens/size_sidebar_expanded.png'),
-    );
-
-    // 收起边栏
-    final collapseBtn = find.byTooltip('收起边栏');
-    expect(collapseBtn, findsOneWidget);
-    await tester.tap(collapseBtn);
-    await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(Scaffold),
-      matchesGoldenFile('goldens/size_sidebar_collapsed.png'),
     );
   });
 

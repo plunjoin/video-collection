@@ -7,7 +7,6 @@ import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
-import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/update_dialog.dart';
 import '../theme/brand_icons.dart';
 
@@ -114,9 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       body: Column(
         children: [
-          DesktopWindowTitleBar(
-            isDark: Theme.of(context).brightness == Brightness.dark,
-          ),
           Expanded(
             child: Scaffold(
               appBar: const BrandAppBar(title: Text('设置')),

@@ -34,6 +34,7 @@ type Server struct {
 	bootstrap     *bootstrap.Store
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 	rag           *rag.Service
+	watchHub      *watchHub // 一起看房间事件广播（SSE 推送源），nil 前由 NewServer 初始化
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
@@ -43,6 +44,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 		themeManager:  tm,
 		playerManager: pm,
 		bootstrap:     bs,
+		watchHub:      newWatchHub(),
 	}
 	if cs, ok := s.(store.ContentStore); ok {
 		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
@@ -87,6 +89,7 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/schema/", srv.adminWrite(srv.handleSchemaRows))
 	srv.registerWebhookRoutes(mux)
 	srv.registerBootstrapRoutes(mux)
+	srv.registerWatchRoutes(mux)
 	// 通用采集 Webhook（按注册业务类型写入，默认 article → news）
 	mux.HandleFunc("/api/webhooks/collector", srv.handleCollectorWebhook)
 	srv.registerGrowthRoutes(mux)

@@ -20,52 +20,130 @@
   "paths": {
     "/api/danmaku": {
       "get": {
-        "tags": ["Danmaku"],
+        "tags": [
+          "Danmaku"
+        ],
         "summary": "按剧集读取弹幕时间轴",
         "parameters": [
-          { "name": "video_id", "in": "query", "required": true, "schema": { "type": "integer" } },
-          { "name": "episode_key", "in": "query", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "video_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "episode_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "按播放时间排序，最多 2000 条" } }
+        "responses": {
+          "200": {
+            "description": "按播放时间排序，最多 2000 条"
+          }
+        }
       },
       "post": {
-        "tags": ["Danmaku"],
+        "tags": [
+          "Danmaku"
+        ],
         "summary": "在当前播放时间发送弹幕",
-        "security": [{ "BearerAuth": [] }, { "CookieAuth": [] }],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["video_id", "episode_key", "content"],
+                "required": [
+                  "video_id",
+                  "episode_key",
+                  "content"
+                ],
                 "properties": {
-                  "video_id": { "type": "integer" },
-                  "episode_key": { "type": "string" },
-                  "play_time_ms": { "type": "integer" },
-                  "mode": { "type": "integer", "description": "0 滚动，1 顶部，2 底部" },
-                  "color": { "type": "string" },
-                  "content": { "type": "string", "description": "1 到 40 个字" }
+                  "video_id": {
+                    "type": "integer"
+                  },
+                  "episode_key": {
+                    "type": "string"
+                  },
+                  "play_time_ms": {
+                    "type": "integer"
+                  },
+                  "mode": {
+                    "type": "integer",
+                    "description": "0 滚动，1 顶部，2 底部"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "1 到 40 个字"
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "已发送" },
-          "400": { "description": "内容或颜色无效" },
-          "401": { "description": "未登录" },
-          "429": { "description": "发送过于频繁" }
+          "200": {
+            "description": "已发送"
+          },
+          "400": {
+            "description": "内容或颜色无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "429": {
+            "description": "发送过于频繁"
+          }
         }
       },
       "delete": {
-        "tags": ["Danmaku"],
-        "summary": "删除自己的弹幕，审核员可删除任意弹幕",
-        "security": [{ "BearerAuth": [] }, { "CookieAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "query", "required": true, "schema": { "type": "integer" } }
+        "tags": [
+          "Danmaku"
         ],
-        "responses": { "200": { "description": "已删除" }, "403": { "description": "无权删除" } }
+        "summary": "删除自己的弹幕，审核员可删除任意弹幕",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已删除"
+          },
+          "403": {
+            "description": "无权删除"
+          }
+        }
       }
     },
     "/api/user/points": {
@@ -1725,6 +1803,492 @@
           }
         }
       }
+    },
+    "/api/watch/rooms": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "创建一起看房间",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "返回房间快照（含房间码），创建者成为房主",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "video_id"
+                ],
+                "properties": {
+                  "video_id": {
+                    "type": "integer"
+                  },
+                  "group_index": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "episode_index": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "control_mode": {
+                    "type": "string",
+                    "enum": [
+                      "host",
+                      "all"
+                    ],
+                    "default": "host",
+                    "description": "播放控制权限"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "查询房间详情（?code=）",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "返回房间快照，不加入房间",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/join": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "加入房间",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "返回完整快照：状态+成员+最近消息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/leave": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "退出房间",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "房主退出自动转让；无人时房间解散",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/state": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "房主推送播放状态",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "仅房主可调用；版本号自增并刷新锚点",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "group_index": {
+                    "type": "integer"
+                  },
+                  "episode_index": {
+                    "type": "integer"
+                  },
+                  "playing": {
+                    "type": "boolean"
+                  },
+                  "position_ms": {
+                    "type": "integer"
+                  },
+                  "rate": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/heartbeat": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "成员心跳（2 秒一次）",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "刷新在线状态并返回状态快照与增量消息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "position_ms": {
+                    "type": "integer"
+                  },
+                  "since_msg_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/chat": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "房间聊天",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "10 秒内最多 5 条，超出返回 429",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "content"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/host": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "转让房主",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "仅房主可调用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "user_id"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watch/rooms/control": {
+      "post": {
+        "tags": [
+          "一起看"
+        ],
+        "summary": "切换播放控制权限",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "仅房主可调用"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无权限"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "mode"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "host",
+                      "all"
+                    ],
+                    "description": "host=仅房主，all=所有成员"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2568,6 +3132,78 @@
           }
         },
         "required": []
+      },
+      "WatchRoomSnapshot": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "6 位房间码"
+          },
+          "video_id": {
+            "type": "integer"
+          },
+          "group_index": {
+            "type": "integer"
+          },
+          "episode_index": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "description": "影片名 · 剧集名"
+          },
+          "host_id": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "integer",
+            "description": "播放状态版本，变化即需对齐"
+          },
+          "playing": {
+            "type": "boolean"
+          },
+          "position_ms": {
+            "type": "integer"
+          },
+          "anchor_ms": {
+            "type": "integer",
+            "description": "锚点 unix 毫秒"
+          },
+          "target_position_ms": {
+            "type": "integer",
+            "description": "服务端按锚点推算的当前目标进度"
+          },
+          "rate": {
+            "type": "number"
+          },
+          "viewer_is_host": {
+            "type": "boolean"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "server_time_ms": {
+            "type": "integer"
+          },
+          "control_mode": {
+            "type": "string",
+            "enum": [
+              "host",
+              "all"
+            ],
+            "description": "播放控制权限"
+          }
+        }
       }
     }
   }

@@ -706,6 +706,200 @@ class ApiService {
   Future<void> deleteDanmaku(int id) =>
       userRequest('/api/danmaku?id=$id', method: 'DELETE');
 
+  // ---- 一起看（Watch Together）----
+
+  /// 创建一起看房间。controlMode：host=仅房主控制，all=所有成员可控制；
+  /// 传 null 则不下发该字段（兼容未升级的旧服务端）。
+  Future<Map<String, dynamic>> createWatchRoom({
+    required int videoId,
+    int groupIndex = 0,
+    int episodeIndex = 0,
+    String? controlMode,
+  }) async {
+    final response = await userRequest(
+      '/api/watch/rooms',
+      method: 'POST',
+      body: {
+        'video_id': videoId,
+        'group_index': groupIndex,
+        'episode_index': episodeIndex,
+        'control_mode': ?controlMode,
+      },
+    );
+    return _watchSnapshot(response);
+  }
+
+  /// 读取房间快照（不加入）。
+  Future<Map<String, dynamic>> getWatchRoom(String code) async {
+    final path = Uri(
+      path: '/api/watch/rooms',
+      queryParameters: {'code': code},
+    ).toString();
+    final response = await userRequest(path);
+    return _watchSnapshot(response);
+  }
+
+  /// 加入房间并返回完整快照。
+  Future<Map<String, dynamic>> joinWatchRoom(String code) async {
+    final response = await userRequest(
+      '/api/watch/rooms/join',
+      method: 'POST',
+      body: {'code': code},
+    );
+    return _watchSnapshot(response);
+  }
+
+  /// 退出房间。
+  Future<void> leaveWatchRoom(String code) => userRequest(
+    '/api/watch/rooms/leave',
+    method: 'POST',
+    body: {'code': code},
+  );
+
+  /// 房主推送播放状态。传 null 的字段保持不变。
+  Future<Map<String, dynamic>> pushWatchState(
+    String code, {
+    int? groupIndex,
+    int? episodeIndex,
+    bool? playing,
+    int? positionMs,
+    double? rate,
+  }) async {
+    final response = await userRequest(
+      '/api/watch/rooms/state',
+      method: 'POST',
+      body: {
+        'code': code,
+        'group_index': ?groupIndex,
+        'episode_index': ?episodeIndex,
+        'playing': ?playing,
+        'position_ms': ?positionMs,
+        'rate': ?rate,
+      },
+    );
+    return _watchSnapshot(response);
+  }
+
+  /// 成员心跳。失败返回 null，由调用方按掉线处理。
+  Future<Map<String, dynamic>?> watchHeartbeat({
+    required String code,
+    required int positionMs,
+    required int sinceMsgId,
+  }) async {
+    try {
+      final response = await userRequest(
+        '/api/watch/rooms/heartbeat',
+        method: 'POST',
+        body: {
+          'code': code,
+          'position_ms': positionMs,
+          'since_msg_id': sinceMsgId,
+        },
+      );
+      return _watchSnapshot(response);
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 房间聊天。
+  Future<Map<String, dynamic>> sendWatchChat({
+    required String code,
+    required String content,
+  }) async {
+    final response = await userRequest(
+      '/api/watch/rooms/chat',
+      method: 'POST',
+      body: {'code': code, 'content': content},
+    );
+    final data = response['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('发送失败');
+  }
+
+  /// 房主转让。
+  Future<Map<String, dynamic>> transferWatchHost({
+    required String code,
+    required int userId,
+  }) async {
+    final response = await userRequest(
+      '/api/watch/rooms/host',
+      method: 'POST',
+      body: {'code': code, 'user_id': userId},
+    );
+    return _watchSnapshot(response);
+  }
+
+  /// 房主切换播放控制权限（host / all）。
+  Future<Map<String, dynamic>> setWatchControlMode({
+    required String code,
+    required String mode,
+  }) async {
+    final response = await userRequest(
+      '/api/watch/rooms/control',
+      method: 'POST',
+      body: {'code': code, 'mode': mode},
+    );
+    return _watchSnapshot(response);
+  }
+
+  /// 一起看房间 SSE 事件流。
+  ///
+  /// yield 形如 `{'kind': 'state'|'chat'|'closed', 'data': 动态载荷}`；
+  /// 连接失败或服务端关闭时流结束（onError/onDone），由调用方负责重连与轮询回退。
+  Stream<Map<String, dynamic>> watchEvents(String code) async* {
+    final request = http.Request(
+      'GET',
+      Uri.parse(
+        '$_baseUrl/api/watch/rooms/events?code=${Uri.encodeComponent(code)}',
+      ),
+    );
+    request.headers['Accept'] = 'text/event-stream';
+    request.headers['Cache-Control'] = 'no-cache';
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Cookie'] = 'agg_auth_token=$token';
+    }
+    final response = await _client.send(request);
+    if (response.statusCode != 200) {
+      throw ApiException('事件流连接失败', response.statusCode);
+    }
+    var eventName = '';
+    final dataBuffer = <String>[];
+    await for (final line in response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())) {
+      if (line.isEmpty) {
+        if (eventName.isNotEmpty && dataBuffer.isNotEmpty) {
+          Map<String, dynamic>? decoded;
+          try {
+            final value = json.decode(dataBuffer.join('\n'));
+            if (value is Map) decoded = Map<String, dynamic>.from(value);
+          } catch (_) {}
+          yield {'kind': eventName, 'data': decoded};
+        }
+        eventName = '';
+        dataBuffer.clear();
+        continue;
+      }
+      if (line.startsWith('event: ')) {
+        eventName = line.substring(7).trim();
+      } else if (line.startsWith('data: ')) {
+        dataBuffer.add(line.substring(6));
+      }
+      // `: ping` 注释级 keepalive 直接忽略
+    }
+  }
+
+  Map<String, dynamic> _watchSnapshot(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('房间数据无效');
+  }
+
+
   Future<Map<String, dynamic>> setCommentLike({
     required int commentId,
     required bool liked,

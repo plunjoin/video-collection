@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -104,6 +105,7 @@ type ContentStore interface {
 	ListDanmaku(context.Context, int, string) ([]Danmaku, error)
 	AddDanmaku(context.Context, *Danmaku) error
 	DeleteDanmaku(context.Context, int, int, bool) error
+	WatchStore
 }
 
 // Both supported drivers accept numbered $n placeholders and RETURNING.
@@ -184,6 +186,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 	if err = migrateDanmaku(tx, id, timestamp); err != nil {
 		return err
 	}
+	if err = migrateWatch(tx, id, timestamp); err != nil {
+		return err
+	}
 	if err = migrateWiki(tx, id, timestamp); err != nil {
 		return err
 	}
@@ -214,6 +219,8 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS source_url TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS source_name TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN IF NOT EXISTS published_at TEXT NOT NULL DEFAULT ''")
+		_, _ = s.db.Exec("ALTER TABLE watch_rooms ADD COLUMN IF NOT EXISTS rate REAL NOT NULL DEFAULT 1")
+		_, _ = s.db.Exec("ALTER TABLE watch_rooms ADD COLUMN IF NOT EXISTS control_mode TEXT NOT NULL DEFAULT 'host'")
 	} else {
 		_, _ = s.db.Exec("ALTER TABLE analytics_events ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
 		_, _ = s.db.Exec("ALTER TABLE visitor_days ADD COLUMN platform TEXT NOT NULL DEFAULT 'web'")
@@ -224,6 +231,13 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN source_name TEXT NOT NULL DEFAULT ''")
 		_, _ = s.db.Exec("ALTER TABLE content_entries ADD COLUMN published_at TEXT NOT NULL DEFAULT ''")
+		// 一起看房间早期版本没有 rate 列（房主倍速同步），补齐后旧库才能继续使用。
+		if _, err := s.db.Exec("ALTER TABLE watch_rooms ADD COLUMN rate REAL NOT NULL DEFAULT 1"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			log.Printf("[store] watch_rooms 补 rate 列: %v", err)
+		}
+		if _, err := s.db.Exec("ALTER TABLE watch_rooms ADD COLUMN control_mode TEXT NOT NULL DEFAULT 'host'"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			log.Printf("[store] watch_rooms 补 control_mode 列: %v", err)
+		}
 	}
 	return nil
 }

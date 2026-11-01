@@ -14,14 +14,17 @@ import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/member_avatar.dart';
+import '../widgets/window_drag_area.dart';
 import 'account_screen.dart';
 import 'anime_detail_screen.dart';
 import 'content_hub_screen.dart';
 import 'growth_screen.dart';
 import 'player_screen.dart';
 import 'profile_edit_screen.dart';
+import 'profile_hub_screen.dart';
 import 'settings_screen.dart';
 import 'timeline_screen.dart';
+import 'watch_lobby_screen.dart';
 import '../widgets/update_dialog.dart';
 import '../theme/brand_icons.dart';
 
@@ -286,6 +289,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     28,
                   ),
                   children: [
+                    // 桌面端顶部让位条：给右上角原生窗口按钮留出空间，同时兼作拖拽区
+                    // （个人中心是自定义头部，不走 BrandAppBar，需要自行预留）
+                    if (kBrandAppBarTopInset > 0) ...[
+                      SizedBox(
+                        height: kBrandAppBarTopInset,
+                        child: WindowDragArea(
+                          enabled: true,
+                          child: ColoredBox(color: pageColor),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     if (wideDesktop)
                       _buildDesktopHeader(
                         context,
@@ -358,10 +373,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             children: [
                               _Shortcut(
-                                icon: BIcons.gamepad,
-                                color: const Color(0xFF4DA3FF),
-                                label: '我的游戏',
-                                onTap: () => _soon('我的游戏'),
+                                icon: BIcons.live,
+                                color: const Color(0xFFFF7EB6),
+                                label: '一起看大厅',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const WatchLobbyScreen(),
+                                  ),
+                                ),
                               ),
                               _Shortcut(
                                 icon: BIcons.download,
@@ -374,10 +393,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               _Shortcut(
-                                icon: BIcons.hanger,
-                                color: const Color(0xFFFF7EB6),
-                                label: '主题换肤',
-                                onTap: _openSettings,
+                                icon: BIcons.grid,
+                                color: const Color(0xFF4DA3FF),
+                                label: '功能中心',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfileHubScreen(),
+                                  ),
+                                ),
                               ),
                               _Shortcut(
                                 icon: BIcons.flag,
@@ -698,18 +721,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                _CircleIcon(
-                  icon: BIcons.bell,
-                  badge: _unread > 0,
-                  onTap: () => _openGrowth(4),
-                ),
-                const SizedBox(width: 6),
-                _CircleIcon(
-                  icon: BIcons.settings,
-                  tooltip: '设置',
-                  onTap: _openSettings,
-                ),
+                // 桌面端不再放铃铛/设置圆形按钮：右上角是原生窗口按钮的位置，
+                // 设置已收敛到侧栏底部与功能中心，通知走成长中心。
               ] else ...[
                 FilledButton.icon(
                   onPressed: _openAccount,
@@ -781,22 +794,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isLoggedIn = appState.isLoggedIn;
     return Column(
       children: [
-        Row(
-          children: [
-            _CircleIcon(
-              icon: BIcons.settings,
-              tooltip: '设置',
-              onTap: _openSettings,
-            ),
-            const Spacer(),
-            _CircleIcon(
-              icon: BIcons.bell,
-              badge: _unread > 0,
-              onTap: () => _openGrowth(4),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
+        // 顶部设置/铃铛圆钮仅移动端显示：
+        // 桌面壳（含窄窗口回退到本头部时）右上角是原生窗口按钮的位置，
+        // 设置走侧栏底部/功能中心，通知走成长中心
+        if (!Responsive.isDesktop(context)) ...[
+          Row(
+            children: [
+              _CircleIcon(
+                icon: BIcons.settings,
+                tooltip: '设置',
+                onTap: _openSettings,
+              ),
+              const Spacer(),
+              _CircleIcon(
+                icon: BIcons.bell,
+                badge: _unread > 0,
+                onTap: () => _openGrowth(4),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -950,22 +968,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 18),
         Row(
           children: [
-            _Stat(
-              value: _compact(favorites.length),
-              label: '追番',
-              onTap: () => _openFavorites(favorites),
+            Expanded(
+              child: _Stat(
+                value: _compact(favorites.length),
+                label: '追番',
+                onTap: () => _openFavorites(favorites),
+              ),
             ),
             _statDivider(isDark),
-            _Stat(
-              value: _compact(history.length),
-              label: '足迹',
-              onTap: () => _openHistory(history, appState),
+            Expanded(
+              child: _Stat(
+                value: _compact(history.length),
+                label: '足迹',
+                onTap: () => _openHistory(history, appState),
+              ),
             ),
             _statDivider(isDark),
-            _Stat(
-              value: _compact(_points),
-              label: '积分',
-              onTap: () => _openGrowth(0),
+            Expanded(
+              child: _Stat(
+                value: _compact(_points),
+                label: '积分',
+                onTap: () => _openGrowth(0),
+              ),
             ),
           ],
         ),
@@ -1234,25 +1258,24 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+    // 调用处已经包了 Expanded，这里不能再包一层，否则两层 FlexParentData 冲突
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.lightTextSecondary,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.lightTextSecondary,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

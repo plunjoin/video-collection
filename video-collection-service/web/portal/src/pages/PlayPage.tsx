@@ -2,8 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../layouts/Layout';
 import BrandIcon from '../components/BrandIcon';
 import VideoCard from '../components/VideoCard';
-import { getVideoDetail, type VideoRecord, type PlayGroup, type Episode } from '../lib/api';
+import WatchTogetherPanel from '../components/WatchTogetherPanel';
+import WatchDanmakuOverlay, {
+  type WatchDanmakuOverlayHandle,
+} from '../components/WatchDanmakuOverlay';
+import {
+  getVideoDetail,
+  type VideoRecord,
+  type PlayGroup,
+  type Episode,
+} from '../lib/api';
 import { getUser, getFavorites, addFavorite, removeFavorite } from '../lib/auth';
+import {
+  WatchTogetherClient,
+  type WatchSnapshot,
+} from '../lib/watch-together';
 
 interface Props {
   id?: string;
@@ -31,6 +44,207 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
 
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const modernPlayerRef = useRef<any>(null);
+
+  // 一起看：同步引擎与选集索引镜像（避免闭包拿到旧值）
+  const watchRef = useRef<WatchTogetherClient | null>(null);
+  const selectedGroupIdxRef = useRef(0);
+  const selectedEpIdxRef = useRef(0);
+  const [, setWatchTick] = useState(0);
+
+  // 一起看聊天实时弹幕：开关持久化，弹幕层挂载在播放器舞台内
+  const watchDanmakuRef = useRef<WatchDanmakuOverlayHandle>(null);
+  const [watchDanmakuOn, setWatchDanmakuOn] = useState(true);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bllii_watch_danmaku');
+      if (saved !== null) setWatchDanmakuOn(saved === '1');
+    } catch {}
+  }, []);
+  const toggleWatchDanmaku = () => {
+    setWatchDanmakuOn((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('bllii_watch_danmaku', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const client = new WatchTogetherClient();
+    client.myUserId = getUser()?.id ?? null;
+    client.getPositionMs = () => {
+      const vj = modernPlayerRef.current?.player;
+      return vj ? (vj.currentTime() || 0) * 1000 : 0;
+    };
+    client.isPlaying = () => {
+      const vj = modernPlayerRef.current?.player;
+      return vj ? !vj.paused() : false;
+    };
+    client.getGroupIndex = () =>
+      modernPlayerRef.current?.currentRouteIndex ?? selectedGroupIdxRef.current;
+    client.getEpisodeIndex = () =>
+      modernPlayerRef.current?.currentEpisodeIndex ?? selectedEpIdxRef.current;
+    client.onNotify = (message) => {
+      console.info('[watch]', message);
+    };
+    // 聊天消息送上实时弹幕（与客户端一致）：自己的消息用品牌粉区分
+    client.onChatArrived = (msg, own) => {
+      watchDanmakuRef.current?.push({
+        id: msg.id,
+        text: `${msg.author_name}：${msg.content}`,
+        color: own ? '#FF89C7' : undefined,
+      });
+    };
+    client.onChange = () => {
+      setWatchTick((t) => t + 1);
+      syncWatchControls();
+    };
+    client.applyRemote = (snap) => applyWatchRemote(snap);
+    watchRef.current = client;
+    return () => {
+      client.destroy();
+      watchRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** 应用远端播放状态：倍速 / 切集 / 播放暂停 / 进度对齐。 */
+  const applyWatchRemote = (snap: WatchSnapshot) => {
+    const mp = modernPlayerRef.current;
+    const vj = mp?.player;
+    if (!mp || !vj) return;
+    const watch = watchRef.current;
+    try {
+      const currentRate = typeof vj.playbackRate === 'function' ? vj.playbackRate() || 1 : 1;
+      if (snap.rate > 0 && Math.abs(currentRate - snap.rate) > 0.01) {
+        vj.playbackRate(snap.rate);
+      }
+    } catch {}
+    const epChanged =
+      snap.group_index !== mp.currentRouteIndex ||
+      snap.episode_index !== mp.currentEpisodeIndex;
+    if (epChanged) {
+      try {
+        mp.playEpisode(snap.group_index, snap.episode_index);
+      } catch {}
+      // 媒体加载完成前 currentTime 赋值会被忽略：挂起，loadedmetadata 时对齐
+      if (watch) {
+        watch.pendingSeek = { ms: snap.target_position_ms, playing: snap.playing };
+      }
+      window.setTimeout(() => applyPendingSeek(), 2500);
+      return;
+    }
+    try {
+      if (snap.playing) {
+        // 浏览器自动播放策略可能拦截 play()：被拒时静音重试（静音自动播放始终允许），
+        // 否则成员会永远停在 0:00 不跟。
+        const attempt = vj.play();
+        if (attempt && typeof attempt.catch === 'function') {
+          attempt.catch(() => {
+            try {
+              if (!vj.muted()) {
+                vj.muted(true);
+                const retry = vj.play();
+                if (retry && typeof retry.catch === 'function') retry.catch(() => {});
+                if (watch) watch.notify('已自动静音以保持同步，点击播放器可取消静音');
+              }
+            } catch {}
+          });
+        }
+      } else {
+        vj.pause();
+      }
+      const ready = typeof vj.readyState === 'function' ? vj.readyState() : 4;
+      if (ready >= 1) {
+        vj.currentTime(snap.target_position_ms / 1000);
+      } else if (watch) {
+        watch.pendingSeek = { ms: snap.target_position_ms, playing: snap.playing };
+      }
+    } catch {}
+  };
+
+  /** 媒体就绪后应用挂起的远端进度对齐。 */
+  const applyPendingSeek = () => {
+    const watch = watchRef.current;
+    const pending = watch?.pendingSeek;
+    const vj = modernPlayerRef.current?.player;
+    if (!pending || !vj) return;
+    try {
+      const ready = typeof vj.readyState === 'function' ? vj.readyState() : 4;
+      if (ready < 1) return; // 仍未就绪，等下一次 loadedmetadata
+      vj.currentTime(pending.ms / 1000);
+      if (pending.playing) vj.play();
+      else vj.pause();
+      watch!.pendingSeek = null;
+    } catch {}
+  };
+
+  /** 成员视角：选集 / 线路控制交给房主。 */
+  const watchGuestLocked = () => {
+    const watch = watchRef.current;
+    if (watch && watch.active && !watch.canControl) {
+      watch.notify('房主控制中');
+      return true;
+    }
+    return false;
+  };
+
+  /** 无控制权的成员隐藏播放键与进度条（音量、全屏等本地控制保留）。 */
+  const syncWatchControls = () => {
+    const watch = watchRef.current;
+    const vj = modernPlayerRef.current?.player;
+    if (!vj) return;
+    const controlBar = typeof vj.getChild === 'function' ? vj.getChild('controlBar') : null;
+    if (!controlBar) return;
+    const canControl = watch ? watch.canControl : true;
+    for (const name of ['playToggle', 'progressControl']) {
+      const child = typeof controlBar.getChild === 'function' ? controlBar.getChild(name) : null;
+      if (!child) continue;
+      try {
+        if (canControl) child.show();
+        else child.hide();
+      } catch {}
+    }
+  };
+
+  /** 一起看事件：有控制权则推送状态；无控制权则回弹本地越权操作，跟随房主。 */
+  const handleWatchLiveEvent = (
+    vj: any,
+    kind: 'play' | 'pause' | 'seeked'
+  ) => {
+    const watch = watchRef.current;
+    if (!watch || !watch.active || watch.applyingRemote) return;
+    if (watch.canControl) {
+      void watch.pushState({
+        playing: !vj.paused(),
+        position_ms: Math.round((vj.currentTime() || 0) * 1000),
+        rate:
+          typeof vj.playbackRate === 'function' ? vj.playbackRate() || 1 : 1,
+      });
+      return;
+    }
+    // 无控制权：本地播放/暂停/拖动在约 2 秒内被拉回房主状态，这里立即回弹。
+    const snap = watch.snapshot;
+    if (!snap) return;
+    let reverted = false;
+    try {
+      if (snap.playing && vj.paused()) {
+        reverted = true;
+        vj.play();
+      } else if (!snap.playing && !vj.paused()) {
+        reverted = true;
+        vj.pause();
+      }
+      const drift = snap.target_position_ms / 1000 - (vj.currentTime() || 0);
+      if (Math.abs(drift) > 1.5) {
+        reverted = true;
+        vj.currentTime(snap.target_position_ms / 1000);
+      }
+    } catch {}
+    if (reverted) watch.notify('房主控制中');
+  };
 
   // 1. 数据获取（若 SSR 未直接提供或切换了 id）
   useEffect(() => {
@@ -142,6 +356,8 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
 
         setSelectedGroupIdx(initRoute);
         setSelectedEpIdx(initEp);
+        selectedGroupIdxRef.current = initRoute;
+        selectedEpIdxRef.current = initEp;
 
         // 如果已存在旧实例，安全销毁
         if (modernPlayerRef.current) {
@@ -160,6 +376,37 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
           onEpisodeChange: (rIdx: number, epIdx: number, ep: any) => {
             setSelectedGroupIdx(rIdx);
             setSelectedEpIdx(epIdx);
+            selectedGroupIdxRef.current = rIdx;
+            selectedEpIdxRef.current = epIdx;
+
+            // 一起看：无控制权成员的非远端切集（如自动连播）立即拉回房主进度
+            const watchClient = watchRef.current;
+            if (
+              watchClient &&
+              watchClient.active &&
+              !watchClient.canControl &&
+              !watchClient.applyingRemote &&
+              watchClient.snapshot &&
+              (watchClient.snapshot.group_index !== rIdx ||
+                watchClient.snapshot.episode_index !== epIdx)
+            ) {
+              try {
+                modernPlayerRef.current?.playEpisode(
+                  watchClient.snapshot.group_index,
+                  watchClient.snapshot.episode_index
+                );
+              } catch {}
+              return;
+            }
+            // 有控制权者切集后推送状态
+            if (watchClient && watchClient.canControl && !watchClient.applyingRemote) {
+              void watchClient.pushState({
+                group_index: rIdx,
+                episode_index: epIdx,
+                playing: true,
+                position_ms: 0,
+              });
+            }
 
             // 无刷新同步 URL 参数
             const newUrl = new URL(window.location.href);
@@ -247,6 +494,25 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
 
         modernPlayerRef.current = player;
         player.loadVideoData(video, initRoute, initEp, resumeTime);
+
+        // 一起看：本地播放态变化时推送状态；无控制权的成员由 handleWatchLiveEvent 回弹
+        const vj = player.player;
+        if (vj && typeof vj.on === 'function') {
+          vj.on('play', () => handleWatchLiveEvent(vj, 'play'));
+          vj.on('pause', () => handleWatchLiveEvent(vj, 'pause'));
+          vj.on('seeked', () => handleWatchLiveEvent(vj, 'seeked'));
+          // 媒体就绪后应用挂起的远端对齐（加入房间/切集时媒体可能尚未加载）
+          vj.on('loadedmetadata', () => applyPendingSeek());
+          vj.on('ratechange', () => {
+            const watchClient = watchRef.current;
+            if (!watchClient || !watchClient.isHost || watchClient.applyingRemote) return;
+            void watchClient.pushState({
+              rate:
+                typeof vj.playbackRate === 'function' ? vj.playbackRate() || 1 : 1,
+            });
+          });
+          syncWatchControls();
+        }
       } catch (err) {
         console.error('初始化现代化播放器失败:', err);
       }
@@ -267,7 +533,9 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
 
   // 交互处理器
   const handleSelectEp = (epIdx: number) => {
+    if (watchGuestLocked()) return;
     setSelectedEpIdx(epIdx);
+    selectedEpIdxRef.current = epIdx;
     if (modernPlayerRef.current) {
       modernPlayerRef.current.playEpisode(
         modernPlayerRef.current.currentRouteIndex,
@@ -277,20 +545,25 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
   };
 
   const handleSelectRoute = (rIdx: number) => {
+    if (watchGuestLocked()) return;
     setSelectedGroupIdx(rIdx);
     setSelectedEpIdx(0);
+    selectedGroupIdxRef.current = rIdx;
+    selectedEpIdxRef.current = 0;
     if (modernPlayerRef.current) {
       modernPlayerRef.current.switchRoute(rIdx);
     }
   };
 
   const handlePrevEp = () => {
+    if (watchGuestLocked()) return;
     if (modernPlayerRef.current) {
       modernPlayerRef.current.playPrevEpisode();
     }
   };
 
   const handleNextEp = () => {
+    if (watchGuestLocked()) return;
     if (modernPlayerRef.current) {
       modernPlayerRef.current.playNextEpisode();
     }
@@ -356,6 +629,24 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
     url: '',
   };
   const epLabel = currentEp.name || `第${String(selectedEpIdx + 1).padStart(2, '0')}话`;
+
+  // 一起看面板：入房后置顶到右栏首位，未入房时收在选集下方
+  const watchActive = watchRef.current?.active === true;
+  const watchPanel = watchRef.current && (
+    <WatchTogetherPanel
+      watch={watchRef.current}
+      videoId={Number(video.id)}
+      videoName={video.name}
+      danmakuOn={watchDanmakuOn}
+      onToggleDanmaku={toggleWatchDanmaku}
+      currentGroupIndex={() => selectedGroupIdxRef.current}
+      currentEpisodeIndex={() => selectedEpIdxRef.current}
+      currentEpisodeName={() =>
+        episodes[selectedEpIdx]?.name ||
+        `第${String(selectedEpIdx + 1).padStart(2, '0')}话`
+      }
+    />
+  );
 
   return (
     <Layout
@@ -447,6 +738,11 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
                   __html:
                     '<video-js id="vplayer-element" class="video-js vjs-big-play-centered vjs-fill"></video-js>',
                 }}
+              />
+              {/* 一起看聊天实时弹幕层（纯展示，不遮挡播放器交互） */}
+              <WatchDanmakuOverlay
+                ref={watchDanmakuRef}
+                enabled={watchDanmakuOn}
               />
             </div>
 
@@ -553,8 +849,10 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
             </div>
           </div>
 
-          {/* 右侧：播放节点与选集控制面板 */}
+          {/* 右侧：一起看（入房时置顶）+ 播放节点与选集控制面板 */}
           <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4">
+            {watchActive && watchPanel}
+
             {/* 播放线路 */}
             {playGroups.length > 1 && (
               <div
@@ -651,6 +949,9 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
                 })}
               </div>
             </div>
+
+            {/* 一起看：建房 / 加入房间（未入房时收在选集下方） */}
+            {!watchActive && watchPanel}
           </div>
         </div>
 

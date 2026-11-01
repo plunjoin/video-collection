@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'brand_components.dart';
 import '../theme/brand_icons.dart';
+import 'window_drag_area.dart';
 
 /// 具有 bllii 品牌渐变色与缓冲指示的高精度进度条轨道
 class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
@@ -510,6 +511,14 @@ class BrandPlayerTopBar extends StatelessWidget {
   final VoidCallback onToggleAspect;
   final VoidCallback? onSelectRoute;
   final bool isCompact;
+  /// 额外顶部内边距：桌面端为右上角原生窗口控制按钮（最小化/最大化/关闭）让位。
+  final double topInset;
+  /// 标题区域是否可拖拽移动窗口（桌面非全屏时开启）。
+  final bool draggable;
+  /// 是否显示工具胶囊（全屏时 true；桌面页面 false，工具收进更多菜单）。
+  final bool showTools;
+  /// 顶部右侧自定义动作（投屏/分享等），排在工具胶囊之后。
+  final List<Widget>? trailing;
 
   const BrandPlayerTopBar({
     super.key,
@@ -523,14 +532,20 @@ class BrandPlayerTopBar extends StatelessWidget {
     required this.onToggleAspect,
     this.onSelectRoute,
     this.isCompact = false,
+    this.topInset = 0,
+    this.draggable = false,
+    this.showTools = true,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 10 : 16,
-        vertical: isCompact ? 6 : 10,
+      padding: EdgeInsets.fromLTRB(
+        isCompact ? 10 : 16,
+        (isCompact ? 6 : 10) + topInset,
+        isCompact ? 10 : 16,
+        isCompact ? 6 : 10,
       ),
       child: Row(
         children: [
@@ -544,54 +559,59 @@ class BrandPlayerTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 10),
 
-          // 标题与剧集标签
+          // 标题与剧集标签（桌面端此区域按下即可拖拽移动窗口）
           Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isCompact ? 13 : 15,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+            child: WindowDragArea(
+              enabled: draggable,
+              startOnPress: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isCompact ? 13 : 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
-                ),
-                if (episodeName != null && episodeName!.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  BrandBadge(
-                    label: episodeName!,
-                    isGradient: true,
-                  ),
+                  if (episodeName != null && episodeName!.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    BrandBadge(
+                      label: episodeName!,
+                      isGradient: true,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // 极光超清画质增强按键
-          BrandPlayerPill(
-            leading: BrandIcon(
-              BIcons.sparkles,
-              size: isCompact ? 12 : 14,
-              color: isEnhanced ? Colors.white : AppColors.gold,
+          if (showTools) ...[
+            // 极光超清画质增强按键
+            BrandPlayerPill(
+              leading: BrandIcon(
+                BIcons.sparkles,
+                size: isCompact ? 12 : 14,
+                color: isEnhanced ? Colors.white : AppColors.gold,
+              ),
+              label: isEnhanced ? (isCompact ? '增强' : '极光增强') : (isCompact ? '原画' : '原画画质'),
+              active: isEnhanced,
+              isGradient: true,
+              tooltip: '切换极光画质增强',
+              onPressed: onToggleEnhance,
+              fontSize: isCompact ? 10 : 11,
             ),
-            label: isEnhanced ? (isCompact ? '增强' : '极光增强') : (isCompact ? '原画' : '原画画质'),
-            active: isEnhanced,
-            isGradient: true,
-            tooltip: '切换极光画质增强',
-            onPressed: onToggleEnhance,
-            fontSize: isCompact ? 10 : 11,
-          ),
-          const SizedBox(width: 6),
+            const SizedBox(width: 6),
 
-          // 画面比例胶囊
-          BrandPlayerPill(
+            // 画面比例胶囊
+            BrandPlayerPill(
             leading: BrandIcon(
               BIcons.ratio,
               size: isCompact ? 12 : 14,
@@ -619,6 +639,8 @@ class BrandPlayerTopBar extends StatelessWidget {
               fontSize: isCompact ? 10 : 11,
             ),
           ],
+          ],
+          ...?trailing,
         ],
       ),
     );
@@ -626,7 +648,7 @@ class BrandPlayerTopBar extends StatelessWidget {
 }
 
 /// 播放器悬浮磨砂底栏 (包含品牌渐变滑块、Mini播放、时间戳、弹幕开关、倍速选择、选集抽屉、全屏)
-class BrandPlayerBottomDock extends StatelessWidget {
+class BrandPlayerBottomDock extends StatefulWidget {
   final Duration position;
   final Duration duration;
   final double bufferProgress;
@@ -634,15 +656,23 @@ class BrandPlayerBottomDock extends StatelessWidget {
   final bool isFullscreen;
   final bool danmakuEnabled;
   final double speed;
+  final double volume;
   final ValueChanged<double> onSeek;
   final VoidCallback onTogglePlay;
+  final VoidCallback? onPlayPrev;
   final VoidCallback? onPlayNext;
+  final ValueChanged<double>? onVolume;
   final VoidCallback onToggleDanmaku;
   final VoidCallback onSelectSpeed;
   final VoidCallback? onToggleDrawer;
   final VoidCallback onToggleFullscreen;
   final String Function(Duration) formatDuration;
   final bool isCompact;
+  /// 「更多」菜单（线路/章节时间线/分享等）；为空则不显示入口
+  final List<PopupMenuEntry<String>> moreItems;
+  final ValueChanged<String>? onMoreSelected;
+  /// 进度条 hover 气泡上的附加标签（章节/高光名），按毫秒查询
+  final String? Function(double ms)? bubbleLabelFor;
 
   const BrandPlayerBottomDock({
     super.key,
@@ -653,23 +683,42 @@ class BrandPlayerBottomDock extends StatelessWidget {
     required this.isFullscreen,
     required this.danmakuEnabled,
     required this.speed,
+    required this.volume,
     required this.onSeek,
     required this.onTogglePlay,
-    required this.onPlayNext,
     required this.onToggleDanmaku,
     required this.onSelectSpeed,
-    required this.onToggleDrawer,
     required this.onToggleFullscreen,
     required this.formatDuration,
+    this.onPlayPrev,
+    this.onPlayNext,
+    this.onVolume,
+    this.onToggleDrawer,
+    this.moreItems = const [],
+    this.onMoreSelected,
+    this.bubbleLabelFor,
     this.isCompact = false,
   });
 
   @override
+  State<BrandPlayerBottomDock> createState() => _BrandPlayerBottomDockState();
+}
+
+class _BrandPlayerBottomDockState extends State<BrandPlayerBottomDock> {
+  bool _bubbleHover = false;
+  double _bubbleFrac = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final maxMs = (duration.inMilliseconds > 0 ? duration.inMilliseconds : 1)
+    final widget = this.widget;
+    final maxMs = (widget.duration.inMilliseconds > 0
+            ? widget.duration.inMilliseconds
+            : 1)
         .toDouble();
-    final currentMs =
-        position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble();
+    final currentMs = widget.position.inMilliseconds
+        .clamp(0, widget.duration.inMilliseconds)
+        .toDouble();
+    final isCompact = widget.isCompact;
 
     return Container(
       margin: EdgeInsets.fromLTRB(
@@ -707,55 +756,56 @@ class BrandPlayerBottomDock extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 品牌流光进度条 (含缓冲层、渐变已播放层与发光游标)
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: isCompact ? 3.0 : 3.5,
-                    trackShape: BrandGradientSliderTrackShape(
-                      gradient: AppColors.brandGradient,
-                      bufferProgress: bufferProgress,
-                      additionalActiveTrackHeight: 1.0,
-                    ),
-                    thumbShape: BrandSliderThumbShape(
-                      radius: isCompact ? 5.5 : 6.5,
-                      glowColor: AppColors.purple,
-                      ringColor: AppColors.primary400,
-                    ),
-                    overlayShape: RoundSliderOverlayShape(
-                      overlayRadius: isCompact ? 10.0 : 14.0,
-                    ),
-                    overlayColor: AppColors.primary500.withValues(alpha: 0.15),
-                    activeTrackColor: AppColors.primary500,
-                    inactiveTrackColor: Colors.white.withValues(alpha: 0.18),
-                  ),
-                  child: Slider(
-                    value: currentMs,
-                    min: 0.0,
-                    max: maxMs,
-                    onChanged: onSeek,
+                // hover 气泡容纳区（悬停进度条时展开，平时收起）
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: _bubbleHover ? (isCompact ? 44 : 50) : 0,
+                    child: _bubbleHover
+                        ? Align(
+                            alignment: Alignment.bottomLeft,
+                            child: _HoverBubble(
+                              text: widget.formatDuration(
+                                Duration(
+                                  milliseconds: (_bubbleFrac * maxMs).round(),
+                                ),
+                              ),
+                              tag: widget.bubbleLabelFor
+                                  ?.call(_bubbleFrac * maxMs),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
-
-                // 底部动作控制行
+                // 底部动作控制行（规格顺序）：
+                // 播放/暂停 → 上一集 → 下一集 → 进度条 → 时间 → 音量 → 倍速 → 弹幕 → 更多 → 全屏
                 Row(
                   children: [
-                    // Mini 播放/暂停键
                     BrandPlayerButton(
-                      icon: isPlaying
-                          ? BIcons.pause
-                          : BIcons.play,
-                      onPressed: onTogglePlay,
+                      icon: widget.isPlaying ? BIcons.pause : BIcons.play,
+                      onPressed: widget.onTogglePlay,
                       size: isCompact ? 28 : 32,
                       iconSize: isCompact ? 16 : 18,
-                      tooltip: isPlaying ? '暂停' : '播放',
+                      tooltip: widget.isPlaying ? '暂停' : '播放',
                     ),
                     const SizedBox(width: 4),
 
-                    // 下一集快捷键
-                    if (onPlayNext != null) ...[
+                    if (widget.onPlayPrev != null) ...[
+                      BrandPlayerButton(
+                        icon: BIcons.prev,
+                        onPressed: widget.onPlayPrev,
+                        size: isCompact ? 28 : 32,
+                        iconSize: isCompact ? 16 : 18,
+                        tooltip: '上一集',
+                      ),
+                      const SizedBox(width: 2),
+                    ],
+                    if (widget.onPlayNext != null) ...[
                       BrandPlayerButton(
                         icon: BIcons.next,
-                        onPressed: onPlayNext,
+                        onPressed: widget.onPlayNext,
                         size: isCompact ? 28 : 32,
                         iconSize: isCompact ? 16 : 18,
                         tooltip: '下一集',
@@ -763,12 +813,36 @@ class BrandPlayerBottomDock extends StatelessWidget {
                       const SizedBox(width: 6),
                     ],
 
-                    // 时间戳显示 (等宽优雅字形)
+                    // 内联进度条（hover 气泡在上方展示）
+                    Expanded(
+                      child: _ProgressSliderWithBubble(
+                        valueMs: currentMs,
+                        maxMs: maxMs,
+                        bufferProgress: widget.bufferProgress,
+                        formatDuration: widget.formatDuration,
+                        labelFor: widget.bubbleLabelFor,
+                        isCompact: isCompact,
+                        onChanged: widget.onSeek,
+                        onHoverChange: (h) {
+                          if (_bubbleHover != h) {
+                            setState(() => _bubbleHover = h);
+                          }
+                        },
+                        onHoverFrac: (f) {
+                          if ((_bubbleFrac - f).abs() > 0.001) {
+                            _bubbleFrac = f;
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 当前时间 / 总时长
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          formatDuration(position),
+                          widget.formatDuration(widget.position),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: isCompact ? 10.5 : 12,
@@ -777,7 +851,7 @@ class BrandPlayerBottomDock extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          ' / ${formatDuration(duration)}',
+                          ' / ${widget.formatDuration(widget.duration)}',
                           style: TextStyle(
                             color: AppColors.darkTextSecondary,
                             fontSize: isCompact ? 10.5 : 12,
@@ -788,68 +862,118 @@ class BrandPlayerBottomDock extends StatelessWidget {
                       ],
                     ),
 
-                    const Spacer(),
+                    // 音量滑块
+                    if (widget.onVolume != null) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: isCompact ? 56 : 84,
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            thumbShape:
+                                const RoundSliderThumbShape(enabledThumbRadius: 6),
+                            overlayShape:
+                                const RoundSliderOverlayShape(overlayRadius: 10),
+                            overlayColor:
+                                Colors.white.withValues(alpha: 0.18),
+                            activeTrackColor: AppColors.primary400,
+                            inactiveTrackColor:
+                                Colors.white.withValues(alpha: 0.18),
+                          ),
+                          child: Slider(
+                            value: widget.volume.clamp(0.0, 100.0),
+                            min: 0,
+                            max: 100,
+                            onChanged: widget.onVolume,
+                          ),
+                        ),
+                      ),
+                    ],
 
-                    // 弹幕开关微胶囊
+                    const SizedBox(width: 6),
+
+                    // 倍速
+                    BrandPlayerPill(
+                      label: widget.speed == widget.speed.roundToDouble()
+                          ? '${widget.speed.toInt()}.0x'
+                          : ((widget.speed * 10) % 1 == 0
+                              ? '${widget.speed.toStringAsFixed(1)}x'
+                              : '${widget.speed.toStringAsFixed(2)}x'),
+                      active: widget.speed != 1.0,
+                      activeColor: AppColors.primary400,
+                      tooltip: '播放速度',
+                      onPressed: widget.onSelectSpeed,
+                      fontSize: isCompact ? 10 : 11,
+                    ),
+                    const SizedBox(width: 6),
+
+                    // 弹幕开关
                     BrandPlayerPill(
                       leading: BrandIcon(
-                        danmakuEnabled
-                            ? BIcons.message
-                            : BIcons.message,
+                        BIcons.message,
                         size: isCompact ? 11 : 13,
-                        color: danmakuEnabled
+                        color: widget.danmakuEnabled
                             ? AppColors.rose
                             : Colors.white38,
                       ),
-                      label: danmakuEnabled ? '弹幕开' : '弹幕关',
-                      active: danmakuEnabled,
+                      label: widget.danmakuEnabled ? '弹幕开' : '弹幕关',
+                      active: widget.danmakuEnabled,
                       activeColor: AppColors.purple,
                       tooltip: '弹幕开关 (D)',
-                      onPressed: onToggleDanmaku,
+                      onPressed: widget.onToggleDanmaku,
                       fontSize: isCompact ? 10 : 11,
                     ),
                     const SizedBox(width: 6),
 
-                    // 倍速菜单胶囊
-                    BrandPlayerPill(
-                      label: speed == speed.roundToDouble()
-                          ? '${speed.toInt()}.0x'
-                          : ((speed * 10) % 1 == 0
-                              ? '${speed.toStringAsFixed(1)}x'
-                              : '${speed.toStringAsFixed(2)}x'),
-                      active: speed != 1.0,
-                      activeColor: AppColors.primary400,
-                      tooltip: '播放速度',
-                      onPressed: onSelectSpeed,
-                      fontSize: isCompact ? 10 : 11,
-                    ),
-                    const SizedBox(width: 6),
-
-                    // 选集抽屉按钮 (全屏或支持时)
-                    if (onToggleDrawer != null) ...[
-                      BrandPlayerPill(
-                        leading: BrandIcon(
-                          BIcons.playlist,
-                          size: isCompact ? 13 : 15,
-                          color: Colors.white70,
+                    // 更多菜单（线路 / 章节时间线 / 分享等）
+                    if (widget.moreItems.isNotEmpty &&
+                        widget.onMoreSelected != null) ...[
+                      PopupMenuButton<String>(
+                        tooltip: '更多',
+                        position: PopupMenuPosition.over,
+                        color: const Color(0xFF16213A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
                         ),
-                        label: '选集',
-                        tooltip: '选集与线路',
-                        onPressed: onToggleDrawer,
-                        fontSize: isCompact ? 10 : 11,
+                        onSelected: widget.onMoreSelected,
+                        itemBuilder: (_) => widget.moreItems,
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: BrandIcon(
+                            BIcons.settings,
+                            size: isCompact ? 15 : 17,
+                            color: Colors.white70,
+                            monochrome: true,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 4),
                     ],
 
-                    // 全屏切换按钮
+                    // 选集抽屉（全屏时）
+                    if (widget.onToggleDrawer != null) ...[
+                      BrandPlayerButton(
+                        icon: BIcons.playlist,
+                        onPressed: widget.onToggleDrawer,
+                        size: isCompact ? 28 : 32,
+                        iconSize: isCompact ? 15 : 17,
+                        tooltip: '选集与线路',
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+
+                    // 全屏
                     BrandPlayerButton(
-                      icon: isFullscreen
+                      icon: widget.isFullscreen
                           ? BIcons.fullscreenExit
                           : BIcons.fullscreen,
-                      onPressed: onToggleFullscreen,
+                      onPressed: widget.onToggleFullscreen,
                       size: isCompact ? 28 : 32,
                       iconSize: isCompact ? 18 : 20,
-                      tooltip: isFullscreen ? '退出全屏 (F)' : '进入全屏 (F)',
+                      tooltip: widget.isFullscreen ? '退出全屏 (F)' : '进入全屏 (F)',
                     ),
                   ],
                 ),
@@ -857,6 +981,133 @@ class BrandPlayerBottomDock extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+class _ProgressSliderWithBubble extends StatelessWidget {
+  final double valueMs;
+  final double maxMs;
+  final double bufferProgress;
+  final String Function(Duration) formatDuration;
+  final String? Function(double ms)? labelFor;
+  final bool isCompact;
+  final ValueChanged<double> onChanged;
+  /// hover 进入/离开（dock 据此展开气泡容纳区）
+  final ValueChanged<bool>? onHoverChange;
+  /// hover 位置（0~1），dock 据此更新气泡内容
+  final ValueChanged<double>? onHoverFrac;
+
+  const _ProgressSliderWithBubble({
+    required this.valueMs,
+    required this.maxMs,
+    required this.bufferProgress,
+    required this.formatDuration,
+    required this.onChanged,
+    this.labelFor,
+    this.isCompact = false,
+    this.onHoverChange,
+    this.onHoverFrac,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onHover: (e) {
+        final box = context.findRenderObject();
+        if (box is! RenderBox) return;
+        final dx = e.localPosition.dx.clamp(0.0, box.size.width);
+        onHoverFrac?.call(dx / box.size.width);
+        onHoverChange?.call(true);
+      },
+      onExit: (_) => onHoverChange?.call(false),
+      child: SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: isCompact ? 3.0 : 3.5,
+          trackShape: BrandGradientSliderTrackShape(
+            gradient: AppColors.brandGradient,
+            bufferProgress: bufferProgress,
+            additionalActiveTrackHeight: 1.0,
+          ),
+          thumbShape: BrandSliderThumbShape(
+            radius: isCompact ? 5.5 : 6.5,
+            glowColor: AppColors.purple,
+            ringColor: AppColors.primary400,
+          ),
+          overlayShape: RoundSliderOverlayShape(
+            overlayRadius: isCompact ? 10.0 : 14.0,
+          ),
+          overlayColor: AppColors.primary500.withValues(alpha: 0.15),
+          activeTrackColor: AppColors.primary500,
+          inactiveTrackColor: Colors.white.withValues(alpha: 0.18),
+        ),
+        child: Slider(
+          value: valueMs.clamp(0.0, maxMs),
+          min: 0.0,
+          max: maxMs,
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+/// 进度条 hover 气泡（时间 + 可选标签）
+class _HoverBubble extends StatelessWidget {
+  final String text;
+  final String? tag;
+
+  const _HoverBubble({required this.text, this.tag});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = (tag == null || tag!.isEmpty) ? null : tag;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (label != null)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 108),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          Text(
+            text,
+            style: TextStyle(
+              color: label != null
+                  ? AppColors.darkTextSecondary
+                  : Colors.white,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }

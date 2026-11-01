@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import '../widgets/brand_controls.dart';
-import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/member_avatar.dart';
 import '../theme/brand_icons.dart';
 
@@ -74,9 +73,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return Scaffold(
       body: Column(
         children: [
-          DesktopWindowTitleBar(
-            isDark: Theme.of(context).brightness == Brightness.dark,
-          ),
           Expanded(
             child: Scaffold(
               appBar: const BrandAppBar(title: Text('编辑资料')),

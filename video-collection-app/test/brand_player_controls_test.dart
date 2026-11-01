@@ -167,6 +167,7 @@ void main() {
             isFullscreen: false,
             danmakuEnabled: true,
             speed: 1.25,
+            volume: 80,
             isCompact: false,
             formatDuration: (d) => '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}',
             onSeek: (val) => seekValue = val,
@@ -185,7 +186,8 @@ void main() {
     expect(find.text(' / 24:30'), findsOneWidget);
     expect(find.text('弹幕开'), findsOneWidget);
     expect(find.text('1.25x'), findsOneWidget);
-    expect(find.text('选集'), findsOneWidget);
+    // 新版 dock 的选集入口为图标按钮（tooltip 标识）
+    expect(find.byTooltip('选集与线路'), findsOneWidget);
 
     // Danmaku pill tap
     await tester.tap(find.text('弹幕开'));

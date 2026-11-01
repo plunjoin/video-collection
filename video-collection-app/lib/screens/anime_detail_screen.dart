@@ -14,8 +14,8 @@ import '../theme/app_colors.dart';
 import '../widgets/anime_poster_card.dart';
 import '../widgets/desktop_horizontal_scroll.dart';
 import '../widgets/brand_intro.dart';
+import '../widgets/brand_controls.dart' show kBrandAppBarTopInset;
 import '../widgets/brand_widgets.dart';
-import '../widgets/desktop_window_title_bar.dart';
 import '../widgets/episode_selector.dart';
 import '../widgets/rag_ask_sheet.dart';
 import '../widgets/report_dialog.dart';
@@ -67,7 +67,6 @@ class _AnimeDetailScreenState extends State<AnimeDetailScreen> {
       backgroundColor: dark ? AppColors.darkBg : Colors.white,
       body: Column(
         children: [
-          DesktopWindowTitleBar(isDark: dark),
           Expanded(
             child: _loading
                 ? const Center(child: BrandIntro())
@@ -309,8 +308,9 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
   Widget _hero(bool dark, int firstPlayable, {bool desktop = false}) {
     final video = widget.video;
     final quote = video.subName.trim();
-    // 移动端状态栏是透明沉浸式的，悬浮按钮必须避开安全区，否则点不到
-    final topInset = MediaQuery.paddingOf(context).top;
+    // 移动端状态栏是透明沉浸式的，悬浮按钮必须避开安全区，否则点不到；
+    // Windows 桌面端还要避开右上角的原生窗口控制按钮
+    final topInset = MediaQuery.paddingOf(context).top + kBrandAppBarTopInset;
     return SizedBox(
       height: desktop ? 320 : 248,
       child: Stack(

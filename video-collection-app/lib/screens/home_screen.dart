@@ -1,29 +1,25 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-import '../widgets/brand_controls.dart';
 
 import '../models/video_model.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/brand_icons.dart';
 import '../utils/responsive.dart';
-import '../widgets/anime_poster_card.dart';
-import '../widgets/desktop_horizontal_scroll.dart';
-import '../widgets/hero_banner.dart';
+import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
-import '../widgets/leaderboard_card.dart';
-import '../widgets/quick_nav.dart';
+import '../widgets/desktop_horizontal_scroll.dart';
+import '../widgets/episode_selector.dart' show formatAudienceCount;
 import '../widgets/search_bar_widget.dart';
 import 'anime_detail_screen.dart';
-import 'content_detail_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
-import 'timeline_screen.dart';
-import '../theme/brand_icons.dart';
 
+/// 首页：筛选栏 + 视频墙；左侧个人资料与菜单由全局侧栏承担。
 class HomeScreen extends StatefulWidget {
   final Function(int tabIndex) onSwitchTab;
 
@@ -36,12 +32,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
-  List<VideoRecord> _heroBanners = [];
-  List<VideoRecord> _airingList = [];
-  List<VideoRecord> _recommendList = [];
-  List<VideoRecord> _rankings = [];
-  List<Map<String, dynamic>> _latestNews = [];
+  List<VideoRecord> _videoList = [];
   String _recommendGenre = '全部';
+  // 'time' 走接口默认排序（最新发布），'hits' 按播放量。
+  String _sort = 'time';
 
   @override
   void initState() {
@@ -56,45 +50,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final isLoggedIn = context.read<AppStateProvider>().isLoggedIn;
+      final wantPersonal = isLoggedIn && _sort == 'time';
       final requests = <Future<dynamic>>[
-        _apiService.getVideos(page: 1, pageSize: 18, typeId: 4),
-        _apiService.getRankings(),
-        _apiService.getVideos(page: 1, pageSize: 12, typeId: 4, sort: 'hits'),
-        _apiService
-            .getContentFeed(kind: 'news', page: 1, pageSize: 5)
-            .catchError((_) => <String, dynamic>{
-                  'list': <Map<String, dynamic>>[],
-                }),
-        if (isLoggedIn) _apiService.getPersonalizedRecommendations(),
+        _apiService.getVideos(
+          page: 1,
+          pageSize: 24,
+          typeId: 4,
+          sort: _sort == 'hits' ? 'hits' : null,
+        ),
+        // 登录后且按最新发布浏览时，优先展示个性化推荐结果
+        if (wantPersonal) _apiService.getPersonalizedRecommendations(),
       ];
       final results = await Future.wait(requests);
 
       final videoData = results[0] as Map<String, dynamic>;
-      final rankData = results[1] as Map<String, List<VideoRecord>>;
-      final popularData = results[2] as Map<String, dynamic>;
-      final newsData = results[3] as Map<String, dynamic>;
-      final list = (videoData['list'] as List<VideoRecord>?) ?? [];
-      final popular = (popularData['list'] as List<VideoRecord>?) ?? [];
-      final personal = isLoggedIn
-          ? results[4] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final personalList = (personal['list'] as List<VideoRecord>?) ?? [];
-      final ranks = rankData['anime'] ?? rankData['top'] ?? [];
+      final apiList = (videoData['list'] as List<VideoRecord>?) ?? [];
+      List<VideoRecord> videos = apiList;
+      if (wantPersonal && results.length > 1) {
+        final personal = results[1] as Map<String, dynamic>;
+        final personalList = (personal['list'] as List<VideoRecord>?) ?? [];
+        if (personalList.isNotEmpty) {
+          videos = personalList.take(24).toList();
+        }
+      }
 
       if (!mounted) return;
       setState(() {
-        if (list.isNotEmpty) {
-          _heroBanners = list.take(5).toList();
-          _airingList = list.take(4).toList();
-        }
-        _recommendList = personalList.isNotEmpty
-            ? personalList.take(12).toList()
-            : popular.take(12).toList();
-        _rankings = ranks.take(5).toList();
-        _latestNews =
-            (newsData['list'] as List<Map<String, dynamic>>? ?? [])
-                .take(5)
-                .toList();
+        _videoList = videos;
         _isLoading = false;
       });
     } catch (_) {
@@ -128,12 +110,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _playRandom() {
+    final list = _filteredVideos;
+    if (list.isEmpty) return;
+    _openPlayer(list[Random().nextInt(list.length)]);
+  }
+
+  List<VideoRecord> get _filteredVideos {
+    if (_recommendGenre == '全部') return _videoList;
+    return _videoList
+        .where((video) => video.tags.contains(_recommendGenre))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
     final contentWidth = Responsive.contentWidth(context);
-    final isWideDesktop = isDesktop && contentWidth >= 980;
 
     return Scaffold(
       appBar: isDesktop
@@ -189,506 +183,417 @@ class _HomeScreenState extends State<HomeScreen> {
           : RefreshIndicator(
               onRefresh: _loadData,
               color: AppColors.primary500,
-              child: isWideDesktop
-                  ? SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 宽屏桌面左侧：轮播 + 金刚区 + 热播海报网格 + 精选推荐
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildHeroBanner(),
-                                _buildQuickNav(),
-                                _buildLatestNewsSection(isDark),
-                                _buildAiringSection(
-                                  isDark,
-                                  Responsive.gridColumns(
-                                    context,
-                                    width: contentWidth - 382,
-                                    itemMinWidth: 180,
-                                    min: 2,
-                                    max: 4,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildRecommendSection(isDark),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          // 宽屏桌面右侧：常驻新番热度榜 + 经典台词
-                          SizedBox(
-                            width: 330,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLeaderboardSection(isDark),
-                                const SizedBox(height: 16),
-                                _buildQuoteSection(),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeroBanner(),
-                          _buildQuickNav(),
-                          _buildLatestNewsSection(isDark),
-                          _buildAiringSection(
-                            isDark,
-                            Responsive.gridColumns(
-                              context,
-                              width: contentWidth,
-                              itemMinWidth: 160,
-                              min: 2,
-                              max: 4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildRecommendSection(isDark),
-                          const SizedBox(height: 16),
-                          _buildLeaderboardSection(isDark),
-                          _buildQuoteSection(),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFilterBar(isDark, stacked: contentWidth < 760),
+                    const SizedBox(height: 18),
+                    _buildVideoGrid(isDark),
+                  ],
+                ),
+              ),
             ),
     );
   }
 
-  Widget _buildHeroBanner() {
-    return HeroBannerWidget(
-      banners: _heroBanners,
-      onPlayTap: _openPlayer,
-      onDetailTap: _openDetail,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // 筛选栏：题材胶囊 + 排序下拉 + 主操作按钮
+  // ---------------------------------------------------------------------------
 
-  Widget _buildQuickNav() {
-    return QuickNavWidget(
-      onNavTap: (tabIndex) => widget.onSwitchTab(tabIndex),
-      onTimelineTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TimelineScreen()),
-      ),
-      onHistoryTap: () => widget.onSwitchTab(4),
-    );
-  }
-
-  Widget _buildLatestNewsSection(bool isDark) {
-    if (_latestNews.isEmpty) return const SizedBox.shrink();
+  Widget _buildFilterBar(bool isDark, {required bool stacked}) {
     final muted = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    '最新资讯',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final card = isDark ? AppColors.darkCard : Colors.white;
+
+    final pills = DesktopHorizontalScroll(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: ['全部', '治愈', '恋爱', '奇幻', '热血']
+              .map(
+                (genre) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: BrandPill(
+                    label: Text(genre),
+                    selected: _recommendGenre == genre,
+                    onSelected: (_) =>
+                        setState(() => _recommendGenre = genre),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => widget.onSwitchTab(3),
-                  child: const Text('更多 →'),
-                ),
-              ],
+              )
+              .toList(),
+        ),
+      ),
+    );
+
+    final sortMenu = PopupMenuButton<String>(
+      tooltip: '切换排序方式',
+      position: PopupMenuPosition.under,
+      color: card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: border),
+      ),
+      onSelected: (value) {
+        if (value == _sort) return;
+        setState(() => _sort = value);
+        _loadData();
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'time',
+          height: 40,
+          child: Text('最新发布', style: TextStyle(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          value: 'hits',
+          height: 40,
+          child: Text('最多播放', style: TextStyle(fontSize: 13)),
+        ),
+      ],
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: card,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _sort == 'hits' ? '最多播放' : '最新发布',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
-          ),
-          SizedBox(
-            height: 236,
-            // 桌面端横向列表需要拖动 / 滚轮支持，否则鼠标滚不动
-            child: DesktopHorizontalScroll(
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _latestNews.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final item = _latestNews[index];
-                  final cover = item['cover']?.toString() ?? '';
-                  final date = (DateTime.tryParse(
-                            item['published_at']?.toString() ?? '',
-                          ) ??
-                          DateTime.tryParse(item['created_at']?.toString() ?? ''))
-                      ?.toLocal();
-                  final title = item['title']?.toString() ?? '';
-                  final placeholder = BrandPosterFallback(title: title);
-                  return SizedBox(
-                    width: 264,
-                    child: Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      color: isDark ? AppColors.darkCard : Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: BorderSide(
-                          color: isDark
-                              ? AppColors.darkBorder
-                              : AppColors.lightBorder,
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () {
-                          final id =
-                              int.tryParse(item['id']?.toString() ?? '') ?? 0;
-                          if (id <= 0) return;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ContentDetailScreen(
-                                kind: 'news',
-                                contentId: id,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // 没有封面的资讯直接铺满文字区，不再保留图片占位
-                            if (cover.isNotEmpty)
-                              SizedBox(
-                                height: 92,
-                                child: CachedNetworkImage(
-                                  imageUrl: cover,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, _) => placeholder,
-                                  errorWidget: (_, _, _) => placeholder,
-                                ),
-                              ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item['title']?.toString() ?? '未命名资讯',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      item['summary']?.toString() ?? '',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: muted,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      date == null
-                                          ? ''
-                                          : DateFormat(
-                                              'yyyy/MM/dd',
-                                            ).format(date),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: muted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+            const SizedBox(width: 5),
+            BrandIcon(BIcons.chevronDown, size: 14, color: muted),
+          ],
+        ),
+      ),
+    );
+
+    final shuffleButton = _ShuffleButton(
+      isDark: isDark,
+      enabled: _filteredVideos.isNotEmpty,
+      onTap: _playRandom,
+    );
+
+    if (!stacked) {
+      return Row(
+        children: [
+          Expanded(child: pills),
+          const SizedBox(width: 12),
+          sortMenu,
+          const SizedBox(width: 10),
+          shuffleButton,
+        ],
+      );
+    }
+    return Column(
+      children: [
+        Align(alignment: Alignment.centerLeft, child: pills),
+        const SizedBox(height: 8),
+        Row(children: [sortMenu, const Spacer(), shuffleButton]),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 视频墙
+  // ---------------------------------------------------------------------------
+
+  Widget _buildVideoGrid(bool isDark) {
+    final videos = _filteredVideos;
+    if (videos.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: BrandEmpty(
+          title: '这里还没有片子',
+          subtitle: '换个题材筛选，或稍后再来看看。',
+        ),
+      );
+    }
+
+    final isWide = Responsive.isDesktop(context);
+    final contentWidth = Responsive.contentWidth(context);
+    final gridWidth = contentWidth - 40;
+    final crossAxisCount = Responsive.gridColumns(
+      context,
+      width: gridWidth,
+      itemMinWidth: isWide ? 236 : 168,
+      min: 2,
+      max: isWide ? 4 : 3,
+    );
+    final itemWidth =
+        (gridWidth - 14 * (crossAxisCount - 1)) / crossAxisCount;
+    // 封面 16:9 + 一行标题 + 一行数据，按实际列宽精确算比例避免溢出
+    final aspectRatio = itemWidth / (itemWidth * 9 / 16 + 48);
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: aspectRatio,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: videos.length,
+      itemBuilder: (context, index) {
+        final video = videos[index];
+        return _HomeVideoCard(
+          video: video,
+          isDark: isDark,
+          onTap: () => _openDetail(video),
+          onPlayTap: () => _openPlayer(video),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 筛选栏按钮
+// ---------------------------------------------------------------------------
+
+/// 橙色主操作按钮：随机开一部当前筛选里的片子。
+class _ShuffleButton extends StatelessWidget {
+  final bool isDark;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ShuffleButton({
+    required this.isDark,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '随机看一部',
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(19),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(19),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(19),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFA24B), Color(0xFFFF7A45)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BrandIcon(
+                    BIcons.shuffle,
+                    size: 16,
+                    color: Colors.white,
+                    monochrome: true,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    '随机看一部',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildAiringSection(bool isDark, int crossAxisCount) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+// ---------------------------------------------------------------------------
+// 视频卡片：封面 + 播放浮层 + 标题 + 数据行
+// ---------------------------------------------------------------------------
+
+class _HomeVideoCard extends StatefulWidget {
+  final VideoRecord video;
+  final bool isDark;
+  final VoidCallback onTap;
+  final VoidCallback onPlayTap;
+
+  const _HomeVideoCard({
+    required this.video,
+    required this.isDark,
+    required this.onTap,
+    required this.onPlayTap,
+  });
+
+  @override
+  State<_HomeVideoCard> createState() => _HomeVideoCardState();
+}
+
+class _HomeVideoCardState extends State<_HomeVideoCard> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final video = widget.video;
+    final muted = widget.isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final ink = widget.isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final remarks = video.remarks.trim();
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Container(
-                    width: 4,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary600,
-                      borderRadius: BorderRadius.circular(2),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: CachedNetworkImage(
+                      imageUrl: video.picture,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => BrandPosterFallback(
+                        title: video.name,
+                      ),
+                      errorWidget: (_, _, _) =>
+                          BrandPosterFallback(title: video.name),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '正在热播',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.rose.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'HOT',
-                      style: TextStyle(
-                        color: AppColors.rose,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                  // 悬停时轻微压暗封面，突出播放按钮
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 160),
+                    opacity: _hover ? 1 : 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.black.withValues(alpha: 0.25),
                       ),
                     ),
                   ),
-                ],
-              ),
-              InkWell(
-                onTap: () => widget.onSwitchTab(1),
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  child: Row(
-                    children: [
-                      Text(
-                        '查看全部',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary500,
-                          fontWeight: FontWeight.w600,
+                  Center(
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 160),
+                      scale: _hover ? 1.12 : 1,
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.black38,
+                          shape: BoxShape.circle,
+                        ),
+                        child: GestureDetector(
+                          onTap: widget.onPlayTap,
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          ),
                         ),
                       ),
-                      BrandIcon(
-                        BIcons.chevronRight,
-                        size: 16,
-                        color: AppColors.primary500,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              childAspectRatio: 1.3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: _airingList.length,
-            itemBuilder: (context, index) {
-              final video = _airingList[index];
-              return AnimePosterCard(
-                video: video,
-                onTap: () => _openDetail(video),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecommendSection(bool isDark) {
-    final recommendations = _recommendGenre == '全部'
-        ? _recommendList
-        : _recommendList
-              .where((video) => video.tags.contains(_recommendGenre))
-              .toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: AppColors.gold,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '为你推荐',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        DesktopHorizontalScroll(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: ['全部', '治愈', '恋爱', '奇幻', '热血']
-                  .map(
-                    (genre) => Padding(
-                      padding: const EdgeInsets.only(right: 8, bottom: 10),
-                      child: BrandPill(
-                        label: Text(genre),
-                        selected: _recommendGenre == genre,
-                        onSelected: (_) =>
-                            setState(() => _recommendGenre = genre),
+                  if (remarks.isNotEmpty)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          remarks,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ),
-        if (recommendations.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              '这个题材的故事还在路上，试试其他分类吧。',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.lightTextSecondary,
-              ),
-            ),
-          ),
-        SizedBox(
-          height: recommendations.isEmpty ? 0 : 145,
-          child: DesktopHorizontalScroll(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: recommendations.length,
-              itemBuilder: (context, index) {
-                final video = recommendations[index];
-                return Container(
-                  width: 170,
-                  margin: const EdgeInsets.only(right: 12),
-                  child: AnimePosterCard(
-                    video: video,
-                    onTap: () => _openDetail(video),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLeaderboardSection(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B5CF6),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '新番热度榜',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                    ),
-                  ),
                 ],
               ),
-              InkWell(
-                onTap: () => widget.onSwitchTab(2),
-                child: const Text(
-                  '完整榜单 >',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.primary500,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: List.generate(
-              _rankings.length,
-              (index) => LeaderboardCard(
-                rank: index + 1,
-                video: _rankings[index],
-                onTap: () => _openDetail(_rankings[index]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              video.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: ink,
               ),
             ),
-          ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                BrandIcon(
+                  BIcons.play,
+                  size: 13,
+                  color: muted,
+                  monochrome: true,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '${formatAudienceCount(video.hits)} 播放',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: muted),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    [
+                      if (video.typeName.isNotEmpty) video.typeName,
+                      if (video.year.isNotEmpty) video.year,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: muted),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildQuoteSection() {
-    return Column(
-      children: [BrandStoryBanner(onTap: () => widget.onSwitchTab(4))],
+      ),
     );
   }
 }

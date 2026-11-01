@@ -8,7 +8,7 @@ import 'package:video_collection_app/utils/responsive.dart';
 import 'package:video_collection_app/widgets/entropy_sidebar.dart';
 
 void main() {
-  testWidgets('Desktop sidebar follows the collapsible entropy layout', (
+  testWidgets('Desktop sidebar shows profile card and menu groups', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -24,7 +24,6 @@ void main() {
       }
     });
     var selected = 0;
-    var width = sidebarExpandedWidth;
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: state,
@@ -36,10 +35,8 @@ void main() {
                 EntropySidebar(
                   currentIndex: selected,
                   onSelect: (index) => selected = index,
-                  onSearch: () {},
                   onSettings: () {},
                   onAccount: () {},
-                  onWidthChanged: (value) => width = value,
                 ),
               ],
             ),
@@ -48,25 +45,20 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('bllii'), findsOneWidget);
-    expect(find.text('首页'), findsOneWidget);
-    expect(find.text('资讯'), findsOneWidget);
-    await tester.tap(find.text('资讯'));
+    expect(find.text('我的追番'), findsOneWidget);
+    expect(find.text('观看历史'), findsOneWidget);
+    expect(find.text('账号与积分'), findsOneWidget);
+    expect(find.text('番剧分类'), findsOneWidget);
+    expect(find.text('热度排行'), findsOneWidget);
+    expect(find.text('新番时间表'), findsOneWidget);
+    expect(find.text('资讯社区'), findsOneWidget);
+    expect(find.text('偏好设置'), findsOneWidget);
+    await tester.tap(find.text('资讯社区'));
     expect(selected, 3);
     expect(find.text('登录 / 注册'), findsOneWidget);
-    expect(find.text('Ctrl+K'), findsOneWidget);
-    expect(width, sidebarExpandedWidth);
-
-    await tester.tap(find.byTooltip('收起边栏'));
-    await tester.pumpAndSettle();
-    expect(find.text('首页'), findsNothing);
-    expect(find.text('登录 / 注册'), findsNothing);
-    expect(width, sidebarCollapsedWidth);
-
-    await tester.tap(find.byTooltip('打开边栏'));
-    await tester.pumpAndSettle();
-    expect(find.text('番剧分类'), findsOneWidget);
-    expect(width, sidebarExpandedWidth);
+    // 品牌行与底部主题按钮已按新版式移除
+    expect(find.text('bllii'), findsNothing);
+    expect(find.byTooltip('收起边栏'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

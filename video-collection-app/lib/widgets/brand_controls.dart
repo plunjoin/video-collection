@@ -1,9 +1,18 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import 'brand_widgets.dart';
 import '../theme/brand_icons.dart';
+import 'window_drag_area.dart';
+
+/// Windows 桌面端标题栏移除后，页面标题栏为右上角原生窗口控制按钮
+/// 预留的顶部让位高度（其他平台保留系统标题栏，无需让位）。
+final double kBrandAppBarTopInset =
+    (!kIsWeb && Platform.isWindows) ? 34.0 : 0.0;
 
 /// Compact, explicitly styled selection controls shared by filters and sources.
 class BrandPill extends StatelessWidget {
@@ -168,8 +177,8 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.titleSpacing = 16,
   });
   @override
-  Size get preferredSize =>
-      Size.fromHeight(64 + (bottom?.preferredSize.height ?? 0));
+  Size get preferredSize => Size.fromHeight(
+      64 + kBrandAppBarTopInset + (bottom?.preferredSize.height ?? 0));
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -184,10 +193,25 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  height: 64,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: titleSpacing, right: 12),
+                // Windows 桌面端：顶部留白条兼作窗口拖拽区，
+                // 右上角原生窗口按钮浮在该条之上
+                if (kBrandAppBarTopInset > 0)
+                  SizedBox(
+                    height: kBrandAppBarTopInset,
+                    child: WindowDragArea(
+                      enabled: true,
+                      child: ColoredBox(
+                        color: dark ? AppColors.darkBg : Colors.white,
+                      ),
+                    ),
+                  ),
+                // 工具栏整条可拖拽（返回键/操作按钮优先命中，空白处拖动窗口）
+                WindowDragArea(
+                  enabled: kBrandAppBarTopInset > 0,
+                  child: SizedBox(
+                    height: 64,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: titleSpacing, right: 12),
                     child: Row(
                       children: [
                         if (Navigator.of(context).canPop()) ...[
@@ -225,6 +249,7 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ],
                     ),
                   ),
+                ),
                 ),
                 ?bottom,
               ],

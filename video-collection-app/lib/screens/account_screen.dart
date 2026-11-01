@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
-import '../widgets/desktop_window_title_bar.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -52,9 +51,6 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) => Scaffold(
     body: Column(
       children: [
-        DesktopWindowTitleBar(
-          isDark: Theme.of(context).brightness == Brightness.dark,
-        ),
         Expanded(
           child: Scaffold(
             appBar: BrandAppBar(title: Text(_register ? '注册账号' : '登录账号')),
