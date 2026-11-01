@@ -23,6 +23,38 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// UserQuery 管理后台的用户检索条件。Status 为 -1 表示不限状态。
+type UserQuery struct {
+	Keyword string
+	Role    string
+	Status  int
+	Page    int
+	Size    int
+}
+
+// userFilterSQL 拼装用户检索条件，placeholder 由各数据库方言提供（? 或 $n）。
+func userFilterSQL(q UserQuery, placeholder func(int) string) (string, []any) {
+	conds := make([]string, 0, 3)
+	args := make([]any, 0, 3)
+	if kw := strings.TrimSpace(q.Keyword); kw != "" {
+		conds = append(conds, "(LOWER(username) LIKE LOWER("+placeholder(len(args)+1)+") OR LOWER(nickname) LIKE LOWER("+placeholder(len(args)+2)+"))")
+		like := "%" + kw + "%"
+		args = append(args, like, like)
+	}
+	if role := strings.TrimSpace(q.Role); role != "" {
+		conds = append(conds, "role = "+placeholder(len(args)+1))
+		args = append(args, role)
+	}
+	if q.Status == 0 || q.Status == 1 {
+		conds = append(conds, "status = "+placeholder(len(args)+1))
+		args = append(args, q.Status)
+	}
+	if len(conds) == 0 {
+		return "1=1", args
+	}
+	return strings.Join(conds, " AND "), args
+}
+
 // Category 本地系统维护的标准分类
 type Category struct {
 	ID   int    `json:"id"`
@@ -213,8 +245,20 @@ type Store interface {
 	CreateUser(ctx context.Context, user *User) error
 	UpdateUser(ctx context.Context, user *User) error
 	UpdateProfile(ctx context.Context, id int, nickname, avatar, bio string) error
+	UpdateAvatar(ctx context.Context, id int, avatar string) error
+	UpdatePassword(ctx context.Context, id int, passwordHash string) error
+	SearchUsers(ctx context.Context, q UserQuery) ([]User, int, error)
 	DeleteUser(ctx context.Context, id int) error
+	AnonymizeUser(ctx context.Context, id int) error
 	InitDefaultAdmin(ctx context.Context) error
+
+	// 账号中心：邮箱 / 手机绑定与验证码
+	GetUserContact(ctx context.Context, id int) (*UserContact, error)
+	GetUserByContact(ctx context.Context, channel, value string) (*User, error)
+	BindContact(ctx context.Context, id int, channel, value string) error
+	UnbindContact(ctx context.Context, id int, channel string) error
+	CreateVerifyCode(ctx context.Context, vc *VerifyCode) error
+	ConsumeVerifyCode(ctx context.Context, target, channel, purpose, codeHash string) (bool, error)
 
 	// 用户播放历史与追剧收藏 (云端多设备同步)
 	SaveUserHistory(ctx context.Context, item *UserHistoryItem) error

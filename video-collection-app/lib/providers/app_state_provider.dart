@@ -127,6 +127,162 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  /// 修改密码。成功后服务端会吊销其他设备会话，当前设备保持登录。
+  Future<PasswordChangeResult> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    if (!isLoggedIn) return const PasswordChangeResult(error: '请先登录');
+    try {
+      final result = await _api.userRequest(
+        '/api/me/password',
+        method: 'POST',
+        body: {
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        },
+      );
+      final revoked = (result['revoked_sessions'] as num?)?.toInt() ?? 0;
+      return PasswordChangeResult(revoked: revoked);
+    } on ApiException catch (error) {
+      return PasswordChangeResult(error: error.message);
+    }
+  }
+
+  /// 当前账号的登录设备列表。
+  Future<List<Map<String, dynamic>>> loadSessions() async {
+    if (!isLoggedIn) return const [];
+    try {
+      final result = await _api.userRequest('/api/me/sessions');
+      final data = result['data'];
+      if (data is! List) return const [];
+      return data
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } on ApiException {
+      return const [];
+    }
+  }
+
+  /// 下线指定设备，返回错误提示；成功返回 null。
+  Future<String?> revokeSession(String id) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.userRequest(
+        '/api/me/sessions?id=${Uri.encodeComponent(id)}',
+        method: 'DELETE',
+      );
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 当前账号绑定的邮箱 / 手机。
+  Future<Map<String, dynamic>> loadContact() async {
+    if (!isLoggedIn) return const {};
+    try {
+      final result = await _api.userRequest('/api/me/contact');
+      final data = result['data'];
+      return data is Map ? Map<String, dynamic>.from(data) : const {};
+    } on ApiException {
+      return const {};
+    }
+  }
+
+  /// 发送验证码。purpose 为 reset（找回密码）或 bind（绑定）。
+  /// 返回错误提示；成功时通过 [outDevCode] 回传联调验证码（仅服务端开启时存在）。
+  Future<String?> sendCode({
+    required String channel,
+    required String target,
+    required String purpose,
+    void Function(String code)? outDevCode,
+  }) async {
+    try {
+      final result = await _api.userRequest(
+        '/api/auth/send-code',
+        method: 'POST',
+        body: {'channel': channel, 'target': target, 'purpose': purpose},
+        authenticated: isLoggedIn,
+      );
+      final devCode = result['dev_code']?.toString() ?? '';
+      if (devCode.isNotEmpty) outDevCode?.call(devCode);
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 绑定邮箱 / 手机，成功返回 null。
+  Future<String?> bindContact({
+    required String channel,
+    required String target,
+    required String code,
+  }) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.userRequest(
+        '/api/me/contact/bind',
+        method: 'POST',
+        body: {'channel': channel, 'target': target, 'code': code},
+      );
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 解绑邮箱 / 手机，需要当前密码。
+  Future<String?> unbindContact({
+    required String channel,
+    required String password,
+  }) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.userRequest(
+        '/api/me/contact/unbind',
+        method: 'POST',
+        body: {'channel': channel, 'password': password},
+      );
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 上传头像：成功后刷新本地资料。
+  Future<String?> uploadAvatar({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.uploadAvatar(bytes: bytes, filename: filename);
+      await refreshProfile();
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 注销账号：成功后清空本地登录态。
+  Future<String?> deleteAccount(String password) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.userRequest(
+        '/api/me/delete',
+        method: 'POST',
+        body: {'password': password},
+      );
+      // 账号已注销，令牌在服务端也已失效，无需再调 /api/logout。
+      await logout(notifyServer: false);
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
   bool _syncing = false;
   int? _syncGeneration;
   bool get syncing => _syncing;
@@ -824,4 +980,14 @@ class AppStateProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('search_history');
   }
+}
+
+/// 修改密码的结果：error 为空表示成功，revoked 为被下线设备数量。
+class PasswordChangeResult {
+  const PasswordChangeResult({this.error, this.revoked = 0});
+
+  final String? error;
+  final int revoked;
+
+  bool get ok => error == null;
 }

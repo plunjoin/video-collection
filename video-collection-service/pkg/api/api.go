@@ -19,6 +19,7 @@ import (
 	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
+	"video-collection-service/pkg/notify"
 	"video-collection-service/pkg/player"
 	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/scheduler"
@@ -35,6 +36,7 @@ type Server struct {
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 	rag           *rag.Service
 	watchHub      *watchHub // 一起看房间事件广播（SSE 推送源），nil 前由 NewServer 初始化
+	notifier      *notify.Service
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
@@ -45,6 +47,7 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 		playerManager: pm,
 		bootstrap:     bs,
 		watchHub:      newWatchHub(),
+		notifier:      notify.NewFromEnv(),
 	}
 	if cs, ok := s.(store.ContentStore); ok {
 		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
@@ -101,6 +104,18 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/register", srv.handleRegister)
 	mux.HandleFunc("/api/logout", srv.handleLogout)
 	mux.HandleFunc("/api/me", srv.handleMe)
+	// 账号安全：自助改密与登录设备管理
+	mux.HandleFunc("/api/me/password", srv.handleChangePassword)
+	mux.HandleFunc("/api/me/sessions", srv.handleUserSessions)
+	// 账号中心：邮箱 / 手机绑定、验证码找回密码、头像上传、注销账号
+	mux.HandleFunc("/api/auth/send-code", srv.handleSendCode)
+	mux.HandleFunc("/api/auth/reset-password", srv.handleResetPassword)
+	mux.HandleFunc("/api/me/contact", srv.handleUserContact)
+	mux.HandleFunc("/api/me/contact/bind", srv.handleBindContact)
+	mux.HandleFunc("/api/me/contact/unbind", srv.handleUnbindContact)
+	mux.HandleFunc("/api/me/avatar", srv.handleUploadAvatar)
+	mux.HandleFunc("/api/me/delete", srv.handleDeleteAccount)
+	srv.registerUploadRoutes(mux)
 	mux.HandleFunc("/api/categories", srv.handleCategories)
 	mux.HandleFunc("/api/videos", srv.handleVideos)
 	mux.HandleFunc("/api/video", srv.handleVideoDetail)
@@ -196,26 +211,42 @@ func (srv *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Username = strings.TrimSpace(req.Username)
+	// 同一「账号 + IP」连续失败达到阈值后短暂锁定，阻断撞库与暴力破解。
+	guardKey := strings.ToLower(req.Username) + "|" + auth.ClientIP(r)
+	if ok, wait := loginGuard.Allow(guardKey); !ok {
+		srv.logSystemActor(r, 0, req.Username, "warn", "auth", "登录被限流", map[string]any{"username": req.Username})
+		errorResponse(w, http.StatusTooManyRequests, "登录失败次数过多，请 "+waitMinutes(wait)+"后再试")
+		return
+	}
+
 	user, err := srv.store.GetUserByUsername(r.Context(), req.Username)
 	if err != nil || user == nil {
+		loginGuard.Fail(guardKey)
 		srv.logSystemActor(r, 0, req.Username, "warn", "auth", "登录失败：用户不存在", map[string]any{"username": req.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	if user.Status != 1 {
+		loginGuard.Reset(guardKey)
 		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：账号已禁用", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusForbidden, "该账号已被禁用封禁")
 		return
 	}
 
 	if !auth.CheckPassword(user.PasswordHash, req.Password) {
+		loginGuard.Fail(guardKey)
 		srv.logSystemActor(r, user.ID, user.Username, "warn", "auth", "登录失败：密码错误", map[string]any{"username": user.Username})
 		errorResponse(w, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
+	loginGuard.Reset(guardKey)
 
-	token := auth.DefaultSessionManager.CreateSession(user)
+	token := auth.DefaultSessionManager.CreateSession(user, auth.SessionMeta{
+		IP:        auth.ClientIP(r),
+		UserAgent: r.UserAgent(),
+	})
 	auth.SetAuthCookie(w, token)
 
 	actorName := strings.TrimSpace(user.Nickname)
@@ -505,12 +536,36 @@ func (srv *Server) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	actor := auth.GetCurrentUser(r, srv.store)
 	switch r.Method {
 	case http.MethodGet:
-		users, err := srv.store.ListUsers(ctx)
+		// 支持关键词、角色、状态筛选与分页，默认每页 20 条。
+		params := r.URL.Query()
+		q := store.UserQuery{
+			Keyword: strings.TrimSpace(params.Get("q")),
+			Role:    strings.TrimSpace(params.Get("role")),
+			Status:  -1,
+			Page:    1,
+			Size:    20,
+		}
+		if v, err := strconv.Atoi(params.Get("page")); err == nil && v > 0 {
+			q.Page = v
+		}
+		if v, err := strconv.Atoi(params.Get("size")); err == nil && v > 0 {
+			q.Size = v
+		}
+		if v, err := strconv.Atoi(params.Get("status")); err == nil && (v == 0 || v == 1) {
+			q.Status = v
+		}
+		users, total, err := srv.store.SearchUsers(ctx, q)
 		if err != nil {
 			errorResponse(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		jsonResponse(w, http.StatusOK, map[string]any{"code": 1, "data": users})
+		jsonResponse(w, http.StatusOK, map[string]any{
+			"code":  1,
+			"data":  users,
+			"total": total,
+			"page":  q.Page,
+			"size":  q.Size,
+		})
 
 	case http.MethodPost:
 		var req struct {
@@ -1089,7 +1144,10 @@ func (srv *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, "用户名已存在或注册失败: "+err.Error())
 		return
 	}
-	token := auth.DefaultSessionManager.CreateSession(newUser)
+	token := auth.DefaultSessionManager.CreateSession(newUser, auth.SessionMeta{
+		IP:        auth.ClientIP(r),
+		UserAgent: r.UserAgent(),
+	})
 	auth.SetAuthCookie(w, token)
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"code":  1,

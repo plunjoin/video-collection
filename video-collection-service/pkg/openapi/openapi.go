@@ -13,25 +13,61 @@ var openAPISpec []byte
 //go:embed growth-spec.json
 var growthSpec []byte
 
+//go:embed account-spec.json
+var accountSpec []byte
+
 func init() {
-	var base, extra map[string]any
+	var base map[string]any
 	if err := json.Unmarshal(openAPISpec, &base); err != nil {
 		panic(err)
 	}
-	if err := json.Unmarshal(growthSpec, &extra); err != nil {
-		panic(err)
+	// 按领域拆分的扩展规范统一并入主文档，避免单文件无限膨胀。
+	for _, extra := range [][]byte{growthSpec, accountSpec} {
+		mergeSpec(base, extra)
 	}
-	for path, methods := range extra["paths"].(map[string]any) {
-		base["paths"].(map[string]any)[path] = methods
-	}
-	for name, schema := range extra["components"].(map[string]any)["schemas"].(map[string]any) {
-		base["components"].(map[string]any)["schemas"].(map[string]any)[name] = schema
-	}
-	base["tags"] = append(base["tags"].([]any), extra["tags"].([]any)...)
 	var err error
 	openAPISpec, err = json.MarshalIndent(base, "", "  ")
 	if err != nil {
 		panic(err)
+	}
+}
+
+// mergeSpec 把扩展规范的 paths / components.schemas / tags 合并进主文档。
+func mergeSpec(base map[string]any, raw []byte) {
+	var extra map[string]any
+	if err := json.Unmarshal(raw, &extra); err != nil {
+		panic(err)
+	}
+	if paths, ok := extra["paths"].(map[string]any); ok {
+		basePaths, ok := base["paths"].(map[string]any)
+		if !ok {
+			basePaths = map[string]any{}
+			base["paths"] = basePaths
+		}
+		for path, methods := range paths {
+			basePaths[path] = methods
+		}
+	}
+	if comps, ok := extra["components"].(map[string]any); ok {
+		if schemas, ok := comps["schemas"].(map[string]any); ok {
+			baseComps, ok := base["components"].(map[string]any)
+			if !ok {
+				baseComps = map[string]any{}
+				base["components"] = baseComps
+			}
+			baseSchemas, ok := baseComps["schemas"].(map[string]any)
+			if !ok {
+				baseSchemas = map[string]any{}
+				baseComps["schemas"] = baseSchemas
+			}
+			for name, schema := range schemas {
+				baseSchemas[name] = schema
+			}
+		}
+	}
+	if tags, ok := extra["tags"].([]any); ok {
+		baseTags, _ := base["tags"].([]any)
+		base["tags"] = append(baseTags, tags...)
 	}
 }
 

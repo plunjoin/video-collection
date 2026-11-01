@@ -184,6 +184,44 @@ func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
 	return n, nil
 }
 
+// SAdd 向集合追加成员（用于维护「用户 → 会话令牌」索引）。
+func (c *Client) SAdd(ctx context.Context, key string, members ...string) error {
+	if !c.Enabled() || len(members) == 0 {
+		return nil
+	}
+	args := append([]string{c.key(key)}, members...)
+	return c.do(ctx, radix.Cmd(nil, "SADD", args...))
+}
+
+// SRem 从集合移除成员。
+func (c *Client) SRem(ctx context.Context, key string, members ...string) error {
+	if !c.Enabled() || len(members) == 0 {
+		return nil
+	}
+	args := append([]string{c.key(key)}, members...)
+	return c.do(ctx, radix.Cmd(nil, "SREM", args...))
+}
+
+// SMembers 返回集合全部成员；键不存在时返回空切片。
+func (c *Client) SMembers(ctx context.Context, key string) ([]string, error) {
+	if !c.Enabled() {
+		return nil, nil
+	}
+	members := make([]string, 0, 8)
+	if err := c.do(ctx, radix.Cmd(&members, "SMEMBERS", c.key(key))); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+// Expire 刷新键的存活时间。
+func (c *Client) Expire(ctx context.Context, key string, ttl time.Duration) error {
+	if !c.Enabled() || ttl <= 0 {
+		return nil
+	}
+	return c.do(ctx, radix.Cmd(nil, "EXPIRE", c.key(key), strconv.FormatInt(int64(ttl/time.Second), 10)))
+}
+
 // key 为业务键加上实例级前缀，避免与其他服务共用一个 Redis 时冲突。
 func (c *Client) key(k string) string {
 	return c.cfg.Prefix + ":" + k

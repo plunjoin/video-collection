@@ -231,6 +231,10 @@ export default function Navbar({ activeNav = '首页' }: Props) {
                       <BrandIcon name="library" size={20} className="w-4 h-4 text-slate-400" />
                       <span>发现番剧</span>
                     </a>
+                    <a href="/account" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                      <BrandIcon name="user" size={20} className="w-4 h-4 text-slate-400" />
+                      <span>账号设置</span>
+                    </a>
                   </div>
 
                   <div className="pt-1 border-t border-slate-100 px-2 mt-1">

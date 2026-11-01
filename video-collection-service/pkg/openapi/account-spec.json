@@ -1,0 +1,725 @@
+{
+  "tags": [
+    {
+      "name": "Account",
+      "description": "账号中心：修改密码、登录设备、邮箱 / 手机绑定、找回密码、头像与注销"
+    }
+  ],
+  "paths": {
+    "/api/me/password": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "修改当前账号密码",
+        "description": "校验原密码后更新密码，并吊销该账号除当前设备外的全部会话。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "old_password",
+                  "new_password"
+                ],
+                "properties": {
+                  "old_password": {
+                    "type": "string",
+                    "description": "当前登录密码"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 72,
+                    "description": "新密码，至少 6 位且不能与原密码相同"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "密码已更新",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "密码已更新"
+                    },
+                    "revoked_sessions": {
+                      "type": "integer",
+                      "description": "被下线的其他设备数量"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "原密码不正确、新密码不符合规则或与旧密码相同"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "429": {
+            "description": "原密码校验失败次数过多，已被临时锁定"
+          }
+        }
+      }
+    },
+    "/api/me/sessions": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "列出当前账号的登录设备",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话列表，按登录时间倒序",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LoginSession"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "下线指定登录设备",
+        "description": "不允许下线当前设备，退出登录请调用 /api/logout。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "会话短 ID，取自会话列表"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "该设备已下线"
+          },
+          "400": {
+            "description": "缺少 id 或试图下线当前设备"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "404": {
+            "description": "会话不存在或已失效"
+          }
+        }
+      }
+    },
+    "/api/auth/send-code": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "发送验证码",
+        "description": "purpose=reset 面向未登录用户（忘记密码），purpose=bind 需登录（绑定邮箱 / 手机）。同一目标 10 分钟内最多 5 条。为避免账号枚举，reset 场景下未绑定的联系方式同样返回成功。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel",
+                  "target"
+                ],
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "phone"
+                    ]
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "邮箱地址或 11 位手机号"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "reset",
+                      "bind"
+                    ],
+                    "default": "reset"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "验证码已发送（未绑定时为通用文案）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "description": "有效期秒数"
+                    },
+                    "dev_code": {
+                      "type": "string",
+                      "description": "仅 ACCOUNT_DEV_CODE=1 的联调环境返回"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "channel / purpose / 联系方式格式不合法"
+          },
+          "401": {
+            "description": "purpose=bind 但未登录"
+          },
+          "409": {
+            "description": "该联系方式已被其他账号绑定（purpose=bind）"
+          },
+          "429": {
+            "description": "发送过于频繁"
+          },
+          "503": {
+            "description": "邮件 / 短信通道未配置"
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "通过验证码重置密码（忘记密码）",
+        "description": "验证码校验通过后重置密码，并吊销该账号全部会话。验证码一次性使用，连续错误 5 次即作废。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel",
+                  "target",
+                  "code",
+                  "new_password"
+                ],
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "phone"
+                    ]
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "6 位数字验证码"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 72
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "密码已重置",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "revoked_sessions": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "验证码错误 / 已过期，或新密码不符合规则"
+          },
+          "403": {
+            "description": "账号已被禁用"
+          },
+          "429": {
+            "description": "验证码校验失败次数过多"
+          }
+        }
+      }
+    },
+    "/api/me/contact": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "读取当前账号绑定的邮箱与手机",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "绑定信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserContact"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        }
+      }
+    },
+    "/api/me/contact/bind": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "绑定邮箱或手机",
+        "description": "需先调用 /api/auth/send-code（purpose=bind）拿到验证码。同一联系方式只能被一个账号绑定。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel",
+                  "target",
+                  "code"
+                ],
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "phone"
+                    ]
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "绑定成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserContact"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "验证码错误 / 已过期，或联系方式格式不合法"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "409": {
+            "description": "该联系方式已被其他账号绑定"
+          }
+        }
+      }
+    },
+    "/api/me/contact/unbind": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "解绑邮箱或手机",
+        "description": "需要二次确认登录密码，避免会话被盗后直接解绑。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel",
+                  "password"
+                ],
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "phone"
+                    ]
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已解绑",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserContact"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "密码不正确"
+          },
+          "401": {
+            "description": "未登录"
+          }
+        }
+      }
+    },
+    "/api/me/avatar": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "上传头像",
+        "description": "multipart/form-data，字段名 file。仅接受 JPG / PNG / WebP / GIF，按文件魔数校验，单文件不超过 2MB。返回的相对路径可直接作为 avatar 使用。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "头像已更新",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "example": "/uploads/avatars/12-1730000000000000000-ab12cd34.png"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "avatar": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "未选择文件或不是受支持的图片"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "413": {
+            "description": "图片超过 2MB"
+          }
+        }
+      }
+    },
+    "/api/me/delete": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "注销账号",
+        "description": "需二次确认密码。注销后用户名匿名化为 deleted_<id>、昵称改为「已注销用户」，清空邮箱 / 手机 / 头像 / 简介并吊销全部会话；历史内容保留，作者显示为已注销用户。管理员账号不允许自助注销。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "账号已注销",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "revoked_sessions": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "密码不正确"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "管理员账号不允许自助注销"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "会话短 ID，用于下线该设备"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "是否为当前请求所在的会话"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserContact": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "phone_verified": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

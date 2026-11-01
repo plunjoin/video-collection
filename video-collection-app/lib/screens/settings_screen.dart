@@ -9,6 +9,7 @@ import '../widgets/brand_controls.dart';
 import '../widgets/brand_widgets.dart';
 import '../widgets/update_dialog.dart';
 import '../theme/brand_icons.dart';
+import 'account_security_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -123,6 +124,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(24),
                     children: [
+                      _heading('账号'),
+                      const SizedBox(height: 8),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const BrandIcon(BIcons.lock),
+                        title: const Text('账号安全'),
+                        subtitle: const Text('修改密码、查看并下线其他登录设备'),
+                        trailing: const BrandIcon(BIcons.chevronRight, size: 18),
+                        onTap: () async {
+                          if (!context.read<AppStateProvider>().isLoggedIn) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('请先登录后再管理账号安全')),
+                            );
+                            return;
+                          }
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AccountSecurityScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 28),
                       _heading('外观模式'),
                       const SizedBox(height: 12),
                       Wrap(

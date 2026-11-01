@@ -65,7 +65,7 @@ func newContentFixture(t *testing.T) *contentFixture {
 		}
 	}
 	for _, u := range []*store.User{f.admin, f.alice, f.bob, f.disabled} {
-		token := auth.DefaultSessionManager.CreateSession(u)
+		token := auth.DefaultSessionManager.CreateSession(u, auth.SessionMeta{IP: "127.0.0.1", UserAgent: "go-test"})
 		f.tokens[u.ID] = token
 		t.Cleanup(func() { auth.DefaultSessionManager.DeleteSession(token) })
 	}

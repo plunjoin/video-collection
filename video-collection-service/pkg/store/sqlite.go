@@ -82,6 +82,10 @@ func (s *SQLiteStore) initSchema() error {
 		bio TEXT NOT NULL DEFAULT '',
 		role TEXT NOT NULL DEFAULT 'user',
 		status INTEGER NOT NULL DEFAULT 1,
+		email TEXT NOT NULL DEFAULT '',
+		email_verified INTEGER NOT NULL DEFAULT 0,
+		phone TEXT NOT NULL DEFAULT '',
+		phone_verified INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -379,6 +383,41 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, id int, nickname, avata
 		UPDATE users SET nickname=?, avatar=?, bio=?, updated_at=? WHERE id=?
 	`, nickname, avatar, bio, time.Now(), id)
 	return err
+}
+
+func (s *SQLiteStore) UpdatePassword(ctx context.Context, id int, passwordHash string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE users SET password_hash=?, updated_at=? WHERE id=?
+	`, passwordHash, time.Now(), id)
+	return err
+}
+
+func (s *SQLiteStore) SearchUsers(ctx context.Context, q UserQuery) ([]User, int, error) {
+	where, args := userFilterSQL(q, func(int) string { return "?" })
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	limit, offset := contentPage(q.Page, q.Size)
+	query := "SELECT id, username, nickname, avatar, bio, role, status, created_at, updated_at FROM users WHERE " +
+		where + " ORDER BY id ASC LIMIT ? OFFSET ?"
+	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	list := make([]User, 0, limit)
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		list = append(list, u)
+	}
+	return list, total, rows.Err()
 }
 
 func (s *SQLiteStore) DeleteUser(ctx context.Context, id int) error {

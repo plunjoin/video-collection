@@ -82,11 +82,14 @@
           <r-dropdown-menu>
             <r-dropdown-item command="portal"><Monitor :size="15" />客户端门户</r-dropdown-item>
             <r-dropdown-item command="docs"><Reading :size="15" />接口文档</r-dropdown-item>
-            <r-dropdown-item command="logout" divided><SwitchButton :size="15" />退出登录</r-dropdown-item>
+            <r-dropdown-item command="password" divided><Lock :size="15" />修改密码</r-dropdown-item>
+            <r-dropdown-item command="logout"><SwitchButton :size="15" />退出登录</r-dropdown-item>
           </r-dropdown-menu>
         </template>
       </r-dropdown>
     </footer>
+
+    <PasswordDialog v-model="passwordVisible" />
   </aside>
 </template>
 
@@ -94,6 +97,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { notify, confirmAction } from '@/components/radix/feedback'
+import PasswordDialog from '@/components/PasswordDialog.vue'
 import { useAppStore } from '@/store/app'
 import { useUserStore } from '@/store/user'
 import { roleLabels, canVisit } from '@/utils/permissions'
@@ -110,6 +114,7 @@ import {
   Document,
   Film,
   Lightning,
+  Lock,
   Network,
   SwitchButton,
   Monitor,
@@ -130,6 +135,7 @@ const route = useRoute()
 const router = useRouter()
 const searchInput = ref<HTMLInputElement>()
 const searchQuery = ref('')
+const passwordVisible = ref(false)
 const isCollapsed = computed(() => appStore.sidebarCollapse)
 
 const allSections = [
@@ -228,6 +234,8 @@ const handleCommand = async (command: string) => {
     } catch {}
   } else if (command === 'docs') {
     window.open('/docs', '_blank', 'noopener,noreferrer')
+  } else if (command === 'password') {
+    passwordVisible.value = true
   } else if (command === 'portal') {
     window.open('/', '_blank', 'noopener,noreferrer')
   }

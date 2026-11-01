@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
@@ -19,6 +20,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final TextEditingController _avatar;
   late final TextEditingController _bio;
   bool _busy = false;
+  bool _uploadingAvatar = false;
   String? _error;
 
   @override
@@ -66,6 +68,42 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     });
   }
 
+  /// 从相册选图并上传，成功后把返回的相对路径回填到头像输入框。
+  Future<void> _pickAvatar() async {
+    if (_busy || _uploadingAvatar) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    if (bytes.length > 2 * 1024 * 1024) {
+      setState(() => _error = '图片不能超过 2MB');
+      return;
+    }
+    setState(() {
+      _uploadingAvatar = true;
+      _error = null;
+    });
+    final name = picked.name.isEmpty ? 'avatar.jpg' : picked.name;
+    final message = await context.read<AppStateProvider>().uploadAvatar(
+      bytes: bytes,
+      filename: name,
+    );
+    if (!mounted) return;
+    final uploaded =
+        context.read<AppStateProvider>().user?['profile_avatar']?.toString() ??
+        '';
+    setState(() {
+      _uploadingAvatar = false;
+      _error = message;
+      if (message == null && uploaded.isNotEmpty) _avatar.text = uploaded;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AppStateProvider>().user;
@@ -94,7 +132,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             size: 84,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: _busy || _uploadingAvatar
+                                ? null
+                                : _pickAvatar,
+                            icon: const Icon(Icons.photo_library_outlined),
+                            label: Text(
+                              _uploadingAvatar ? '上传中…' : '从相册上传头像',
+                            ),
+                          ),
+                        ),
                         Center(
                           child: Text(
                             username.isEmpty ? '未登录' : '@$username',

@@ -155,7 +155,14 @@ CREATE TABLE IF NOT EXISTS user_notifications (
  is_read INTEGER NOT NULL DEFAULT 0 CHECK(is_read IN (0,1)), read_at %s, created_at %s NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id,is_read,id);
-`, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
+CREATE TABLE IF NOT EXISTS verify_codes (
+ id %s, target TEXT NOT NULL, channel TEXT NOT NULL, purpose TEXT NOT NULL,
+ code_hash TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+ consumed INTEGER NOT NULL DEFAULT 0 CHECK(consumed IN (0,1)),
+ expires_at %s NOT NULL, created_at %s NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_verify_codes_lookup ON verify_codes(target,channel,purpose,consumed,id);
+`, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -238,6 +245,10 @@ CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON user_notifications(user_id
 		if _, err := s.db.Exec("ALTER TABLE watch_rooms ADD COLUMN control_mode TEXT NOT NULL DEFAULT 'host'"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			log.Printf("[store] watch_rooms 补 control_mode 列: %v", err)
 		}
+	}
+	// 账号中心：邮箱 / 手机绑定列与唯一索引（旧库补列，新库已含）
+	if err := migrateAccount(s.db, s.postgres); err != nil {
+		return err
 	}
 	return nil
 }

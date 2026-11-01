@@ -146,6 +146,10 @@ func (s *PostgresStore) initSchema() error {
 		bio TEXT NOT NULL DEFAULT '',
 		role VARCHAR(20) NOT NULL DEFAULT 'user',
 		status INT NOT NULL DEFAULT 1,
+		email VARCHAR(120) NOT NULL DEFAULT '',
+		email_verified INT NOT NULL DEFAULT 0,
+		phone VARCHAR(20) NOT NULL DEFAULT '',
+		phone_verified INT NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
@@ -416,6 +420,41 @@ func (s *PostgresStore) UpdateProfile(ctx context.Context, id int, nickname, ava
 		UPDATE users SET nickname=$1, avatar=$2, bio=$3, updated_at=NOW() WHERE id=$4
 	`, nickname, avatar, bio, id)
 	return err
+}
+
+func (s *PostgresStore) UpdatePassword(ctx context.Context, id int, passwordHash string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2
+	`, passwordHash, id)
+	return err
+}
+
+func (s *PostgresStore) SearchUsers(ctx context.Context, q UserQuery) ([]User, int, error) {
+	where, args := userFilterSQL(q, func(i int) string { return "$" + fmt.Sprint(i) })
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	limit, offset := contentPage(q.Page, q.Size)
+	query := "SELECT id, username, nickname, avatar, bio, role, status, created_at, updated_at FROM users WHERE " +
+		where + fmt.Sprintf(" ORDER BY id ASC LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	list := make([]User, 0, limit)
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Username, &u.Nickname, &u.Avatar, &u.Bio, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		list = append(list, u)
+	}
+	return list, total, rows.Err()
 }
 
 func (s *PostgresStore) DeleteUser(ctx context.Context, id int) error {

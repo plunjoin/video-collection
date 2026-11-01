@@ -76,7 +76,7 @@ func TestBusinessTypeAdminAPI(t *testing.T) {
 		if err := f.s.CreateUser(context.Background(), u); err != nil {
 			t.Fatal(err)
 		}
-		token := auth.DefaultSessionManager.CreateSession(u)
+		token := auth.DefaultSessionManager.CreateSession(u, auth.SessionMeta{IP: "127.0.0.1", UserAgent: "go-test"})
 		f.tokens[u.ID] = token
 		t.Cleanup(func() { auth.DefaultSessionManager.DeleteSession(token) })
 		code := 200

@@ -91,6 +91,47 @@ class ApiService {
     }
   }
 
+  /// 上传头像（multipart）。服务端按文件魔数校验类型，因此这里不声明 Content-Type。
+  /// 返回服务端下发的相对路径，例如 /uploads/avatars/12-1730-ab12.png。
+  Future<String> uploadAvatar({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/api/me/avatar'),
+    );
+    request.headers['Accept'] = 'application/json';
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Cookie'] = 'agg_auth_token=$token';
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+    try {
+      final response = await _client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 30));
+      final data =
+          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      if (response.statusCode >= 400 || data['code'] != 1) {
+        throw ApiException(
+          data['error']?.toString() ?? data['msg']?.toString() ?? '头像上传失败',
+          response.statusCode,
+        );
+      }
+      final url = data['url']?.toString() ?? '';
+      if (url.isEmpty) throw const ApiException('头像上传失败，请稍后重试');
+      return url;
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('无法连接服务器，请检查网络和服务端地址');
+    }
+  }
+
   String _baseUrl = resolveDefaultApiBaseUrl();
 
   String get baseUrl => _baseUrl;

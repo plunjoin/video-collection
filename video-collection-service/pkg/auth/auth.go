@@ -3,10 +3,13 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +29,32 @@ type Session struct {
 	Username  string    `json:"username"`
 	Role      string    `json:"role"`
 	ExpiresAt time.Time `json:"expires_at"`
+	// CreatedAt / IP / UserAgent 用于「登录设备」列表展示，旧会话缺省为零值。
+	CreatedAt time.Time `json:"created_at"`
+	IP        string    `json:"ip"`
+	UserAgent string    `json:"user_agent"`
+}
+
+// SessionMeta 登录时采集的设备信息。
+type SessionMeta struct {
+	IP        string
+	UserAgent string
+}
+
+// SessionView 对外暴露的会话视图：不返回令牌本身，用短 ID 供吊销时定位。
+type SessionView struct {
+	ID        string    `json:"id"`
+	Current   bool      `json:"current"`
+	IP        string    `json:"ip"`
+	UserAgent string    `json:"user_agent"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// TokenSession 内部使用的「令牌 + 会话」组合，仅在按用户枚举会话时使用。
+type TokenSession struct {
+	Token   string
+	Session Session
 }
 
 // SessionManager 会话管理器。
@@ -49,7 +78,7 @@ func (sm *SessionManager) SetStore(s SessionStore) {
 }
 
 // CreateSession 为用户创建新会话并返回令牌。
-func (sm *SessionManager) CreateSession(user *store.User) string {
+func (sm *SessionManager) CreateSession(user *store.User, meta SessionMeta) string {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
 		log.Printf("[auth] 生成会话令牌失败: %v", err)
@@ -57,11 +86,15 @@ func (sm *SessionManager) CreateSession(user *store.User) string {
 	}
 	token := hex.EncodeToString(b)
 
+	now := time.Now()
 	sess := Session{
 		UserID:    user.ID,
 		Username:  user.Username,
 		Role:      user.Role,
-		ExpiresAt: time.Now().Add(SessionDuration),
+		ExpiresAt: now.Add(SessionDuration),
+		CreatedAt: now,
+		IP:        meta.IP,
+		UserAgent: truncateText(meta.UserAgent, 255),
 	}
 
 	sm.mu.RLock()
@@ -118,6 +151,157 @@ func (sm *SessionManager) DeleteSession(token string) {
 	sm.mu.Lock()
 	delete(sm.sessions, token)
 	sm.mu.Unlock()
+}
+
+// SessionID 由令牌派生稳定的短标识，供前端标记或吊销某条会话，避免直接暴露令牌。
+func SessionID(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+func truncateText(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max]
+}
+
+func toSessionView(token string, s Session) SessionView {
+	return SessionView{
+		ID:        SessionID(token),
+		IP:        s.IP,
+		UserAgent: s.UserAgent,
+		CreatedAt: s.CreatedAt,
+		ExpiresAt: s.ExpiresAt,
+	}
+}
+
+// ListUserSessions 列出某个用户当前有效的全部会话（外置存储 + 内存降级副本）。
+func (sm *SessionManager) ListUserSessions(userID int) []SessionView {
+	now := time.Now()
+	out := make([]SessionView, 0, 4)
+	seen := make(map[string]bool)
+
+	sm.mu.RLock()
+	st := sm.store
+	sm.mu.RUnlock()
+	if st != nil {
+		items, err := st.ListByUser(context.Background(), userID)
+		if err != nil {
+			log.Printf("[auth] 读取用户会话列表失败: %v", err)
+		}
+		for _, it := range items {
+			if now.After(it.Session.ExpiresAt) || seen[it.Token] {
+				continue
+			}
+			seen[it.Token] = true
+			out = append(out, toSessionView(it.Token, it.Session))
+		}
+	}
+
+	sm.mu.RLock()
+	for token, sess := range sm.sessions {
+		if sess.UserID != userID || now.After(sess.ExpiresAt) || seen[token] {
+			continue
+		}
+		out = append(out, toSessionView(token, sess))
+	}
+	sm.mu.RUnlock()
+
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
+	return out
+}
+
+// RevokeSession 按会话 ID 吊销某个用户的一条会话，返回是否命中。
+func (sm *SessionManager) RevokeSession(userID int, id string) bool {
+	if id == "" {
+		return false
+	}
+	revoked := false
+
+	sm.mu.RLock()
+	st := sm.store
+	sm.mu.RUnlock()
+	if st != nil {
+		items, err := st.ListByUser(context.Background(), userID)
+		if err != nil {
+			log.Printf("[auth] 吊销会话前读取列表失败: %v", err)
+		}
+		for _, it := range items {
+			if SessionID(it.Token) != id {
+				continue
+			}
+			if err := st.Delete(context.Background(), it.Token); err != nil {
+				log.Printf("[auth] 吊销会话失败: %v", err)
+				continue
+			}
+			revoked = true
+		}
+	}
+
+	sm.mu.Lock()
+	for token, sess := range sm.sessions {
+		if sess.UserID == userID && SessionID(token) == id {
+			delete(sm.sessions, token)
+			revoked = true
+		}
+	}
+	sm.mu.Unlock()
+	return revoked
+}
+
+// RevokeOtherSessions 吊销该用户除 keepToken 外的全部会话，返回吊销数量。
+func (sm *SessionManager) RevokeOtherSessions(userID int, keepToken string) int {
+	count := 0
+
+	sm.mu.RLock()
+	st := sm.store
+	sm.mu.RUnlock()
+	if st != nil {
+		n, err := st.DeleteByUser(context.Background(), userID, keepToken)
+		if err != nil {
+			log.Printf("[auth] 批量吊销会话失败: %v", err)
+		}
+		count += n
+	}
+
+	sm.mu.Lock()
+	for token, sess := range sm.sessions {
+		if sess.UserID == userID && token != keepToken {
+			delete(sm.sessions, token)
+			count++
+		}
+	}
+	sm.mu.Unlock()
+	return count
+}
+
+// TokenFromRequest 提取请求携带的会话令牌（Bearer 优先，其次 Cookie）。
+func TokenFromRequest(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+	}
+	if c, err := r.Cookie(CookieAuthToken); err == nil {
+		return c.Value
+	}
+	return ""
+}
+
+// ClientIP 取真实客户端 IP，兼容反向代理透传的 X-Forwarded-For / X-Real-IP。
+func ClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if first, _, ok := strings.Cut(xff, ","); ok {
+			return strings.TrimSpace(first)
+		}
+		return strings.TrimSpace(xff)
+	}
+	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
+		return ip
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 func HashPassword(password string) (string, error) {

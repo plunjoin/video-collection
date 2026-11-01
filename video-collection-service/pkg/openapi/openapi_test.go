@@ -79,6 +79,40 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}
 }
 
+func TestAccountAPIContract(t *testing.T) {
+	var spec struct {
+		Paths      map[string]map[string]json.RawMessage `json:"paths"`
+		Components struct {
+			Schemas map[string]json.RawMessage `json:"schemas"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal(GetSpec(), &spec); err != nil {
+		t.Fatal(err)
+	}
+	for path, methods := range map[string][]string{
+		"/api/me/password":         {"post"},
+		"/api/me/sessions":         {"get", "delete"},
+		"/api/auth/send-code":      {"post"},
+		"/api/auth/reset-password": {"post"},
+		"/api/me/contact":          {"get"},
+		"/api/me/contact/bind":     {"post"},
+		"/api/me/contact/unbind":   {"post"},
+		"/api/me/avatar":           {"post"},
+		"/api/me/delete":           {"post"},
+	} {
+		for _, method := range methods {
+			if len(spec.Paths[path][method]) == 0 {
+				t.Errorf("missing %s %s", method, path)
+			}
+		}
+	}
+	for _, schema := range []string{"LoginSession", "UserContact"} {
+		if len(spec.Components.Schemas[schema]) == 0 {
+			t.Errorf("missing schema %s", schema)
+		}
+	}
+}
+
 func TestContentAPIContract(t *testing.T) {
 	var spec struct {
 		Paths      map[string]map[string]json.RawMessage `json:"paths"`

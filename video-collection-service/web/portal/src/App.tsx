@@ -14,6 +14,8 @@ import CommunityPage from './pages/CommunityPage';
 import CommunityDetailPage from './pages/CommunityDetailPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PointsPage from './pages/PointsPage';
+import AccountPage from './pages/AccountPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import WikiSubjectPage from './pages/WikiSubjectPage';
 
 export const RouteContext = React.createContext<{ url: string }>({ url: '/' });
@@ -134,6 +136,16 @@ export default function App({ url = '/', ...props }: AppProps) {
 
     if (path === '/points') {
       return <PointsPage {...props} />;
+    }
+
+    // 账号中心：个人资料、修改密码、登录设备
+    if (path === '/account') {
+      return <AccountPage {...props} />;
+    }
+
+    // 忘记密码：通过已绑定的邮箱 / 手机验证码重置
+    if (path === '/reset' || path === '/forgot-password') {
+      return <ResetPasswordPage {...props} />;
     }
 
     // 404 Fallback

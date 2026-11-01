@@ -108,7 +108,10 @@ func (s *SQLContentStore) ManageUser(ctx context.Context, actor int, u *User, re
 			return ErrContentNotFound
 		}
 	}
-	if role != "super_admin" && (oldRole != "user" || u.Role != "user") {
+	// 非超管只能管理普通用户；但允许编辑自己的账号（角色与状态不变），
+	// 否则 admin / operator / observer 连自己的昵称和密码都改不了。
+	selfEdit := u.ID == actor && !remove && u.Role == oldRole && u.Status == 1
+	if role != "super_admin" && !selfEdit && (oldRole != "user" || u.Role != "user") {
 		return ErrContentForbidden
 	}
 	if u.ID == actor && (remove || u.Role != role || u.Status != 1) {

@@ -1,0 +1,952 @@
+/// 自研容器与动画组件:[Container]/[AnimatedContainer]/[AnimatedOpacity]/
+/// [AnimatedScale]/[AnimatedBuilder]/[TweenAnimationBuilder]/
+/// [ValueListenableBuilder]/[SafeArea]/[CustomPaint]/[ShaderMask]/
+/// [BackdropFilter]/[AnnotatedRegion]。
+///
+/// 隐式动画用 AnimationController 驱动,在装饰/边距/尺寸属性间做 lerp。
+import 'dart:ui' as ui;
+
+import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart' show Listenable, ValueListenable;
+import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show SystemChrome, SystemUiOverlayStyle;
+import 'package:flutter/widgets.dart' as fw;
+
+import 'layout.dart';
+import 'theme.dart';
+
+/// 构建器签名:监听器每次触发时用当前值重建子树。
+typedef WidgetTransitionBuilder = fw.Widget Function(
+  fw.BuildContext context,
+  fw.Widget? child,
+);
+
+/// 组合容器:边距 + 装饰 + 内边距 + 尺寸 + 对齐 + 变换。
+class Container extends fw.StatelessWidget {
+  final Alignment? alignment;
+  final EdgeInsetsGeometry? padding;
+  final Color? color;
+  final BoxDecoration? decoration;
+  final BoxDecoration? foregroundDecoration;
+  final double? width;
+  final double? height;
+  final BoxConstraints? constraints;
+  final EdgeInsetsGeometry? margin;
+  final Matrix4? transform;
+  final Alignment? transformAlignment;
+  final Clip clipBehavior;
+  final fw.Widget? child;
+
+  const Container({
+    fw.Key? key,
+    this.alignment,
+    this.padding,
+    this.color,
+    this.decoration,
+    this.foregroundDecoration,
+    this.width,
+    this.height,
+    this.constraints,
+    this.margin,
+    this.transform,
+    this.transformAlignment,
+    this.clipBehavior = Clip.none,
+    this.child,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    fw.Widget? current = child;
+
+    // 对齐
+    if (alignment != null) {
+      current = Align(alignment: alignment!, child: current);
+    }
+
+    // 约束与固定尺寸
+    final effectiveConstraints = constraints ??
+        (width != null || height != null
+            ? BoxConstraints.tightFor(width: width, height: height)
+            : null);
+    if (effectiveConstraints != null) {
+      current = ConstrainedBox(constraints: effectiveConstraints, child: current);
+    } else if (current == null && (width == null && height == null)) {
+      // 无子项且无约束时占满可用空间
+      current = ConstrainedBox(
+        constraints: const BoxConstraints.expand(),
+        child: null,
+      );
+    }
+
+    // 内边距 + 装饰
+    final effectiveDecoration =
+        decoration ?? (color != null ? BoxDecoration(color: color) : null);
+    if (effectiveDecoration != null) {
+      current = DecoratedBox(decoration: effectiveDecoration, child: current);
+    }
+    if (padding != null) {
+      current = Padding(padding: padding!, child: current);
+    }
+
+    // 前景装饰
+    if (foregroundDecoration != null) {
+      current = DecoratedBox(
+        decoration: foregroundDecoration!,
+        child: current,
+      );
+    }
+
+    // 变换
+    if (transform != null) {
+      current = Transform(
+        transform: transform!,
+        alignment: transformAlignment,
+        child: current,
+      );
+    }
+
+    // 外边距
+    if (margin != null) {
+      current = Padding(padding: margin!, child: current);
+    }
+
+    // 裁剪
+    if (clipBehavior != Clip.none) {
+      final radius = (decoration ?? foregroundDecoration)?.borderRadius;
+      if (radius != null) {
+        final resolved = radius.resolve(TextDirection.ltr);
+        if (resolved != BorderRadius.zero) {
+          current = ClipRRect(borderRadius: resolved, child: current);
+        } else {
+          current = ClipRect(child: current);
+        }
+      } else {
+        current = ClipRect(child: current);
+      }
+    }
+
+    return current ?? const SizedBox.shrink();
+  }
+}
+
+/// 通用插值动画核心:目标值变化时,从当前值向目标值过渡。
+class _ImplicitAnimator<T> {
+  T? _current;
+  T? _target;
+  fw.AnimationController? _controller;
+
+  T? animate({
+    required T? target,
+    required T? current,
+    required Duration duration,
+    required Curve curve,
+    required T? Function(T, T, double) lerp,
+    required fw.TickerProvider vsync,
+    required fw.StateSetter setState,
+    VoidCallback? onEnd,
+  }) {
+    // 首次直接落位,不做动画
+    _current ??= current;
+    if (_target != target) {
+      _target = target;
+      _controller?.dispose();
+      final controller = fw.AnimationController(
+        vsync: vsync,
+        duration: duration,
+        value: 0,
+      );
+      _controller = controller;
+      final from = _current!;
+      final to = target!;
+      controller.addListener(() {
+        final t = controller.value;
+        setState(() {
+          _current = lerp(from, to, fw.CurveTween(curve: curve)
+              .transform(t));
+        });
+      });
+      controller.addStatusListener((status) {
+        if (status == fw.AnimationStatus.completed) {
+          onEnd?.call();
+        }
+      });
+      controller.forward();
+    }
+    return _current;
+  }
+
+  void dispose() {
+    _controller?.dispose();
+    _controller = null;
+  }
+}
+
+/// 隐式动画容器(替代 material 的 AnimatedContainer)。
+class AnimatedContainer extends fw.StatefulWidget {
+  final Alignment? alignment;
+  final EdgeInsetsGeometry? padding;
+  final Color? color;
+  final BoxDecoration? decoration;
+  final BoxDecoration? foregroundDecoration;
+  final double? width;
+  final double? height;
+  final BoxConstraints? constraints;
+  final EdgeInsetsGeometry? margin;
+  final Matrix4? transform;
+  final Alignment? transformAlignment;
+  final Clip clipBehavior;
+  final Duration duration;
+  final Curve curve;
+  final VoidCallback? onEnd;
+  final fw.Widget? child;
+
+  const AnimatedContainer({
+    fw.Key? key,
+    this.alignment,
+    this.padding,
+    this.color,
+    this.decoration,
+    this.foregroundDecoration,
+    this.width,
+    this.height,
+    this.constraints,
+    this.margin,
+    this.transform,
+    this.transformAlignment,
+    this.clipBehavior = Clip.none,
+    required this.duration,
+    this.curve = Curves.linear,
+    this.onEnd,
+    this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<AnimatedContainer> createState() => _AnimatedContainerState();
+}
+
+class _AnimatedContainerState extends fw.State<AnimatedContainer>
+    with fw.SingleTickerProviderStateMixin {
+  final _decoration = _ImplicitAnimator<BoxDecoration?>();
+  final _padding = _ImplicitAnimator<EdgeInsetsGeometry?>();
+  final _margin = _ImplicitAnimator<EdgeInsetsGeometry?>();
+  final _size = _ImplicitAnimator<Size?>();
+  final _alignment = _ImplicitAnimator<Alignment?>();
+
+  @override
+  void dispose() {
+    _decoration.dispose();
+    _padding.dispose();
+    _margin.dispose();
+    _size.dispose();
+    _alignment.dispose();
+    super.dispose();
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final decoration = _decoration.animate(
+      target: widget.decoration ??
+          (widget.color != null ? BoxDecoration(color: widget.color) : null),
+      current: widget.decoration ??
+          (widget.color != null ? BoxDecoration(color: widget.color) : null),
+      duration: widget.duration,
+      curve: widget.curve,
+      lerp: BoxDecoration.lerp,
+      vsync: this,
+      setState: setState,
+      onEnd: widget.onEnd,
+    );
+    final padding = _padding.animate(
+      target: widget.padding,
+      current: widget.padding,
+      duration: widget.duration,
+      curve: widget.curve,
+      lerp: (a, b, t) => EdgeInsetsGeometry.lerp(a, b, t)!,
+      vsync: this,
+      setState: setState,
+    );
+    final margin = _margin.animate(
+      target: widget.margin,
+      current: widget.margin,
+      duration: widget.duration,
+      curve: widget.curve,
+      lerp: (a, b, t) => EdgeInsetsGeometry.lerp(a, b, t)!,
+      vsync: this,
+      setState: setState,
+    );
+    final alignment = _alignment.animate(
+      target: widget.alignment,
+      current: widget.alignment,
+      duration: widget.duration,
+      curve: widget.curve,
+      lerp: Alignment.lerp,
+      vsync: this,
+      setState: setState,
+    );
+    final size = _size.animate(
+      target:
+          widget.width != null || widget.height != null
+              ? Size(widget.width ?? 0, widget.height ?? 0)
+              : null,
+      current:
+          widget.width != null || widget.height != null
+              ? Size(widget.width ?? 0, widget.height ?? 0)
+              : null,
+      duration: widget.duration,
+      curve: widget.curve,
+      lerp: (a, b, t) => Size.lerp(a, b, t)!,
+      vsync: this,
+      setState: setState,
+    );
+
+    return Container(
+      alignment: alignment,
+      padding: padding,
+      decoration: decoration,
+      width: size?.width == 0 ? null : size?.width,
+      height: size?.height == 0 ? null : size?.height,
+      margin: margin,
+      transform: widget.transform,
+      transformAlignment: widget.transformAlignment,
+      clipBehavior: widget.clipBehavior,
+      child: widget.child,
+    );
+  }
+}
+
+/// 隐式动画透明度。
+class AnimatedOpacity extends fw.StatefulWidget {
+  final double opacity;
+  final Duration duration;
+  final Curve curve;
+  final VoidCallback? onEnd;
+  final bool alwaysIncludeSemantics;
+  final fw.Widget child;
+
+  const AnimatedOpacity({
+    fw.Key? key,
+    required this.opacity,
+    required this.duration,
+    this.curve = Curves.linear,
+    this.onEnd,
+    this.alwaysIncludeSemantics = false,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<AnimatedOpacity> createState() => _AnimatedOpacityState();
+}
+
+class _AnimatedOpacityState extends fw.State<AnimatedOpacity>
+    with fw.SingleTickerProviderStateMixin {
+  late final fw.AnimationController _controller;
+  late fw.Animation<double> _animation;
+  double _from = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = fw.AnimationController(vsync: this, duration: widget.duration)
+      ..value = widget.opacity;
+    _animation = fw.CurvedAnimation(parent: _controller, curve: widget.curve);
+  }
+
+  @override
+  void didUpdateWidget(AnimatedOpacity oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (widget.opacity != _controller.value) {
+      _from = _controller.value;
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = ui.lerpDouble(_from, widget.opacity, _animation.value)!;
+        return Opacity(opacity: value, child: child);
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// 隐式动画缩放。
+class AnimatedScale extends fw.StatefulWidget {
+  final double scale;
+  final Duration duration;
+  final Curve curve;
+  final Alignment alignment;
+  final VoidCallback? onEnd;
+  final fw.Widget child;
+
+  const AnimatedScale({
+    fw.Key? key,
+    required this.scale,
+    required this.duration,
+    this.curve = Curves.linear,
+    this.alignment = Alignment.center,
+    this.onEnd,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<AnimatedScale> createState() => _AnimatedScaleState();
+}
+
+class _AnimatedScaleState extends fw.State<AnimatedScale>
+    with fw.SingleTickerProviderStateMixin {
+  late final fw.AnimationController _controller;
+  late fw.Animation<double> _animation;
+  double _from = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = fw.AnimationController(vsync: this, duration: widget.duration)
+      ..value = widget.scale;
+    _animation = fw.CurvedAnimation(parent: _controller, curve: widget.curve);
+  }
+
+  @override
+  void didUpdateWidget(AnimatedScale oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.scale != _controller.value) {
+      _from = _controller.value;
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = ui.lerpDouble(_from, widget.scale, _animation.value)!;
+        return Transform.scale(
+          scale: value,
+          alignment: widget.alignment,
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// 监听 Listenable 重建(替代 widgets 的 AnimatedBuilder/ListenableBuilder)。
+class AnimatedBuilder extends fw.StatelessWidget {
+  final Listenable animation;
+  final WidgetTransitionBuilder builder;
+  final fw.Widget? child;
+
+  const AnimatedBuilder({
+    fw.Key? key,
+    required this.animation,
+    required this.builder,
+    this.child,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return _ListenableWidget(
+      listenable: animation,
+      builder: builder,
+      child: child,
+    );
+  }
+}
+
+/// ListenableBuilder 别名。
+class ListenableBuilder extends AnimatedBuilder {
+  const ListenableBuilder({
+    fw.Key? key,
+    required Listenable listenable,
+    required WidgetTransitionBuilder builder,
+    fw.Widget? child,
+  }) : super(key: key, animation: listenable, builder: builder, child: child);
+}
+
+class _ListenableWidget extends fw.StatefulWidget {
+  final Listenable listenable;
+  final WidgetTransitionBuilder builder;
+  final fw.Widget? child;
+
+  const _ListenableWidget({
+    required this.listenable,
+    required this.builder,
+    this.child,
+  });
+
+  @override
+  fw.State<_ListenableWidget> createState() => _ListenableWidgetState();
+}
+
+class _ListenableWidgetState extends fw.State<_ListenableWidget> {
+  @override
+  void initState() {
+    super.initState();
+    widget.listenable.addListener(_rebuild);
+  }
+
+  @override
+  void didUpdateWidget(_ListenableWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.listenable != widget.listenable) {
+      oldWidget.listenable.removeListener(_rebuild);
+      widget.listenable.addListener(_rebuild);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.listenable.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return widget.builder(context, widget.child);
+  }
+}
+
+/// 值监听构建器。
+class ValueListenableBuilder<T> extends fw.StatelessWidget {
+  final ValueListenable<T> valueListenable;
+  final fw.ValueWidgetBuilder<T> builder;
+  final T? child;
+
+  const ValueListenableBuilder({
+    fw.Key? key,
+    required this.valueListenable,
+    required this.builder,
+    this.child,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return _ListenableWidget(
+      listenable: valueListenable,
+      builder: (context, _) =>
+          builder(context, valueListenable.value, child as fw.Widget?),
+      child: null,
+    );
+  }
+}
+
+/// 补间动画构建器(目标 tween 变化时平滑过渡)。
+class TweenAnimationBuilder<T extends Object?> extends fw.StatefulWidget {
+  final Tween<T> tween;
+  final Duration duration;
+  final Curve curve;
+  final VoidCallback? onEnd;
+  final fw.Widget Function(fw.BuildContext, T, fw.Widget?) builder;
+  final fw.Widget? child;
+
+  const TweenAnimationBuilder({
+    fw.Key? key,
+    required this.tween,
+    required this.duration,
+    this.curve = Curves.linear,
+    this.onEnd,
+    required this.builder,
+    this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<TweenAnimationBuilder<T>> createState() =>
+      _TweenAnimationBuilderState<T>();
+}
+
+class _TweenAnimationBuilderState<T extends Object?>
+    extends fw.State<TweenAnimationBuilder<T>>
+    with fw.SingleTickerProviderStateMixin {
+  late final fw.AnimationController _controller;
+  late fw.CurvedAnimation _curved;
+  Tween<T>? _currentTween;
+  Tween<T>? _targetTween;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = fw.AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      value: 1,
+    );
+    _curved = fw.CurvedAnimation(parent: _controller, curve: widget.curve);
+    _currentTween = widget.tween;
+    _targetTween = widget.tween;
+    _controller.addListener(_rebuild);
+  }
+
+  @override
+  void didUpdateWidget(TweenAnimationBuilder<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tween.end != _targetTween?.end) {
+      final currentValue = _currentTween!.lerp(_curved.value);
+      _currentTween = Tween<T>(begin: currentValue, end: widget.tween.end);
+      _targetTween = widget.tween;
+      _controller.forward(from: 0);
+    }
+    if (widget.duration != _controller.duration) {
+      _controller.duration = widget.duration;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_rebuild);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _rebuild() {
+    if (_controller.status == fw.AnimationStatus.completed) {
+      widget.onEnd?.call();
+    }
+    setState(() {});
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final value = _currentTween!.lerp(_curved.value);
+    return widget.builder(context, value, widget.child);
+  }
+}
+
+/// 安全区:避开系统刘海/状态栏。
+class SafeArea extends fw.StatelessWidget {
+  final bool left;
+  final bool top;
+  final bool right;
+  final bool bottom;
+  final EdgeInsets minimum;
+  final bool maintainBottomViewPadding;
+  final fw.Widget child;
+
+  const SafeArea({
+    fw.Key? key,
+    this.left = true,
+    this.top = true,
+    this.right = true,
+    this.bottom = true,
+    this.minimum = EdgeInsets.zero,
+    this.maintainBottomViewPadding = false,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final data = fw.MediaQuery.of(context);
+    final padding = maintainBottomViewPadding && data.viewPadding.bottom > 0
+        ? data.viewPadding
+        : data.padding;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: mathMax(padding.left, minimum.left),
+        top: mathMax(padding.top, minimum.top),
+        right: mathMax(padding.right, minimum.right),
+        bottom: mathMax(padding.bottom, minimum.bottom),
+      ),
+      child: fw.MediaQuery.removePadding(
+        context: context,
+        removeLeft: left,
+        removeTop: top,
+        removeRight: right,
+        removeBottom: bottom,
+        child: child,
+      ),
+    );
+  }
+
+  static double mathMax(double a, double b) => a > b ? a : b;
+}
+
+/// 自定义绘制(替代 widgets 的 CustomPaint)。
+class CustomPaint extends fw.SingleChildRenderObjectWidget {
+  final CustomPainter? painter;
+  final CustomPainter? foregroundPainter;
+  final Size size;
+  final bool isComplex;
+  final bool willChange;
+
+  const CustomPaint({
+    fw.Key? key,
+    this.painter,
+    this.foregroundPainter,
+    this.size = Size.zero,
+    this.isComplex = false,
+    this.willChange = false,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderCustomPaintBox(
+      painter: painter,
+      foregroundPainter: foregroundPainter,
+      preferredSize: size,
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderCustomPaintBox renderObject,
+  ) {
+    renderObject
+      ..painter = painter
+      ..foregroundPainter = foregroundPainter
+      ..preferredSize = size;
+  }
+}
+
+/// 自写绘制渲染盒子:先画 painter,再画子项,再画 foregroundPainter。
+class RenderCustomPaintBox extends RenderProxyBox {
+  CustomPainter? _painter;
+  CustomPainter? _foregroundPainter;
+  Size _preferredSize;
+
+  RenderCustomPaintBox({
+    required CustomPainter? painter,
+    required CustomPainter? foregroundPainter,
+    required Size preferredSize,
+  })  : _painter = painter,
+        _foregroundPainter = foregroundPainter,
+        _preferredSize = preferredSize;
+
+  set painter(CustomPainter? value) {
+    if (_painter == value) return;
+    _painter?.removeListener(markNeedsPaint);
+    _painter = value;
+    value?.addListener(markNeedsPaint);
+    markNeedsPaint();
+  }
+
+  set foregroundPainter(CustomPainter? value) {
+    if (_foregroundPainter == value) return;
+    _foregroundPainter?.removeListener(markNeedsPaint);
+    _foregroundPainter = value;
+    value?.addListener(markNeedsPaint);
+    markNeedsPaint();
+  }
+
+  set preferredSize(Size value) {
+    if (_preferredSize == value) return;
+    _preferredSize = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child != null) {
+      child!.layout(constraints, parentUsesSize: true);
+      size = child.size;
+    } else {
+      size = constraints.constrain(_preferredSize);
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (_painter != null) {
+      _painter!.paint(context.canvas, size);
+    }
+    final child = this.child;
+    if (child != null) {
+      context.paintChild(child, offset);
+    }
+    if (_foregroundPainter != null) {
+      _foregroundPainter!.paint(context.canvas, size);
+    }
+  }
+}
+
+/// 着色蒙版。
+class ShaderMask extends fw.SingleChildRenderObjectWidget {
+  final ShaderCallback shaderCallback;
+  final BlendMode blendMode;
+
+  const ShaderMask({
+    fw.Key? key,
+    required this.shaderCallback,
+    this.blendMode = BlendMode.modulate,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderShaderMaskBox(
+      shaderCallback: shaderCallback,
+      blendMode: blendMode,
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderShaderMaskBox renderObject,
+  ) {
+    renderObject
+      ..shaderCallback = shaderCallback
+      ..blendMode = blendMode;
+  }
+}
+
+/// 自写着色蒙版渲染盒子。
+class RenderShaderMaskBox extends RenderProxyBox {
+  ShaderCallback _shaderCallback;
+  BlendMode _blendMode;
+
+  RenderShaderMaskBox({
+    required ShaderCallback shaderCallback,
+    required BlendMode blendMode,
+  })  : _shaderCallback = shaderCallback,
+        _blendMode = blendMode;
+
+  set shaderCallback(ShaderCallback value) {
+    if (_shaderCallback == value) return;
+    _shaderCallback = value;
+    markNeedsPaint();
+  }
+
+  set blendMode(BlendMode value) {
+    if (_blendMode == value) return;
+    _blendMode = value;
+    markNeedsPaint();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) return;
+    final bounds = offset & size;
+    final layer = ShaderMaskLayer(
+      shader: _shaderCallback(bounds),
+      maskRect: bounds,
+      blendMode: _blendMode,
+    );
+    context.pushLayer(
+      layer,
+      (context, offset) => context.paintChild(child!, offset),
+      offset,
+    );
+  }
+}
+
+/// 背景模糊滤镜。
+class BackdropFilter extends fw.SingleChildRenderObjectWidget {
+  final ui.ImageFilter filter;
+
+  const BackdropFilter({
+    fw.Key? key,
+    required this.filter,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderBackdropBox(filter: filter);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderBackdropBox renderObject,
+  ) {
+    renderObject.filter = filter;
+  }
+}
+
+/// 自写背景滤镜渲染盒子。
+class RenderBackdropBox extends RenderProxyBox {
+  ui.ImageFilter _filter;
+
+  RenderBackdropBox({required ui.ImageFilter filter}) : _filter = filter;
+
+  set filter(ui.ImageFilter value) {
+    if (_filter == value) return;
+    _filter = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer = ImageFilterLayer()..imageFilter = _filter;
+    context.pushLayer(
+      layer,
+      (context, offset) {
+        if (child != null) context.paintChild(child!, offset);
+      },
+      offset,
+    );
+  }
+}
+
+/// 系统状态栏样式标注区(仅支持 SystemUiOverlayStyle)。
+class AnnotatedRegion<T extends Object?> extends fw.StatefulWidget {
+  final T value;
+  final bool sized;
+  final fw.Widget child;
+
+  const AnnotatedRegion({
+    fw.Key? key,
+    required this.value,
+    this.sized = true,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<AnnotatedRegion<T>> createState() => _AnnotatedRegionState<T>();
+}
+
+class _AnnotatedRegionState<T extends Object?>
+    extends fw.State<AnnotatedRegion<T>> {
+  @override
+  void initState() {
+    super.initState();
+    _apply();
+  }
+
+  @override
+  void didUpdateWidget(AnnotatedRegion<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _apply();
+    }
+  }
+
+  void _apply() {
+    final value = widget.value;
+    if (value is SystemUiOverlayStyle) {
+      SystemChrome.setSystemUIOverlayStyle(value);
+    }
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) => widget.child;
+}

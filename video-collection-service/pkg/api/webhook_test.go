@@ -41,7 +41,7 @@ func (f *webhookFixture) adminToken() string {
 	if err != nil || u == nil {
 		f.t.Fatalf("default admin missing: %v", err)
 	}
-	return auth.DefaultSessionManager.CreateSession(u)
+	return auth.DefaultSessionManager.CreateSession(u, auth.SessionMeta{IP: "127.0.0.1", UserAgent: "go-test"})
 }
 
 func (f *webhookFixture) doAdmin(method, path string, body any, token string) *httptest.ResponseRecorder {

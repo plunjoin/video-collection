@@ -138,8 +138,16 @@ export function saveAutoCollectConfig(data: { enabled: boolean; interval_hours: 
 }
 
 // 4. 用户账号管理
-export function getUsers() {
-  return request.get<any, ApiResponse<UserInfo[]>>('/api/admin/users')
+export interface UserListParams {
+  q?: string
+  role?: string
+  status?: number | string
+  page?: number
+  size?: number
+}
+
+export function getUsers(params: UserListParams = {}) {
+  return request.get<any, ApiResponse<UserInfo[]>>('/api/admin/users', { params })
 }
 
 export function saveUser(data: {

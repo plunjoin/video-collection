@@ -150,6 +150,12 @@ export default function LoginPage() {
             >
               {loading ? '提交中...' : tab === 'login' ? '立即登录' : '立即注册'}
             </button>
+
+            {tab === 'login' && (
+              <p className="text-center text-[11px] text-slate-400">
+                忘记密码？<a href="/reset" className="font-semibold text-[#597bea]">用邮箱或手机号找回</a>
+              </p>
+            )}
           </form>
         </div>
       </div>

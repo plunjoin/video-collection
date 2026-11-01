@@ -25,6 +25,7 @@ export interface UserInfo {
   role: 'super_admin' | 'admin' | 'observer' | 'operator' | 'user'
   decorations?: { avatar: string; frame: string; badge: string; nickname_color: string }
   avatar?: string
+  bio?: string
   status?: number
   created_at?: string
   updated_at?: string

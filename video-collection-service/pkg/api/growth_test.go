@@ -33,7 +33,7 @@ func (f *contentFixture) staff(role string) *store.User {
 	if err := f.s.CreateUser(context.Background(), u); err != nil {
 		f.t.Fatal(err)
 	}
-	token := auth.DefaultSessionManager.CreateSession(u)
+	token := auth.DefaultSessionManager.CreateSession(u, auth.SessionMeta{IP: "127.0.0.1", UserAgent: "go-test"})
 	f.tokens[u.ID] = token
 	f.t.Cleanup(func() { auth.DefaultSessionManager.DeleteSession(token) })
 	return u
