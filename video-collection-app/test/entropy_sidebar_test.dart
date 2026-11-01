@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/theme/app_theme.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/utils/responsive.dart';
 import 'package:video_collection_app/widgets/entropy_sidebar.dart';
+import 'test_kit.dart';
 
 void main() {
   testWidgets('Desktop sidebar shows profile card and menu groups', (

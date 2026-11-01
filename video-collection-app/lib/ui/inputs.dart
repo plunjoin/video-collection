@@ -26,6 +26,9 @@ import 'theme.dart';
 abstract class InputBorder {
   const InputBorder();
 
+  /// 无边框。
+  static const InputBorder none = _NoneInputBorder();
+
   BorderSide get borderSide;
 
   InputBorder copyWith({BorderSide? borderSide});
@@ -42,6 +45,30 @@ abstract class InputBorder {
   });
 }
 
+/// 无边框实现。
+class _NoneInputBorder extends InputBorder {
+  const _NoneInputBorder();
+
+  @override
+  BorderSide get borderSide => BorderSide.none;
+
+  @override
+  InputBorder copyWith({BorderSide? borderSide}) => this;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path();
+
+  @override
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    double? gapStart,
+    double gapExtent = 0,
+    double gapPercentage = 0,
+    TextDirection? textDirection,
+  }) {}
+}
+
 /// 圆角描边输入框边框。
 class OutlineInputBorder extends InputBorder {
   final double gapPadding;
@@ -50,7 +77,7 @@ class OutlineInputBorder extends InputBorder {
   @override
   final BorderSide borderSide;
 
-  OutlineInputBorder({
+  const OutlineInputBorder({
     this.gapPadding = 4,
     this.borderRadius = const BorderRadius.all(Radius.circular(4)),
     this.borderSide = const BorderSide(),
@@ -118,10 +145,13 @@ class InputDecoration {
   final InputBorder? enabledBorder;
   final InputBorder? focusedBorder;
   final InputBorder? errorBorder;
+  final InputBorder? disabledBorder;
   final bool isDense;
   final Color? prefixIconColor;
   final Color? suffixIconColor;
   final bool enabled;
+  final String? counterText;
+  final bool alignLabelWithHint;
 
   const InputDecoration({
     this.hintText,
@@ -142,10 +172,13 @@ class InputDecoration {
     this.enabledBorder,
     this.focusedBorder,
     this.errorBorder,
+    this.disabledBorder,
     this.isDense = false,
     this.prefixIconColor,
     this.suffixIconColor,
     this.enabled = true,
+    this.counterText,
+    this.alignLabelWithHint = false,
   });
 
   InputDecoration copyWith({
@@ -163,6 +196,7 @@ class InputDecoration {
     InputBorder? enabledBorder,
     InputBorder? focusedBorder,
     InputBorder? errorBorder,
+    InputBorder? disabledBorder,
     bool? enabled,
   }) {
     return InputDecoration(
@@ -180,6 +214,7 @@ class InputDecoration {
       enabledBorder: enabledBorder ?? this.enabledBorder,
       focusedBorder: focusedBorder ?? this.focusedBorder,
       errorBorder: errorBorder ?? this.errorBorder,
+      disabledBorder: disabledBorder ?? this.disabledBorder,
       enabled: enabled ?? this.enabled,
     );
   }
@@ -190,7 +225,8 @@ class InputDecoration {
 // ---------------------------------------------------------------------------
 
 /// 文本编辑控制器(自研;承载 TextEditingValue 并广播变更)。
-class TextEditingController extends ChangeNotifier {
+class TextEditingController extends ChangeNotifier
+    implements ValueListenable<TextEditingValue> {
   TextEditingValue _value;
 
   TextEditingController({String text = ''})
@@ -347,6 +383,9 @@ class TextField extends fw.StatefulWidget {
   final GestureTapCallback? onTap;
   final Color? cursorColor;
   final bool expands;
+  final Iterable<String>? autofillHints;
+  final TextCapitalization? textCapitalization;
+  final bool autocorrect;
 
   const TextField({
     fw.Key? key,
@@ -371,6 +410,9 @@ class TextField extends fw.StatefulWidget {
     this.onTap,
     this.cursorColor,
     this.expands = false,
+    this.autofillHints,
+    this.textCapitalization,
+    this.autocorrect = false,
   }) : super(key: key);
 
   @override
@@ -1081,6 +1123,8 @@ class TextFormField extends fw.StatefulWidget {
   final String? Function(String?)? validator;
   final AutovalidateMode? autovalidateMode;
   final VoidCallback? onEditingComplete;
+  final Iterable<String>? autofillHints;
+  final bool autocorrect;
 
   const TextFormField({
     fw.Key? key,
@@ -1104,6 +1148,8 @@ class TextFormField extends fw.StatefulWidget {
     this.validator,
     this.autovalidateMode,
     this.onEditingComplete,
+    this.autofillHints,
+    this.autocorrect = false,
   }) : super(key: key);
 
   @override
@@ -1184,6 +1230,19 @@ class _TextFormFieldState extends fw.State<TextFormField>
       onChanged: _handleChange,
       onSubmitted: widget.onFieldSubmitted,
       onEditingComplete: widget.onEditingComplete,
+      autofillHints: widget.autofillHints,
+      autocorrect: widget.autocorrect,
     );
   }
+}
+
+
+/// 自动填充作用域占位(自研;收集语义,不参与系统 autofill)。
+class AutofillGroup extends fw.StatelessWidget {
+  final fw.Widget child;
+
+  const AutofillGroup({fw.Key? key, required this.child}) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) => child;
 }

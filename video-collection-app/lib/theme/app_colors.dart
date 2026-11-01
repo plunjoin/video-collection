@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 class AppColors {
   static const brandGradient = LinearGradient(

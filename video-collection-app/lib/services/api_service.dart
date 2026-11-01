@@ -132,8 +132,34 @@ class ApiService {
     }
   }
 
-  String _baseUrl = resolveDefaultApiBaseUrl();
+  /// 历史头像列表：最多 20 条，含 current 标记（是否为当前正在使用的头像）。
+  Future<List<Map<String, dynamic>>> listAvatars() async {
+    final data = await userRequest('/api/me/avatars');
+    final raw = data['data'];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+    }
+    return const [];
+  }
 
+  /// 把某个历史头像切换为当前头像，返回新的头像地址。
+  Future<String> useAvatar(int id) async {
+    final data = await userRequest(
+      '/api/me/avatars/use',
+      method: 'POST',
+      body: {'id': id},
+    );
+    return data['url']?.toString() ?? '';
+  }
+
+  /// 删除某条历史头像；服务端会同时删除对象存储 / 磁盘上的源文件。
+  Future<void> deleteAvatar(int id) =>
+      userRequest('/api/me/avatars?id=$id', method: 'DELETE');
+
+  String _baseUrl = resolveDefaultApiBaseUrl();
   String get baseUrl => _baseUrl;
 
   void setBaseUrl(String url) {

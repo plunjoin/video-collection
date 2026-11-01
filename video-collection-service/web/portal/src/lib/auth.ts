@@ -464,3 +464,46 @@ export async function uploadAvatar(file: File): Promise<ApiResult & { url?: stri
     return { code: 0, error: e.message || '网络连接超时，请重试' };
   }
 }
+
+export interface AvatarHistoryItem {
+  id: number;
+  url: string;
+  /** 上传时使用的存储类型：local / s3 */
+  provider: string;
+  created_at: string;
+  /** 是否为当前正在使用的头像 */
+  current: boolean;
+}
+
+// 历史头像列表：最多保留 20 条，最新的在前。
+export async function listAvatars(): Promise<AvatarHistoryItem[]> {
+  const token = getToken();
+  if (!token) return [];
+  try {
+    const res = await fetch('/api/me/avatars', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    return data.code === 1 && Array.isArray(data.data) ? data.data : [];
+  } catch {
+    return [];
+  }
+}
+
+// 把某个历史头像切回当前头像（立即生效，无需再保存资料）。
+export function useAvatar(id: number): Promise<ApiResult & { url?: string }> {
+  return authedPost('/api/me/avatars/use', { id }) as Promise<ApiResult & { url?: string }>;
+}
+
+// 删除某条历史头像；服务端会同时删除对象存储 / 磁盘上的源文件。
+export async function deleteAvatar(id: number): Promise<ApiResult> {
+  const token = getToken();
+  if (!token) return { code: 0, error: '请先登录' };
+  try {
+    const res = await fetch(`/api/me/avatars?id=${encodeURIComponent(String(id))}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { code: 0, error: e.message || '网络连接超时，请重试' };
+  }
+}

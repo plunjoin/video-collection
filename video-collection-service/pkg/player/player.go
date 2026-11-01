@@ -71,10 +71,10 @@ func (m *Manager) EnsureDefaultPlayers() {
 			Type:        "videojs",
 			Entry:       "player.html",
 			Config: map[string]interface{}{
-				"enhance_default":   true,
-				"autoplay_next":     true,
-				"next_countdown":    3,
-				"enable_shortcuts":  true,
+				"enhance_default":  true,
+				"autoplay_next":    true,
+				"next_countdown":   3,
+				"enable_shortcuts": true,
 			},
 		}
 		data, _ := json.MarshalIndent(p, "", "  ")

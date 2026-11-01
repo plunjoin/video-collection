@@ -54,37 +54,37 @@ type ClassItem struct {
 
 // VodItem 视频原始采集条目结构
 type VodItem struct {
-	VodID        FlexInt `json:"vod_id"`
-	VodName      string  `json:"vod_name"`
-	VodSub       string  `json:"vod_sub"`
-	VodEn        string  `json:"vod_en"`
-	VodStatus    FlexInt `json:"vod_status"`
-	VodTag       string  `json:"vod_tag"`
-	TypeID       FlexInt `json:"type_id"`
-	TypeName     string  `json:"type_name"`
-	VodTime      string  `json:"vod_time"`
-	VodRemarks   string  `json:"vod_remarks"`
-	VodPlayFrom  string  `json:"vod_play_from"`
-	VodPlayServer string `json:"vod_play_server"`
-	VodPlayNote  string  `json:"vod_play_note"`
-	VodPlayURL   string  `json:"vod_play_url"`
-	VodDownFrom  string  `json:"vod_down_from"`
-	VodDownURL   string  `json:"vod_down_url"`
-	VodPic       string  `json:"vod_pic"`
-	VodPicThumb  string  `json:"vod_pic_thumb"`
-	VodActor     string  `json:"vod_actor"`
-	VodDirector  string  `json:"vod_director"`
-	VodWriter    string  `json:"vod_writer"`
-	VodBlurb     string  `json:"vod_blurb"`
-	VodPubDate   string  `json:"vod_pubdate"`
-	VodTotal     FlexInt `json:"vod_total"`
-	VodSerial    string  `json:"vod_serial"`
-	VodArea      string  `json:"vod_area"`
-	VodLang      string  `json:"vod_lang"`
-	VodYear      string  `json:"vod_year"`
-	VodState     string  `json:"vod_state"`
-	VodScore     string  `json:"vod_score"`
-	VodContent   string  `json:"vod_content"`
+	VodID         FlexInt `json:"vod_id"`
+	VodName       string  `json:"vod_name"`
+	VodSub        string  `json:"vod_sub"`
+	VodEn         string  `json:"vod_en"`
+	VodStatus     FlexInt `json:"vod_status"`
+	VodTag        string  `json:"vod_tag"`
+	TypeID        FlexInt `json:"type_id"`
+	TypeName      string  `json:"type_name"`
+	VodTime       string  `json:"vod_time"`
+	VodRemarks    string  `json:"vod_remarks"`
+	VodPlayFrom   string  `json:"vod_play_from"`
+	VodPlayServer string  `json:"vod_play_server"`
+	VodPlayNote   string  `json:"vod_play_note"`
+	VodPlayURL    string  `json:"vod_play_url"`
+	VodDownFrom   string  `json:"vod_down_from"`
+	VodDownURL    string  `json:"vod_down_url"`
+	VodPic        string  `json:"vod_pic"`
+	VodPicThumb   string  `json:"vod_pic_thumb"`
+	VodActor      string  `json:"vod_actor"`
+	VodDirector   string  `json:"vod_director"`
+	VodWriter     string  `json:"vod_writer"`
+	VodBlurb      string  `json:"vod_blurb"`
+	VodPubDate    string  `json:"vod_pubdate"`
+	VodTotal      FlexInt `json:"vod_total"`
+	VodSerial     string  `json:"vod_serial"`
+	VodArea       string  `json:"vod_area"`
+	VodLang       string  `json:"vod_lang"`
+	VodYear       string  `json:"vod_year"`
+	VodState      string  `json:"vod_state"`
+	VodScore      string  `json:"vod_score"`
+	VodContent    string  `json:"vod_content"`
 }
 
 // Episode 单集结构
@@ -97,11 +97,11 @@ type Episode struct {
 type PlayGroup struct {
 	SourceID   string    `json:"source_id,omitempty"`   // 来源采集节点ID，如 example_json
 	SourceName string    `json:"source_name,omitempty"` // 来源采集节点名称，如 示例数据源
-	PlayerCode string    `json:"player_code"`          // 播放器标识，如 m3u8, kkm3u8
-	From       string    `json:"from,omitempty"`       // 兼容 Admin 前端 from 字段
-	Server     string    `json:"server"`               // 服务器标识
-	Note       string    `json:"note"`                 // 备注信息
-	Episodes   []Episode `json:"episodes"`             // 包含的所有剧集列表
+	PlayerCode string    `json:"player_code"`           // 播放器标识，如 m3u8, kkm3u8
+	From       string    `json:"from,omitempty"`        // 兼容 Admin 前端 from 字段
+	Server     string    `json:"server"`                // 服务器标识
+	Note       string    `json:"note"`                  // 备注信息
+	Episodes   []Episode `json:"episodes"`              // 包含的所有剧集列表
 }
 
 // CleanedVod 经过规则清洗和结构化解析后的标准视频对象

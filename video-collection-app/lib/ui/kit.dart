@@ -13,7 +13,8 @@ library;
 
 // ---- 引擎与基础设施层(非组件,直接放行) ----
 export 'package:flutter/animation.dart';
-export 'package:flutter/foundation.dart';
+export 'package:flutter/foundation.dart' hide Category;
+export 'package:characters/characters.dart' show Characters, CharacterRange;
 export 'package:flutter/gestures.dart';
 export 'package:flutter/painting.dart';
 export 'package:flutter/scheduler.dart';
@@ -53,12 +54,22 @@ export 'package:flutter/widgets.dart'
         WidgetsFlutterBinding,
         runApp,
         InheritedWidget,
+        KeyEventResult,
+        Focus,
+        Element,
+        StatefulElement,
+        FocusTraversalGroup,
+        Builder,
+        LayoutBuilder,
+        StatefulBuilder,
+        PreferredSizeWidget,
         Directionality,
         FocusNode,
         FocusScope,
         FocusScopeNode,
         FocusManager,
         MediaQuery,
+        MediaQueryData,
         View,
         RouteSettings,
         defaultTargetPlatform,
@@ -72,6 +83,7 @@ export 'container.dart';
 export 'controls.dart';
 export 'fonts.dart';
 export 'gestures.dart';
+export 'image.dart';
 export 'inputs.dart';
 export 'layout.dart';
 export 'nav.dart';

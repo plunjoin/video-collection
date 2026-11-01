@@ -11,7 +11,7 @@ library;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 /// 品牌点缀色：速度短线专属粉。
 const Color kBrandIconAccent = Color(0xFFFF89C7);

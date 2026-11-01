@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"unicode"
 	"time"
+	"unicode"
 )
 
 // EmbeddingProvider 可插拔嵌入模型（本地假向量或远程 API）。
@@ -120,7 +120,7 @@ func hashEmbedding(text string, dim int) []float32 {
 		h := sha256.Sum256([]byte(text))
 		for i := 0; i < dim; i++ {
 			b := h[i%len(h)]
-			vec[i] = (float32(int(b)-128)) / 128.0
+			vec[i] = (float32(int(b) - 128)) / 128.0
 		}
 	}
 	normalize(vec)

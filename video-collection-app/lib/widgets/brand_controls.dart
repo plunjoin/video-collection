@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
@@ -9,8 +9,17 @@ import 'brand_widgets.dart';
 import '../theme/brand_icons.dart';
 import 'window_drag_area.dart';
 
-/// Windows 桌面端标题栏移除后，页面标题栏为右上角原生窗口控制按钮
-/// 预留的顶部让位高度（其他平台保留系统标题栏，无需让位）。
+/// 页面头部高度:Windows 桌面端从窗口顶部 y=0 开始(原 34px 顶条 + 64px
+/// 工具栏收紧为一条 48px 头部,返回键中心从 ~66px 上移到 ~24px);
+/// 其他平台在状态栏之下,同样 48px。
+const double kAppHeaderHeight = 48.0;
+
+/// Windows 原生最小化/最大化/关闭按钮区(138×32,悬浮于内容之上)。
+/// 头部右侧有操作按钮的页面需预留此宽度避免重叠。
+final double kNativeWindowButtonsZone =
+    (!kIsWeb && Platform.isWindows) ? 148.0 : 0.0;
+
+/// [已废弃,仅供播放器等全屏页面做原生按钮让位] 顶部让位高度。
 final double kBrandAppBarTopInset =
     (!kIsWeb && Platform.isWindows) ? 34.0 : 0.0;
 
@@ -178,7 +187,7 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
   @override
   Size get preferredSize => Size.fromHeight(
-      64 + kBrandAppBarTopInset + (bottom?.preferredSize.height ?? 0));
+      kAppHeaderHeight + (bottom?.preferredSize.height ?? 0));
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -186,70 +195,72 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
       value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: IconTheme(
         data: Theme.of(context).appBarTheme.iconTheme ?? const IconThemeData(),
-        child: Material(
+        child: Container(
           color: dark ? AppColors.darkBg : Colors.white,
           child: SafeArea(
             bottom: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Windows 桌面端：顶部留白条兼作窗口拖拽区，
-                // 右上角原生窗口按钮浮在该条之上
-                if (kBrandAppBarTopInset > 0)
-                  SizedBox(
-                    height: kBrandAppBarTopInset,
-                    child: WindowDragArea(
-                      enabled: true,
-                      child: ColoredBox(
-                        color: dark ? AppColors.darkBg : Colors.white,
+                // 紧凑头部(48px):Windows 上从窗口顶部 y=0 开始,
+                // 整条为窗口拖拽区,右上角原生窗口按钮悬浮其上
+                WindowDragArea(
+                  enabled: kNativeWindowButtonsZone > 0,
+                  child: SizedBox(
+                    height: kAppHeaderHeight,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: titleSpacing,
+                        right: actions == null
+                            ? 12
+                            : (12 + kNativeWindowButtonsZone),
+                      ),
+                      child: Row(
+                        children: [
+                          if (Navigator.of(context).canPop()) ...[
+                            IconButton(
+                              onPressed: () =>
+                                  Navigator.of(context).maybePop(),
+                              tooltip: '返回',
+                              icon: const BrandIcon(
+                                BIcons.chevronLeft,
+                                size: 25,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: dark
+                                    ? AppColors.darkCard
+                                    : AppColors.primary50,
+                                minimumSize: const Size(40, 40),
+                                padding: EdgeInsets.zero,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(999),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: DefaultTextStyle(
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: .5,
+                                color: dark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              child: title,
+                            ),
+                          ),
+                          ...?actions,
+                        ],
                       ),
                     ),
                   ),
-                // 工具栏整条可拖拽（返回键/操作按钮优先命中，空白处拖动窗口）
-                WindowDragArea(
-                  enabled: kBrandAppBarTopInset > 0,
-                  child: SizedBox(
-                    height: 64,
-                    child: Padding(
-                      padding: EdgeInsets.only(left: titleSpacing, right: 12),
-                    child: Row(
-                      children: [
-                        if (Navigator.of(context).canPop()) ...[
-                          IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            tooltip: '返回',
-                            icon: const BrandIcon(
-                              BIcons.chevronLeft,
-                              size: 25,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: dark
-                                  ? AppColors.darkCard
-                                  : AppColors.primary50,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: DefaultTextStyle(
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: .5,
-                              color: dark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.lightTextPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            child: title,
-                          ),
-                        ),
-                        ...?actions,
-                      ],
-                    ),
-                  ),
-                ),
                 ),
                 ?bottom,
               ],
@@ -395,15 +406,11 @@ class BrandDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 420,
-          maxHeight: MediaQuery.sizeOf(context).height * .78,
-        ),
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: 420,
+        maxHeight: MediaQuery.sizeOf(context).height * .78,
+      ),
         decoration: BoxDecoration(
           color: dark ? AppColors.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(25),
@@ -455,7 +462,6 @@ class BrandDialog extends StatelessWidget {
                 ),
               ),
           ],
-        ),
       ),
     );
   }

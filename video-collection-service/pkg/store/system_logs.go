@@ -13,14 +13,14 @@ const systemLogRetainLimit = 5000
 
 // SystemLog 后台系统审计日志（与采集日志 collection_logs 分离）
 type SystemLog struct {
-	ID         int            `json:"id"`
-	Level      string         `json:"level"`    // info / warn / error
-	Category   string         `json:"category"` // auth / admin / collect / content / system
-	Message    string         `json:"message"`
-	ActorID    int            `json:"actor_id"`
-	ActorName  string         `json:"actor_name"`
-	Meta       map[string]any `json:"meta,omitempty"`
-	CreatedAt  time.Time      `json:"created_at"`
+	ID        int            `json:"id"`
+	Level     string         `json:"level"`    // info / warn / error
+	Category  string         `json:"category"` // auth / admin / collect / content / system
+	Message   string         `json:"message"`
+	ActorID   int            `json:"actor_id"`
+	ActorName string         `json:"actor_name"`
+	Meta      map[string]any `json:"meta,omitempty"`
+	CreatedAt time.Time      `json:"created_at"`
 }
 
 // SystemLogQuery 系统日志分页与过滤

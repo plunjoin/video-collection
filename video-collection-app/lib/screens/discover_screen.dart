@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
@@ -269,9 +269,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(16)),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),

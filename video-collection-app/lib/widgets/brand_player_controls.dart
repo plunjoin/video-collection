@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 import '../theme/app_colors.dart';
 import 'brand_components.dart';
@@ -19,36 +19,32 @@ class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
   });
 
   @override
+  double getPreferredLength(double maxWidth, double trackHeight) => maxWidth;
+
+  @override
   void paint(
-    PaintingContext context,
-    Offset offset, {
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required Animation<double> enableAnimation,
-    required TextDirection textDirection,
+    Canvas canvas,
+    Rect rect, {
+    required double value,
+    required double min,
+    required double max,
+    required bool enabled,
+    required SliderThemeData theme,
     required Offset thumbCenter,
-    Offset? secondaryOffset,
-    bool isDiscrete = false,
-    bool isEnabled = false,
-    double additionalActiveTrackHeight = 1.0,
+    double? bufferValue,
   }) {
-    if (sliderTheme.trackHeight == null || sliderTheme.trackHeight! <= 0) {
-      return;
-    }
-
-    final Rect trackRect = getPreferredRect(
-      parentBox: parentBox,
-      offset: offset,
-      sliderTheme: sliderTheme,
-      isEnabled: isEnabled,
-      isDiscrete: isDiscrete,
+    final h = theme.trackHeight;
+    if (h <= 0) return;
+    final Rect trackRect = Rect.fromLTWH(
+      rect.left,
+      rect.center.dy - h / 2,
+      rect.width,
+      h,
     );
-
-    final Canvas canvas = context.canvas;
 
     // 1. 底层背景轨道 (未播放部分)
     final Paint inactivePaint = Paint()
-      ..color = sliderTheme.inactiveTrackColor ??
+      ..color = theme.inactiveTrackColor ??
           Colors.white.withValues(alpha: 0.18);
     canvas.drawRRect(
       RRect.fromRectAndRadius(trackRect, Radius.circular(trackRect.height / 2)),
@@ -56,9 +52,10 @@ class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
     );
 
     // 2. 缓冲进度轨道 (已缓存部分)
-    if (bufferProgress > 0.0) {
+    final buffer = bufferValue ?? bufferProgress;
+    if (buffer > 0.0) {
       final double bufferWidth =
-          (trackRect.width * bufferProgress.clamp(0.0, 1.0));
+          (trackRect.width * buffer.clamp(0.0, 1.0));
       if (bufferWidth > 0) {
         final Rect bufferRect = Rect.fromLTWH(
           trackRect.left,
@@ -78,15 +75,15 @@ class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
       }
     }
 
-    // 3. 激活进度轨道 (已播放部分，呈现品牌渐变色)
+    // 3. 激活进度轨道 (已播放部分,呈现品牌渐变色)
     final double activeWidth =
         (thumbCenter.dx - trackRect.left).clamp(0.0, trackRect.width);
     if (activeWidth > 0) {
       final double activeHeight =
-          trackRect.height + this.additionalActiveTrackHeight;
+          trackRect.height + additionalActiveTrackHeight;
       final Rect activeRect = Rect.fromLTWH(
         trackRect.left,
-        trackRect.top - (this.additionalActiveTrackHeight / 2),
+        trackRect.top - (additionalActiveTrackHeight / 2),
         activeWidth,
         activeHeight,
       );
@@ -104,7 +101,7 @@ class BrandGradientSliderTrackShape extends RoundedRectSliderTrackShape {
 }
 
 /// 具有品牌外发光环与白瓷内核的高质感滑块游标
-class BrandSliderThumbShape extends SliderComponentShape {
+class BrandSliderThumbShape extends SliderThumbShape {
   final double radius;
   final Color glowColor;
   final Color ringColor;
@@ -116,49 +113,37 @@ class BrandSliderThumbShape extends SliderComponentShape {
   });
 
   @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
-      Size.fromRadius(radius + 4);
+  Size getPreferredSize(bool isEnabled) => Size.fromRadius(radius + 4);
 
   @override
   void paint(
-    PaintingContext context,
+    Canvas canvas,
     Offset center, {
-    required Animation<double> activationAnimation,
-    required Animation<double> enableAnimation,
-    required bool isDiscrete,
-    required TextPainter labelPainter,
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required TextDirection textDirection,
-    required double value,
-    required double textScaleFactor,
-    required Size sizeWithOverflow,
+    required bool enabled,
+    required SliderThemeData theme,
   }) {
-    final Canvas canvas = context.canvas;
-    final double scale = 1.0 + (activationAnimation.value * 0.25);
-    final double currentRadius = radius * scale;
-
     // 外发光层
     final Paint glowPaint = Paint()
       ..color = glowColor.withValues(alpha: 0.40)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawCircle(center, currentRadius + 3.5, glowPaint);
+    canvas.drawCircle(center, radius + 3.5, glowPaint);
 
     // 品牌色外环
-    final Paint ringPaint = Paint()
-      ..color = ringColor
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, currentRadius, ringPaint);
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()..color = ringColor,
+    );
 
     // 纯白高光内芯
-    final Paint innerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, currentRadius - 2.5, innerPaint);
+    canvas.drawCircle(
+      center,
+      radius - 2.5,
+      Paint()..color = Colors.white,
+    );
   }
 }
 
-/// 磨砂亚克力微交互按钮，专为播放器控制栏定制
 class BrandPlayerButton extends StatefulWidget {
   final BrandIconData icon;
   final VoidCallback? onPressed;

@@ -75,19 +75,19 @@ abstract final class Colors {
 class GreySwatch {
   const GreySwatch();
 
-  static const Color shade50 = Color(0xFFFAFAFA);
-  static const Color shade100 = Color(0xFFF5F5F5);
-  static const Color shade200 = Color(0xFFEEEEEE);
-  static const Color shade300 = Color(0xFFE0E0E0);
-  static const Color shade350 = Color(0xFFD6D6D6);
-  static const Color shade400 = Color(0xFFBDBDBD);
-  static const Color shade450 = Color(0xFFA9A9A9);
-  static const Color shade500 = Color(0xFF9E9E9E);
-  static const Color shade600 = Color(0xFF757575);
-  static const Color shade700 = Color(0xFF616161);
-  static const Color shade800 = Color(0xFF424242);
-  static const Color shade850 = Color(0xFF303030);
-  static const Color shade900 = Color(0xFF212121);
+  final Color shade50 = const Color(0xFFFAFAFA);
+  final Color shade100 = const Color(0xFFF5F5F5);
+  final Color shade200 = const Color(0xFFEEEEEE);
+  final Color shade300 = const Color(0xFFE0E0E0);
+  final Color shade350 = const Color(0xFFD6D6D6);
+  final Color shade400 = const Color(0xFFBDBDBD);
+  final Color shade450 = const Color(0xFFA9A9A9);
+  final Color shade500 = const Color(0xFF9E9E9E);
+  final Color shade600 = const Color(0xFF757575);
+  final Color shade700 = const Color(0xFF616161);
+  final Color shade800 = const Color(0xFF424242);
+  final Color shade850 = const Color(0xFF303030);
+  final Color shade900 = const Color(0xFF212121);
 }
 
 /// 文本样式集合(自研,字段面与用点对齐)。

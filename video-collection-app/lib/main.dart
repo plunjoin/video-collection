@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +6,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'providers/app_state_provider.dart';
 import 'screens/startup_screen.dart';
-import 'theme/app_theme.dart';
+import 'ui/kit.dart';
 import 'utils/native_window.dart';
 import 'utils/responsive.dart';
 
@@ -82,15 +81,12 @@ class BlliiApp extends StatelessWidget {
             (appState.themeMode == ThemeMode.system &&
                 MediaQuery.platformBrightnessOf(context) == Brightness.dark);
         NativeWindow.setTheme(darkNow);
-        return MaterialApp(
+        return AppRoot(
           title: 'bllii · More Stories, Together',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.themed(Brightness.light, appState.accentColor),
-          darkTheme: AppTheme.themed(Brightness.dark, appState.accentColor),
+          theme: buildAppTheme(Brightness.light, appState.accentColor),
+          darkTheme: buildAppTheme(Brightness.dark, appState.accentColor),
           themeMode: appState.themeMode,
-          scrollBehavior: const MaterialScrollBehavior().copyWith(
-            scrollbars: false,
-          ),
           builder: (context, child) => VirtualWindowFrame(
             child: child ?? const SizedBox.shrink(),
           ),

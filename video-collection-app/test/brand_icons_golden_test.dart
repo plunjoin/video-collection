@@ -3,9 +3,10 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_collection_app/theme/brand_icons.dart';
+import 'test_kit.dart';
 
 List<(String, BrandIconData)> _iconEntries() {
   final data = <String, BrandIconData>{
@@ -181,7 +182,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: ThemeData.light(useMaterial3: true),
+          theme: AppTheme.lightTheme,
           home: _Board(entries: chunk),
         ),
       );

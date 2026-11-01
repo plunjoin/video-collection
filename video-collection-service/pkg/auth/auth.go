@@ -376,7 +376,7 @@ func BackendAllowed(role, method, path string) bool {
 		return method == http.MethodPost && (path == "/api/admin/videos/save" || path == "/api/admin/news" || path == "/api/admin/community/posts")
 	}
 	if role == "admin" && !read {
-		for _, prefix := range []string{"/api/admin/db", "/api/admin/themes", "/api/admin/players", "/api/admin/site/config", "/api/admin/scheduler"} {
+		for _, prefix := range []string{"/api/admin/db", "/api/admin/themes", "/api/admin/players", "/api/admin/site/config", "/api/admin/scheduler", "/api/admin/integrations"} {
 			if strings.HasPrefix(path, prefix) {
 				return false
 			}

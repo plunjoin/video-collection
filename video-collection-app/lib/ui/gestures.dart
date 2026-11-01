@@ -469,6 +469,7 @@ class InkWell extends fw.StatefulWidget {
   final fw.ValueChanged<bool>? onHighlightChanged;
   final BorderRadius? borderRadius;
   final double? radius;
+  final ShapeBorder? customBorder;
   final Color? overlayColor;
   final Color? highlightColor;
   final Color? splashColor;
@@ -491,6 +492,7 @@ class InkWell extends fw.StatefulWidget {
     this.onHighlightChanged,
     this.borderRadius,
     this.radius,
+    this.customBorder,
     this.overlayColor,
     this.highlightColor,
     this.splashColor,
@@ -538,7 +540,11 @@ class _InkWellState extends fw.State<InkWell> {
       widget.borderRadius ??
       (widget.radius != null
           ? BorderRadius.circular(widget.radius!)
-          : null);
+          : (widget.customBorder is RoundedRectangleBorder
+              ? (widget.customBorder as RoundedRectangleBorder)
+                  .borderRadius
+                  .resolve(TextDirection.ltr)
+              : null));
 
   @override
   fw.Widget build(fw.BuildContext context) {

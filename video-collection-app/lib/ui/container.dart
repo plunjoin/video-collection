@@ -950,3 +950,229 @@ class _AnnotatedRegionState<T extends Object?>
   @override
   fw.Widget build(fw.BuildContext context) => widget.child;
 }
+
+
+/// 图像滤镜(对子树整体应用 ui.ImageFilter;替代 widgets 的 ImageFiltered)。
+class ImageFiltered extends fw.SingleChildRenderObjectWidget {
+  final ui.ImageFilter imageFilter;
+
+  const ImageFiltered({
+    fw.Key? key,
+    required this.imageFilter,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderImageFilteredBox(imageFilter: imageFilter);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderImageFilteredBox renderObject,
+  ) {
+    renderObject.imageFilter = imageFilter;
+  }
+}
+
+/// 自写图像滤镜渲染盒子。
+class RenderImageFilteredBox extends RenderProxyBox {
+  ui.ImageFilter _imageFilter;
+
+  RenderImageFilteredBox({required ui.ImageFilter imageFilter})
+      : _imageFilter = imageFilter;
+
+  set imageFilter(ui.ImageFilter value) {
+    if (_imageFilter == value) return;
+    _imageFilter = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer = ImageFilterLayer()..imageFilter = _imageFilter;
+    context.pushLayer(
+      layer,
+      (context, offset) {
+        if (child != null) context.paintChild(child!, offset);
+      },
+      offset,
+    );
+  }
+}
+
+
+/// 颜色滤镜(替代 widgets 的 ColorFiltered)。
+class ColorFiltered extends fw.SingleChildRenderObjectWidget {
+  final ui.ColorFilter colorFilter;
+
+  const ColorFiltered({
+    fw.Key? key,
+    required this.colorFilter,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderColorFilteredBox(colorFilter: colorFilter);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderColorFilteredBox renderObject,
+  ) {
+    renderObject.colorFilter = colorFilter;
+  }
+}
+
+class RenderColorFilteredBox extends RenderProxyBox {
+  ui.ColorFilter _colorFilter;
+
+  RenderColorFilteredBox({required ui.ColorFilter colorFilter})
+      : _colorFilter = colorFilter;
+
+  set colorFilter(ui.ColorFilter value) {
+    if (_colorFilter == value) return;
+    _colorFilter = value;
+    markNeedsPaint();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer = ColorFilterLayer()..colorFilter = _colorFilter;
+    context.pushLayer(
+      layer,
+      (context, offset) {
+        if (child != null) context.paintChild(child!, offset);
+      },
+      offset,
+    );
+  }
+}
+
+/// 尺寸过渡(自研简化版:尺寸变化时 160ms 缓动;替代 widgets 的 AnimatedSize)。
+class AnimatedSize extends fw.StatefulWidget {
+  final Duration duration;
+  final Curve curve;
+  final Alignment alignment;
+  final fw.Widget child;
+
+  const AnimatedSize({
+    fw.Key? key,
+    required this.duration,
+    this.curve = fw.Curves.easeOutCubic,
+    this.alignment = Alignment.center,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  fw.State<AnimatedSize> createState() => _AnimatedSizeState();
+}
+
+class _AnimatedSizeState extends fw.State<AnimatedSize>
+    with fw.SingleTickerProviderStateMixin {
+  late final fw.AnimationController _controller;
+  Size _current = Size.zero;
+  Size _target = Size.zero;
+  Size _from = Size.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = fw.AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return _SizeProbe(
+      onSize: (size) {
+        if (size == _target) return;
+        if (_current == Size.zero) {
+          _current = size;
+          _target = size;
+          return;
+        }
+        setState(() {
+          _from = _current;
+          _target = size;
+        });
+        _controller.forward(from: 0);
+      },
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = fw.CurveTween(curve: widget.curve)
+              .transform(_controller.value);
+          final animated = Size(
+            ui.lerpDouble(_from.width, _target.width, t)!,
+            ui.lerpDouble(_from.height, _target.height, t)!,
+          );
+          _current = animated;
+          return ClipRect(
+            child: Align(
+              alignment: widget.alignment,
+              heightFactor: _target.height == 0
+                  ? 1
+                  : (animated.height / _target.height).clamp(0.0, 1.0),
+              widthFactor: _target.width == 0
+                  ? 1
+                  : (animated.width / _target.width).clamp(0.0, 1.0),
+              child: child,
+            ),
+          );
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 测量子项实际尺寸的探针(内部管道)。
+class _SizeProbe extends fw.SingleChildRenderObjectWidget {
+  final fw.ValueChanged<Size> onSize;
+
+  const _SizeProbe({required this.onSize, required super.child});
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderSizeProbe(onSize: onSize);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderSizeProbe renderObject,
+  ) {
+    renderObject.onSize = onSize;
+  }
+}
+
+class RenderSizeProbe extends RenderProxyBox {
+  fw.ValueChanged<Size> onSize;
+  Size _last = Size.zero;
+
+  RenderSizeProbe({required this.onSize});
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size != _last) {
+      _last = size;
+      onSize(size);
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
@@ -156,9 +156,9 @@ class ProfileHubScreen extends StatelessWidget {
 
   Widget _entryListTile(
       _HubEntry entry, Color ink, Color muted, Color borderColor) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Container(
+        decoration: BoxDecoration(color: Colors.transparent),
+        child: InkWell(
         onTap: entry.onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -217,7 +217,7 @@ class ProfileHubScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+      );
   }
 }
 

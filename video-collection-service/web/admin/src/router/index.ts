@@ -124,6 +124,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '系统配置' }
       },
       {
+        path: 'integrations',
+        name: 'Integrations',
+        component: () => import('@/views/integrations/index.vue'),
+        meta: { title: '集成配置' }
+      },
+      {
         path: 'bootstrap',
         name: 'Bootstrap',
         component: () => import('@/views/bootstrap/index.vue'),

@@ -1,5 +1,5 @@
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';

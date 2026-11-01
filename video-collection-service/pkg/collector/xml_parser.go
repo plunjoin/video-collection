@@ -26,29 +26,29 @@ type xmlClassTy struct {
 }
 
 type xmlVideoList struct {
-	Page        int         `xml:"page,attr"`
-	PageCount   int         `xml:"pagecount,attr"`
-	PageSize    int         `xml:"pagesize,attr"`
-	RecordCount int         `xml:"recordcount,attr"`
-	Videos      []xmlVideo  `xml:"video"`
+	Page        int        `xml:"page,attr"`
+	PageCount   int        `xml:"pagecount,attr"`
+	PageSize    int        `xml:"pagesize,attr"`
+	RecordCount int        `xml:"recordcount,attr"`
+	Videos      []xmlVideo `xml:"video"`
 }
 
 type xmlVideo struct {
-	Last     string   `xml:"last"`
-	ID       string   `xml:"id"`
-	TID      int      `xml:"tid"`
-	Name     string   `xml:"name"`
-	Type     string   `xml:"type"`
-	Pic      string   `xml:"pic"`
-	Lang     string   `xml:"lang"`
-	Area     string   `xml:"area"`
-	Year     string   `xml:"year"`
-	State    string   `xml:"state"`
-	Note     string   `xml:"note"`
-	Actor    string   `xml:"actor"`
-	Director string   `xml:"director"`
-	Des      string   `xml:"des"`
-	DL       xmlDL    `xml:"dl"`
+	Last     string `xml:"last"`
+	ID       string `xml:"id"`
+	TID      int    `xml:"tid"`
+	Name     string `xml:"name"`
+	Type     string `xml:"type"`
+	Pic      string `xml:"pic"`
+	Lang     string `xml:"lang"`
+	Area     string `xml:"area"`
+	Year     string `xml:"year"`
+	State    string `xml:"state"`
+	Note     string `xml:"note"`
+	Actor    string `xml:"actor"`
+	Director string `xml:"director"`
+	Des      string `xml:"des"`
+	DL       xmlDL  `xml:"dl"`
 }
 
 type xmlDL struct {
@@ -88,13 +88,13 @@ type atomFeed struct {
 }
 
 type atomEntry struct {
-	Title     string     `xml:"title"`
-	Link      atomLink   `xml:"link"`
-	Category  atomCat    `xml:"category"`
-	Published string     `xml:"published"`
-	Updated   string     `xml:"updated"`
-	Summary   string     `xml:"summary"`
-	Content   string     `xml:"content"`
+	Title     string   `xml:"title"`
+	Link      atomLink `xml:"link"`
+	Category  atomCat  `xml:"category"`
+	Published string   `xml:"published"`
+	Updated   string   `xml:"updated"`
+	Summary   string   `xml:"summary"`
+	Content   string   `xml:"content"`
 }
 
 type atomLink struct {
@@ -109,7 +109,7 @@ type atomCat struct {
 }
 
 var (
-	imgSrcRegex  = regexp.MustCompile(`(?i)<img[^>]+src=["']([^"']+)["']`)
+	imgSrcRegex   = regexp.MustCompile(`(?i)<img[^>]+src=["']([^"']+)["']`)
 	mediaURLRegex = regexp.MustCompile(`https?://[^\s"']+\.(?:m3u8|mp4|flv|mkv|webm)(?:\?[^\s"']*)?`)
 )
 

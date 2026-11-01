@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -21,6 +21,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final TextEditingController _bio;
   bool _busy = false;
   bool _uploadingAvatar = false;
+  bool _loadingAvatars = false;
+  int? _avatarBusyId;
+  List<Map<String, dynamic>> _avatars = const [];
   String? _error;
 
   @override
@@ -36,6 +39,86 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           : user?['avatar']?.toString() ?? '',
     );
     _bio = TextEditingController(text: user?['bio']?.toString() ?? '');
+    _loadAvatars();
+  }
+
+  /// 拉取历史头像（最多 20 条，服务端超出后自动裁剪并删除源文件）。
+  Future<void> _loadAvatars() async {
+    setState(() => _loadingAvatars = true);
+    final list = await context.read<AppStateProvider>().listAvatars();
+    if (!mounted) return;
+    setState(() {
+      _avatars = list;
+      _loadingAvatars = false;
+    });
+  }
+
+  /// 把历史头像切回当前头像：服务端立即生效，无需再点保存。
+  Future<void> _useAvatar(Map<String, dynamic> item) async {
+    if (_avatarBusyId != null || item['current'] == true) return;
+    final id = (item['id'] as num?)?.toInt() ?? 0;
+    if (id <= 0) return;
+    setState(() {
+      _avatarBusyId = id;
+      _error = null;
+    });
+    final message = await context.read<AppStateProvider>().useAvatar(id);
+    if (!mounted) return;
+    final url = item['url']?.toString() ?? '';
+    setState(() {
+      _avatarBusyId = null;
+      if (message == null && url.isNotEmpty) _avatar.text = url;
+    });
+    if (message != null) {
+      setState(() => _error = message);
+      return;
+    }
+    await _loadAvatars();
+  }
+
+  /// 删除历史头像：服务端会一并清理源文件，不可恢复。
+  Future<void> _deleteAvatar(Map<String, dynamic> item) async {
+    if (_avatarBusyId != null) return;
+    if (item['current'] == true) {
+      setState(() => _error = '当前正在使用的头像不能删除，请先切换到其他头像');
+      return;
+    }
+    final id = (item['id'] as num?)?.toInt() ?? 0;
+    if (id <= 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除这个头像？'),
+        content: const Text('删除后该头像的源文件会被一并清理，且无法恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _avatarBusyId = id;
+      _error = null;
+    });
+    final message = await context.read<AppStateProvider>().deleteAvatar(id);
+    if (!mounted) return;
+    setState(() {
+      _avatarBusyId = null;
+      if (message == null) {
+        _avatars = _avatars
+            .where((entry) => (entry['id'] as num?)?.toInt() != id)
+            .toList(growable: false);
+      } else {
+        _error = message;
+      }
+    });
   }
 
   @override
@@ -102,6 +185,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       _error = message;
       if (message == null && uploaded.isNotEmpty) _avatar.text = uploaded;
     });
+    if (message == null) await _loadAvatars();
   }
 
   @override
@@ -138,7 +222,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             onPressed: _busy || _uploadingAvatar
                                 ? null
                                 : _pickAvatar,
-                            icon: const Icon(Icons.photo_library_outlined),
+                            icon: const BrandIcon(BIcons.image),
                             label: Text(
                               _uploadingAvatar ? '上传中…' : '从相册上传头像',
                             ),
@@ -150,6 +234,59 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
+                        if (_loadingAvatars || _avatars.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '历史头像',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                              ),
+                              Text(
+                                '点按切换 · 长按删除',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (_loadingAvatars)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                for (final item in _avatars)
+                                  _AvatarHistoryTile(
+                                    url: item['url']?.toString() ?? '',
+                                    current: item['current'] == true,
+                                    busy:
+                                        _avatarBusyId ==
+                                        (item['id'] as num?)?.toInt(),
+                                    onTap: () => _useAvatar(item),
+                                    onLongPress: () => _deleteAvatar(item),
+                                  ),
+                              ],
+                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '最多保留 20 张，超出后自动清理最旧的图片；删除会同时删掉源文件。',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         TextFormField(
                           controller: _nickname,
@@ -233,6 +370,64 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 历史头像格子：当前头像用品牌色描边，点按切换，长按删除。
+class _AvatarHistoryTile extends StatelessWidget {
+  const _AvatarHistoryTile({
+    required this.url,
+    required this.current,
+    required this.busy,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final String url;
+  final bool current;
+  final bool busy;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: current || busy ? null : onTap,
+      onLongPress: current || busy ? null : onLongPress,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Opacity(
+            opacity: busy ? 0.45 : 1,
+            child: MemberAvatar(
+              avatar: url,
+              frame: current ? '#597BEA' : '#E0E7FF',
+              size: 62,
+            ),
+          ),
+          if (current)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const BrandIcon(
+                  BIcons.check,
+                  size: 9,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );

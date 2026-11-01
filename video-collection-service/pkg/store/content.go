@@ -162,7 +162,13 @@ CREATE TABLE IF NOT EXISTS verify_codes (
  expires_at %s NOT NULL, created_at %s NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_verify_codes_lookup ON verify_codes(target,channel,purpose,consumed,id);
-`, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp)
+CREATE TABLE IF NOT EXISTS avatar_history (
+ id %s, user_id INTEGER NOT NULL, url TEXT NOT NULL,
+ object_key TEXT NOT NULL DEFAULT '', provider TEXT NOT NULL DEFAULT 'local',
+ created_at %s NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_avatar_history_user ON avatar_history(user_id,id);
+`, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp, timestamp, id, timestamp)
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err

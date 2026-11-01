@@ -1,5 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import '../models/video_model.dart';
 import '../theme/app_colors.dart';
 import 'brand_widgets.dart';
@@ -18,7 +18,9 @@ class LeaderboardCard extends StatelessWidget {
         border: Border.all(color: dark ? AppColors.darkBorder : AppColors.lightBorder),
         gradient: LinearGradient(colors: dark ? [AppColors.darkCard, const Color(0xFF26314A)]
           : [rank <= 3 ? const Color(0xFFFFF5FB) : Colors.white, const Color(0xFFFBFCFF)])),
-      child: Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(17),
+      child: Container(
+        decoration: BoxDecoration(color: Colors.transparent),
+        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(17),
         child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
           SizedBox(width: 29, child: Text(rank.toString().padLeft(2, '0'), style: TextStyle(fontSize: 22,
             fontStyle: FontStyle.italic, fontWeight: FontWeight.w700, color: rank <= 3 ? accent : AppColors.lightTextSecondary))),
@@ -41,7 +43,8 @@ class LeaderboardCard extends StatelessWidget {
             Text([video.year, video.area].where((s) => s.isNotEmpty).join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary)),
           ])),
         ])),
-      )),
+      ),
+      ),
     );
   }
 }

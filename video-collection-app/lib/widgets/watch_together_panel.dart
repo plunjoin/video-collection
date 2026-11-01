@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
+import 'package:characters/characters.dart';
 import 'package:flutter/services.dart';
 
 import '../services/watch_together_service.dart';
@@ -544,8 +545,7 @@ class _WatchTogetherPanelState extends State<WatchTogetherPanel> {
           ),
           IconButton(
             tooltip: '退出房间',
-            visualDensity: VisualDensity.compact,
-            onPressed: _leaveRoom,
+                  onPressed: _leaveRoom,
             icon: BrandIcon(BIcons.logout, size: 17, color: _muted),
           ),
         ],

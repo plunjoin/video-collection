@@ -183,14 +183,14 @@ type VideoQuery struct {
 // Feedback 用户留言求片与播放故障报错
 type Feedback struct {
 	ID         int       `json:"id"`
-	Type       string    `json:"type"`         // "request" (求片), "report" (报错), "suggest" (建议)
-	Title      string    `json:"title"`        // 影片名或反馈主题
-	Content    string    `json:"content"`      // 详细内容/失效集数
-	Contact    string    `json:"contact"`      // 联系方式 (邮箱/QQ/微信)
-	TargetType string    `json:"target_type"`  // 纠错对象类型：video/news/post/wiki_subject，空表示无上下文
-	TargetID   int       `json:"target_id"`    // 纠错对象 ID
-	Status     string    `json:"status"`       // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
-	Reply      string    `json:"reply"`        // 管理员答复内容
+	Type       string    `json:"type"`        // "request" (求片), "report" (报错), "suggest" (建议)
+	Title      string    `json:"title"`       // 影片名或反馈主题
+	Content    string    `json:"content"`     // 详细内容/失效集数
+	Contact    string    `json:"contact"`     // 联系方式 (邮箱/QQ/微信)
+	TargetType string    `json:"target_type"` // 纠错对象类型：video/news/post/wiki_subject，空表示无上下文
+	TargetID   int       `json:"target_id"`   // 纠错对象 ID
+	Status     string    `json:"status"`      // "pending" (待处理), "processing" (处理中), "resolved" (已处理/已收录), "rejected" (已驳回)
+	Reply      string    `json:"reply"`       // 管理员答复内容
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -224,15 +224,15 @@ type UserFavoriteItem struct {
 
 // StatsInfo 仪表盘统计数据
 type StatsInfo struct {
-	TotalSources        int `json:"total_sources"`
-	ActiveSources       int `json:"active_sources"`
-	TotalVideos         int `json:"total_videos"`
-	TotalNews           int `json:"total_news"`
-	TotalBusinessTypes  int `json:"total_business_types"`
-	TodayUpdated        int `json:"today_updated"`
-	TotalPlayCount      int `json:"total_play_groups"`
-	TotalUsers          int `json:"total_users"`
-	TotalFeedbacks      int `json:"total_feedbacks"`
+	TotalSources       int `json:"total_sources"`
+	ActiveSources      int `json:"active_sources"`
+	TotalVideos        int `json:"total_videos"`
+	TotalNews          int `json:"total_news"`
+	TotalBusinessTypes int `json:"total_business_types"`
+	TodayUpdated       int `json:"today_updated"`
+	TotalPlayCount     int `json:"total_play_groups"`
+	TotalUsers         int `json:"total_users"`
+	TotalFeedbacks     int `json:"total_feedbacks"`
 }
 
 // Store 统一存储接口
@@ -259,6 +259,13 @@ type Store interface {
 	UnbindContact(ctx context.Context, id int, channel string) error
 	CreateVerifyCode(ctx context.Context, vc *VerifyCode) error
 	ConsumeVerifyCode(ctx context.Context, target, channel, purpose, codeHash string) (bool, error)
+
+	// 头像历史：上传记录、切换与删除（删除需同时清理源文件）
+	AddAvatar(ctx context.Context, userID int, url, objectKey, provider string) (int, error)
+	ListAvatars(ctx context.Context, userID, limit int) ([]AvatarHistory, error)
+	GetAvatar(ctx context.Context, userID, id int) (*AvatarHistory, error)
+	DeleteAvatar(ctx context.Context, userID, id int) error
+	TrimAvatars(ctx context.Context, userID, keep int, keepURL string) ([]AvatarHistory, error)
 
 	// 用户播放历史与追剧收藏 (云端多设备同步)
 	SaveUserHistory(ctx context.Context, item *UserHistoryItem) error

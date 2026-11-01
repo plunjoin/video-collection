@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 /// 把内容区的 [MediaQuery] 宽度收成「窗口减去侧栏」，网格和横幅按剩余空间排。
 class DesktopInset extends StatelessWidget {

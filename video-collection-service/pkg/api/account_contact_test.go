@@ -326,13 +326,99 @@ func TestUploadAvatar(t *testing.T) {
 		t.Fatalf("头像未写回资料: %v", data["profile_avatar"])
 	}
 
-	// 再传一张应替换并清理旧文件
+	// 再传一张：旧头像不再被删除，而是保留在历史里以便随时切回
 	first := disk
-	if w := upload(pngHeader, "avatar2.png"); w.Code != http.StatusOK {
-		t.Fatalf("二次上传失败: %d", w.Code)
+	w2 := upload(pngHeader, "avatar2.png")
+	if w2.Code != http.StatusOK {
+		t.Fatalf("二次上传失败: %d", w2.Code)
+	}
+	second, _ := decodeBody(t, w2)["url"].(string)
+	if second == url {
+		t.Fatal("二次上传应生成新的头像地址")
+	}
+	if _, err := os.Stat(first); err != nil {
+		t.Fatalf("旧头像应保留在历史中，stat err=%v", err)
+	}
+
+	list := f.doWithToken("GET", "/api/me/avatars", "", token)
+	if list.Code != http.StatusOK {
+		t.Fatalf("读取头像历史失败: %d", list.Code)
+	}
+	items, _ := decodeBody(t, list)["data"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("应有 2 条历史头像，实际 %d", len(items))
+	}
+	if cur, _ := items[0].(map[string]any); cur["url"] != second || cur["current"] != true {
+		t.Fatalf("最新一条应为当前头像: %v", items[0])
+	}
+	oldID := int(items[1].(map[string]any)["id"].(float64))
+
+	// 当前头像不可删除
+	if w := f.doWithToken("DELETE", "/api/me/avatars?id="+strconv.Itoa(int(items[0].(map[string]any)["id"].(float64))), "", token); w.Code != http.StatusBadRequest {
+		t.Fatalf("删除当前头像应返回 400，实际 %d", w.Code)
+	}
+
+	// 删除历史头像时源文件一并清理
+	if w := f.doWithToken("DELETE", "/api/me/avatars?id="+strconv.Itoa(oldID), "", token); w.Code != http.StatusOK {
+		t.Fatalf("删除历史头像失败: %d %s", w.Code, w.Body.String())
 	}
 	if _, err := os.Stat(first); !os.IsNotExist(err) {
-		t.Fatalf("旧头像应被清理，stat err=%v", err)
+		t.Fatalf("删除历史头像应同时删掉源文件，stat err=%v", err)
+	}
+}
+
+// 历史头像可以直接切回，切换后 current 标记随之变化。
+func TestSwitchToHistoryAvatar(t *testing.T) {
+	accountEnv(t)
+	f := newContentFixture(t)
+	_, token, _ := accountFixture(t, f, "history_user", "historypass1")
+
+	upload := func() string {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		fw, _ := mw.CreateFormFile("file", "a.png")
+		_, _ = fw.Write(pngHeader)
+		_ = mw.Close()
+		r := httptest.NewRequest("POST", "/api/me/avatar", &buf)
+		r.Header.Set("Content-Type", mw.FormDataContentType())
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		f.mux.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("上传失败: %d %s", w.Code, w.Body.String())
+		}
+		url, _ := decodeBody(t, w)["url"].(string)
+		return url
+	}
+
+	first := upload()
+	second := upload()
+
+	items, _ := decodeBody(t, f.doWithToken("GET", "/api/me/avatars", "", token))["data"].([]any)
+	oldID := int(items[1].(map[string]any)["id"].(float64))
+
+	w := f.doWithToken("POST", "/api/me/avatars/use", `{"id":`+strconv.Itoa(oldID)+`}`, token)
+	if w.Code != http.StatusOK {
+		t.Fatalf("切换历史头像失败: %d %s", w.Code, w.Body.String())
+	}
+	me := f.doWithToken("GET", "/api/me", "", token)
+	if data, _ := decodeBody(t, me)["data"].(map[string]any); data["profile_avatar"] != first {
+		t.Fatalf("应切回第一张头像，实际 %v", data["profile_avatar"])
+	}
+
+	// 切回后第二张变成「可删除」，且 current 标记同步
+	items, _ = decodeBody(t, f.doWithToken("GET", "/api/me/avatars", "", token))["data"].([]any)
+	for _, raw := range items {
+		item := raw.(map[string]any)
+		if item["url"] == first && item["current"] != true {
+			t.Fatalf("切回后第一张应标记为当前: %v", item)
+		}
+		if item["url"] == second && item["current"] == true {
+			t.Fatalf("第二张不应再是当前: %v", item)
+		}
+	}
+	if w := f.doWithToken("DELETE", "/api/me/avatars?id="+strconv.Itoa(int(items[0].(map[string]any)["id"].(float64))), "", token); w.Code != http.StatusOK {
+		t.Fatalf("非当前头像应可删除，实际 %d: %s", w.Code, w.Body.String())
 	}
 }
 

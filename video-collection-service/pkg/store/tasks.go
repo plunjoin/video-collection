@@ -13,7 +13,7 @@ type CollectionTask struct {
 	ID           int        `json:"id"`
 	SourceID     string     `json:"source_id"`
 	SourceName   string     `json:"source_name"`
-	TriggerType  string     `json:"trigger_type"` // "manual" 手动触发, "cron" 定时调度
+	TriggerType  string     `json:"trigger_type"`  // "manual" 手动触发, "cron" 定时调度
 	CollectHours int        `json:"collect_hours"` // 0 全量, >0 增量小时
 	Status       string     `json:"status"`        // "running" 进行中, "success" 成功, "failed" 失败, "stopped" 中止
 	TotalFetched int        `json:"total_fetched"` // 抓取总条数
@@ -49,12 +49,12 @@ type CollectionLog struct {
 
 // CollectionLogQuery 日志分页与过滤条件
 type CollectionLogQuery struct {
-	TaskID    int
-	SourceID  string
-	Level     string
-	Keyword   string
-	Page      int
-	PageSize  int
+	TaskID   int
+	SourceID string
+	Level    string
+	Keyword  string
+	Page     int
+	PageSize int
 }
 
 // TaskStore 采集任务进度与日志持久化接口

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/main.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
+import 'test_kit.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {

@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../models/video_model.dart';
@@ -382,10 +382,9 @@ class _ShuffleButton extends StatelessWidget {
       message: '随机看一部',
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(19),
-          child: InkWell(
+        child: Container(
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(19)),
+        child: InkWell(
             onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(19),
             child: Container(
@@ -422,7 +421,7 @@ class _ShuffleButton extends StatelessWidget {
               ),
             ),
           ),
-        ),
+      ),
       ),
     );
   }
@@ -513,8 +512,8 @@ class _HomeVideoCardState extends State<_HomeVideoCard> {
                         ),
                         child: GestureDetector(
                           onTap: widget.onPlayTap,
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
+                          child: const BrandIcon(
+                            BIcons.play,
                             color: Colors.white,
                             size: 30,
                           ),

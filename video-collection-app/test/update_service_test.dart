@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:video_collection_app/models/update_model.dart';
 import 'package:video_collection_app/services/update_service.dart';
+import 'test_kit.dart';
 
 void main() {
   group('Version Comparison Tests', () {

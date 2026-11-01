@@ -20,6 +20,7 @@ class AppRoot extends fw.StatefulWidget {
   final ThemeMode themeMode;
   final fw.Widget home;
   final bool debugShowCheckedModeBanner;
+  final fw.Widget Function(fw.BuildContext, fw.Widget?)? builder;
 
   const AppRoot({
     fw.Key? key,
@@ -29,6 +30,7 @@ class AppRoot extends fw.StatefulWidget {
     required this.themeMode,
     required this.home,
     this.debugShowCheckedModeBanner = false,
+    this.builder,
   }) : super(key: key);
 
   @override
@@ -85,6 +87,18 @@ class _AppRootState extends fw.State<AppRoot>
             _platformBrightness == Brightness.dark);
     final data = dark ? widget.darkTheme : widget.theme;
 
+    fw.Widget content = OverlayHost(
+      child: ScaffoldMessengerHost(
+        child: RouterHost(
+          controller: _router,
+          home: widget.home,
+        ),
+      ),
+    );
+    if (widget.builder != null) {
+      content = widget.builder!(context, content);
+    }
+
     return fw.Directionality(
       textDirection: fw.TextDirection.ltr,
       child: fw.FocusScope(
@@ -96,14 +110,7 @@ class _AppRootState extends fw.State<AppRoot>
             child: DefaultTextStyle(
               style: data.textTheme.bodyMedium ??
                   const TextStyle(fontSize: 13),
-              child: OverlayHost(
-                child: ScaffoldMessengerHost(
-                  child: RouterHost(
-                    controller: _router,
-                    home: widget.home,
-                  ),
-                ),
-              ),
+              child: content,
             ),
           ),
         ),

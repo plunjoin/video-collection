@@ -125,6 +125,7 @@ import {
   Search,
   Settings2,
   SetUp,
+  Share,
   TrendCharts,
   User,
 } from '@/components/radix/icons'
@@ -174,6 +175,7 @@ const allSections = [
   {
     title: '系统工具',
     items: [
+      { path: '/integrations', title: '集成配置', icon: Share },
       { path: '/themes', title: '客户端主题', icon: Brush },
       { path: '/bootstrap', title: '基础配置', icon: SetUp },
       { path: '/database', title: '数据库管理', icon: Coin },

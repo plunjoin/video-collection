@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
@@ -361,10 +361,9 @@ class _EditProfileButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isDark ? const Color(0xFF93C5FD) : AppColors.primary600;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(19),
-      child: InkWell(
+    return Container(
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(19)),
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(19),
         child: Container(
@@ -384,7 +383,7 @@ class _EditProfileButton extends StatelessWidget {
           ),
         ),
       ),
-    );
+      );
   }
 }
 

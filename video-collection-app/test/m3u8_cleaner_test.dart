@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:video_collection_app/services/m3u8_cleaner.dart';
 import 'package:video_collection_app/services/client_playlist_service.dart';
+import 'test_kit.dart';
 
 List<String> segments(String text) => text
     .split('\n')

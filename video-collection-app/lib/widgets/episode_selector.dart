@@ -1,5 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 import '../models/video_model.dart';
 import '../theme/app_colors.dart';
@@ -464,13 +464,12 @@ class _EpisodeCardListState extends State<EpisodeCardList> {
     final border = dark ? AppColors.darkBorder : const Color(0xFFEEF1F6);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: playing
+      child: Container(
+        decoration: BoxDecoration(color: playing
             ? (dark
                   ? AppColors.rose.withValues(alpha: .16)
                   : const Color(0xFFFFF1F6))
-            : (dark ? AppColors.darkCard : Colors.white),
-        borderRadius: BorderRadius.circular(12),
+            : (dark ? AppColors.darkCard : Colors.white), borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () => widget.onSelected(_selectedGroupIndex, index),

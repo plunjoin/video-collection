@@ -2054,6 +2054,7 @@ class RenderSolidBox extends RenderBox
 /// 语义标注(无障碍)。
 class Semantics extends fw.SingleChildRenderObjectWidget {
   final String? label;
+  final String? value;
   final bool button;
   final bool selected;
   final bool enabled;
@@ -2063,6 +2064,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
   const Semantics({
     fw.Key? key,
     this.label,
+    this.value,
     this.button = false,
     this.selected = false,
     this.enabled = true,
@@ -2075,6 +2077,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
   fw.RenderObject createRenderObject(fw.BuildContext context) {
     return RenderSemanticsBox(
       label: label,
+      value: value,
       button: button,
       selected: selected,
       enabled: enabled,
@@ -2090,6 +2093,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..label = label
+      ..value = value
       ..button = button
       ..selected = selected
       ..enabled = enabled
@@ -2102,6 +2106,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
 class RenderSemanticsBox extends RenderBox
     with RenderObjectWithChildMixin<RenderBox> {
   String? _label;
+  String? _value;
   bool _button;
   bool _selected;
   bool _enabled;
@@ -2110,12 +2115,14 @@ class RenderSemanticsBox extends RenderBox
 
   RenderSemanticsBox({
     required String? label,
+    required String? value,
     required bool button,
     required bool selected,
     required bool enabled,
     required bool liveRegion,
     required VoidCallback? onTap,
   })  : _label = label,
+        _value = value,
         _button = button,
         _selected = selected,
         _enabled = enabled,
@@ -2125,6 +2132,12 @@ class RenderSemanticsBox extends RenderBox
   set label(String? value) {
     if (_label == value) return;
     _label = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  set value(String? v) {
+    if (_value == v) return;
+    _value = v;
     markNeedsSemanticsUpdate();
   }
 
@@ -2162,6 +2175,7 @@ class RenderSemanticsBox extends RenderBox
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
     config.isSemanticBoundary = true;
     if (_label != null) config.label = _label!;
+    if (_value != null) config.value = _value!;
     config.isButton = _button;
     config.isSelected = _selected;
     config.isEnabled = _enabled;
@@ -2205,5 +2219,248 @@ class ExcludeSemantics extends fw.SingleChildRenderObjectWidget {
   @override
   fw.RenderObject createRenderObject(fw.BuildContext context) {
     return RenderExcludeSemantics();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IndexedStack
+// ---------------------------------------------------------------------------
+
+/// 索引栈:所有子项保持挂载(状态保留),仅绘制/命中指定索引。
+class IndexedStack extends fw.StatefulWidget {
+  final int index;
+  final Alignment alignment;
+  final List<fw.Widget> children;
+  final StackFit? sizing;
+
+  const IndexedStack({
+    fw.Key? key,
+    this.index = 0,
+    this.alignment = Alignment.topLeft,
+    this.sizing,
+    required this.children,
+  }) : super(key: key);
+
+  @override
+  fw.State<IndexedStack> createState() => _IndexedStackState();
+}
+
+class _IndexedStackState extends fw.State<IndexedStack> {
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    return _IndexedStackRender(
+      index: widget.index,
+      alignment: widget.alignment,
+      sizing: widget.sizing,
+      children: widget.children,
+    );
+  }
+}
+
+class _IndexedStackRender extends fw.MultiChildRenderObjectWidget {
+  final int index;
+  final Alignment alignment;
+  final StackFit? sizing;
+
+  const _IndexedStackRender({
+    required this.index,
+    required this.alignment,
+    this.sizing,
+    required List<fw.Widget> children,
+  }) : super(children: children);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderIndexedStackBox(index: index, alignment: alignment);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderIndexedStackBox renderObject,
+  ) {
+    renderObject
+      ..activeIndex = index
+      ..alignment = alignment;
+  }
+}
+
+class _IndexedParentData extends ContainerBoxParentData<RenderBox> {}
+
+/// 自写索引栈渲染盒子:全部子项全尺寸布局,仅绘制活跃项。
+class RenderIndexedStackBox extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _IndexedParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _IndexedParentData> {
+  int _index;
+  Alignment _alignment;
+
+  RenderIndexedStackBox({required int index, required Alignment alignment})
+      : _index = index,
+        _alignment = alignment;
+
+  set activeIndex(int value) {
+    if (_index == value) return;
+    _index = value;
+    markNeedsPaint();
+  }
+
+  set alignment(Alignment value) {
+    if (_alignment == value) return;
+    _alignment = value;
+    markNeedsPaint();
+  }
+
+  @override
+  void setupParentData(covariant fw.RenderObject child) {
+    if (child.parentData is! _IndexedParentData) {
+      child.parentData = _IndexedParentData();
+    }
+  }
+
+  Iterable<RenderBox> get _children sync* {
+    var child = firstChild;
+    while (child != null) {
+      yield child;
+      child = (child.parentData as _IndexedParentData).nextSibling;
+    }
+  }
+
+  @override
+  void performLayout() {
+    var maxWidth = 0.0;
+    var maxHeight = 0.0;
+    for (final child in _children) {
+      child.layout(constraints.loosen(), parentUsesSize: true);
+      if (child.size.width > maxWidth) maxWidth = child.size.width;
+      if (child.size.height > maxHeight) maxHeight = child.size.height;
+    }
+    size = constraints.constrain(Size(maxWidth, maxHeight));
+    for (final child in _children) {
+      (child.parentData as _IndexedParentData).offset = _alignment.alongSize(
+        Size(
+          (size.width - child.size.width).clamp(0.0, double.infinity),
+          (size.height - child.size.height).clamp(0.0, double.infinity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    var index = 0;
+    for (final child in _children) {
+      if (index == _index) {
+        context.paintChild(
+          child,
+          (child.parentData as _IndexedParentData).offset + offset,
+        );
+        return;
+      }
+      index++;
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    var index = 0;
+    for (final child in _children) {
+      if (index == _index) {
+        return result.addWithPaintOffset(
+          offset: (child.parentData as _IndexedParentData).offset,
+          position: position,
+          hitTest: (result, transformed) =>
+              child.hitTest(result, position: transformed),
+        );
+      }
+      index++;
+    }
+    return false;
+  }
+}
+
+/// 宽高比容器(自研;以父约束与 ratio 求最大可用尺寸)。
+class AspectRatio extends fw.SingleChildRenderObjectWidget {
+  final double aspectRatio;
+
+  const AspectRatio({
+    fw.Key? key,
+    required this.aspectRatio,
+    super.child,
+  }) : super(key: key);
+
+  @override
+  fw.RenderObject createRenderObject(fw.BuildContext context) {
+    return RenderAspectRatioBox(aspectRatio: aspectRatio);
+  }
+
+  @override
+  void updateRenderObject(
+    fw.BuildContext context,
+    covariant RenderAspectRatioBox renderObject,
+  ) {
+    renderObject.aspectRatio = aspectRatio;
+  }
+}
+
+/// 自写宽高比渲染盒子。
+class RenderAspectRatioBox extends RenderBox
+    with RenderObjectWithChildMixin<RenderBox> {
+  double _aspectRatio;
+
+  RenderAspectRatioBox({required double aspectRatio})
+      : _aspectRatio = aspectRatio;
+
+  set aspectRatio(double value) {
+    if (_aspectRatio == value) return;
+    _aspectRatio = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final c = constraints;
+    double width;
+    double height;
+    if (c.hasBoundedWidth && c.hasBoundedHeight) {
+      // 两者皆有界:取能放下的最大比例尺寸
+      width = c.maxWidth;
+      height = width / _aspectRatio;
+      if (height > c.maxHeight) {
+        height = c.maxHeight;
+        width = height * _aspectRatio;
+      }
+    } else if (c.hasBoundedWidth) {
+      width = c.maxWidth;
+      height = width / _aspectRatio;
+    } else if (c.hasBoundedHeight) {
+      height = c.maxHeight;
+      width = height * _aspectRatio;
+    } else {
+      width = 0;
+      height = 0;
+    }
+    size = Size(width, height);
+    final child = this.child;
+    if (child != null) {
+      child.layout(BoxConstraints.tight(size), parentUsesSize: true);
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
+    if (child != null) {
+      context.paintChild(child, offset);
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final child = this.child;
+    if (child != null) {
+      return child.hitTest(result, position: position);
+    }
+    return false;
   }
 }

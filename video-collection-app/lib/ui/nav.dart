@@ -31,23 +31,25 @@ class MaterialPageRoute<T> {
 typedef PopInvokedCallback = void Function(bool didPop);
 
 /// 返回拦截(自研;canPop=false 时拦截系统/代码返回)。
-class PopScope extends fw.StatefulWidget {
+class PopScope<T extends Object?> extends fw.StatefulWidget {
   final bool canPop;
   final PopInvokedCallback? onPopInvoked;
+  final void Function(bool didPop, T? result)? onPopInvokedWithResult;
   final fw.Widget child;
 
   const PopScope({
     fw.Key? key,
     this.canPop = true,
     this.onPopInvoked,
+    this.onPopInvokedWithResult,
     required this.child,
   }) : super(key: key);
 
   @override
-  fw.State<PopScope> createState() => _PopScopeState();
+  fw.State<PopScope<T>> createState() => _PopScopeState<T>();
 }
 
-class _PopScopeState extends fw.State<PopScope> {
+class _PopScopeState<T extends Object?> extends fw.State<PopScope<T>> {
   @override
   fw.Widget build(fw.BuildContext context) {
     final scope = _RouteScope.maybeOf(context);
@@ -92,9 +94,11 @@ class RouterController extends ChangeNotifier {
     final scope = top.popScope;
     if (scope != null && !scope.widget.canPop) {
       scope.widget.onPopInvoked?.call(false);
+      scope.widget.onPopInvokedWithResult?.call(false, null);
       return;
     }
     scope?.widget.onPopInvoked?.call(true);
+    scope?.widget.onPopInvokedWithResult?.call(true, result);
     top.closing = true;
     notifyListeners();
     // 退场动画时长后真正移除
@@ -285,6 +289,19 @@ class Navigator {
     assert(state != null, 'RouterHost 未挂载(AppRoot)');
     return NavigatorState._(context, state!._effectiveController);
   }
+
+  /// 静态弹出(兼容 Navigator.pop(context) 用法)。
+  static void pop<T>(fw.BuildContext context, [T? result]) {
+    of(context).pop(result);
+  }
+
+  /// 静态压栈(兼容 Navigator.push 用法)。
+  static Future<T?> push<T>(
+    fw.BuildContext context,
+    MaterialPageRoute<T> route,
+  ) {
+    return of(context).push(route);
+  }
 }
 
 /// 导航操作句柄。
@@ -358,6 +375,7 @@ class Scaffold extends fw.StatelessWidget {
   final fw.Widget? body;
   final Color? backgroundColor;
   final fw.Widget? floatingActionButton;
+  final fw.Widget? bottomNavigationBar;
   final bool resizeToAvoidBottomInset;
 
   const Scaffold({
@@ -366,6 +384,7 @@ class Scaffold extends fw.StatelessWidget {
     this.body,
     this.backgroundColor,
     this.floatingActionButton,
+    this.bottomNavigationBar,
     this.resizeToAvoidBottomInset = true,
   }) : super(key: key);
 
@@ -379,21 +398,23 @@ class Scaffold extends fw.StatelessWidget {
         children: [
           if (appBar != null) appBar!,
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: insets.bottom),
-              child: Stack(
-                children: [
-                  Positioned.fill(child: body ?? const SizedBox.shrink()),
-                  if (floatingActionButton != null)
-                    Positioned(
-                      right: 20,
-                      bottom: 20,
-                      child: floatingActionButton!,
-                    ),
-                ],
-              ),
+            child: Stack(
+              children: [
+                Positioned.fill(child: body ?? const SizedBox.shrink()),
+                if (floatingActionButton != null)
+                  Positioned(
+                    right: 20,
+                    bottom: 20,
+                    child: floatingActionButton!,
+                  ),
+              ],
             ),
           ),
+          if (bottomNavigationBar != null)
+            Padding(
+              padding: EdgeInsets.only(bottom: insets.bottom),
+              child: bottomNavigationBar!,
+            ),
         ],
       ),
     );

@@ -390,8 +390,9 @@ class TextButton extends fw.StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     required fw.Widget this.icon,
-    required fw.Widget this.child,
-  }) : super(key: key);
+    required fw.Widget label,
+  })  : child = label,
+        super(key: key);
 
   static ButtonStyle styleFrom({
     Color? foregroundColor,
@@ -506,8 +507,9 @@ class ElevatedButton extends fw.StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     required fw.Widget this.icon,
-    required fw.Widget this.child,
-  }) : super(key: key);
+    required fw.Widget label,
+  })  : child = label,
+        super(key: key);
 
   static ButtonStyle styleFrom({
     Color? foregroundColor,
@@ -627,8 +629,9 @@ class OutlinedButton extends fw.StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     required fw.Widget this.icon,
-    required fw.Widget this.child,
-  }) : super(key: key);
+    required fw.Widget label,
+  })  : child = label,
+        super(key: key);
 
   static ButtonStyle styleFrom({
     Color? foregroundColor,
@@ -763,8 +766,9 @@ class FilledButton extends fw.StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     required fw.Widget this.icon,
-    required fw.Widget this.child,
-  })  : tonal = false,
+    required fw.Widget label,
+  })  : child = label,
+        tonal = false,
         super(key: key);
 
   static ButtonStyle styleFrom({
@@ -916,6 +920,27 @@ class IconButton extends fw.StatelessWidget {
     this.enableFeedback = true,
   }) : super(key: key);
 
+  const IconButton.filled({
+    fw.Key? key,
+    required this.onPressed,
+    this.tooltip,
+    required this.icon,
+    this.selectedIcon,
+    this.isSelected = false,
+    this.style,
+    this.iconSize,
+    this.color,
+    this.hoverColor,
+    this.focusColor,
+    this.padding,
+    this.constraints,
+    this.splashRadius,
+    this.focusNode,
+    this.autofocus = false,
+    this.mouseCursor,
+    this.enableFeedback = true,
+  }) : super(key: key);
+
   static ButtonStyle styleFrom({
     Color? foregroundColor,
     Color? backgroundColor,
@@ -962,9 +987,13 @@ class IconButton extends fw.StatelessWidget {
   @override
   fw.Widget build(fw.BuildContext context) {
     final theme = Theme.of(context);
+    final isFilled = style?.backgroundColor != null;
     final base = style ??
         ButtonStyle(
-          foregroundColor: theme.iconTheme.color,
+          foregroundColor: isFilled
+              ? Colors.white
+              : theme.iconTheme.color,
+          backgroundColor: isFilled ? theme.colorScheme.primary : null,
           iconSize: iconSize ?? theme.iconTheme.size ?? 21,
           minimumSize: const Size(44, 44),
           shape: const RoundedRectangleBorder(
@@ -1003,6 +1032,20 @@ class FloatingActionButton extends fw.StatelessWidget {
     this.backgroundColor,
     this.foregroundColor,
   }) : super(key: key);
+
+  FloatingActionButton.extended({
+    fw.Key? key,
+    required this.onPressed,
+    this.tooltip,
+    required fw.Widget icon,
+    required fw.Widget label,
+    this.backgroundColor,
+    this.foregroundColor,
+  })  : child = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [icon, const SizedBox(width: 8), label],
+        ),
+        super(key: key);
 
   @override
   fw.Widget build(fw.BuildContext context) {

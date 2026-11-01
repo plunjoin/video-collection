@@ -19,7 +19,6 @@ import (
 	"video-collection-service/pkg/bootstrap"
 	"video-collection-service/pkg/collector"
 	"video-collection-service/pkg/ingest"
-	"video-collection-service/pkg/notify"
 	"video-collection-service/pkg/player"
 	"video-collection-service/pkg/rag"
 	"video-collection-service/pkg/scheduler"
@@ -36,7 +35,6 @@ type Server struct {
 	sc            *serverCache // radix/Redis 缓存层，nil 表示未接入
 	rag           *rag.Service
 	watchHub      *watchHub // 一起看房间事件广播（SSE 推送源），nil 前由 NewServer 初始化
-	notifier      *notify.Service
 }
 
 func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *player.Manager, bs *bootstrap.Store) *Server {
@@ -47,7 +45,6 @@ func NewServer(s store.Store, sc *scheduler.Scheduler, tm *theme.Manager, pm *pl
 		playerManager: pm,
 		bootstrap:     bs,
 		watchHub:      newWatchHub(),
-		notifier:      notify.NewFromEnv(),
 	}
 	if cs, ok := s.(store.ContentStore); ok {
 		srv.rag = rag.NewService(cs, cs, rag.NewEmbeddingProviderFromEnv())
@@ -114,8 +111,15 @@ func (srv *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/me/contact/bind", srv.handleBindContact)
 	mux.HandleFunc("/api/me/contact/unbind", srv.handleUnbindContact)
 	mux.HandleFunc("/api/me/avatar", srv.handleUploadAvatar)
+	mux.HandleFunc("/api/me/avatars", srv.handleAvatars)
+	mux.HandleFunc("/api/me/avatars/use", srv.handleUseAvatar)
 	mux.HandleFunc("/api/me/delete", srv.handleDeleteAccount)
 	srv.registerUploadRoutes(mux)
+	// 外部服务接入配置（邮件 / 短信 / 对象存储）：读取全员可见，写入仅超管
+	mux.HandleFunc("/api/admin/integrations", auth.AdminRequired(srv.store, srv.handleAdminIntegrations))
+	mux.HandleFunc("/api/admin/integrations/test/mail", srv.superAdminWrite(srv.handleTestMail))
+	mux.HandleFunc("/api/admin/integrations/test/sms", srv.superAdminWrite(srv.handleTestSMS))
+	mux.HandleFunc("/api/admin/integrations/test/storage", srv.superAdminWrite(srv.handleTestStorage))
 	mux.HandleFunc("/api/categories", srv.handleCategories)
 	mux.HandleFunc("/api/videos", srv.handleVideos)
 	mux.HandleFunc("/api/video", srv.handleVideoDetail)

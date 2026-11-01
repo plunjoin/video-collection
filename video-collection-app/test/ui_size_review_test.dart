@@ -1,16 +1,17 @@
 // 尺寸目检板:渲染底栏 / 侧边栏(展开+收起) / 详情页 hero 的真实尺寸,
 // 用于核对图标大小是否协调。运行:
 // flutter test test/ui_size_review_test.dart --update-goldens
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/models/video_model.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/screens/anime_detail_screen.dart';
-import 'package:video_collection_app/theme/app_theme.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/widgets/brand_widgets.dart';
 import 'package:video_collection_app/widgets/entropy_sidebar.dart';
+import 'test_kit.dart';
 
 VideoRecord _fakeVideo() => VideoRecord.fromJson(const {
       'id': 1,

@@ -247,4 +247,3 @@ func TestCleanM3U8_WithRealFile(t *testing.T) {
 		t.Fatal("relative path not resolved to absolute URL!")
 	}
 }
-

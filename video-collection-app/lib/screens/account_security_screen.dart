@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
@@ -332,10 +332,8 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
                                   tooltip: _obscure ? '显示密码' : '隐藏密码',
                                   onPressed: () =>
                                       setState(() => _obscure = !_obscure),
-                                  icon: Icon(
-                                    _obscure
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
+                                  icon: BrandIcon(
+                                    _obscure ? BIcons.lock : BIcons.unlock,
                                     size: 19,
                                   ),
                                 ),

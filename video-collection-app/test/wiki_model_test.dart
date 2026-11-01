@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:video_collection_app/models/wiki_model.dart';
+import 'test_kit.dart';
 
 void main() {
   // 以下 JSON 结构与服务端 /api/video 聚合响应中的 wiki 字段一致。

@@ -51,7 +51,7 @@ func TestWikiSubjectsRelationsAndGraph(t *testing.T) {
 		SubType:      "actor",
 		Summary:      "日本知名影视男演员、导演。",
 		Infobox: map[string]any{
-			"出生地": "日本冈山县津山市",
+			"出生地":  "日本冈山县津山市",
 			"出生日期": "1976-02-16",
 		},
 	}

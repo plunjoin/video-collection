@@ -40,7 +40,7 @@ type CommentQuery struct {
 	TargetID, ParentID, RootID, ViewerID, Page, PageSize int
 	Admin                                                bool
 	Sort                                                 string // "hot" 最热排序（神评置顶）；默认按发布时间
-	all                                                  bool // Legacy endpoint returns a flat list of live comments.
+	all                                                  bool   // Legacy endpoint returns a flat list of live comments.
 }
 
 // godCommentLikeThreshold 是「神评」的点赞阈值：达到即视为神评，在最热排序中置顶。

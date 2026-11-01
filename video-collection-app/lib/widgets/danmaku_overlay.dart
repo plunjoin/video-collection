@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:flutter/scheduler.dart';
 import '../theme/brand_icons.dart';
 

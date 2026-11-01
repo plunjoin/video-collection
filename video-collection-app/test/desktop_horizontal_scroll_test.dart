@@ -1,8 +1,9 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/theme/app_theme.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/widgets/desktop_horizontal_scroll.dart';
+import 'test_kit.dart';
 
 void main() {
   test('vertical wheel maps onto the horizontal axis', () {
@@ -56,10 +57,11 @@ void main() {
     );
 
     ScrollPosition position() =>
-        tester.state<ScrollableState>(find.byType(Scrollable)).position;
+        tester.state<UiScrollableState>(find.byType(ListView))
+            .scrollController!.position;
 
     await tester.drag(
-      find.byType(Scrollable),
+      find.byType(ListView),
       const Offset(-180, 0),
       kind: PointerDeviceKind.mouse,
     );

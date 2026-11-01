@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 import '../widgets/brand_controls.dart';
 import '../widgets/brand_player_controls.dart';
@@ -1664,7 +1664,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
-                    visualDensity: VisualDensity.compact,
                   ),
                   child: Text(
                     _synopsisOpen ? '收起' : '展开',
@@ -1971,12 +1970,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final muted = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
-    return Material(
-      color: active
+    return Container(
+        decoration: BoxDecoration(color: active
           ? AppColors.primary600.withValues(alpha: 0.14)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
+          : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
@@ -1991,7 +1989,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         ),
       ),
-    );
+      );
   }
 
   /// Tab1：集数搜索 + 分集列表（当前集高亮 + 播放图标）+ 底部相关推荐
@@ -3142,9 +3140,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           alignment: Alignment.bottomRight,
           child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
+        child: Container(
+        decoration: BoxDecoration(color: Colors.transparent),
+        child: Container(
             width: 280,
             decoration: BoxDecoration(
               color: glass,
@@ -3221,7 +3219,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ),
-        ),
+      ),
       ),
     );
   }
@@ -3234,7 +3232,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return IconButton(
       onPressed: onTap,
       tooltip: tooltip,
-      visualDensity: VisualDensity.compact,
       icon: BrandIcon(icon, size: 16, color: Colors.white, monochrome: true),
     );
   }
@@ -3325,10 +3322,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final idleBg = isDark
         ? Colors.white.withValues(alpha: 0.05)
         : const Color(0xFFF1F5F9);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    return Container(
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12)),
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
@@ -3397,7 +3393,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         ),
       ),
-    );
+      );
   }
 
   Widget _videoSheet(

@@ -134,7 +134,8 @@ func (srv *Server) handleSendCode(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusTooManyRequests, "验证码发送过于频繁，请 "+waitMinutes(wait)+"后再试")
 		return
 	}
-	if !srv.notifier.Configured(channel) && !notify.DevCodeEnabled() {
+	mailer := srv.mailer(r.Context())
+	if !mailer.Configured(channel) && !notify.DevCodeEnabled() {
 		errorResponse(w, http.StatusServiceUnavailable, channelLabel(channel)+"通道未配置，请联系管理员")
 		return
 	}
@@ -184,7 +185,7 @@ func (srv *Server) handleSendCode(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, "验证码保存失败，请稍后重试")
 		return
 	}
-	if err := srv.notifier.Send(r.Context(), channel, value, code, purpose); err != nil && !errors.Is(err, notify.ErrNotConfigured) {
+	if err := mailer.Send(r.Context(), channel, value, code, purpose); err != nil && !errors.Is(err, notify.ErrNotConfigured) {
 		errorResponse(w, http.StatusBadGateway, "验证码发送失败，请稍后重试")
 		return
 	}

@@ -1,5 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1193,15 +1193,14 @@ class _CircleIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final button = Material(
-      color: dark ? AppColors.darkCard : Colors.white,
-      shape: const CircleBorder(),
-      child: InkWell(
+    final button = Container(
+        decoration: BoxDecoration(color: dark ? AppColors.darkCard : Colors.white, borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(width: 36, height: 36, child: BrandIcon(icon, size: 18)),
       ),
-    );
+      );
     return Stack(
       clipBehavior: Clip.none,
       children: [

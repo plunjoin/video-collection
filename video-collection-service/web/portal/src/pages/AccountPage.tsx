@@ -7,13 +7,17 @@ import {
   checkMe,
   clearSession,
   deleteAccount,
+  deleteAvatar,
   getContact,
   getSessions,
+  listAvatars,
   revokeSession,
   sendCode,
   unbindContact,
   updateProfile,
   uploadAvatar,
+  useAvatar,
+  type AvatarHistoryItem,
   type ContactChannel,
   type LoginSession,
   type User,
@@ -324,6 +328,9 @@ export default function AccountPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const [avatarHistory, setAvatarHistory] = useState<AvatarHistoryItem[]>([]);
+  const [loadingAvatars, setLoadingAvatars] = useState(false);
+  const [avatarBusyId, setAvatarBusyId] = useState<number | null>(null);
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -372,6 +379,22 @@ export default function AccountPage() {
       if (!alive) return;
       setSessions(list);
       setLoadingSessions(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tab, user]);
+
+  // 历史头像：进入个人资料页时拉取，最多 20 条（服务端超出后自动裁剪并删源文件）。
+  useEffect(() => {
+    if (tab !== 'profile' || !user) return;
+    let alive = true;
+    setLoadingAvatars(true);
+    void (async () => {
+      const list = await listAvatars();
+      if (!alive) return;
+      setAvatarHistory(list);
+      setLoadingAvatars(false);
     })();
     return () => {
       alive = false;
@@ -435,12 +458,57 @@ export default function AccountPage() {
         setAvatar(res.url);
         const me = await checkMe();
         if (me) setUser(me);
-        setProfileNotice({ text: '头像已上传，保存资料后生效' });
+        setAvatarHistory(await listAvatars());
+        setProfileNotice({ text: '头像已上传并设为当前头像，可在下方历史头像里切回旧图' });
       } else {
         setProfileNotice({ text: res.error || res.msg || '头像上传失败', error: true });
       }
     } finally {
       setUploading(false);
+    }
+  }
+
+  // 把历史头像切回当前头像：服务端立即生效，无需再点保存资料。
+  async function handleUseAvatar(item: AvatarHistoryItem) {
+    if (avatarBusyId !== null || item.current) return;
+    setAvatarBusyId(item.id);
+    setProfileNotice(null);
+    try {
+      const res = await useAvatar(item.id);
+      if (res.code === 1) {
+        const me = await checkMe();
+        if (me) setUser(me);
+        setAvatar(res.url || item.url);
+        setProfileNotice({ text: '已切换为该头像' });
+      } else {
+        setProfileNotice({ text: res.error || res.msg || '切换头像失败', error: true });
+      }
+    } finally {
+      setAvatarBusyId(null);
+    }
+  }
+
+  // 删除历史头像：服务端会连带删除对象存储 / 磁盘上的源文件，不可恢复。
+  async function handleDeleteAvatar(item: AvatarHistoryItem) {
+    if (avatarBusyId !== null) return;
+    if (item.current) {
+      setProfileNotice({ text: '当前正在使用的头像不能删除，请先切换到其他头像', error: true });
+      return;
+    }
+    const ok = window.confirm('删除后该头像的源文件会被一并清理，且无法恢复。确定删除吗？');
+    if (!ok) return;
+    setAvatarBusyId(item.id);
+    setProfileNotice(null);
+    try {
+      const res = await deleteAvatar(item.id);
+      if (res.code === 1) {
+        setAvatarHistory((prev) => prev.filter((it) => it.id !== item.id));
+        setProfileNotice({ text: '头像已删除，源文件同时清理' });
+      } else {
+        setProfileNotice({ text: res.error || res.msg || '删除头像失败', error: true });
+      }
+    } finally {
+      setAvatarBusyId(null);
     }
   }
 
@@ -629,6 +697,64 @@ export default function AccountPage() {
                       className={`${inputClass} mt-2`}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-1">
+                    <label className={`${labelClass} mb-0`}>历史头像</label>
+                    <span className="text-[11px] text-slate-400">
+                      最多保留 20 张 · 点「使用」立即切换，删除会同时清理源文件
+                    </span>
+                  </div>
+                  {loadingAvatars ? (
+                    <p className="text-[11px] text-slate-400">正在读取历史头像…</p>
+                  ) : avatarHistory.length === 0 ? (
+                    <p className="text-[11px] text-slate-400">
+                      还没有上传过头像，上传后会自动保留在这里，方便随时切回。
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+                      {avatarHistory.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`relative rounded-xl border p-1 transition-all ${
+                            item.current
+                              ? 'border-[#597bea] ring-2 ring-blue-500/20'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <img
+                            src={item.url}
+                            alt="历史头像"
+                            className="aspect-square w-full rounded-lg bg-slate-50 object-cover"
+                          />
+                          {item.current && (
+                            <span className="absolute left-1.5 top-1.5 rounded-md bg-[#597bea] px-1 py-0.5 text-[9px] font-semibold leading-tight text-white">
+                              使用中
+                            </span>
+                          )}
+                          <div className="mt-1 flex items-center justify-between gap-1 px-0.5">
+                            <button
+                              type="button"
+                              disabled={item.current || avatarBusyId !== null}
+                              onClick={() => void handleUseAvatar(item)}
+                              className="text-[10px] font-semibold text-[#597bea] transition-colors disabled:text-slate-300"
+                            >
+                              使用
+                            </button>
+                            <button
+                              type="button"
+                              disabled={item.current || avatarBusyId !== null}
+                              onClick={() => void handleDeleteAvatar(item)}
+                              className="text-[10px] font-semibold text-rose-500 transition-colors disabled:text-slate-300"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>

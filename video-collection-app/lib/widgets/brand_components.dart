@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -71,9 +71,9 @@ class _BrandHoverCardState extends State<BrandHoverCard> {
         ),
         child: ClipRRect(
           borderRadius: radius,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
+          child: Container(
+        decoration: BoxDecoration(color: Colors.transparent),
+        child: InkWell(
               onTap: widget.onTap,
               borderRadius: radius,
               splashColor: AppColors.purple.withValues(alpha: 0.1),
@@ -83,7 +83,7 @@ class _BrandHoverCardState extends State<BrandHoverCard> {
                 child: widget.child,
               ),
             ),
-          ),
+      ),
         ),
       ),
     );

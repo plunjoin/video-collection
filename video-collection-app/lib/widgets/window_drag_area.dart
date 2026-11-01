@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../utils/responsive.dart';

@@ -672,6 +672,171 @@
           }
         }
       }
+    },
+    "/api/me/avatars": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "历史头像列表",
+        "description": "按创建时间倒序返回，最多保留 20 条（超出后服务端自动裁剪最旧的记录并删除源文件）。current=true 表示当前正在使用的头像。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "头像历史",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AvatarHistoryItem"
+                      }
+                    },
+                    "current": {
+                      "type": "string",
+                      "example": "/uploads/avatars/12-1730000000000000000-ab12cd34.png"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "删除历史头像",
+        "description": "删除记录的同时清理对象存储 / 磁盘上的源文件，不可恢复。当前正在使用的头像不能删除。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "头像记录 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "头像已删除"
+          },
+          "400": {
+            "description": "缺少 id，或该头像正在使用中"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "404": {
+            "description": "头像记录不存在"
+          }
+        }
+      }
+    },
+    "/api/me/avatars/use": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "切换为历史头像",
+        "description": "把某个历史头像设为当前头像，立即生效，无需再调用资料更新接口。",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "example": 12
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已切换头像",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "avatar": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "404": {
+            "description": "头像记录不存在"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -717,6 +882,35 @@
           },
           "phone_verified": {
             "type": "boolean"
+          }
+        }
+      },
+      "AvatarHistoryItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 12
+          },
+          "url": {
+            "type": "string",
+            "example": "/uploads/avatars/12-1730000000000000000-ab12cd34.png"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "local",
+              "s3"
+            ],
+            "description": "上传时使用的存储类型，删除源文件时按它分派"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "是否为当前正在使用的头像"
           }
         }
       }

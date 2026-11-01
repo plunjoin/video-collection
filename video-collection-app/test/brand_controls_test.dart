@@ -1,12 +1,13 @@
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/screens/profile_screen.dart';
-import 'package:video_collection_app/theme/app_theme.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/widgets/brand_controls.dart';
+import 'test_kit.dart';
 
 void main() {
   void narrowScreen(WidgetTester tester) {
@@ -165,16 +166,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('屏蔽词'),
       300,
-      scrollable: find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Scrollable &&
-                  widget.axisDirection == AxisDirection.down,
-            ),
-          )
-          .first,
+      scrollable: find.byType(ListView).first,
     );
     await tester.showKeyboard(find.byType(TextField).first);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);

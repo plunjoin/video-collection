@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -364,10 +364,9 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             ),
           ),
           Center(
-            child: Material(
-              color: Colors.white.withValues(alpha: .92),
-              shape: const CircleBorder(),
-              child: InkWell(
+            child: Container(
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .92), borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
                 customBorder: const CircleBorder(),
                 onTap: firstPlayable < 0
                     ? null
@@ -385,7 +384,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
                   ),
                 ),
               ),
-            ),
+      ),
           ),
           Positioned(
             left: 16,
@@ -1101,12 +1100,11 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
     bool filled = false,
   }) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: filled
+    return Container(
+        decoration: BoxDecoration(color: filled
           ? (dark ? AppColors.darkCard : const Color(0xFFF4F6FB))
-          : Colors.black.withValues(alpha: .28),
-      shape: const CircleBorder(),
-      child: InkWell(
+          : Colors.black.withValues(alpha: .28), borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: SizedBox(
@@ -1119,7 +1117,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
           ),
         ),
       ),
-    );
+      );
   }
 }
 

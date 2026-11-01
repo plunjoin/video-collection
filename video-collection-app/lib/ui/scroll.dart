@@ -29,23 +29,56 @@ class ScrollPosition {
   double minScrollExtent = 0;
   double maxScrollExtent = 0;
   double viewportDimension = 0;
+
+  bool get hasContentDimensions => true;
+
+  bool get hasPixels => true;
+
+  double get extentAfter =>
+      (maxScrollExtent - pixels).clamp(0.0, double.infinity);
+
+  double get extentBefore => pixels.clamp(0.0, double.infinity);
+
+  AxisDirection get axisDirection => AxisDirection.down;
+
+  /// 滚轮增量(桌面端)。
+  void pointerScroll(double delta) {
+    pixels = (pixels + delta).clamp(
+      minScrollExtent,
+      maxScrollExtent,
+    );
+  }
+
+  void forcePixels(double value) {
+    pixels = value;
+  }
 }
 
 /// 滚动控制器(自研;attach 后可读 offset / jumpTo / animateTo)。
 class ScrollController extends ChangeNotifier {
-  ScrollPosition? position;
+  /// 附着后由滚动容器更新;附着前是全零占位。
+  ScrollPosition position = ScrollPosition();
   double initialScrollOffset;
 
-  ScrollController({this.initialScrollOffset = 0});
+  ScrollController({this.initialScrollOffset = 0}) {
+    position.pixels = initialScrollOffset;
+  }
 
-  bool get hasClients => position != null;
+  bool get hasClients => _attached;
 
-  double get offset => position?.pixels ?? 0;
+  bool _attached = false;
+
+  double get offset => position.pixels;
+
+  double get maxScrollExtent => position.maxScrollExtent;
+
+  double get minScrollExtent => position.minScrollExtent;
 
   void jumpTo(double value) {
-    final pos = position;
-    if (pos == null) return;
-    pos.pixels = value.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    position.pixels = value.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
     notifyListeners();
   }
 
@@ -59,7 +92,7 @@ class ScrollController extends ChangeNotifier {
 
   @override
   void dispose() {
-    position = null;
+    _attached = false;
     super.dispose();
   }
 }
@@ -346,9 +379,8 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
   void _syncController() {
     final controller = scrollController;
     if (controller != null) {
-      controller.position ??= ScrollPosition()
-        ..pixels = controller.initialScrollOffset;
-      _offset = controller.position!.pixels;
+      controller._attached = true;
+      _offset = controller.position.pixels;
     }
   }
 
@@ -421,7 +453,16 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
     viewport = Listener(
       onPointerSignal: (event) {
         if (event is PointerScrollEvent && canScroll) {
-          applyScroll(_offset + event.scrollDelta.dy, dragging: false);
+          // 经仲裁器注册:最近的(内层)滚动容器优先响应滚轮
+          GestureBinding.instance.pointerSignalResolver.register(
+            event,
+            (resolved) {
+              if (resolved is PointerScrollEvent) {
+                applyScroll(_offset + resolved.scrollDelta.dy,
+                    dragging: false);
+              }
+            },
+          );
         }
       },
       child: viewport,
@@ -853,6 +894,30 @@ class GridView extends fw.StatefulWidget {
     this.shrinkWrap = false,
     this.scrollDirection = Axis.vertical,
   })  : itemCount = children?.length,
+        itemBuilder = null,
+        super(key: key);
+
+  GridView.count({
+    fw.Key? key,
+    required int crossAxisCount,
+    double mainAxisSpacing = 0,
+    double crossAxisSpacing = 0,
+    double childAspectRatio = 1,
+    double? mainAxisExtent,
+    this.children,
+    this.padding,
+    this.controller,
+    this.physics,
+    this.shrinkWrap = false,
+    this.scrollDirection = Axis.vertical,
+  })  : gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: mainAxisSpacing,
+          crossAxisSpacing: crossAxisSpacing,
+          childAspectRatio: childAspectRatio,
+          mainAxisExtent: mainAxisExtent,
+        ),
+        itemCount = null,
         itemBuilder = null,
         super(key: key);
 

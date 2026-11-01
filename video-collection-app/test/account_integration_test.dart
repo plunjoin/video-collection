@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/models/video_model.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/services/api_service.dart';
+import 'test_kit.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -32,6 +32,7 @@ class Switch extends fw.StatelessWidget {
   final fw.ValueChanged<bool>? onChanged;
   final Color? activeColor;
   final Color? activeTrackColor;
+  final Color? activeThumbColor;
   final Color? inactiveThumbColor;
   final Color? inactiveTrackColor;
   final MaterialTapTargetSize? materialTapTargetSize;
@@ -44,6 +45,7 @@ class Switch extends fw.StatelessWidget {
     required this.onChanged,
     this.activeColor,
     this.activeTrackColor,
+    this.activeThumbColor,
     this.inactiveThumbColor,
     this.inactiveTrackColor,
     this.materialTapTargetSize,
@@ -57,6 +59,7 @@ class Switch extends fw.StatelessWidget {
     required fw.ValueChanged<bool>? onChanged,
     Color? activeColor,
     Color? activeTrackColor,
+    Color? activeThumbColor,
     Color? inactiveThumbColor,
     Color? inactiveTrackColor,
     MaterialTapTargetSize? materialTapTargetSize,
@@ -68,6 +71,7 @@ class Switch extends fw.StatelessWidget {
           onChanged: onChanged,
           activeColor: activeColor,
           activeTrackColor: activeTrackColor,
+          activeThumbColor: activeThumbColor,
           inactiveThumbColor: inactiveThumbColor,
           inactiveTrackColor: inactiveTrackColor,
           materialTapTargetSize: materialTapTargetSize,
@@ -84,7 +88,7 @@ class Switch extends fw.StatelessWidget {
         (theme.brightness == Brightness.dark
             ? const Color(0xFF334155)
             : const Color(0xFFE2E8F5));
-    final thumbActive = activeColor ?? Colors.white;
+    final thumbActive = activeThumbColor ?? activeColor ?? Colors.white;
     final thumbInactive = inactiveThumbColor ?? Colors.white;
 
     return Semantics(
@@ -382,7 +386,7 @@ class _SliderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final trackShape = theme.trackShape ?? const RoundedRectSliderTrackShape();
-    final rect = Rect.fromLTWH(0, size.height / 2 - 10, size.width, 20);
+    final rect = Offset.zero & size;
     final thumbCenter = Offset(
       rect.left +
           ((value - min) / math.max(0.0001, max - min)) * rect.width,
@@ -427,6 +431,7 @@ class ListTile extends fw.StatelessWidget {
   final fw.Widget? trailing;
   final GestureTapCallback? onTap;
   final bool dense;
+  final bool? isThreeLine;
   final EdgeInsetsGeometry? contentPadding;
   final bool selected;
   final ShapeBorder? shape;
@@ -443,6 +448,7 @@ class ListTile extends fw.StatelessWidget {
     this.trailing,
     this.onTap,
     this.dense = false,
+    this.isThreeLine,
     this.contentPadding,
     this.selected = false,
     this.shape,
@@ -789,7 +795,7 @@ class CircleAvatar extends fw.StatelessWidget {
 
 /// 悬停提示(替代 material 的 Tooltip;走浮层宿主)。
 class Tooltip extends fw.StatefulWidget {
-  final String message;
+  final String? message;
   final fw.Widget child;
   final Duration? waitDuration;
   final Duration? showDuration;
@@ -821,6 +827,7 @@ class _TooltipState extends fw.State<Tooltip> {
 
   void _scheduleShow() {
     if (_entry != null || _waiting) return;
+    if ((widget.message ?? '').isEmpty) return;
     _waiting = true;
     _showTimer =
         Timer(widget.waitDuration ?? const Duration(milliseconds: 500), () {
@@ -865,7 +872,7 @@ class _TooltipState extends fw.State<Tooltip> {
                     fontSize: 11,
                     color: Colors.white,
                   ),
-              child: Text(widget.message, maxLines: 2),
+              child: Text(widget.message ?? '', maxLines: 2),
             ),
           ),
         );
@@ -896,6 +903,44 @@ class _TooltipState extends fw.State<Tooltip> {
       onEnter: (_) => _scheduleShow(),
       onExit: (_) => _cancel(),
       child: widget.child,
+    );
+  }
+}
+
+/// 纵向分隔线。
+class VerticalDivider extends fw.StatelessWidget {
+  final double? width;
+  final double? thickness;
+  final double? indent;
+  final double? endIndent;
+  final Color? color;
+
+  const VerticalDivider({
+    fw.Key? key,
+    this.width,
+    this.thickness,
+    this.indent,
+    this.endIndent,
+    this.color,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final theme = Theme.of(context);
+    final w = width ?? 16;
+    final t = thickness ?? 0.7;
+    return SizedBox(
+      width: w,
+      child: Center(
+        child: Container(
+          width: t,
+          margin: EdgeInsets.only(
+            top: indent ?? 0,
+            bottom: endIndent ?? 0,
+          ),
+          color: color ?? theme.dividerColor,
+        ),
+      ),
     );
   }
 }
@@ -948,6 +993,7 @@ class CircularProgressIndicator extends fw.StatefulWidget {
   final double? strokeWidth;
   final Color? color;
   final Color? backgroundColor;
+  final fw.Animation<Color?>? valueColor;
 
   const CircularProgressIndicator({
     fw.Key? key,
@@ -955,6 +1001,7 @@ class CircularProgressIndicator extends fw.StatefulWidget {
     this.strokeWidth,
     this.color,
     this.backgroundColor,
+    this.valueColor,
   }) : super(key: key);
 
   @override
@@ -1006,7 +1053,9 @@ class _CircularProgressIndicatorState
           painter: _CircularPainter(
             value: widget.value,
             rotation: _controller.value,
-            color: widget.color ?? const Color(0xFF9A83FF),
+            color: widget.valueColor?.value ??
+                widget.color ??
+                const Color(0xFF9A83FF),
             backgroundColor: widget.backgroundColor,
             strokeWidth: widget.strokeWidth ?? 2.6,
           ),
@@ -1087,6 +1136,7 @@ class LinearProgressIndicator extends fw.StatelessWidget {
   final Color? color;
   final Color? backgroundColor;
   final BorderRadius? borderRadius;
+  final fw.Animation<Color?>? valueColor;
 
   const LinearProgressIndicator({
     fw.Key? key,
@@ -1095,12 +1145,13 @@ class LinearProgressIndicator extends fw.StatelessWidget {
     this.color,
     this.backgroundColor,
     this.borderRadius,
+    this.valueColor,
   }) : super(key: key);
 
   @override
   fw.Widget build(fw.BuildContext context) {
     final h = minHeight ?? 3.0;
-    final fg = color ?? const Color(0xFF9A83FF);
+    final fg = valueColor?.value ?? color ?? const Color(0xFF9A83FF);
     final bg = backgroundColor ?? fg.withValues(alpha: .18);
     return SizedBox(
       height: h,
@@ -1415,7 +1466,9 @@ class TabBarView extends fw.StatelessWidget {
 
 /// 分页视图(替代 material 的 PageView)。
 class PageView extends fw.StatelessWidget {
-  final List<fw.Widget> children;
+  final List<fw.Widget>? children;
+  final int? itemCount;
+  final fw.Widget? Function(fw.BuildContext, int)? itemBuilder;
   final PageController? controller;
   final Axis scrollDirection;
   final fw.ValueChanged<int>? onPageChanged;
@@ -1426,14 +1479,33 @@ class PageView extends fw.StatelessWidget {
     this.controller,
     this.scrollDirection = Axis.horizontal,
     this.onPageChanged,
-  }) : super(key: key);
+  })  : itemCount = null,
+        itemBuilder = null,
+        super(key: key);
+
+  const PageView.builder({
+    fw.Key? key,
+    required int this.itemCount,
+    required fw.Widget? Function(fw.BuildContext, int) this.itemBuilder,
+    this.controller,
+    this.scrollDirection = Axis.horizontal,
+    this.onPageChanged,
+  })  : children = null,
+        super(key: key);
 
   @override
   fw.Widget build(fw.BuildContext context) {
+    final count = itemCount ?? children?.length ?? 0;
     return _PagerWidget(
-      pageCount: children.length,
-      pageBuilder: (context, index) =>
-          index < children.length ? children[index] : const SizedBox.shrink(),
+      pageCount: count,
+      pageBuilder: (context, index) {
+        if (itemBuilder != null) {
+          return itemBuilder!(context, index) ?? const SizedBox.shrink();
+        }
+        return index < (children?.length ?? 0)
+            ? children![index]
+            : const SizedBox.shrink();
+      },
       pageController: controller,
       onPageChanged: onPageChanged,
     );
@@ -1462,6 +1534,253 @@ class PageController extends ScrollController {
 }
 
 // ---------------------------------------------------------------------------
+// Tab / 分段按钮 / ActionChip
+// ---------------------------------------------------------------------------
+
+/// 标签(与 BrandTabs 搭配;替代 material 的 Tab)。
+class Tab extends fw.StatelessWidget {
+  final String? text;
+  final fw.Widget? child;
+  final fw.Widget? icon;
+  final double? iconSize;
+  final double height;
+
+  const Tab({
+    fw.Key? key,
+    this.text,
+    this.icon,
+    this.iconSize,
+    this.child,
+    this.height = 46,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    if (child != null) return child!;
+    final label = text != null
+        ? Text(text!, maxLines: 1, overflow: TextOverflow.ellipsis)
+        : (icon ?? const SizedBox.shrink());
+    return icon != null && text != null
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconTheme(
+                data: IconThemeData(size: iconSize ?? 18),
+                child: icon!,
+              ),
+              const SizedBox(width: 6),
+              label,
+            ],
+          )
+        : label;
+  }
+}
+
+/// 分段选择器(替代 material 的 SegmentedButton)。
+class SegmentedButton<T> extends fw.StatelessWidget {
+  final List<ButtonSegment<T>> segments;
+  final Set<T> selected;
+  final void Function(Set<T>)? onSelectionChanged;
+  final bool showSelectedIcon;
+  final fw.Widget? selectedIcon;
+
+  const SegmentedButton({
+    fw.Key? key,
+    required this.segments,
+    required this.selected,
+    this.onSelectionChanged,
+    this.showSelectedIcon = true,
+    this.selectedIcon,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF222E43) : const Color(0xFFF3F5FE),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < segments.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            segments[i].buildSeg(
+              context,
+              selected: selected.contains(segments[i].value),
+              showSelectedIcon: showSelectedIcon,
+              primary: primary,
+              onSelect: onSelectionChanged == null
+                  ? null
+                  : () => onSelectionChanged!({segments[i].value}),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 分段按钮的单段。
+class ButtonSegment<T> {
+  final T value;
+  final fw.Widget? label;
+  final fw.Widget? icon;
+  final fw.Widget? selectedIcon;
+  final bool enabled;
+
+  const ButtonSegment({
+    required this.value,
+    this.label,
+    this.icon,
+    this.selectedIcon,
+    this.enabled = true,
+  });
+
+  fw.Widget buildSeg(
+    fw.BuildContext context, {
+    required bool selected,
+    required bool showSelectedIcon,
+    required Color primary,
+    required VoidCallback? onSelect,
+  }) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return InkWell(
+      onTap: enabled ? onSelect : null,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? (dark ? const Color(0xFF38405B) : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: selected && !dark
+              ? const [
+                  BoxShadow(
+                    color: Color(0x0C667AAE),
+                    blurRadius: 7,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected && showSelectedIcon) ...[
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+            ] else if (icon != null) ...[
+              IconTheme(
+                data: IconThemeData(
+                  color: selected
+                      ? primary
+                      : (dark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF7D88AA)),
+                  size: 15,
+                ),
+                child: icon!,
+              ),
+              const SizedBox(width: 5),
+            ],
+            if (label != null)
+              DefaultTextStyle(
+                style: TextStyle(
+                  fontFamily: theme.fontFamily,
+                  fontFamilyFallback: theme.fontFamilyFallback,
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? primary
+                      : (dark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF7D88AA)),
+                ),
+                child: label!,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 可点击标签片(替代 material 的 ActionChip)。
+class ActionChip extends fw.StatelessWidget {
+  final fw.Widget? avatar;
+  final fw.Widget label;
+  final VoidCallback? onPressed;
+  final Color? backgroundColor;
+  final BorderSide? side;
+  final EdgeInsetsGeometry? padding;
+
+  const ActionChip({
+    fw.Key? key,
+    this.avatar,
+    required this.label,
+    this.onPressed,
+    this.backgroundColor,
+    this.side,
+    this.padding,
+  }) : super(key: key);
+
+  @override
+  fw.Widget build(fw.BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: padding ??
+            const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        decoration: BoxDecoration(
+          color: backgroundColor ??
+              (dark ? const Color(0xFF222E43) : const Color(0xFFF4F7FF)),
+          borderRadius: BorderRadius.circular(20),
+          border: side != null
+              ? Border.all(color: side!.color, width: side!.width)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (avatar != null) ...[
+              avatar!,
+              const SizedBox(width: 6),
+            ],
+            DefaultTextStyle(
+              style: TextStyle(
+                fontFamily: theme.fontFamily,
+                fontFamilyFallback: theme.fontFamilyFallback,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: dark ? const Color(0xFFB9C2D8) : const Color(0xFF55607E),
+              ),
+              child: label,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // PopupMenuButton
 // ---------------------------------------------------------------------------
 
@@ -1480,13 +1799,25 @@ class PopupMenuItem<T> extends PopupMenuEntry<T> {
   final T? value;
   final fw.Widget child;
   final double height;
+  final bool enabled;
 
   const PopupMenuItem({
     fw.Key? key,
     this.value,
     required this.child,
     this.height = 40,
+    this.enabled = true,
   });
+}
+
+/// 菜单分隔线。
+class PopupMenuDivider extends PopupMenuEntry<Never> {
+  final double height;
+
+  const PopupMenuDivider({fw.Key? key, this.height = 9});
+
+  @override
+  fw.Widget build(fw.BuildContext context) => const Divider(height: 9);
 }
 
 /// 弹出菜单按钮(替代 material 的 PopupMenuButton)。
@@ -1591,15 +1922,22 @@ class _PopupMenuButtonState<T> extends fw.State<PopupMenuButton<T>> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         for (final item in items)
-                          if (item is PopupMenuItem<T>)
+                          if (item is PopupMenuDivider)
+                            SizedBox(height: item.height)
+                          else if (item is PopupMenuItem<T>)
                             InkWell(
-                              onTap: () {
-                                entry.remove();
-                                if (item.value != null) {
-                                  widget.onSelected?.call(item.value as T);
-                                }
-                              },
-                              child: Container(
+                              onTap: !item.enabled
+                                  ? null
+                                  : () {
+                                      entry.remove();
+                                      if (item.value != null) {
+                                        widget.onSelected
+                                            ?.call(item.value as T);
+                                      }
+                                    },
+                              child: Opacity(
+                                opacity: item.enabled ? 1 : .45,
+                                child: Container(
                                 height: item.height,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 14,
@@ -1615,7 +1953,8 @@ class _PopupMenuButtonState<T> extends fw.State<PopupMenuButton<T>> {
                                         ? const Color(0xFFD5E0FF)
                                         : const Color(0xFF353B58),
                                   ),
-                                  child: item.child,
+                                    child: item.child,
+                                  ),
                                 ),
                               ),
                             ),

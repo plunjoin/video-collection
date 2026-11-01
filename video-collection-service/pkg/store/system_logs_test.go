@@ -25,10 +25,10 @@ func TestAppendAndListSystemLogs(t *testing.T) {
 		t.Fatalf("append info: %v", err)
 	}
 	if err := s.AppendSystemLog(ctx, SystemLog{
-		Level:    "warn",
-		Category: "admin",
-		Message:  "删除业务类型 demo",
-		ActorID:  2,
+		Level:     "warn",
+		Category:  "admin",
+		Message:   "删除业务类型 demo",
+		ActorID:   2,
 		ActorName: "ops",
 	}); err != nil {
 		t.Fatalf("append warn: %v", err)

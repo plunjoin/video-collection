@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/update_model.dart';
@@ -285,6 +285,39 @@ class AppStateProvider extends ChangeNotifier {
     try {
       await _api.uploadAvatar(bytes: bytes, filename: filename);
       await refreshProfile();
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 历史头像列表（最新的在前，最多 20 条）。
+  Future<List<Map<String, dynamic>>> listAvatars() async {
+    if (!isLoggedIn) return const [];
+    try {
+      return await _api.listAvatars();
+    } on ApiException {
+      return const [];
+    }
+  }
+
+  /// 切换为某个历史头像：服务端立即生效，随后刷新本地资料。
+  Future<String?> useAvatar(int id) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.useAvatar(id);
+      await refreshProfile();
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  /// 删除历史头像，源文件由服务端一并清理。
+  Future<String?> deleteAvatar(int id) async {
+    if (!isLoggedIn) return '请先登录';
+    try {
+      await _api.deleteAvatar(id);
       return null;
     } on ApiException catch (error) {
       return error.message;

@@ -32,6 +32,8 @@ class OverlayEntry {
   OverlayHostEntryState? _host;
   bool _mounted = true;
 
+  bool get mounted => _mounted;
+
   OverlayEntry({required this.builder, this.opaque = false});
 
   void markNeedsBuild() {
@@ -430,6 +432,8 @@ Future<T?> showModalBottomSheet<T>({
   bool isScrollControlled = false,
   bool useSafeArea = true,
   Color? barrierColor,
+  bool showDragHandle = true,
+  bool enableDrag = true,
 }) {
   final host = OverlayHost.of(context);
   final completer = Completer<T?>();

@@ -23,16 +23,16 @@ func NewHandler(s store.Store) *Handler {
 
 // RSSChannel RSS 2.0 channel 根模型
 type RSSChannel struct {
-	XMLName       xml.Name    `xml:"channel"`
-	Title         string      `xml:"title"`
-	Link          string      `xml:"link"`
-	Description   string      `xml:"description"`
-	Language      string      `xml:"language"`
-	PubDate       string      `xml:"pubDate,omitempty"`
-	LastBuildDate string      `xml:"lastBuildDate,omitempty"`
-	Generator     string      `xml:"generator"`
-	AtomLink      AtomLink    `xml:"atom:link"`
-	Items         []RSSItem   `xml:"item"`
+	XMLName       xml.Name  `xml:"channel"`
+	Title         string    `xml:"title"`
+	Link          string    `xml:"link"`
+	Description   string    `xml:"description"`
+	Language      string    `xml:"language"`
+	PubDate       string    `xml:"pubDate,omitempty"`
+	LastBuildDate string    `xml:"lastBuildDate,omitempty"`
+	Generator     string    `xml:"generator"`
+	AtomLink      AtomLink  `xml:"atom:link"`
+	Items         []RSSItem `xml:"item"`
 }
 
 // AtomLink Atom 自关联
@@ -44,12 +44,12 @@ type AtomLink struct {
 
 // RSSItem 单个订阅条目
 type RSSItem struct {
-	Title       CDATAText    `xml:"title"`
-	Link        string       `xml:"link"`
-	GUID        RSSGUID      `xml:"guid"`
-	Category    CDATAText    `xml:"category"`
-	PubDate     string       `xml:"pubDate"`
-	Description CDATAText    `xml:"description"`
+	Title       CDATAText     `xml:"title"`
+	Link        string        `xml:"link"`
+	GUID        RSSGUID       `xml:"guid"`
+	Category    CDATAText     `xml:"category"`
+	PubDate     string        `xml:"pubDate"`
+	Description CDATAText     `xml:"description"`
 	Enclosure   *RSSEnclosure `xml:"enclosure,omitempty"`
 }
 

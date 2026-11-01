@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import '../ui/kit.dart';
 
 /// Native adaptation of bllii-brand-kit/animation/bllii-intro.svg.
 /// The original accent rect is a real progress track; null means unknown work.

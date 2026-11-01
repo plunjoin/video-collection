@@ -16,13 +16,16 @@ var growthSpec []byte
 //go:embed account-spec.json
 var accountSpec []byte
 
+//go:embed integration-spec.json
+var integrationSpec []byte
+
 func init() {
 	var base map[string]any
 	if err := json.Unmarshal(openAPISpec, &base); err != nil {
 		panic(err)
 	}
 	// 按领域拆分的扩展规范统一并入主文档，避免单文件无限膨胀。
-	for _, extra := range [][]byte{growthSpec, accountSpec} {
+	for _, extra := range [][]byte{growthSpec, accountSpec, integrationSpec} {
 		mergeSpec(base, extra)
 	}
 	var err error

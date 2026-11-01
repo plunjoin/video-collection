@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -8,8 +8,9 @@ import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/screens/anime_detail_screen.dart';
 import 'package:video_collection_app/screens/settings_screen.dart';
 import 'package:video_collection_app/services/fullscreen_service.dart';
-import 'package:video_collection_app/theme/app_theme.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/widgets/brand_intro.dart';
+import 'test_kit.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -64,16 +65,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('服务端地址'),
       400,
-      scrollable: find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Scrollable &&
-                  widget.axisDirection == AxisDirection.down,
-            ),
-          )
-          .first,
+      scrollable: find.byType(ListView).first,
     );
     expect(find.text('服务端地址'), findsOneWidget);
     expect(tester.takeException(), isNull);

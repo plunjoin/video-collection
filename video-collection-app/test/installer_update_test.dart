@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -13,6 +13,7 @@ import 'package:video_collection_app/services/api_service.dart';
 import 'package:video_collection_app/services/installer_update_service.dart';
 import 'package:video_collection_app/services/update_service.dart';
 import 'package:video_collection_app/widgets/update_dialog.dart';
+import 'test_kit.dart';
 
 /// 可控的假安装器服务, 用于验证 Provider 的下载/安装状态流转
 class _FakeInstallerUpdate extends InstallerUpdateService {
