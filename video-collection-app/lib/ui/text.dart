@@ -243,6 +243,9 @@ class RenderParagraphBox extends RenderBox {
   TextPainter? _painter;
   bool _needsTextLayout = true;
 
+  /// 当前生效的文本样式(调试用)。
+  TextStyle get currentStyle => _style;
+
   RenderParagraphBox({
     required String text,
     required TextStyle style,

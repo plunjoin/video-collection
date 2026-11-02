@@ -341,11 +341,14 @@ class RenderScrollViewViewport extends RenderBox
       children.add(it);
       it = (it.parentData as _ViewportParentData).nextSibling;
     }
-    var index = 0;
+    // 从最上层(最后绘制)向前命中,索引需与绘制顺序一致
+    var index = children.length - 1;
     for (final child in children.reversed) {
       final data = child.parentData as _ViewportParentData;
       final childOffset =
-          index < _childOffsets.length ? _childOffsets[index] : 0.0;
+          index >= 0 && index < _childOffsets.length
+              ? _childOffsets[index]
+              : 0.0;
       final screenPos = childOffset - _scrollOffset;
       final extent = isHorizontal ? child.size.width : child.size.height;
       if (screenPos + extent >= 0 && screenPos <= viewportMain) {
@@ -359,7 +362,7 @@ class RenderScrollViewViewport extends RenderBox
         );
         if (hit) return true;
       }
-      index++;
+      index--;
     }
     return false;
   }
@@ -403,6 +406,15 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
     scrollController?.position?.pixels = _offset;
     _report(dragging: dragging);
     if (mounted) setState(() {});
+  }
+
+  /// 交叉轴(宽度)尺寸。
+  double _crossAxisExtent() {
+    final ro = context.findRenderObject();
+    if (ro is RenderBox && ro.hasSize && ro.size.width > 0) {
+      return ro.size.width;
+    }
+    return 600;
   }
 
   void _measureViewport() {
@@ -778,11 +790,15 @@ class _ListViewState extends fw.State<ListView>
       cursor += _extentFor(slot);
     }
 
-    return buildScrollable(
-      contentExtent: _totalExtent(),
-      children: children,
-      childOffsets: offsets,
-      padding: widget.padding,
+    return Scrollable(
+      scrollDirection: widget.scrollDirection,
+      controller: widget.controller,
+      child: buildScrollable(
+        contentExtent: _totalExtent(),
+        children: children,
+        childOffsets: offsets,
+        padding: widget.padding,
+      ),
     );
   }
 }
@@ -999,8 +1015,11 @@ class _GridViewState extends fw.State<GridView>
   @override
   fw.Widget build(fw.BuildContext context) {
     _measureViewport();
-    // 网格主轴为纵向时,交叉轴宽度 = 视口宽度
-    _computeMetrics(_viewportExtent);
+    // 网格的交叉轴宽度:纵向网格取视口宽度,横向网格取视口高度
+    final crossExtent = widget.scrollDirection == Axis.vertical
+        ? _crossAxisExtent()
+        : _viewportExtent;
+    _computeMetrics(crossExtent);
 
     final delegate = widget.gridDelegate;
     double mainSpacing = 0;
@@ -1026,15 +1045,14 @@ class _GridViewState extends fw.State<GridView>
         final index = row * _crossCount + col;
         if (index < count) {
           rowChildren.add(
-            Expanded(
-              child: SizedBox(
-                height: _rowExtent,
-                child: _buildItem(index),
-              ),
+            SizedBox(
+              width: _cellWidth,
+              height: _rowExtent,
+              child: _buildItem(index),
             ),
           );
         } else {
-          rowChildren.add(const Expanded(child: SizedBox.shrink()));
+          rowChildren.add(SizedBox(width: _cellWidth, height: _rowExtent));
         }
         if (col < _crossCount - 1) {
           rowChildren.add(SizedBox(width: crossSpacing));
@@ -1305,4 +1323,110 @@ class _RefreshMarkPainter extends CustomPainter {
       oldDelegate.rotation != rotation ||
       oldDelegate.progress != progress ||
       oldDelegate.color != color;
+}
+
+// ---------------------------------------------------------------------------
+// Scrollable 兼容层(供 ensureVisible 等按滚动容器查找的 API 使用)
+// ---------------------------------------------------------------------------
+
+/// 可滚动容器标记(自研;让 [Scrollable.ensureVisible] 能定位到滚动位置)。
+class Scrollable extends fw.StatefulWidget {
+  final Axis scrollDirection;
+  final fw.Widget? child;
+  final ScrollController? controller;
+
+  const Scrollable({
+    fw.Key? key,
+    this.scrollDirection = Axis.vertical,
+    this.child,
+    this.controller,
+  }) : super(key: key);
+
+  /// 查找最近的滚动容器状态。
+  static ScrollableState? maybeOf(fw.BuildContext context) {
+    return context
+        .findAncestorStateOfType<ScrollableState>();
+  }
+
+  /// 确保目标组件在视口内可见。
+  ///
+  /// 沿祖先链逐级让目标可见:先让最近的内层滚动容器对齐,再处理外层。
+  static Future<void> ensureVisible(
+    fw.BuildContext context, {
+    double alignment = 0.0,
+    Duration duration = Duration.zero,
+    Curve curve = fw.Curves.ease,
+  }) async {
+    RenderObject? target = context.findRenderObject();
+    fw.BuildContext? current = context;
+    while (current != null) {
+      final scrollable = Scrollable.maybeOf(current);
+      if (scrollable == null) break;
+      scrollable.ensureChildVisible(target, alignment);
+      target = scrollable.context.findRenderObject();
+      current = scrollable.context;
+    }
+  }
+
+  @override
+  fw.State<Scrollable> createState() => ScrollableState();
+}
+
+/// 滚动容器状态。
+class ScrollableState extends fw.State<Scrollable> {
+  /// 让指定渲染对象在视口内可见(超出则调整偏移)。
+  void ensureChildVisible(RenderObject? target, double alignment) {
+    final state = _owner;
+    if (state == null) return;
+    final viewport = context.findRenderObject();
+    if (viewport is! RenderBox || !viewport.hasSize) return;
+    if (target == null) return;
+
+    final targetBox = target;
+    if (targetBox is! RenderBox || !targetBox.hasSize) return;
+
+    // 目标在滚动子树内的位置(相对视口)
+    final globalTopLeft = targetBox.localToGlobal(Offset.zero);
+    final viewportTopLeft = viewport.localToGlobal(Offset.zero);
+    final relativeTop = globalTopLeft.dy - viewportTopLeft.dy;
+    final relativeBottom = relativeTop + targetBox.size.height;
+    final viewHeight = viewport.size.height;
+
+    var offset = state.scrollOffset;
+    if (relativeTop < 0) {
+      offset += relativeTop;
+    } else if (relativeBottom > viewHeight) {
+      offset += relativeBottom - viewHeight;
+    } else {
+      return;
+    }
+    state.applyScroll(offset, dragging: false);
+  }
+
+  UiScrollableState? _owner;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _owner = _findOwner(context);
+  }
+
+  UiScrollableState? _findOwner(fw.BuildContext context) {
+    UiScrollableState? found;
+    void visit(fw.Element element) {
+      if (found != null) return;
+      final state = element is fw.StatefulElement ? element.state : null;
+      if (state is UiScrollableState) {
+        found = state;
+        return;
+      }
+      element.visitChildren(visit);
+    }
+
+    context.visitChildElements(visit);
+    return found;
+  }
+
+  @override
+  fw.Widget build(fw.BuildContext context) => widget.child ?? const SizedBox.shrink();
 }
