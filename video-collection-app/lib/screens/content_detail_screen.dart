@@ -312,8 +312,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                     width: double.infinity,
                     height: desktop ? 340 : 220,
                     fit: BoxFit.cover,
-                    placeholder: (_, _) => const _DetailCoverFallback(),
-                    errorWidget: (_, _, _) => const _DetailCoverFallback(),
+                    placeholder: (_, _) => ArticleCoverPlaceholder(
+                      width: double.infinity,
+                      height: desktop ? 340 : 220,
+                      iconSize: 44,
+                    ),
+                    errorWidget: (_, _, _) => ArticleCoverPlaceholder(
+                      width: double.infinity,
+                      height: desktop ? 340 : 220,
+                      iconSize: 44,
+                    ),
                   ),
                 ),
               ],
@@ -653,26 +661,6 @@ class _SubjectCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailCoverFallback extends StatelessWidget {
-  const _DetailCoverFallback();
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      width: double.infinity,
-      height: 220,
-      child: ColoredBox(
-        color: dark ? AppColors.darkBg : AppColors.primary50,
-        child: const BrandIcon(
-          BIcons.book,
-          size: 44,
-          color: AppColors.primary500,
         ),
       ),
     );

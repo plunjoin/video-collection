@@ -14,13 +14,13 @@ import 'member_avatar.dart';
 const sidebarExpandedWidth = 256.0;
 
 /// 桌面侧栏：个人资料卡 + 菜单分组（我的空间 / 发现 / 个人设置）。
-class EntropySidebar extends StatefulWidget {
+class DesktopSideRail extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onSettings;
   final VoidCallback onAccount;
 
-  const EntropySidebar({
+  const DesktopSideRail({
     super.key,
     required this.currentIndex,
     required this.onSelect,
@@ -29,10 +29,10 @@ class EntropySidebar extends StatefulWidget {
   });
 
   @override
-  State<EntropySidebar> createState() => _EntropySidebarState();
+  State<DesktopSideRail> createState() => _DesktopSideRailState();
 }
 
-class _EntropySidebarState extends State<EntropySidebar> {
+class _DesktopSideRailState extends State<DesktopSideRail> {
   int _points = 0;
   bool _pointsForLoggedIn = false;
   final ApiService _apiService = ApiService();

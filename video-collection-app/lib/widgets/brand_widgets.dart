@@ -493,3 +493,36 @@ class BrandBottomNav extends StatelessWidget {
     );
   }
 }
+
+/// 资讯/动态封面缺省占位组件（用于资讯中心列表与详情页）。
+class ArticleCoverPlaceholder extends StatelessWidget {
+  final double? width;
+  final double? height;
+  final double iconSize;
+
+  const ArticleCoverPlaceholder({
+    super.key,
+    this.width,
+    this.height,
+    this.iconSize = 24,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: ColoredBox(
+        color: dark ? AppColors.darkBg : AppColors.primary50,
+        child: Center(
+          child: BrandIcon(
+            BIcons.book,
+            size: iconSize,
+            color: AppColors.primary500,
+          ),
+        ),
+      ),
+    );
+  }
+}

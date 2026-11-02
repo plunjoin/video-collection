@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/analytics_tracker.dart';
 import '../utils/responsive.dart';
-import '../widgets/entropy_sidebar.dart';
+import '../widgets/desktop_side_rail.dart';
 import '../widgets/brand_widgets.dart';
 import 'account_screen.dart';
 import 'category_screen.dart';
@@ -98,7 +98,7 @@ class _MainScaffoldState extends State<MainScaffold> {
           // 最小化/最大化/关闭按钮；窗口拖拽由页面标题栏承担。
           body: Row(
             children: [
-              EntropySidebar(
+              DesktopSideRail(
                 currentIndex: _currentIndex,
                 onSelect: _switchTab,
                 onSettings: _openSettings,

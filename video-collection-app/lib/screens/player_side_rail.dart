@@ -531,7 +531,7 @@ extension _PlayerSideRailExtension on _PlayerScreenState {
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
-          onPressed: () => showRagAskSheet(
+          onPressed: () => showAiQaSheet(
             context,
             seedQuestion:
                 '${widget.video.name} 第${_currentEpisodeIndex + 1}集讲了什么？',
@@ -622,7 +622,7 @@ extension _PlayerSideRailExtension on _PlayerScreenState {
       'AI 深度解读',
       BIcons.sparkles,
       trailing: InkWell(
-        onTap: () => showRagAskSheet(
+        onTap: () => showAiQaSheet(
           context,
           seedQuestion: '${widget.video.name} 有哪些值得注意的伏笔？',
         ),

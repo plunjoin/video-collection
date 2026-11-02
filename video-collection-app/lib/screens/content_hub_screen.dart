@@ -402,8 +402,8 @@ class _ContentFeedCard extends StatelessWidget {
                     width: 78,
                     height: 96,
                     fit: BoxFit.cover,
-                    placeholder: (_, _) => const _CoverFallback(),
-                    errorWidget: (_, _, _) => const _CoverFallback(),
+                    placeholder: (_, _) => const ArticleCoverPlaceholder(width: 78, height: 96),
+                    errorWidget: (_, _, _) => const ArticleCoverPlaceholder(width: 78, height: 96),
                   ),
                 ),
               ],
@@ -432,25 +432,6 @@ class _MetaPill extends StatelessWidget {
       style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
     ),
   );
-}
-
-class _CoverFallback extends StatelessWidget {
-  const _CoverFallback();
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      width: 78,
-      height: 96,
-      child: ColoredBox(
-        color: dark ? AppColors.darkBg : AppColors.primary50,
-        child: const BrandIcon(
-          BIcons.book,
-          color: AppColors.primary500,
-        ),
-      ),
-    );
-  }
 }
 
 class CommunityComposeScreen extends StatefulWidget {

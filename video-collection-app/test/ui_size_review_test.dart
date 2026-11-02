@@ -10,7 +10,7 @@ import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/screens/anime_detail_screen.dart';
 import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/widgets/brand_widgets.dart';
-import 'package:video_collection_app/widgets/entropy_sidebar.dart';
+import 'package:video_collection_app/widgets/desktop_side_rail.dart';
 import 'test_kit.dart';
 
 VideoRecord _fakeVideo() => VideoRecord.fromJson(const {
@@ -100,7 +100,7 @@ void main() {
               children: [
                 SizedBox(
                   width: sidebarExpandedWidth,
-                  child: EntropySidebar(
+                  child: DesktopSideRail(
                     currentIndex: 0,
                     onSelect: (_) {},
                     onSettings: () {},

@@ -28,7 +28,7 @@ import '../utils/native_window.dart';
 import '../widgets/danmaku_overlay.dart';
 import '../widgets/episode_selector.dart';
 import '../models/wiki_model.dart';
-import '../widgets/rag_ask_sheet.dart';
+import '../widgets/ai_qa_sheet.dart';
 import '../widgets/video_comments.dart';
 import '../widgets/watch_together_panel.dart';
 import 'account_screen.dart';

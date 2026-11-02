@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_collection_app/providers/app_state_provider.dart';
 import 'package:video_collection_app/ui/kit.dart';
 import 'package:video_collection_app/utils/responsive.dart';
-import 'package:video_collection_app/widgets/entropy_sidebar.dart';
+import 'package:video_collection_app/widgets/desktop_side_rail.dart';
 import 'test_kit.dart';
 
 void main() {
@@ -33,7 +33,7 @@ void main() {
           home: Scaffold(
             body: Row(
               children: [
-                EntropySidebar(
+                DesktopSideRail(
                   currentIndex: selected,
                   onSelect: (index) => selected = index,
                   onSettings: () {},

@@ -17,7 +17,7 @@ import '../widgets/brand_intro.dart';
 import '../widgets/brand_controls.dart' show kBrandAppBarTopInset;
 import '../widgets/brand_widgets.dart';
 import '../widgets/episode_selector.dart';
-import '../widgets/rag_ask_sheet.dart';
+import '../widgets/ai_qa_sheet.dart';
 import '../widgets/report_dialog.dart';
 import '../widgets/video_comments.dart';
 import 'content_detail_screen.dart';
@@ -353,7 +353,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
               children: [
                 _roundIcon(
                   BIcons.sparkles,
-                  () => showRagAskSheet(
+                  () => showAiQaSheet(
                     context,
                     seedQuestion: '${video.name}的导演是谁？',
                   ),
@@ -835,7 +835,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
         : AppColors.lightTextSecondary;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => showRagAskSheet(
+      onTap: () => showAiQaSheet(
         context,
         seedQuestion: '${widget.video.name}的导演是谁？',
       ),

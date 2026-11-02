@@ -10,7 +10,7 @@ import '../theme/brand_icons.dart';
 
 /// 知识库 AI 问答底部弹层。
 /// 服务端未配置对话模型时为检索模式：展示命中片段与可跳转引用。
-Future<void> showRagAskSheet(BuildContext context, {String? seedQuestion}) {
+Future<void> showAiQaSheet(BuildContext context, {String? seedQuestion}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -21,21 +21,21 @@ Future<void> showRagAskSheet(BuildContext context, {String? seedQuestion}) {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: RagAskSheet(seedQuestion: seedQuestion),
+      child: AiQaSheet(seedQuestion: seedQuestion),
     ),
   );
 }
 
-class RagAskSheet extends StatefulWidget {
+class AiQaSheet extends StatefulWidget {
   final String? seedQuestion;
 
-  const RagAskSheet({super.key, this.seedQuestion});
+  const AiQaSheet({super.key, this.seedQuestion});
 
   @override
-  State<RagAskSheet> createState() => _RagAskSheetState();
+  State<AiQaSheet> createState() => _AiQaSheetState();
 }
 
-class _RagAskSheetState extends State<RagAskSheet> {
+class _AiQaSheetState extends State<AiQaSheet> {
   final TextEditingController _controller = TextEditingController();
   bool _busy = false;
   RagAskResult? _result;
