@@ -19,7 +19,7 @@ interface SiteConfigData {
 export default function Footer({ initialConfig }: { initialConfig?: SiteConfigData }) {
   const [config, setConfig] = useState<SiteConfigData>(
     initialConfig || {
-      site_name: 'bllii 动漫聚合',
+      site_name: 'AniPocket 故事口袋',
       site_subtitle: '追番库 • 让生活多一种可能',
       site_disclaimer:
         '本站所有视频资源均系第三方公开网络接口与网络爬虫自动检索聚合，本站服务器不存储、不制作、不上传任何视听节目及视频文件。若相关内容无意侵犯了贵司版权或合法权益，请通过上方联系方式提供权利证明与侵权链接，我们将在收到通知后24小时内断开相关播放解析并配合清理。本站提倡支持正版影视与动漫。',
@@ -59,8 +59,8 @@ export default function Footer({ initialConfig }: { initialConfig?: SiteConfigDa
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b border-slate-100">
           <div className="lg:col-span-4 flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <img src="/brand/bllii-horizontal.svg" alt="bllii" width="140" height="54" />
-              <span className="sr-only">{config.site_name || 'bllii 动漫聚合'}</span>
+              <img src="/brand/bllii-horizontal.svg" alt="AniPocket 故事口袋" width="140" height="54" />
+              <span className="sr-only">{config.site_name || 'AniPocket 故事口袋'}</span>
             </div>
             <p className="text-slate-500 leading-relaxed text-xs sm:text-[13px] mt-1 pr-4">
               {config.site_subtitle || '追番库 • 让生活多一种可能'}
@@ -143,7 +143,7 @@ export default function Footer({ initialConfig }: { initialConfig?: SiteConfigDa
         </div>
 
         <div className="brand-masthead">
-          <a href="/" aria-label="bllii 首页"></a>
+          <a href="/" aria-label="AniPocket 故事口袋首页"></a>
           <p>
             好 动 画 · 更 好 的 你<small>SAME STORIES. A BRIGHTER YOU.</small>
           </p>
@@ -151,7 +151,7 @@ export default function Footer({ initialConfig }: { initialConfig?: SiteConfigDa
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 text-slate-400 text-xs">
           <div className="flex items-center gap-3 flex-wrap">
-            <span>© 2026 bllii • 二次元番剧聚合平台</span>
+            <span>© 2026 AniPocket 故事口袋 • 二次元番剧聚合平台</span>
           </div>
           <div className="flex items-center gap-4 text-slate-500">
             <a href="/community" className="hover:text-primary-600 transition-colors">

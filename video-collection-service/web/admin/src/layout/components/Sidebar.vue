@@ -4,8 +4,8 @@
       <div v-if="!isCollapsed" class="brand-lockup" @click="goDashboard" title="返回仪表盘">
         <span class="brand-mark" aria-hidden="true"><img :src="'/brand/bllii-symbol-white.svg'" alt="" /></span>
         <span class="brand-copy">
-          <strong>Bllii Studio</strong>
-          <small>动漫聚合与运营工作台</small>
+          <strong>AniPocket Studio</strong>
+          <small>故事口袋·工作台</small>
         </span>
       </div>
 

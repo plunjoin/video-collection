@@ -1,4 +1,4 @@
-# bllii 管理后台（Vue 3 + webfront）
+# AniPocket 故事口袋 管理后台（Vue 3 + webfront）
 
 `video-collection-service/web/admin` 是管理后台的**纯前端工程**：Vue 3 + TypeScript + Reka UI（Radix Vue）+ ECharts，由 [webfront](https://github.com/plunjoin/webfront) 的 wf CLI 构建（esbuild 内核，纯 Go，零 Node 运行时），产物经 `web/embed.go`（webui 包）以 `go:embed` 打进统一服务二进制，由 Go 直接托管 `/admin`（SPA history 路由，单二进制交付）。
 
@@ -31,9 +31,9 @@ go build -o service.exe .
 
 改完前端后需要**重新编译 Go 二进制**才会进入生产形态（`go:embed` 是编译期烧入）。
 
-## 主题（Bllii 品牌体系）
+## 主题（AniPocket 品牌体系）
 
-后台与门户共用 **Bllii** 视觉：蓝 `#4B9FFF`、紫 `#9A83FF`、粉 `#FF89C7`、深墨 `#353B58`。
+后台与门户共用 **AniPocket** 视觉：蓝 `#4B9FFF`、紫 `#9A83FF`、粉 `#FF89C7`、深墨 `#353B58`。
 
 - 设计令牌集中在 [`src/styles/index.css`](src/styles/index.css) 的 `:root`（亮色）与 `html.dark`（暗色）两段，页面样式一律引用令牌，不要在视图里写死颜色。
 - 标志复用门户托管的品牌资产：`/brand/bllii-symbol.svg`（彩标）、`/brand/bllii-symbol-white.svg`（白标，侧栏渐变底）。模板中用 `:src` 绑定（字符串路径），不要写静态 `src="/brand/..."`，保持与门户一致的资产引用方式。

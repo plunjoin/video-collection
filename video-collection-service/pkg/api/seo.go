@@ -166,7 +166,7 @@ func (srv *Server) getAllPublicVideos(ctx context.Context) ([]store.VideoRecord,
 func (srv *Server) HandleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	origin := srv.getSiteOrigin()
 
-	robotsTxt := fmt.Sprintf(`# Bllii Robots.txt
+	robotsTxt := fmt.Sprintf(`# AniPocket 故事口袋 Robots.txt
 User-agent: *
 Allow: /
 Disallow: /api/
@@ -212,9 +212,9 @@ func (srv *Server) HandleLLMsTxt(w http.ResponseWriter, r *http.Request) {
 	// 获取热门视频作为示例
 	hotVideos, _ := srv.store.GetHotVideos(ctx, 0, 10)
 
-	llmsTxt := fmt.Sprintf(`# Bllii · 影视与番剧智能聚合平台
+	llmsTxt := fmt.Sprintf(`# AniPocket 故事口袋 · 影视与番剧智能聚合平台
 
-> Bllii 是一个现代化的动漫番剧与影视在线浏览、选集播放与同好交流平台。
+> AniPocket 是一个现代化的动漫番剧与影视在线浏览、选集播放与同好交流平台。
 
 ## 核心频道
 - [首页](%s/): 精选番剧、最新更新推荐与热门合集
