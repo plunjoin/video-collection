@@ -88,7 +88,7 @@ class Row extends Flex {
     super.mainAxisSize,
     super.spacing,
     super.textDirection,
-  }) : super(direction: Axis.horizontal);
+  }) : super(key: key, direction: Axis.horizontal);
 }
 
 /// 垂直布局。
@@ -101,7 +101,7 @@ class Column extends Flex {
     super.mainAxisSize,
     super.spacing,
     super.verticalDirection,
-  }) : super(direction: Axis.vertical);
+  }) : super(key: key, direction: Axis.vertical);
 }
 
 /// 抢占剩余空间的弹性子项(完全填充)。

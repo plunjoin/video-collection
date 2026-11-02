@@ -279,6 +279,7 @@ class RenderScrollViewViewport extends RenderBox
     final crossMin =
         isHorizontal ? constraints.minHeight : constraints.minWidth;
 
+    // 主轴无界时:子项按内容自然长度布局(框架 ScrollView 语义)
     var index = 0;
     for (final child in _children) {
       final inner = isHorizontal
@@ -316,14 +317,33 @@ class RenderScrollViewViewport extends RenderBox
       slot++;
     }
 
-    final mainSize = _shrinkWrap
+    // 主轴无界时按内容定尺寸(框架 ScrollView 语义);
+    // shrinkWrap 时同样按内容定尺寸。
+    final unboundedMain = !mainMax.isFinite;
+    final mainSize = (_shrinkWrap || unboundedMain)
         ? contentMain
-        : (mainMax.isFinite ? mainMax : mainMin);
-    size = constraints.constrain(
-      isHorizontal
-          ? Size(math.max(mainMin, mainSize), math.max(crossMin, crossMax))
-          : Size(math.max(crossMin, crossMax), math.max(mainMin, mainSize)),
-    );
+        : mainMax;
+    final crossSize =
+        crossMax.isFinite ? crossMax : _crossContentExtent(isHorizontal);
+    // 纵向滚动时宽度填满可用空间(框架语义);横向滚动时高度填满。
+    final resolvedWidth = isHorizontal
+        ? math.max(mainMin, mainSize)
+        : math.max(crossMin, crossSize);
+    final resolvedHeight = isHorizontal
+        ? math.max(crossMin, crossSize)
+        : math.max(mainMin, mainSize);
+    size = constraints.constrain(Size(resolvedWidth, resolvedHeight));
+  }
+
+  /// 交叉轴内容尺寸(交叉轴无界时使用)。
+  double _crossContentExtent(bool isHorizontal) {
+    var extent = 0.0;
+    for (final child in _children) {
+      final childExtent =
+          isHorizontal ? child.size.height : child.size.width;
+      if (childExtent > extent) extent = childExtent;
+    }
+    return extent;
   }
 
   @override
@@ -471,6 +491,7 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
     required List<fw.Widget> children,
     required List<double> childOffsets,
     EdgeInsetsGeometry? padding,
+    bool unboundedMainAxis = false,
   }) {
     _syncController();
     _measureViewport();
@@ -610,6 +631,7 @@ class _SingleChildScrollViewState extends fw.State<SingleChildScrollView>
           : const [],
       childOffsets: const [0.0],
       padding: widget.padding,
+      unboundedMainAxis: true,
     );
   }
 }
