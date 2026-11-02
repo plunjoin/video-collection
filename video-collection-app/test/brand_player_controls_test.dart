@@ -281,7 +281,14 @@ void main() {
     expect(find.byType(Slider), findsOneWidget);
 
     // Tap preset chip 2.0x
-    await tester.tap(findWidgetWithText(InkWell, '2.0x'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(ChoiceChip),
+        matching: find.byWidgetPredicate(
+          (w) => w is Text && w.data == '2.0x',
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(speed, 2.0);
 

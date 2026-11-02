@@ -711,6 +711,14 @@ class _ListViewState extends fw.State<ListView>
   static const double _defaultEstimate = 88;
   static const int _cacheSlots = 8;
 
+  ScrollController? _internalController;
+
+  @override
+  void dispose() {
+    _internalController?.dispose();
+    super.dispose();
+  }
+
   final List<double?> _extents = [];
   bool _extentsDirty = false;
 
@@ -781,7 +789,8 @@ class _ListViewState extends fw.State<ListView>
   ScrollPhysics? get scrollPhysics => widget.physics;
 
   @override
-  ScrollController? get scrollController => widget.controller;
+  ScrollController? get scrollController =>
+      widget.controller ?? (_internalController ??= ScrollController());
 
   @override
   bool get shrinkWrap => widget.shrinkWrap;

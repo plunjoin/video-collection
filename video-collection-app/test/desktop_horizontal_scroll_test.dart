@@ -56,9 +56,10 @@ void main() {
       ),
     );
 
-    ScrollPosition position() =>
-        tester.state<UiScrollableState>(find.byType(ListView))
-            .scrollController!.position;
+    ScrollPosition position() {
+      final state = tester.state<UiScrollableState>(find.byType(ListView));
+      return state.scrollController?.position ?? ScrollPosition();
+    }
 
     await tester.drag(
       find.byType(ListView),
