@@ -112,8 +112,14 @@ Finder findWidgetWithText(Type widgetType, String text) {
   );
 }
 
-/// 判断组件子树中是否存在指定文本。
+/// 判断组件(或其子树)是否承载指定文本。
 bool _containsText(Widget widget, String text) {
+  // 组件自身的文本参数(按钮的 label 等)
+  if (widget is Text && widget.data == text) return true;
+  if (widget is TextButton && widget.child is Text &&
+      (widget.child as Text).data == text) {
+    return true;
+  }
   var found = false;
   forEachDescendant(widget, (node) {
     if (found) return;

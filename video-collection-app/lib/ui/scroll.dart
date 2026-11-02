@@ -166,12 +166,14 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
   final Axis scrollDirection;
   final double scrollOffset;
   final List<double> childOffsets;
+  final bool shrinkWrap;
 
   const ScrollViewportWidget({
     fw.Key? key,
     required this.scrollDirection,
     required this.scrollOffset,
     required this.childOffsets,
+    this.shrinkWrap = false,
     required List<fw.Widget> children,
   }) : super(key: key, children: children);
 
@@ -181,6 +183,7 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
       scrollDirection: scrollDirection,
       scrollOffset: scrollOffset,
       childOffsets: childOffsets,
+      shrinkWrap: shrinkWrap,
     );
   }
 
@@ -192,7 +195,8 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
     renderObject
       ..scrollDirection = scrollDirection
       ..scrollOffset = scrollOffset
-      ..childOffsets = childOffsets;
+      ..childOffsets = childOffsets
+      ..shrinkWrap = shrinkWrap;
   }
 }
 
@@ -206,14 +210,23 @@ class RenderScrollViewViewport extends RenderBox
   Axis _scrollDirection;
   double _scrollOffset;
   List<double> _childOffsets;
+  bool _shrinkWrap;
 
   RenderScrollViewViewport({
     required Axis scrollDirection,
     required double scrollOffset,
     required List<double> childOffsets,
+    bool shrinkWrap = false,
   })  : _scrollDirection = scrollDirection,
         _scrollOffset = scrollOffset,
-        _childOffsets = childOffsets;
+        _childOffsets = childOffsets,
+        _shrinkWrap = shrinkWrap;
+
+  set shrinkWrap(bool value) {
+    if (_shrinkWrap == value) return;
+    _shrinkWrap = value;
+    markNeedsLayout();
+  }
 
   set scrollDirection(Axis value) {
     if (_scrollDirection == value) return;
@@ -290,7 +303,22 @@ class RenderScrollViewViewport extends RenderBox
         isHorizontal ? constraints.maxWidth : constraints.maxHeight;
     final mainMin =
         isHorizontal ? constraints.minWidth : constraints.minHeight;
-    final mainSize = mainMax.isFinite ? mainMax : mainMin;
+
+    // 内容主轴总长(shrinkWrap 时按内容定高)
+    var contentMain = 0.0;
+    var slot = 0;
+    for (final child in _children) {
+      final offset =
+          slot < _childOffsets.length ? _childOffsets[slot] : 0.0;
+      final extent = isHorizontal ? child.size.width : child.size.height;
+      final end = offset + extent;
+      if (end > contentMain) contentMain = end;
+      slot++;
+    }
+
+    final mainSize = _shrinkWrap
+        ? contentMain
+        : (mainMax.isFinite ? mainMax : mainMin);
     size = constraints.constrain(
       isHorizontal
           ? Size(math.max(mainMin, mainSize), math.max(crossMin, crossMax))
@@ -470,6 +498,7 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
       scrollDirection: scrollDirection,
       scrollOffset: _offset,
       childOffsets: shiftedOffsets,
+      shrinkWrap: shrinkWrap,
       children: children,
     );
 
