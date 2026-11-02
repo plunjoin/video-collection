@@ -138,3 +138,75 @@ Finder findByTooltip(String message) {
     (w) => w is Tooltip && w.message == message,
   );
 }
+
+
+/// 持续滚动直到目标可见(替代 tester.scrollUntilVisible)。
+Future<void> scrollUntilVisible(
+  WidgetTester tester,
+  Finder finder,
+  double delta, {
+  Finder? scrollable,
+  int maxScrolls = 50,
+}) async {
+  final target = scrollable ?? find.byType(ListView).hitTestable().last;
+  for (var i = 0; i < maxScrolls; i++) {
+    if (finder.hitTestable().evaluate().isNotEmpty) break;
+    await tester.drag(
+      target,
+      Offset(0, -delta),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+  }
+}
+
+/// 让目标组件在自研滚动容器内可见(替代 tester.ensureVisible;
+/// 框架版只认 material 的 Scrollable)。
+Future<void> scrollIntoView(
+  WidgetTester tester,
+  Finder finder, {
+  double alignment = 0.0,
+}) async {
+  if (finder.evaluate().isEmpty) return;
+  final context = tester.element(finder.first);
+  await Scrollable.ensureVisible(context, alignment: alignment);
+  await tester.pumpAndSettle();
+  // 自研滚动容器:若目标仍不可见,直接调整滚动容器的偏移
+  if (!finder.hitTestable().evaluate().isNotEmpty) {
+    final target = context.findRenderObject();
+    if (target is RenderBox && target.hasSize) {
+      final global = target.localToGlobal(Offset.zero);
+      final rect = global & target.size;
+      // 选视口面积最小的滚动容器(最贴近目标);
+      // 宽度为 0 的容器(未布局)跳过
+      final candidates = mountedScrollables.where((state) {
+        final viewport = state.context.findRenderObject();
+        return viewport is RenderBox &&
+            viewport.hasSize &&
+            viewport.size.width > 0 &&
+            viewport.size.height > 0;
+      }).toList()
+        ..sort((a, b) {
+          final av = a.context.findRenderObject() as RenderBox;
+          final bv = b.context.findRenderObject() as RenderBox;
+          return (av.size.width * av.size.height)
+              .compareTo(bv.size.width * bv.size.height);
+        });
+      for (final state in candidates) {
+        final viewport = state.context.findRenderObject() as RenderBox;
+        final viewRect = viewport.localToGlobal(Offset.zero) & viewport.size;
+        var offset = state.scrollOffset;
+        if (rect.top < viewRect.top) {
+          offset += rect.top - viewRect.top;
+        } else if (rect.bottom > viewRect.bottom) {
+          offset += rect.bottom - viewRect.bottom;
+        } else {
+          continue;
+        }
+        state.applyScroll(offset, dragging: false);
+        await tester.pumpAndSettle();
+        if (finder.hitTestable().evaluate().isNotEmpty) break;
+      }
+    }
+  }
+}

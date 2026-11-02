@@ -161,24 +161,25 @@ void main() {
     await tester.pumpAndSettle();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('window_manager'), (call) async => false);
-    await tester.tap(find.byTooltip('设置'));
+    await tester.tap(findByTooltip('设置'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
+    await scrollUntilVisible(
+      tester,
       findText('屏蔽词'),
       300,
-      scrollable: find.byType(ListView).first,
+      scrollable: find.byType(ListView).hitTestable().last,
     );
-    await tester.showKeyboard(find.byType(TextField).first);
+    await tester.tap(find.byType(TextField).first);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     tester.view.resetViewInsets();
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('返回'));
+    await tester.tap(findByTooltip('返回'));
     await tester.pumpAndSettle();
     expect(findText('星空下的旅人'), findsOneWidget);
-    await tester.tap(find.byTooltip('设置'));
+    await tester.tap(findByTooltip('设置'));
     await tester.pumpAndSettle();
     expect(findText('外观模式'), findsOneWidget);
     expect(findText('主题颜色'), findsOneWidget);

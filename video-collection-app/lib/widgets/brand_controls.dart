@@ -204,45 +204,52 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 // 紧凑头部(48px):Windows 上从窗口顶部 y=0 开始,
                 // 整条为窗口拖拽区,右上角原生窗口按钮悬浮其上
-                WindowDragArea(
-                  enabled: kNativeWindowButtonsZone > 0,
-                  child: SizedBox(
-                    height: kAppHeaderHeight,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: titleSpacing,
-                        right: actions == null
-                            ? 12
-                            : (12 + kNativeWindowButtonsZone),
+                SizedBox(
+                  height: kAppHeaderHeight,
+                  child: Stack(
+                    children: [
+                      // 背景整条可拖拽(双击最大化,拖动窗口)
+                      Positioned.fill(
+                        child: WindowDragArea(
+                          enabled: kNativeWindowButtonsZone > 0,
+                          child: const SizedBox.expand(),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          if (Navigator.of(context).canPop()) ...[
-                            IconButton(
-                              onPressed: () =>
-                                  Navigator.of(context).maybePop(),
-                              tooltip: '返回',
-                              icon: const BrandIcon(
-                                BIcons.chevronLeft,
-                                size: 25,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: dark
-                                    ? AppColors.darkCard
-                                    : AppColors.primary50,
-                                minimumSize: const Size(40, 40),
-                                padding: EdgeInsets.zero,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(999),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: titleSpacing,
+                          right: actions == null
+                              ? 12
+                              : (12 + kNativeWindowButtonsZone),
+                        ),
+                        child: Row(
+                          children: [
+                            if (Navigator.of(context).canPop()) ...[
+                              IconButton(
+                                onPressed: () =>
+                                    Navigator.of(context).maybePop(),
+                                tooltip: '返回',
+                                icon: const BrandIcon(
+                                  BIcons.chevronLeft,
+                                  size: 25,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: dark
+                                      ? AppColors.darkCard
+                                      : AppColors.primary50,
+                                  minimumSize: const Size(40, 40),
+                                  padding: EdgeInsets.zero,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(999),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                          ],
-                          Expanded(
-                            child: DefaultTextStyle(
+                              const SizedBox(width: 10),
+                            ],
+                            Expanded(
+                              child: DefaultTextStyle(
                               style: TextStyle(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w700,
@@ -260,9 +267,10 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                ?bottom,
+              ),
+              ?bottom,
               ],
             ),
           ),

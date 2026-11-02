@@ -99,13 +99,8 @@ class RouterController extends ChangeNotifier {
     }
     scope?.widget.onPopInvoked?.call(true);
     scope?.widget.onPopInvokedWithResult?.call(true, result);
-    top.closing = true;
+    _stack.remove(top);
     notifyListeners();
-    // 退场动画时长后真正移除
-    Future.delayed(const Duration(milliseconds: 260), () {
-      _stack.remove(top);
-      notifyListeners();
-    });
   }
 
   /// 系统返回键(didPopRoute);返回是否已处理。

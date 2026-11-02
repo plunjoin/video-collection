@@ -59,7 +59,7 @@ void main() {
     expect(findText('登录 / 注册'), findsOneWidget);
     // 品牌行与底部主题按钮已按新版式移除
     expect(findText('bllii'), findsNothing);
-    expect(find.byTooltip('收起边栏'), findsNothing);
+    expect(findByTooltip('收起边栏'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

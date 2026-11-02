@@ -2041,8 +2041,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
 }
 
 /// 自写语义渲染盒子。
-class RenderSemanticsBox extends RenderBox
-    with RenderObjectWithChildMixin<RenderBox> {
+class RenderSemanticsBox extends RenderProxyBox {
   String? _label;
   String? _value;
   String? _tooltip;
@@ -2131,34 +2130,6 @@ class RenderSemanticsBox extends RenderBox
     if (_onTap != null) config.onTap = _onTap;
     // 框架要求:提供 label 时必须给出 textDirection
     config.textDirection = TextDirection.ltr;
-  }
-
-  @override
-  void performLayout() {
-    final child = this.child;
-    if (child != null) {
-      child.layout(constraints, parentUsesSize: true);
-      size = child.size;
-    } else {
-      size = constraints.smallest;
-    }
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final child = this.child;
-    if (child != null) {
-      context.paintChild(child, offset);
-    }
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final child = this.child;
-    if (child != null) {
-      return child.hitTest(result, position: position);
-    }
-    return false;
   }
 }
 

@@ -211,85 +211,64 @@ class GestureDetector extends fw.StatefulWidget {
 }
 
 class _GestureDetectorState extends fw.State<GestureDetector> {
-  TapGestureRecognizer? _tap;
-  TapGestureRecognizer? _secondaryTap;
-  DoubleTapGestureRecognizer? _doubleTap;
-  LongPressGestureRecognizer? _longPress;
-  PanGestureRecognizer? _pan;
-  HorizontalDragGestureRecognizer? _horizontalDrag;
-  VerticalDragGestureRecognizer? _verticalDrag;
-  ScaleGestureRecognizer? _scale;
-
   @override
-  void initState() {
-    super.initState();
-    _syncRecognizers();
-  }
-
-  @override
-  void didUpdateWidget(GestureDetector oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncRecognizers();
-  }
-
-  @override
-  void dispose() {
-    _tap?.dispose();
-    _secondaryTap?.dispose();
-    _doubleTap?.dispose();
-    _longPress?.dispose();
-    _pan?.dispose();
-    _horizontalDrag?.dispose();
-    _verticalDrag?.dispose();
-    _scale?.dispose();
-    super.dispose();
-  }
-
-  void _syncRecognizers() {
+  fw.Widget build(fw.BuildContext context) {
     final w = widget;
+    final child = w.child ?? const _EmptyBox();
+    final recognizers = <Type, fw.GestureRecognizerFactory>{};
+
     // 单击
     if (w.onTapDown != null ||
         w.onTapUp != null ||
         w.onTap != null ||
         w.onTapCancel != null) {
-      _tap ??= TapGestureRecognizer(debugOwner: w);
-      _tap!
-        ..onTapDown = w.onTapDown
-        ..onTapUp = w.onTapUp
-        ..onTap = w.onTap
-        ..onTapCancel = w.onTapCancel;
-    } else {
-      _tap?.dispose();
-      _tap = null;
+      recognizers[TapGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+        () => TapGestureRecognizer(debugOwner: w),
+        (TapGestureRecognizer instance) {
+          instance
+            ..onTapDown = w.onTapDown
+            ..onTapUp = w.onTapUp
+            ..onTap = w.onTap
+            ..onTapCancel = w.onTapCancel;
+        },
+      );
     }
+
     // 右键单击
     if (w.onSecondaryTap != null ||
         w.onSecondaryTapDown != null ||
         w.onSecondaryTapUp != null ||
         w.onSecondaryTapCancel != null) {
-      _secondaryTap ??= TapGestureRecognizer(debugOwner: w);
-      _secondaryTap!
-        ..onSecondaryTapDown = w.onSecondaryTapDown
-        ..onSecondaryTapUp = w.onSecondaryTapUp
-        ..onSecondaryTap = w.onSecondaryTap
-        ..onSecondaryTapCancel = w.onSecondaryTapCancel;
-    } else {
-      _secondaryTap?.dispose();
-      _secondaryTap = null;
+      recognizers[TapGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+        () => TapGestureRecognizer(debugOwner: w),
+        (TapGestureRecognizer instance) {
+          instance
+            ..onSecondaryTapDown = w.onSecondaryTapDown
+            ..onSecondaryTapUp = w.onSecondaryTapUp
+            ..onSecondaryTap = w.onSecondaryTap
+            ..onSecondaryTapCancel = w.onSecondaryTapCancel;
+        },
+      );
     }
+
     // 双击
     if (w.onDoubleTap != null ||
         w.onDoubleTapDown != null ||
         w.onDoubleTapCancel != null) {
-      _doubleTap ??= DoubleTapGestureRecognizer(debugOwner: w);
-      _doubleTap!
-        ..onDoubleTapDown = w.onDoubleTapDown
-        ..onDoubleTap = w.onDoubleTap
-        ..onDoubleTapCancel = w.onDoubleTapCancel;
-    } else {
-      _doubleTap?.dispose();
-      _doubleTap = null;
+      recognizers[DoubleTapGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+        () => DoubleTapGestureRecognizer(debugOwner: w),
+        (DoubleTapGestureRecognizer instance) {
+          instance
+            ..onDoubleTapDown = w.onDoubleTapDown
+            ..onDoubleTap = w.onDoubleTap
+            ..onDoubleTapCancel = w.onDoubleTapCancel;
+        },
+      );
     }
+
     // 长按
     if (w.onLongPressDown != null ||
         w.onLongPressCancel != null ||
@@ -297,122 +276,101 @@ class _GestureDetectorState extends fw.State<GestureDetector> {
         w.onLongPressStart != null ||
         w.onLongPressEnd != null ||
         w.onLongPressMoveUpdate != null) {
-      _longPress ??= LongPressGestureRecognizer(debugOwner: w);
-      _longPress!
-        ..onLongPressDown = w.onLongPressDown
-        ..onLongPressCancel = w.onLongPressCancel
-        ..onLongPress = w.onLongPress
-        ..onLongPressStart = w.onLongPressStart
-        ..onLongPressEnd = w.onLongPressEnd
-        ..onLongPressMoveUpdate = w.onLongPressMoveUpdate;
-    } else {
-      _longPress?.dispose();
-      _longPress = null;
+      recognizers[LongPressGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+        () => LongPressGestureRecognizer(debugOwner: w),
+        (LongPressGestureRecognizer instance) {
+          instance
+            ..onLongPressDown = w.onLongPressDown
+            ..onLongPressCancel = w.onLongPressCancel
+            ..onLongPress = w.onLongPress
+            ..onLongPressStart = w.onLongPressStart
+            ..onLongPressEnd = w.onLongPressEnd
+            ..onLongPressMoveUpdate = w.onLongPressMoveUpdate;
+        },
+      );
     }
+
     // 平移
     if (w.onPanDown != null ||
         w.onPanStart != null ||
         w.onPanUpdate != null ||
         w.onPanEnd != null ||
         w.onPanCancel != null) {
-      _pan ??= PanGestureRecognizer(debugOwner: w)
-        ..dragStartBehavior = w.dragStartBehavior;
-      _pan!
-        ..onDown = w.onPanDown
-        ..onStart = w.onPanStart
-        ..onUpdate = w.onPanUpdate
-        ..onEnd = w.onPanEnd
-        ..onCancel = w.onPanCancel;
-    } else {
-      _pan?.dispose();
-      _pan = null;
+      recognizers[PanGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
+        () => PanGestureRecognizer(debugOwner: w),
+        (PanGestureRecognizer instance) {
+          instance
+            ..dragStartBehavior = w.dragStartBehavior
+            ..onDown = w.onPanDown
+            ..onStart = w.onPanStart
+            ..onUpdate = w.onPanUpdate
+            ..onEnd = w.onPanEnd
+            ..onCancel = w.onPanCancel;
+        },
+      );
     }
+
     // 水平拖动
     if (w.onHorizontalDragDown != null ||
         w.onHorizontalDragStart != null ||
         w.onHorizontalDragUpdate != null ||
         w.onHorizontalDragEnd != null ||
         w.onHorizontalDragCancel != null) {
-      _horizontalDrag ??=
-          HorizontalDragGestureRecognizer(debugOwner: w)
-            ..dragStartBehavior = w.dragStartBehavior;
-      _horizontalDrag!
-        ..onDown = w.onHorizontalDragDown
-        ..onStart = w.onHorizontalDragStart
-        ..onUpdate = w.onHorizontalDragUpdate
-        ..onEnd = w.onHorizontalDragEnd
-        ..onCancel = w.onHorizontalDragCancel;
-    } else {
-      _horizontalDrag?.dispose();
-      _horizontalDrag = null;
+      recognizers[HorizontalDragGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<
+              HorizontalDragGestureRecognizer>(
+        () => HorizontalDragGestureRecognizer(debugOwner: w),
+        (HorizontalDragGestureRecognizer instance) {
+          instance
+            ..dragStartBehavior = w.dragStartBehavior
+            ..onDown = w.onHorizontalDragDown
+            ..onStart = w.onHorizontalDragStart
+            ..onUpdate = w.onHorizontalDragUpdate
+            ..onEnd = w.onHorizontalDragEnd
+            ..onCancel = w.onHorizontalDragCancel;
+        },
+      );
     }
+
     // 垂直拖动
     if (w.onVerticalDragDown != null ||
         w.onVerticalDragStart != null ||
         w.onVerticalDragUpdate != null ||
         w.onVerticalDragEnd != null ||
         w.onVerticalDragCancel != null) {
-      _verticalDrag ??= VerticalDragGestureRecognizer(debugOwner: w)
-        ..dragStartBehavior = w.dragStartBehavior;
-      _verticalDrag!
-        ..onDown = w.onVerticalDragDown
-        ..onStart = w.onVerticalDragStart
-        ..onUpdate = w.onVerticalDragUpdate
-        ..onEnd = w.onVerticalDragEnd
-        ..onCancel = w.onVerticalDragCancel;
-    } else {
-      _verticalDrag?.dispose();
-      _verticalDrag = null;
+      recognizers[VerticalDragGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<VerticalDragGestureRecognizer>(
+        () => VerticalDragGestureRecognizer(debugOwner: w),
+        (VerticalDragGestureRecognizer instance) {
+          instance
+            ..dragStartBehavior = w.dragStartBehavior
+            ..onDown = w.onVerticalDragDown
+            ..onStart = w.onVerticalDragStart
+            ..onUpdate = w.onVerticalDragUpdate
+            ..onEnd = w.onVerticalDragEnd
+            ..onCancel = w.onVerticalDragCancel;
+        },
+      );
     }
+
     // 缩放
     if (w.onScaleStart != null ||
         w.onScaleUpdate != null ||
         w.onScaleEnd != null) {
-      _scale ??= ScaleGestureRecognizer(debugOwner: w)
-        ..dragStartBehavior = w.dragStartBehavior;
-      _scale!
-        ..onStart = w.onScaleStart
-        ..onUpdate = w.onScaleUpdate
-        ..onEnd = w.onScaleEnd;
-    } else {
-      _scale?.dispose();
-      _scale = null;
-    }
-  }
-
-  void _handlePointerDown(PointerDownEvent event) {
-    _tap?.addPointer(event);
-    _secondaryTap?.addPointer(event);
-    _doubleTap?.addPointer(event);
-    _longPress?.addPointer(event);
-    _pan?.addPointer(event);
-    _horizontalDrag?.addPointer(event);
-    _verticalDrag?.addPointer(event);
-    _scale?.addPointer(event);
-  }
-
-  @override
-  fw.Widget build(fw.BuildContext context) {
-    final child = widget.child ?? const _EmptyBox();
-    final recognizers = <Type, fw.GestureRecognizerFactory>{};
-    void add<T extends GestureRecognizer>(
-      GestureRecognizer? recognizer,
-    ) {
-      if (recognizer == null) return;
-      recognizers[T] = fw.GestureRecognizerFactoryWithHandlers<T>(
-        () => recognizer as T,
-        (T instance) {},
+      recognizers[ScaleGestureRecognizer] =
+          fw.GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+        () => ScaleGestureRecognizer(debugOwner: w),
+        (ScaleGestureRecognizer instance) {
+          instance
+            ..dragStartBehavior = w.dragStartBehavior
+            ..onStart = w.onScaleStart
+            ..onUpdate = w.onScaleUpdate
+            ..onEnd = w.onScaleEnd;
+        },
       );
     }
-
-    add<TapGestureRecognizer>(_tap);
-    add<TapGestureRecognizer>(_secondaryTap);
-    add<DoubleTapGestureRecognizer>(_doubleTap);
-    add<LongPressGestureRecognizer>(_longPress);
-    add<PanGestureRecognizer>(_pan);
-    add<HorizontalDragGestureRecognizer>(_horizontalDrag);
-    add<VerticalDragGestureRecognizer>(_verticalDrag);
-    add<ScaleGestureRecognizer>(_scale);
 
     fw.HitTestBehavior behavior;
     switch (widget.behavior) {

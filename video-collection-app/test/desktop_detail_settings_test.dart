@@ -38,7 +38,7 @@ void main() {
       await tester.tap(findText('剧集'));
       await tester.pumpAndSettle();
       // 选集矩阵只显示序号（“第 2 话” → “2”）
-      await tester.ensureVisible(findText('2'));
+      await scrollIntoView(tester, findText('2'));
       await tester.tap(findText('2'));
       expect(selected, (0, 1));
       expect(tester.takeException(), isNull);
@@ -62,7 +62,8 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('accent'), 'pink');
     expect(prefs.getString('theme_mode'), 'dark');
-    await tester.scrollUntilVisible(
+    await scrollUntilVisible(
+      tester,
       findText('服务端地址'),
       400,
       scrollable: find.byType(ListView).first,

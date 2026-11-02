@@ -77,7 +77,9 @@ void main() {
       MaterialApp(
         theme: AppTheme.lightTheme,
         home: Scaffold(
-          body: EpisodeSelectorWidget(
+          // 选集组件内容较长,放在可滚动容器内(与应用内实际用法一致)
+          body: SingleChildScrollView(
+            child: EpisodeSelectorWidget(
             playGroups: [
               PlayGroup(
                 playerCode: 'test',
@@ -97,12 +99,16 @@ void main() {
             ],
             currentGroupIndex: 0,
             currentEpisodeIndex: 0,
-            onSelected: (group, episode) => selected = (group, episode),
+              onSelected: (group, episode) => selected = (group, episode),
+            ),
           ),
         ),
       ),
     );
     // 选集矩阵只显示序号（“第 2 话” → “2”）
+    // 矩阵可能位于可视区之外,先滚动到可见再点击
+    await scrollIntoView(tester, findText('2'));
+    await tester.pumpAndSettle();
     await tester.tap(findText('2'));
     expect(selected, (0, 1));
     expect(tester.takeException(), isNull);

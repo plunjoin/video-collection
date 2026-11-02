@@ -112,16 +112,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final state = context.watch<AppStateProvider>();
     final config = state.siteConfig;
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: Scaffold(
-              appBar: const BrandAppBar(title: Text('设置')),
-              body: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: ListView(
+      appBar: const BrandAppBar(title: Text('设置')),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
                     padding: const EdgeInsets.all(24),
                     children: [
                       _heading('账号'),
@@ -465,11 +461,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
+            );
   }
 
   Widget _heading(String text) {
