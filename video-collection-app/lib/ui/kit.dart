@@ -91,3 +91,4 @@ export 'overlay.dart';
 export 'scroll.dart';
 export 'text.dart';
 export 'theme.dart';
+export 'tooltip.dart';

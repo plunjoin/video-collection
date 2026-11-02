@@ -129,3 +129,12 @@ bool _containsText(Widget widget, String text) {
   });
   return found;
 }
+
+
+/// 按 tooltip 文案查找组件(兼容自研 Tooltip;框架 find.byTooltip 只认
+/// material 的 Tooltip 组件)。
+Finder findByTooltip(String message) {
+  return find.byWidgetPredicate(
+    (w) => w is Tooltip && w.message == message,
+  );
+}

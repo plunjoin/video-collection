@@ -1989,6 +1989,7 @@ class RenderSolidBox extends RenderBox
 class Semantics extends fw.SingleChildRenderObjectWidget {
   final String? label;
   final String? value;
+  final String? tooltip;
   final bool button;
   final bool selected;
   final bool enabled;
@@ -1999,6 +2000,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
     fw.Key? key,
     this.label,
     this.value,
+    this.tooltip,
     this.button = false,
     this.selected = false,
     this.enabled = true,
@@ -2012,6 +2014,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
     return RenderSemanticsBox(
       label: label,
       value: value,
+      tooltip: tooltip,
       button: button,
       selected: selected,
       enabled: enabled,
@@ -2028,6 +2031,7 @@ class Semantics extends fw.SingleChildRenderObjectWidget {
     renderObject
       ..label = label
       ..value = value
+      ..tooltip = tooltip
       ..button = button
       ..selected = selected
       ..enabled = enabled
@@ -2041,6 +2045,7 @@ class RenderSemanticsBox extends RenderBox
     with RenderObjectWithChildMixin<RenderBox> {
   String? _label;
   String? _value;
+  String? _tooltip;
   bool _button;
   bool _selected;
   bool _enabled;
@@ -2050,6 +2055,7 @@ class RenderSemanticsBox extends RenderBox
   RenderSemanticsBox({
     required String? label,
     required String? value,
+    required String? tooltip,
     required bool button,
     required bool selected,
     required bool enabled,
@@ -2057,6 +2063,7 @@ class RenderSemanticsBox extends RenderBox
     required VoidCallback? onTap,
   })  : _label = label,
         _value = value,
+        _tooltip = tooltip,
         _button = button,
         _selected = selected,
         _enabled = enabled,
@@ -2072,6 +2079,12 @@ class RenderSemanticsBox extends RenderBox
   set value(String? v) {
     if (_value == v) return;
     _value = v;
+    markNeedsSemanticsUpdate();
+  }
+
+  set tooltip(String? v) {
+    if (_tooltip == v) return;
+    _tooltip = v;
     markNeedsSemanticsUpdate();
   }
 
@@ -2110,6 +2123,7 @@ class RenderSemanticsBox extends RenderBox
     config.isSemanticBoundary = true;
     if (_label != null) config.label = _label!;
     if (_value != null) config.value = _value!;
+    if (_tooltip != null) config.tooltip = _tooltip!;
     config.isButton = _button;
     config.isSelected = _selected;
     config.isEnabled = _enabled;

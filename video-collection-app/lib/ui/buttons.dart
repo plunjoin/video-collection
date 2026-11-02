@@ -14,6 +14,7 @@ import 'inputs.dart';
 import 'layout.dart';
 import 'text.dart';
 import 'theme.dart';
+import 'tooltip.dart';
 
 /// 点击目标最小尺寸策略。
 enum MaterialTapTargetSize { padded, shrinkWrap }
@@ -346,7 +347,7 @@ class RenderMinSizeBox extends RenderProxyBox {
   }
 }
 
-/// 按钮内部:悬停提示宿主占位(由 overlay.dart 提供真正实现前的简单包装)。
+/// 按钮内部:悬停提示宿主(渲染自研 Tooltip)。
 class _TooltipHost extends fw.StatelessWidget {
   final String message;
   final fw.Widget child;
@@ -354,7 +355,11 @@ class _TooltipHost extends fw.StatelessWidget {
   const _TooltipHost({required this.message, required this.child});
 
   @override
-  fw.Widget build(fw.BuildContext context) => child;
+  fw.Widget build(fw.BuildContext context) {
+    // 语义层提供 tooltip 文案(与框架 byTooltip 查找兼容),
+    // 视觉气泡由自研 Tooltip 组件负责。
+    return Tooltip(message: message, child: child);
+  }
 }
 
 // ---------------------------------------------------------------------------

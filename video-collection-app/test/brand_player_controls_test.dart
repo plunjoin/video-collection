@@ -188,7 +188,7 @@ void main() {
     expect(findText('弹幕开'), findsOneWidget);
     expect(findText('1.25x'), findsOneWidget);
     // 新版 dock 的选集入口为图标按钮（tooltip 标识）
-    expect(find.byTooltip('选集与线路'), findsOneWidget);
+    expect(findByTooltip('选集与线路'), findsOneWidget);
 
     // Danmaku pill tap
     await tester.tap(findText('弹幕开'));
@@ -282,12 +282,14 @@ void main() {
 
     // Tap preset chip 2.0x
     await tester.tap(
-      find.descendant(
-        of: find.byType(ChoiceChip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Text && w.data == '2.0x',
-        ),
-      ),
+      find
+          .descendant(
+            of: find.byType(InkWell),
+            matching: find.byWidgetPredicate(
+              (w) => w is Text && w.data == '2.0x',
+            ),
+          )
+          .first,
     );
     await tester.pumpAndSettle();
     expect(speed, 2.0);
