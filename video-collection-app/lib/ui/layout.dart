@@ -2400,3 +2400,30 @@ class RenderAspectRatioBox extends RenderBox
     return false;
   }
 }
+
+
+/// 遍历组件子树(深度优先),对每个节点调用 [visitor]。
+///
+/// 供测试与工具代码做结构检索;只处理渲染型组件的子节点。
+void forEachDescendant(
+  fw.Widget widget,
+  void Function(fw.Widget node) visitor,
+) {
+  visitor(widget);
+  final children = _directChildrenOf(widget);
+  for (final child in children) {
+    forEachDescendant(child, visitor);
+  }
+}
+
+/// 取渲染型组件的直接子节点。
+List<fw.Widget> _directChildrenOf(fw.Widget widget) {
+  if (widget is fw.SingleChildRenderObjectWidget) {
+    final child = widget.child;
+    return child == null ? const [] : [child];
+  }
+  if (widget is fw.MultiChildRenderObjectWidget) {
+    return widget.children;
+  }
+  return const [];
+}

@@ -104,10 +104,22 @@ Finder findTextContaining(String text, {bool skipOffstage = true}) {
 /// 框架实现依赖 material Text 的内部结构,自研 Text 结构不同,
 /// 这里改为:先按类型找到候选,再在其子树中查找文本匹配。
 Finder findWidgetWithText(Type widgetType, String text) {
-  return find.descendant(
-    of: find.byType(widgetType),
-    matching: find.byWidgetPredicate(
-      (w) => w is Text && w.data == text,
-    ),
+  // 返回指定类型的组件本身(与框架 widgetWithText 语义一致),
+  // 通过"其子树中存在该文本"来判定。
+  return find.byWidgetPredicate(
+    (w) => w.runtimeType == widgetType &&
+        _containsText(w, text),
   );
+}
+
+/// 判断组件子树中是否存在指定文本。
+bool _containsText(Widget widget, String text) {
+  var found = false;
+  forEachDescendant(widget, (node) {
+    if (found) return;
+    if (node is Text && node.data == text) {
+      found = true;
+    }
+  });
+  return found;
 }

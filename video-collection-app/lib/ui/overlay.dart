@@ -141,6 +141,12 @@ class _HostProxy extends OverlayHostEntryState {
       host.cached = null;
     });
   }
+
+  /// 从宿主栈中移除该条目(转发给 OverlayHostState)。
+  @override
+  void removeEntry(OverlayEntry entry) {
+    owner.removeEntry(entry);
+  }
 }
 
 class _EntryWrapper extends fw.StatefulWidget {
@@ -211,6 +217,8 @@ Future<T?> showDialog<T>({
   late final OverlayEntry entry;
   entry = OverlayEntry(
     builder: (ctx) {
+      // 注意:对话框内容必须在 DialogNavigatorScope 内部创建,
+      // 否则内容里的 context 位于 scope 之上,Navigator.of 无法命中对话框通道。
       return DialogScrim(
         barrierColor: barrierColor ?? const Color(0x66000000),
         barrierDismissible: barrierDismissible,
@@ -230,7 +238,9 @@ Future<T?> showDialog<T>({
               }
             },
           ),
-          child: builder(ctx),
+          // 用 Builder 在 scope 内部取 context,保证内容里的
+          // Navigator.of 能命中对话框通道
+          child: fw.Builder(builder: builder),
         ),
       );
     },
