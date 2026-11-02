@@ -1,0 +1,65 @@
+/* 节日皮肤：在既有 CSS 变量体系上叠加节日配色与彩带。
+   新增节日只需在 festival.ts 加配置 + 在这里加一条 [data-festival] 规则。 */
+
+/* 春节：红金 */
+:root[data-festival="spring-festival"] {
+  --brand-blue: #d8443f;
+  --brand-purple: #e0913c;
+  --brand-pink: #f3c664;
+  --brand-ink: #53291f;
+  --brand-muted: #a4786b;
+  --brand-line: #f3ddcf;
+  --brand-gradient: linear-gradient(110deg, #d8443f, #e0913c 60%, #f3c664);
+}
+:root[data-festival="spring-festival"] .bllii-site {
+  background: radial-gradient(ellipse at 10% 15%, #fde9e2 0, transparent 40%), radial-gradient(ellipse at 95% 70%, #fdf3dc 0, transparent 40%), #fdf6ef;
+}
+:root[data-festival="spring-festival"] .brand-hero { background: #e8b4a0; }
+:root[data-festival="spring-festival"] .video-card__badge { background: #d8443f; }
+:root[data-festival="spring-festival"] .video-card__score { background: #53291fc9; }
+:root[data-festival="spring-festival"] .rank-row:nth-of-type(1) > span { background: #d8443f; }
+:root[data-festival="spring-festival"] .rank-row:nth-of-type(2) > span { background: #e0913c; }
+:root[data-festival="spring-festival"] .rank-row:nth-of-type(3) > span { background: #c98a2e; }
+
+/* 周年庆：紫金 */
+:root[data-festival="anniversary"] {
+  --brand-blue: #7b6df0;
+  --brand-purple: #b45fd8;
+  --brand-pink: #f0b95c;
+  --brand-ink: #3c2d63;
+  --brand-muted: #8579ad;
+  --brand-line: #e7dcf7;
+  --brand-gradient: linear-gradient(110deg, #7b6df0, #b45fd8 60%, #f0b95c);
+}
+:root[data-festival="anniversary"] .bllii-site {
+  background: radial-gradient(ellipse at 10% 15%, #ece7ff 0, transparent 40%), radial-gradient(ellipse at 95% 70%, #fdf1dd 0, transparent 40%), #f8f5ff;
+}
+:root[data-festival="anniversary"] .brand-hero { background: #b9aee8; }
+:root[data-festival="anniversary"] .video-card__badge { background: #b45fd8; }
+:root[data-festival="anniversary"] .rank-row:nth-of-type(1) > span { background: #f0b95c; }
+:root[data-festival="anniversary"] .rank-row:nth-of-type(2) > span { background: #b45fd8; }
+:root[data-festival="anniversary"] .rank-row:nth-of-type(3) > span { background: #7b6df0; }
+
+/* 节日彩带：仪式感入口 */
+.festival-ribbon {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 18px auto 0; padding: 10px 22px; width: fit-content; max-width: calc(100% - 32px);
+  border: 1px solid var(--brand-line); border-radius: 99px;
+  background: var(--brand-gradient); color: #fff;
+  font-size: 12px; font-weight: 600; letter-spacing: .5px;
+  box-shadow: 0 8px 24px #a58eff25;
+  animation: festivalRibbonIn .45s cubic-bezier(.2,.7,.2,1);
+}
+.festival-ribbon[hidden] { display: none; }
+.festival-ribbon__spark {
+  width: 8px; height: 8px; border-radius: 50%; background: #fff; opacity: .9;
+  box-shadow: 0 0 0 0 #ffffffaa; animation: festivalSpark 1.8s ease-out infinite;
+}
+@keyframes festivalRibbonIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes festivalSpark {
+  0% { box-shadow: 0 0 0 0 #ffffffaa; }
+  70% { box-shadow: 0 0 0 9px #ffffff00; }
+  100% { box-shadow: 0 0 0 0 #ffffff00; }
+}
+@media (max-width: 767px) { .festival-ribbon { font-size: 11px; padding: 9px 16px; } }
+@media (prefers-reduced-motion: reduce) { .festival-ribbon, .festival-ribbon__spark { animation: none; } }

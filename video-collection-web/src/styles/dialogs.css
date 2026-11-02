@@ -1,0 +1,19 @@
+.brand-dialog { position:fixed; inset:0; margin:auto; width:560px; max-width:calc(100vw - 32px); max-height:calc(100dvh - 48px); overflow:auto; padding:0; border:1px solid var(--brand-line); border-radius:22px; background:#fff; color:var(--brand-ink); box-shadow:0 20px 80px #353b5830; }
+.brand-dialog::backdrop { background:#353b5850; backdrop-filter:blur(5px); }
+.brand-dialog[open] { animation:dialogAppear .18s ease-out; }
+.brand-dialog__header { display:flex; align-items:center; gap:12px; padding:20px 24px; border-bottom:1px solid var(--brand-line); background:linear-gradient(115deg,#f6f9ff,#fdf5fc); }
+.brand-dialog__header>img { width:38px; height:38px; flex-shrink:0; }
+.brand-dialog__header h2 { flex:1; min-width:0; font-size:17px; font-weight:650; overflow-wrap:anywhere; }
+.brand-dialog__header h2 small { font-size:11px; font-weight:400; margin-left:8px; color:var(--brand-muted); }
+.brand-dialog__close { display:grid; place-items:center; width:32px; height:32px; flex-shrink:0; border-radius:50%; color:var(--brand-muted); }
+.brand-dialog__close:hover { background:#eeeafa; color:var(--brand-purple); }
+.brand-dialog__body { padding:24px; font-size:12px; line-height:1.9; color:var(--brand-muted); overflow-wrap:anywhere; }
+.brand-dialog__footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; background:#f9faff; border-top:1px solid var(--brand-line); font-size:11px; color:var(--brand-muted); }
+.brand-dialog__footer button { font-size:12px; padding:10px 18px; }
+.brand-dialog--confirm { width:420px; }
+.brand-dialog--confirm .brand-dialog__footer { justify-content:flex-end; }
+.brand-dialog--confirm[data-danger=true] [data-confirm-accept] { background:linear-gradient(110deg,#b97fd7,#e782ac); }
+body.dialog-open { overflow:hidden; }
+@keyframes dialogAppear { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@media(max-width:600px) { .brand-dialog__header,.brand-dialog__body { padding:18px; }.brand-dialog__footer { padding:14px 18px; }.brand-dialog__header h2 { font-size:15px; } }
+@media(prefers-reduced-motion:reduce) { .brand-dialog[open] { animation:none; } }

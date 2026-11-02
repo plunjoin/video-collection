@@ -1,0 +1,5 @@
+---
+export const prerender = false;
+const id = Astro.url.searchParams.get('id');
+return Astro.redirect(id ? `/anime/${encodeURIComponent(id)}` : '/category', 302);
+---

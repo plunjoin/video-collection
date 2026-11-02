@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import VideoCard from '../components/VideoCard.astro';
+import { getLatest } from '../lib/api';
+const latest = await getLatest();
+const groups = [{ label: '今天', list: latest.today || [] }, { label: '昨天', list: latest.yesterday || [] }, { label: '更早更新', list: latest.earlier || [] }];
+---
+<Layout title="新番更新 — bllii" activeNav="新番时间表">
+  <div class="page-content" data-page-switcher>
+    <div class="page-toolbar" role="tablist" aria-label="更新时间">{groups.map((group,i) => <button id={`latest-tab-${i}`} class="page-pill" role="tab" aria-selected={i === 0} aria-controls={`latest-panel-${i}`} data-page-tab={i}>{group.label} · {group.list.length}</button>)}</div>
+    {groups.map((group,i) => <div id={`latest-panel-${i}`} role="tabpanel" aria-labelledby={`latest-tab-${i}`} data-page-panel={i} hidden={i !== 0}>
+      <p class="update-note">{group.label}更新 · 好故事，慢慢追</p>
+      <div class="video-grid">{group.list.map(video => <VideoCard video={video} badge={video.remarks || '更新'} />)}</div>
+      {!group.list.length && <div class="page-empty"><img src="/brand/bllii-symbol.svg" alt="" /><h2>给期待一点时间</h2><p>这段时间暂无更新，可以看看其他日期。</p></div>}
+    </div>)}
+  </div>
+</Layout>
+<script>import '../lib/page-tabs';</script>

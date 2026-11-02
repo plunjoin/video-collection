@@ -1,0 +1,5 @@
+---
+interface Props { name: string; size?: number; class?: string; id?: string; }
+const { name, size = 20, class: className = '', id } = Astro.props;
+---
+<svg id={id} class={`brand-icon ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href={`/brand/bllii-ui.svg#bllii-${name}`} /></svg>

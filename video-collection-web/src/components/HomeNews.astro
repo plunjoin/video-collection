@@ -1,0 +1,60 @@
+---
+import type { ContentItem } from '../lib/api';
+interface Props { items?: ContentItem[]; }
+const { items = [] } = Astro.props;
+function fmtDate(d?: string): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+---
+<section class="brand-section home-news" aria-label="最新资讯">
+  <div class="section-heading">
+    <h2>最新资讯</h2>
+    <a href="/news">更多 →</a>
+  </div>
+  {items.length > 0 ? (
+    <div class="editorial-grid home-news-grid">
+      {items.slice(0, 4).map((item) => (
+        <a href={`/news/${item.id}`} class="editorial-card">
+          {item.cover ? (
+            <img src={item.cover} alt={item.title} loading="lazy" onerror="this.onerror=null;this.style.display='none'" />
+          ) : (
+            <div class="editorial-card__placeholder"><img src="/brand/bllii-symbol.svg" alt="" /></div>
+          )}
+          <div>
+            <time>{fmtDate(item.published_at || item.created_at)}</time>
+            {item.category && <span class="editorial-label">{item.category}</span>}
+            <h2>{item.title}</h2>
+            <p>{item.summary || '点击查看详情'}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  ) : (
+    <p class="brand-empty">暂无资讯，新鲜情报整理中。<a href="/news">去资讯页看看 →</a></p>
+  )}
+</section>
+
+<style>
+.home-news-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.editorial-card__placeholder {
+  width: 100%;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f4f2ff, #fff3fa);
+}
+.editorial-card__placeholder img { width: 48px; opacity: .5; }
+.home-news :global(.editorial-card > img) { height: 140px; }
+.home-news :global(.editorial-card > div) { padding: 16px; }
+.home-news :global(.editorial-card h2) { font-size: 14px; margin: 8px 0; }
+@media (max-width: 1100px) {
+  .home-news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .home-news-grid { grid-template-columns: 1fr; }
+}
+</style>

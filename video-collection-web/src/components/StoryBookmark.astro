@@ -1,0 +1,26 @@
+---
+import BrandIcon from './BrandIcon.astro';
+---
+<section class="brand-section story-bookmark" data-story-bookmark hidden aria-label="继续观看">
+  <BrandIcon name="bookmark" size={24} />
+  <div class="story-bookmark__copy"><span class="tiny-label">你的故事书签</span><a data-resume-link href="/follow?tab=history"><strong data-resume-title></strong><span data-resume-meta></span></a></div>
+  <progress data-resume-progress max="100" value="0" aria-label="观看进度"></progress>
+  <a data-resume-play href="/follow?tab=history" class="resume-command" title="继续观看" aria-label="继续观看"><BrandIcon name="play" /></a>
+  <button data-resume-dismiss class="icon-command" title="收起书签" aria-label="收起书签"><BrandIcon name="close" size={16} /></button>
+</section>
+<script>
+  import { readLatestBookmark } from '../lib/story-bookmark';
+  const section = document.querySelector<HTMLElement>('[data-story-bookmark]');
+  const bookmark = readLatestBookmark();
+  if (section && bookmark) {
+    section.hidden = false;
+    section.querySelector('[data-resume-title]')!.textContent = bookmark.videoName;
+    const minutes = Math.floor(bookmark.currentTime / 60);
+    const seconds = Math.floor(bookmark.currentTime % 60).toString().padStart(2, '0');
+    section.querySelector('[data-resume-meta]')!.textContent = `${bookmark.episodeName} · 上次看到 ${minutes}:${seconds}`;
+    const url = `/play/${bookmark.videoId}?ep=${bookmark.episodeIndex}&route=${bookmark.routeIndex}`;
+    section.querySelectorAll<HTMLAnchorElement>('[data-resume-link], [data-resume-play]').forEach(link => link.href = url);
+    section.querySelector<HTMLProgressElement>('[data-resume-progress]')!.value = Math.min(100, Math.max(0, bookmark.duration ? bookmark.currentTime / bookmark.duration * 100 : 0));
+    section.querySelector('[data-resume-dismiss]')?.addEventListener('click', () => section.hidden = true);
+  }
+</script>

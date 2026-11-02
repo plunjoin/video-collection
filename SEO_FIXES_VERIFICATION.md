@@ -1,79 +1,88 @@
-# SEO/GEO Fixes Verification
+# SEO/GEO 修复验证文档
 
-本文档说明了 SEO/GEO 修复的实现细节和验证方法。
+本文档说明了 Bllii 公开站点（Astro 应用）SEO/GEO 修复的实现细节和验证方法。
 
-## 1. Sitemap 覆盖率扩展
+## 架构说明
 
-### 问题
-生产环境 `https://bllii.com/sitemap.xml` 仅包含约 24 个 URL / 18 个视频条目，但代码意图支持约 300 个动漫 URL。
+Bllii 系统包含两个独立的 Web 应用：
 
-### 修复
-创建了新的 SEO 处理器 (`pkg/api/seo.go`)，实现了以下功能：
+1. **公开站点** (`video-collection-web`): Astro SSR 应用，服务于 `https://bllii.com`
+   - 处理所有公开页面的 SEO 路由：`/sitemap.xml`, `/robots.txt`, `/llms.txt`
+   - 本次修复的主要目标
 
-- **分页获取所有视频**：`getAllPublicVideos()` 方法通过分页循环获取所有公开视频，每页 100 条，最多 50 页（5000 条视频）
-- **Sitemap Index**：提供 `/sitemap_index.xml` 索引多个 sitemap
-- **主 Sitemap**：`/sitemap.xml` 包含：
-  - 静态页面（首页、分类、排行、最新）
-  - 所有视频详情页（`/anime/:id`）
-  - 所有播放页（`/play/:id`）
-- **视频专用 Sitemap**：`/sitemap_videos.xml` 专门针对视频内容，包含 Google Video 扩展元数据
-  - 缩略图 URL
-  - 视频标题和描述
-  - 播放器位置
-  - 发布日期
-  - 家庭友好标记
+2. **管理后台** (`video-collection-service/web/admin`): Vue 3 SPA，服务于 `https://john-admin.bllii.com`
+   - 内嵌在 Go service 中
+   - 本次添加了 noindex 保护
 
-### Google Video 扩展
-所有视频 URL 都包含完整的 Google Video 扩展元数据：
-```xml
-<video:video>
-  <video:thumbnail_loc>图片URL</video:thumbnail_loc>
-  <video:title>视频标题</video:title>
-  <video:description>视频描述</video:description>
-  <video:player_loc>播放器URL</video:player_loc>
-  <video:publication_date>发布时间</video:publication_date>
-  <video:family_friendly>yes</video:family_friendly>
-</video:video>
+## 修复内容
+
+### 1. ✅ Sitemap 覆盖率扩展 (Astro)
+
+**问题**：
+生产环境 `https://bllii.com/sitemap.xml` 仅包含约 24 个 URL / 18 个视频条目，原因是代码只获取第一页的 300 条数据。
+
+**根本原因**：
+```typescript
+// 旧代码 - 只获取第一页
+const res = await getVideos({ page: 1, pageSize: 300 });
 ```
 
-### 验证方法
-1. 启动服务后访问 `/sitemap.xml`
-2. 检查 URL 数量（应包含静态页面 + 所有视频详情页 + 所有播放页）
-3. 验证 Google Video 扩展是否存在
-4. 访问 `/sitemap_index.xml` 查看索引
-5. 访问 `/sitemap_videos.xml` 查看纯视频 sitemap
+**修复** (`video-collection-web/src/pages/sitemap.xml.ts`)：
+- 实现分页循环获取所有视频
+- 每页 100 条，最多 50 页（5000 条视频）
+- 检查 `total` 和返回的数据量来判断是否还有更多数据
+- 添加日志输出实际获取的视频数量
 
-## 2. `.well-known/llms.txt` 路由
+```typescript
+// 新代码 - 分页获取所有视频
+const pageSize = 100;
+const maxPages = 50;
+let page = 1;
+let hasMore = true;
 
-### 问题
+while (hasMore && page <= maxPages) {
+  const res = await getVideos({ page, pageSize });
+  // ... 处理数据
+  if (videoPages.length >= total || res.list.length < pageSize) {
+    hasMore = false;
+  } else {
+    page++;
+  }
+}
+```
+
+**Google Video 扩展**：
+保留现有的 Google Video 扩展元数据：
+- `<video:thumbnail_loc>` - 缩略图 URL
+- `<video:title>` - 视频标题（使用 CDATA）
+- `<video:description>` - 视频描述（使用 CDATA）
+- `<video:player_loc>` - 播放器位置
+
+### 2. ✅ `.well-known/llms.txt` 路由 (Astro)
+
+**问题**：
 生产环境 `/.well-known/llms.txt` 返回 404。
 
-### 修复
-在 SEO 路由中添加了：
-- `/llms.txt` 路由
-- `/.well-known/llms.txt` 路由（两者提供相同内容）
+**修复**：
+创建 `video-collection-web/src/pages/.well-known/llms.txt.ts`，重导出根路径的 `llms.txt`：
 
-内容包括：
-- 平台简介
-- 主要功能
-- 主要页面链接
-- API 文档链接
-- 热门番剧示例
-- 技术栈信息
+```typescript
+// 重导出 llms.txt 内容到 .well-known/llms.txt
+export { GET } from '../llms.txt';
+```
 
-### 验证方法
-1. 访问 `/.well-known/llms.txt`
-2. 访问 `/llms.txt`
-3. 确认两者返回相同的文本内容
-4. 检查内容是否包含站点信息和示例链接
+现在两个路径都可用：
+- `/llms.txt` - 原有路径
+- `/.well-known/llms.txt` - 标准路径
 
-## 3. 管理后台 noindex
+### 3. ✅ 管理后台 noindex (Go Service)
 
-### 问题
+**问题**：
 公开访问的管理后台 `john-admin.bllii.com` 没有 robots noindex 标记。
 
-### 修复
-**客户端元标签**（`web/admin/src/bootstrap.ts`）：
+**修复**：
+
+**客户端元标签** (`video-collection-service/web/admin/src/bootstrap.ts`)：
 ```javascript
 const robots = document.createElement('meta')
 robots.name = 'robots'
@@ -81,121 +90,229 @@ robots.content = 'noindex,nofollow'
 document.head.appendChild(robots)
 ```
 
-**服务端响应头**（`web/embed.go`）：
+**服务端响应头** (`video-collection-service/web/embed.go`)：
 ```go
+// AdminHandler 添加 X-Robots-Tag
 w.Header().Set("X-Robots-Tag", "noindex,nofollow")
 ```
 
-### 验证方法
-1. 访问 `/admin` 或 `/admin/` 路径
-2. 检查 HTML 中是否包含 `<meta name="robots" content="noindex,nofollow">`
-3. 检查 HTTP 响应头是否包含 `X-Robots-Tag: noindex,nofollow`
-4. 使用浏览器开发者工具查看网络请求的响应头
+双层保护确保搜索引擎不会索引管理后台。
 
-## 4. robots.txt GEO 允许列表
+### 4. ✅ robots.txt 保留 GEO 允许列表 (Astro)
 
-### 问题
-需要保留现有的 GEO Allows（GPTBot / PerplexityBot / ClaudeBot / Applebot-Extended / CCBot）。
+**验证**：
+现有的 `video-collection-web/src/pages/robots.txt.ts` 已包含完整的 GEO 允许列表：
 
-### 修复
-创建了 `/robots.txt` 路由，内容包括：
-- User-agent: * Allow: /
-- Sitemap 引用（sitemap.xml 和 sitemap_videos.xml）
-- GEO 允许列表：
-  - GPTBot
-  - PerplexityBot
-  - ClaudeBot
-  - Applebot-Extended
-  - CCBot
+```
+# GEO / AI Search Bots (放行 AI 搜索引擎爬虫以优化 GEO 收录)
+User-agent: GPTBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: CCBot
+Allow: /
+```
 
-### 验证方法
-1. 访问 `/robots.txt`
-2. 确认包含所有 GEO 爬虫的 Allow 指令
-3. 确认 Sitemap 引用指向正确的 URL
+无需修改。
 
-## 5. www vs apex 问题
+### 5. ℹ️ www vs apex
 
-### 当前状态
-代码中 `getSiteOrigin()` 返回 `https://bllii.com`（apex），这是规范的 URL。
+**当前状态**：
+- `getSiteOrigin()` 在 Astro 中动态获取站点域名
+- 所有 sitemap 和 llms.txt 中的 URL 使用运行时域名
+- 如果 www 子域名需要重定向，应在 Nginx/Cloudflare 层配置（不在此代码库范围内）
 
-### 注意事项
-- 如果 `www.bllii.com` 的 404 问题是 DNS/Cloudflare 配置问题，不在此代码库范围内
-- 所有 sitemap 和 llms.txt 中的 URL 都使用 apex 域名 `https://bllii.com`
-- 如果需要处理 www 重定向，需要在 Nginx/Cloudflare 层面配置
+## 文件变更
 
-### 建议
-如果 www 子域名需要工作，有两种方案：
-1. **首选**：在 Cloudflare/DNS 层配置 www → apex 301 重定向
-2. **备选**：在代码中添加中间件处理 www 重定向（需要修改 main.go）
+### Astro 应用 (video-collection-web)
+- 🔧 **修改** `src/pages/sitemap.xml.ts` - 分页获取所有视频
+- ✨ **新增** `src/pages/.well-known/llms.txt.ts` - 重导出 llms.txt
+- ✅ **保留** `src/pages/robots.txt.ts` - 已包含 GEO 允许列表
+- ✅ **保留** `src/pages/llms.txt.ts` - 原有内容
 
-## 部署清单
+### Go Service (video-collection-service)
+- 🔧 **修改** `web/admin/src/bootstrap.ts` - 添加 robots meta 标签
+- 🔧 **修改** `web/embed.go` - 添加 X-Robots-Tag 响应头
 
-- [x] pkg/api/seo.go - 新增 SEO 路由处理器
-- [x] pkg/api/api.go - 注册 SEO 路由
-- [x] web/admin/src/bootstrap.ts - 添加 robots meta 标签
-- [x] web/embed.go - 添加 X-Robots-Tag 响应头
+## 验证方法
 
-## 测试建议
+### 本地测试 (Astro 应用)
 
-### 本地测试
-由于 Go 1.27 工具链尚未可用，建议：
-1. 在有 Go 1.27+ 环境中构建
-2. 或临时降低 go.mod 中的 Go 版本要求（如果可行）
+1. **启动 Astro 开发服务器**：
+```bash
+cd video-collection-web
+pnpm install
+pnpm dev
+```
 
-### 生产测试
-1. 部署后使用 Google Search Console 验证 sitemap
-2. 使用 curl 测试各个端点：
-   ```bash
-   curl -I https://bllii.com/sitemap.xml
-   curl -I https://bllii.com/.well-known/llms.txt
-   curl -I https://john-admin.bllii.com/admin
-   curl https://bllii.com/robots.txt
-   ```
-3. 使用 Google Rich Results Test 验证 Video 扩展
-4. 在 robots.txt 测试工具中验证爬虫访问权限
+2. **测试各个端点**：
+```bash
+# Sitemap (应包含大量视频)
+curl http://localhost:4321/sitemap.xml | grep -c "<url>"
+
+# .well-known/llms.txt
+curl http://localhost:4321/.well-known/llms.txt
+
+# llms.txt (应与上面相同)
+curl http://localhost:4321/llms.txt
+
+# robots.txt (检查 GEO 允许列表)
+curl http://localhost:4321/robots.txt
+```
+
+### 生产测试 (部署后)
+
+```bash
+# 测试公开站点 SEO 端点
+curl -I https://bllii.com/sitemap.xml
+curl -I https://bllii.com/.well-known/llms.txt
+curl https://bllii.com/robots.txt
+
+# 测试管理后台 noindex
+curl -I https://john-admin.bllii.com/admin
+# 应包含: X-Robots-Tag: noindex,nofollow
+
+# 检查 HTML meta 标签
+curl https://john-admin.bllii.com/admin | grep -i "robots"
+# 应包含: <meta name="robots" content="noindex,nofollow">
+```
+
+### Google Search Console 验证
+
+1. **提交 sitemap**：
+   - 访问 Google Search Console
+   - 添加新的 sitemap URL: `https://bllii.com/sitemap.xml`
+   - 等待 Google 抓取并验证
+
+2. **检查索引覆盖率**：
+   - 查看"索引">"Sitemap"报告
+   - 验证提交的 URL 数量是否接近实际视频数量
+
+3. **Rich Results Test**：
+   - 使用 [Google Rich Results Test](https://search.google.com/test/rich-results)
+   - 测试任意视频详情页 URL
+   - 验证 Video 结构化数据是否被正确识别
 
 ## 关键实现细节
 
-### Sitemap 生成逻辑
-```go
-// getAllPublicVideos 分页获取所有视频
-func (srv *Server) getAllPublicVideos(ctx context.Context) ([]store.VideoRecord, error) {
-    var allVideos []store.VideoRecord
-    pageSize := 100
-    page := 1
-    
-    for {
-        videos, total, err := srv.store.QueryVideos(ctx, store.VideoQuery{
-            Page:      page,
-            PageSize:  pageSize,
-            OrderBy:   "id",
-            OrderDesc: true,
-        })
-        
-        allVideos = append(allVideos, videos...)
-        
-        // 获取完所有数据或达到限制（50 页）
-        if len(allVideos) >= total || len(videos) == 0 || page >= 50 {
-            break
-        }
-        
-        page++
+### Sitemap 分页逻辑
+
+```typescript
+// 从 video-collection-web/src/pages/sitemap.xml.ts
+const pageSize = 100;
+const maxPages = 50; // 最多获取 5000 条视频
+let page = 1;
+let hasMore = true;
+
+while (hasMore && page <= maxPages) {
+  const res = await getVideos({ page, pageSize });
+  if (res && res.list && res.list.length > 0) {
+    // 处理视频数据...
+    videoPages.push(...videos);
+
+    // 检查是否还有更多数据
+    const total = res.total || 0;
+    if (videoPages.length >= total || res.list.length < pageSize) {
+      hasMore = false;
+    } else {
+      page++;
     }
-    
-    return allVideos, nil
+  } else {
+    hasMore = false;
+  }
+}
+
+console.log(`[Sitemap] 成功获取 ${videoPages.length} 个视频页面`);
+```
+
+### API 响应结构假设
+
+代码假设 `getVideos()` 返回：
+```typescript
+{
+  list: VideoItem[],  // 视频列表
+  total: number       // 总数量
 }
 ```
 
-### 站点域名配置
-当前硬编码为 `https://bllii.com`，如需更改可：
-1. 从环境变量读取（推荐）
-2. 从数据库配置读取
-3. 从 Request.Host 推断（需要谨慎处理 www）
+如果实际 API 响应结构不同，需要相应调整：
+- 如果没有 `total` 字段，只能依赖 `list.length < pageSize` 判断
+- 如果字段名不同（如 `data`、`items`），需要修改代码
 
-## 潜在改进
+## 部署清单
 
-1. **Sitemap 分片**：如果视频数量超过 50,000 条，应实现 sitemap 分片
-2. **缓存**：考虑缓存 sitemap 生成结果（1 小时）
-3. **增量更新**：记录最后更新时间，只在内容变化时重新生成
-4. **图片 CDN**：如果缩略图使用 CDN，确保 URL 包含完整域名
-5. **站点配置**：从数据库或配置文件读取 SITE_URL 而不是硬编码
+### Astro 应用 (video-collection-web)
+- [x] 修复 `src/pages/sitemap.xml.ts` - 分页获取所有视频
+- [x] 添加 `src/pages/.well-known/llms.txt.ts` - 重导出路由
+- [x] 验证 `src/pages/robots.txt.ts` - GEO 允许列表完整
+
+### Go Service (video-collection-service)
+- [x] `web/admin/src/bootstrap.ts` - robots meta 标签
+- [x] `web/embed.go` - X-Robots-Tag 响应头
+
+## 潜在问题与解决方案
+
+### 1. Sitemap 生成超时
+
+**问题**：如果视频数量很大，分页获取可能超时。
+
+**解决方案**：
+- 调整 `maxPages` 限制（当前 50 页 = 5000 条）
+- 增加 Astro SSR 超时配置
+- 考虑实现 Sitemap Index + 分片 sitemap
+
+### 2. API 速率限制
+
+**问题**：快速连续请求可能触发 API 速率限制。
+
+**解决方案**：
+- 在循环中添加延迟：`await new Promise(r => setTimeout(r, 100))`
+- 缓存 sitemap 结果（当前已有 1 小时缓存）
+
+### 3. 内存消耗
+
+**问题**：大量视频数据可能导致内存问题。
+
+**解决方案**：
+- 当前限制 5000 条已足够大多数场景
+- 如需更多，考虑流式生成 XML 而不是全部加载到内存
+
+## 后续改进建议
+
+1. **Sitemap Index**：
+   - 如果视频数量超过 5000，实现 sitemap 分片
+   - `/sitemap_index.xml` 索引多个分片 sitemap
+
+2. **增量更新**：
+   - 只在内容变化时重新生成 sitemap
+   - 使用 Redis 缓存或文件系统缓存
+
+3. **监控和告警**：
+   - 记录每次 sitemap 生成的视频数量
+   - 如果数量突然下降，发送告警
+
+4. **自动提交**：
+   - 内容更新后自动 ping Google/Bing
+   - 使用 Search Console API 自动提交
+
+## 与 Go Service SEO 路由的区别
+
+**重要**：本次修复不依赖 Go service 中的 SEO 路由。
+
+- Nginx 配置将 bllii.com 的流量路由到 Astro 应用（blliiweb）
+- Go service 主要提供 API 和管理后台
+- `/sitemap.xml`, `/robots.txt`, `/llms.txt` 在 bllii.com 上由 Astro 处理
+- 管理后台的 noindex 由 Go service 提供
+
+## 测试建议
+
+在合并前：
+1. 在测试环境部署 Astro 应用
+2. 验证 sitemap 包含预期数量的 URL
+3. 使用 Google Search Console 验证 sitemap
+4. 检查管理后台的 noindex 标记
+5. 确认 www 和 apex 域名都能正常访问（如果适用）

@@ -1,0 +1,10 @@
+---
+interface Props { activeTab?: string; }
+const { activeTab = '选集' } = Astro.props;
+const tabs = [{ name: '选集', label: '剧集' }, { name: '详情', label: '详情' }, { name: '相关推荐', label: '相关推荐' }];
+---
+<div class="brand-tabs border-b bg-white sticky z-40">
+  <div class="max-w-[1360px] mx-auto px-4 sm:px-6 flex items-center gap-9 overflow-x-auto no-scrollbar">
+    {tabs.map(tab => <a href={`#tab-${tab.name}`} aria-current={tab.name === activeTab ? 'location' : undefined} class="py-4 text-sm font-medium relative shrink-0 text-slate-600">{tab.label}</a>)}
+  </div>
+</div>

@@ -1,0 +1,14 @@
+---
+import BrandIcon from './BrandIcon.astro';
+interface Props { id: string; title: string; descriptionId?: string; class?: string; }
+const { id, title, descriptionId, class: className = '' } = Astro.props;
+---
+<dialog id={id} class:list={['brand-dialog', className]} aria-labelledby={`${id}-title`} aria-describedby={descriptionId}>
+  <header class="brand-dialog__header">
+    <img src="/brand/bllii-symbol.svg" width="38" height="38" alt="" />
+    <h2 id={`${id}-title`} data-dialog-title>{title}<slot name="title-extra" /></h2>
+    <button type="button" class="brand-dialog__close" data-dialog-close aria-label={`关闭${title}`}><BrandIcon name="close" size={18} /></button>
+  </header>
+  <div class="brand-dialog__body"><slot /></div>
+  <footer class="brand-dialog__footer"><slot name="footer" /></footer>
+</dialog>

@@ -1,0 +1,12 @@
+.member-identity { display:flex; align-items:center; gap:12px; min-width:0; }
+.member-identity__details { min-width:0; }
+img.member-avatar { width:42px; height:42px; flex-shrink:0; border-radius:50%; object-fit:cover; border:3px solid var(--member-frame,#f0eafa); background:#f7f9ff; }
+.member-name { display:inline-flex; align-items:center; flex-wrap:wrap; gap:7px; min-width:0; }
+.member-name>strong { font-size:12px; font-weight:600; overflow-wrap:anywhere; }
+.member-name .member-badge { display:inline-flex; align-items:center; padding:2px 8px; border:1px solid #e7dcf8; border-radius:7px; background:linear-gradient(110deg,#f1ecff,#fff0f8); color:#9374bd; font-size:9px; font-weight:500; line-height:1.6; overflow-wrap:anywhere; }
+.member-metadata { display:block; margin-top:4px; font-size:10px; color:var(--brand-muted); }
+.discussion__identity [data-identity-name] { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.discussion__identity [data-identity-name]>.member-name { flex:0 1 auto; }
+.discussion__identity [data-identity-name]>small { font-size:11px; }
+.discussion__item img.member-avatar { width:38px; height:38px; flex-basis:38px; border-width:3px; }
+@media(max-width:600px) { .discussion__item img.member-avatar { width:34px; height:34px; flex-basis:34px; } }
