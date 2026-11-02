@@ -276,7 +276,7 @@ class SiteConfig {
 
   factory SiteConfig.defaultConfig() {
     return SiteConfig(
-      siteName: 'bllii · More Stories, Together',
+      siteName: 'AniPocket 故事口袋 · More Stories, Together',
       siteSubtitle: '追番库 • 让生活多一种可能',
       siteAnnouncement: '欢迎访问Bllii客户端！全新升级流媒体视觉、极光画质增强引擎与全站新番排行榜已全面开启！',
       siteKeywords: '高清动漫,番剧新番,日漫,国漫,免费在线观看',

@@ -6,7 +6,7 @@
         <r-card shadow="never" class="status-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">Bllii-Familiar · 使魔调度状态</span>
+              <span class="card-title">追番使魔 · 使魔调度状态</span>
               <r-tag :type="statusData.running ? 'danger' : 'success'">
                 {{ statusData.running ? '使魔正在采集运行中' : '使魔空闲待命' }}
               </r-tag>

@@ -47,7 +47,7 @@ export default function HomePanels({ latest = [], rankings = [] }: Props) {
       <a className="brand-promo" href="/news">
         <div>
           <p className="brand-eyebrow">STORIES &amp; UPDATES</p>
-          <h2>bllii · 资讯速递</h2>
+          <h2>AniPocket 故事口袋 · 资讯速递</h2>
           <p>
             新番情报、制作动态<br />
             以及更多站内精选

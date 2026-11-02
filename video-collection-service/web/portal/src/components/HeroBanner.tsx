@@ -37,7 +37,7 @@ export default function HeroBanner({ featuredVideo, videos = [] }: Props) {
               <img 
                 className="brand-hero__image" 
                 src={video?.picture || '/assets/hero_banner.jpg'} 
-                alt={video?.name || 'bllii'} 
+                alt={video?.name || 'AniPocket 故事口袋'} 
                 loading={i === 0 ? 'eager' : 'lazy'} 
                 onError={(e) => {
                   const target = e.currentTarget;
@@ -48,10 +48,10 @@ export default function HeroBanner({ featuredVideo, videos = [] }: Props) {
               <div className="brand-hero__shade"></div>
               <div className="brand-hero__copy">
                 <p className="brand-eyebrow">
-                  <span data-festival-copy="hero-eyebrow">bllii / 今日精选</span>{' '}
+                  <span data-festival-copy="hero-eyebrow">AniPocket 故事口袋 / 今日精选</span>{' '}
                   <span className="hero-story-number">{String(i + 1).padStart(2, '0')}</span>
                 </p>
-                <h1>{video?.name || 'bllii · 故事与资讯'}</h1>
+                <h1>{video?.name || 'AniPocket 故事口袋 · 故事与资讯'}</h1>
                 <p className="brand-hero__title">
                   {video 
                     ? [video.year, video.remarks, ...(video.tags || []).slice(0, 2)].filter(Boolean).join(' · ') 

@@ -36,7 +36,7 @@ void main(List<String> args) async {
       titleBarStyle: kIsWindowsDesktop
           ? TitleBarStyle.hidden // Windows：隐藏系统标题栏，由原生 C++ 控制条接管
           : TitleBarStyle.normal,
-      title: 'bllii · More Stories, Together',
+      title: 'AniPocket 故事口袋 · More Stories, Together',
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (kIsWindowsDesktop) {
@@ -82,7 +82,7 @@ class BlliiApp extends StatelessWidget {
                 MediaQuery.platformBrightnessOf(context) == Brightness.dark);
         NativeWindow.setTheme(darkNow);
         return AppRoot(
-          title: 'bllii · More Stories, Together',
+          title: 'AniPocket 故事口袋 · More Stories, Together',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(Brightness.light, appState.accentColor),
           darkTheme: buildAppTheme(Brightness.dark, appState.accentColor),

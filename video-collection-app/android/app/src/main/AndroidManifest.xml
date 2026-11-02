@@ -2,7 +2,7 @@
     <!-- 允许访问本机 / 局域网 HTTP API -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="bllii"
+        android:label="AniPocket"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

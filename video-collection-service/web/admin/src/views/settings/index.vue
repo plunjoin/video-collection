@@ -16,7 +16,7 @@
         <r-divider content-position="left">站点基础信息</r-divider>
 
         <r-form-item label="网站品牌名称">
-          <r-input v-model="form.site_name" placeholder="例如：Bllii 动漫聚合" />
+          <r-input v-model="form.site_name" placeholder="例如：AniPocket 故事口袋" />
         </r-form-item>
 
         <r-form-item label="副标题口号">
