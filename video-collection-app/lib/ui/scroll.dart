@@ -565,20 +565,23 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
       child: viewport,
     );
 
+    final allowDrag = scrollPhysics?.allowUserScrolling ?? true;
     viewport = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onVerticalDragUpdate: !isHorizontal && canScroll
+      onVerticalDragStart: !isHorizontal && allowDrag ? (_) {} : null,
+      onVerticalDragUpdate: !isHorizontal && allowDrag
           ? (details) =>
               applyScroll(_offset - details.delta.dy, dragging: true)
           : null,
-      onVerticalDragEnd: !isHorizontal && canScroll
+      onVerticalDragEnd: !isHorizontal && allowDrag
           ? (details) => _report(dragging: false)
           : null,
-      onHorizontalDragUpdate: isHorizontal && canScroll
+      onHorizontalDragStart: isHorizontal && allowDrag ? (_) {} : null,
+      onHorizontalDragUpdate: isHorizontal && allowDrag
           ? (details) =>
               applyScroll(_offset - details.delta.dx, dragging: true)
           : null,
-      onHorizontalDragEnd: isHorizontal && canScroll
+      onHorizontalDragEnd: isHorizontal && allowDrag
           ? (details) => _report(dragging: false)
           : null,
       child: viewport,
@@ -839,7 +842,7 @@ class _ListViewState extends fw.State<ListView>
       }
       return _wrapScrollable(
         buildScrollable(
-          contentExtent: 0,
+          contentExtent: _totalExtent(),
           children: children,
           childOffsets: const [],
           padding: widget.padding,
