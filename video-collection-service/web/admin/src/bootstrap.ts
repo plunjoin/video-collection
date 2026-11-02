@@ -17,6 +17,11 @@ viewport.name = 'viewport'
 viewport.content = 'width=device-width, initial-scale=1.0'
 document.head.appendChild(viewport)
 
+const robots = document.createElement('meta')
+robots.name = 'robots'
+robots.content = 'noindex,nofollow'
+document.head.appendChild(robots)
+
 const icon = document.createElement('link')
 icon.rel = 'icon'
 icon.type = 'image/svg+xml'
