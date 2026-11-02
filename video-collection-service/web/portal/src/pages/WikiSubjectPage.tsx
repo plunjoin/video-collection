@@ -25,7 +25,7 @@ export default function WikiSubjectPage({ id }: { id: number }) {
 
   if (missing) {
     return (
-      <Layout title="词条不存在 — bllii" activeNav="">
+      <Layout title="词条不存在 — AniPocket" activeNav="">
         <div className="py-24 text-center text-slate-400">
           <p>词条不存在或已被删除。</p>
           <a href="/" className="mt-4 inline-block text-blue-500 font-medium">返回首页 →</a>

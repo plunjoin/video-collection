@@ -83,7 +83,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
   const hasFilter = selectedChannel || selectedGenre || selectedArea || selectedYear || selectedSort !== 'time';
 
   return (
-    <Layout title="番剧库 - bllii 分类索引" activeNav="番剧">
+    <Layout title="番剧库 - AniPocket 分类索引" activeNav="番剧">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         {/* 筛选面板卡片 */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100/80 space-y-4 mb-6">

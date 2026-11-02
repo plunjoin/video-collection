@@ -34,7 +34,7 @@ export default function NewsPage() {
   const categories = ['情报', '新番', '推荐', '访谈'];
 
   return (
-    <Layout title="动漫资讯 — bllii" activeNav="资讯">
+    <Layout title="动漫资讯 — AniPocket" activeNav="资讯">
       <div className="page-content max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         {/* 顶部分类筛选 */}
         <div className="page-toolbar flex gap-2 mb-6">

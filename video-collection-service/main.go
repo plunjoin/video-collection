@@ -25,7 +25,7 @@ import (
 
 func main() {
 	fmt.Println("==================================================================")
-	fmt.Println("   Bllii 可配置采集聚合平台 - 统一服务 (Go: RESTful API + 管理后台) ")
+	fmt.Println("   AniPocket 故事口袋 可配置采集聚合平台 - 统一服务 (Go: RESTful API + 管理后台) ")
 	fmt.Printf("   构建标识: %s\n", config.BuildInfo())
 	fmt.Println("==================================================================")
 

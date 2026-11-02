@@ -18,7 +18,7 @@ export default function PointsPage() {
   useEffect(() => { void import('../lib/growth-station'); }, []);
 
   return (
-    <Layout title="同好成长站 — bllii" activeNav="追番">
+    <Layout title="同好成长站 — AniPocket" activeNav="追番">
       <div className="page-content growth-station" aria-busy="false">
         <div id="growth-status" role="status" aria-live="polite" hidden></div>
         <div id="guest-hint" className="g-guest" hidden><BrandIcon name="star" /><p>每一份喜欢，都值得被珍藏。登录后开启你的成长旅程。</p><a className="brand-button" href="/login?redirect=/points">开启旅程 <BrandIcon name="arrow-right" size={16} /></a></div>

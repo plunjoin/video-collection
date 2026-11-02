@@ -120,7 +120,7 @@ export default function CommunityPage() {
   const pageHref = (p: number) => `/community?page=${p}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`;
 
   return (
-    <Layout title="同好社区 — bllii" activeNav="社区">
+    <Layout title="同好社区 — AniPocket" activeNav="社区">
       <div className="page-content">
         <div className="page-toolbar">
           <span className="page-pill" aria-pressed="true">同好广场</span>

@@ -28,7 +28,6 @@ const pageIntros: Record<string, { title: string; description: string; eyebrow: 
 };
 
 export default function Layout({
-export default function Layout({
   title = 'AniPocket 故事口袋 - 在更多的故事里，遇见更好的你',
   activeNav = '首页',
   description = 'AniPocket 故事口袋 动漫番剧在线播放与聚合平台',

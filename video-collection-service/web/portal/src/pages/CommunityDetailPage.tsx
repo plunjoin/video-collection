@@ -61,7 +61,7 @@ export default function CommunityDetailPage({ id }: { id: number }) {
 
   if (!post) {
     return (
-      <Layout title="同好社区 — bllii" activeNav="社区">
+      <Layout title="同好社区 — AniPocket" activeNav="社区">
         <div className="page-content" style={{ maxWidth: 880, minHeight: 220 }}></div>
       </Layout>
     );

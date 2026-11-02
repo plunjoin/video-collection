@@ -40,7 +40,7 @@ export default function LatestPage({ initialData }: Props) {
   const currentGroup = groups[tab] || groups[0];
 
   return (
-    <Layout title="新番更新 — bllii" activeNav="新番时间表">
+    <Layout title="新番更新 — AniPocket" activeNav="新番时间表">
       <div className="page-content max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         <div className="page-toolbar flex gap-2 mb-6" role="tablist" aria-label="更新时间">
           {groups.map((group, i) => (
