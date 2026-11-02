@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Layout title="找回密码 - bllii" activeNav="追番">
+    <Layout title="找回密码 - AniPocket" activeNav="追番">
       <div className="account-layout">
         <aside className="account-story">
           <img src="/brand/bllii-symbol.svg" alt="" />

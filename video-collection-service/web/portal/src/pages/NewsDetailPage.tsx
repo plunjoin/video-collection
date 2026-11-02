@@ -71,7 +71,7 @@ export default function NewsDetailPage({ id }: { id: number }) {
 
   if (!item) {
     return (
-      <Layout title="资讯 — bllii" activeNav="资讯">
+      <Layout title="资讯 — AniPocket" activeNav="资讯">
         <div className="page-content" style={{ minHeight: 220 }}></div>
       </Layout>
     );

@@ -46,7 +46,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Layout title="用户登录 / 注册 - bllii" activeNav="追番">
+    <Layout title="用户登录 / 注册 - AniPocket" activeNav="追番">
       <div className="account-layout">
         <aside className="account-story">
           <img src="/brand/bllii-symbol.svg" alt="" />

@@ -594,7 +594,7 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <Layout title="账号设置 — bllii" activeNav="追番">
+      <Layout title="账号设置 — AniPocket" activeNav="追番">
         <div className="page-content">
           <div className="mx-auto w-full max-w-[980px] px-4 py-10 text-xs text-slate-400">正在读取账号信息…</div>
         </div>
@@ -604,7 +604,7 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <Layout title="账号设置 — bllii" activeNav="追番">
+      <Layout title="账号设置 — AniPocket" activeNav="追番">
         <div className="page-content">
           <div className="mx-auto w-full max-w-[520px] px-4 py-16 text-center">
             <img src="/brand/bllii-symbol.svg" alt="" width={56} height={56} className="mx-auto mb-4" />
@@ -624,7 +624,7 @@ export default function AccountPage() {
   }
 
   return (
-    <Layout title="账号设置 — bllii" activeNav="追番">
+    <Layout title="账号设置 — AniPocket" activeNav="追番">
       <div className="page-content">
         <div className="mx-auto w-full max-w-[980px] px-4 py-6">
           <header className="mb-5 flex flex-wrap items-center gap-3">
