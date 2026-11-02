@@ -46,19 +46,19 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('我的追番'), findsOneWidget);
-    expect(find.text('观看历史'), findsOneWidget);
-    expect(find.text('账号与积分'), findsOneWidget);
-    expect(find.text('番剧分类'), findsOneWidget);
-    expect(find.text('热度排行'), findsOneWidget);
-    expect(find.text('新番时间表'), findsOneWidget);
-    expect(find.text('资讯社区'), findsOneWidget);
-    expect(find.text('偏好设置'), findsOneWidget);
-    await tester.tap(find.text('资讯社区'));
+    expect(findText('我的追番'), findsOneWidget);
+    expect(findText('观看历史'), findsOneWidget);
+    expect(findText('账号与积分'), findsOneWidget);
+    expect(findText('番剧分类'), findsOneWidget);
+    expect(findText('热度排行'), findsOneWidget);
+    expect(findText('新番时间表'), findsOneWidget);
+    expect(findText('资讯社区'), findsOneWidget);
+    expect(findText('偏好设置'), findsOneWidget);
+    await tester.tap(findText('资讯社区'));
     expect(selected, 3);
-    expect(find.text('登录 / 注册'), findsOneWidget);
+    expect(findText('登录 / 注册'), findsOneWidget);
     // 品牌行与底部主题按钮已按新版式移除
-    expect(find.text('bllii'), findsNothing);
+    expect(findText('bllii'), findsNothing);
     expect(find.byTooltip('收起边栏'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -79,7 +79,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('1024'), findsOneWidget);
+    expect(findText('1024'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

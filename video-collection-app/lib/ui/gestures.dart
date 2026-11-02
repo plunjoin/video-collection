@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as fw;
 
+
 import 'layout.dart';
 import 'theme.dart';
 
@@ -393,21 +394,40 @@ class _GestureDetectorState extends fw.State<GestureDetector> {
   @override
   fw.Widget build(fw.BuildContext context) {
     final child = widget.child ?? const _EmptyBox();
-    HitTestBehavior? behavior;
+    final recognizers = <Type, fw.GestureRecognizerFactory>{};
+    void add<T extends GestureRecognizer>(
+      GestureRecognizer? recognizer,
+    ) {
+      if (recognizer == null) return;
+      recognizers[T] = fw.GestureRecognizerFactoryWithHandlers<T>(
+        () => recognizer as T,
+        (T instance) {},
+      );
+    }
+
+    add<TapGestureRecognizer>(_tap);
+    add<TapGestureRecognizer>(_secondaryTap);
+    add<DoubleTapGestureRecognizer>(_doubleTap);
+    add<LongPressGestureRecognizer>(_longPress);
+    add<PanGestureRecognizer>(_pan);
+    add<HorizontalDragGestureRecognizer>(_horizontalDrag);
+    add<VerticalDragGestureRecognizer>(_verticalDrag);
+    add<ScaleGestureRecognizer>(_scale);
+
+    fw.HitTestBehavior behavior;
     switch (widget.behavior) {
       case HitTestBehavior.opaque:
-        behavior = HitTestBehavior.opaque;
+        behavior = fw.HitTestBehavior.opaque;
       case HitTestBehavior.translucent:
-        behavior = HitTestBehavior.translucent;
+        behavior = fw.HitTestBehavior.translucent;
       case HitTestBehavior.deferToChild:
-        behavior = null;
+        behavior = fw.HitTestBehavior.deferToChild;
     }
-    return Listener(
-      onPointerDown: _handlePointerDown,
-      child: _BehaviorBox(
-        behavior: behavior,
-        child: child,
-      ),
+
+    return fw.RawGestureDetector(
+      behavior: behavior,
+      gestures: recognizers,
+      child: child,
     );
   }
 }

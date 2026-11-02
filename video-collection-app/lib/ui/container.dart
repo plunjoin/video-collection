@@ -130,59 +130,10 @@ class Container extends fw.StatelessWidget {
   }
 }
 
-/// 通用插值动画核心:目标值变化时,从当前值向目标值过渡。
-class _ImplicitAnimator<T> {
-  T? _current;
-  T? _target;
-  fw.AnimationController? _controller;
-
-  T? animate({
-    required T? target,
-    required T? current,
-    required Duration duration,
-    required Curve curve,
-    required T? Function(T, T, double) lerp,
-    required fw.TickerProvider vsync,
-    required fw.StateSetter setState,
-    VoidCallback? onEnd,
-  }) {
-    // 首次直接落位,不做动画
-    _current ??= current;
-    if (_target != target) {
-      _target = target;
-      _controller?.dispose();
-      final controller = fw.AnimationController(
-        vsync: vsync,
-        duration: duration,
-        value: 0,
-      );
-      _controller = controller;
-      final from = _current!;
-      final to = target!;
-      controller.addListener(() {
-        final t = controller.value;
-        setState(() {
-          _current = lerp(from, to, fw.CurveTween(curve: curve)
-              .transform(t));
-        });
-      });
-      controller.addStatusListener((status) {
-        if (status == fw.AnimationStatus.completed) {
-          onEnd?.call();
-        }
-      });
-      controller.forward();
-    }
-    return _current;
-  }
-
-  void dispose() {
-    _controller?.dispose();
-    _controller = null;
-  }
-}
-
 /// 隐式动画容器(替代 material 的 AnimatedContainer)。
+///
+/// 单个 AnimationController 驱动多个属性的插值(装饰/边距/尺寸/对齐),
+/// 避免为每个属性各建一个控制器。
 class AnimatedContainer extends fw.StatefulWidget {
   final Alignment? alignment;
   final EdgeInsetsGeometry? padding;
@@ -216,7 +167,7 @@ class AnimatedContainer extends fw.StatefulWidget {
     this.transformAlignment,
     this.clipBehavior = Clip.none,
     required this.duration,
-    this.curve = Curves.linear,
+    this.curve = fw.Curves.linear,
     this.onEnd,
     this.child,
   }) : super(key: key);
@@ -227,89 +178,165 @@ class AnimatedContainer extends fw.StatefulWidget {
 
 class _AnimatedContainerState extends fw.State<AnimatedContainer>
     with fw.SingleTickerProviderStateMixin {
-  final _decoration = _ImplicitAnimator<BoxDecoration?>();
-  final _padding = _ImplicitAnimator<EdgeInsetsGeometry?>();
-  final _margin = _ImplicitAnimator<EdgeInsetsGeometry?>();
-  final _size = _ImplicitAnimator<Size?>();
-  final _alignment = _ImplicitAnimator<Alignment?>();
+  late final fw.AnimationController _controller;
+  late fw.Animation<double> _curved;
+
+  // 起始值(动画起点)与目标值(动画终点)
+  BoxDecoration? _fromDecoration;
+  BoxDecoration? _toDecoration;
+  EdgeInsetsGeometry? _fromPadding;
+  EdgeInsetsGeometry? _toPadding;
+  EdgeInsetsGeometry? _fromMargin;
+  EdgeInsetsGeometry? _toMargin;
+  Alignment? _fromAlignment;
+  Alignment? _toAlignment;
+  Size? _fromSize;
+  Size? _toSize;
+
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = fw.AnimationController(vsync: this, duration: widget.duration);
+    _curved = fw.CurvedAnimation(parent: _controller, curve: widget.curve);
+    _syncTargets();
+  }
+
+  @override
+  void didUpdateWidget(AnimatedContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.duration != _controller.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (widget.curve != oldWidget.curve) {
+      _curved = fw.CurvedAnimation(parent: _controller, curve: widget.curve);
+    }
+    _syncTargets();
+  }
+
+  BoxDecoration? get _targetDecoration =>
+      widget.decoration ??
+      (widget.color != null ? BoxDecoration(color: widget.color) : null);
+
+  Size? get _targetSize =>
+      (widget.width != null || widget.height != null)
+          ? Size(widget.width ?? 0, widget.height ?? 0)
+          : null;
+
+  /// 目标变化时:记录起点,启动动画。
+  void _syncTargets() {
+    final t = _curved.value;
+    final newDecoration = _targetDecoration;
+    final newPadding = widget.padding;
+    final newMargin = widget.margin;
+    final newAlignment = widget.alignment;
+    final newSize = _targetSize;
+
+    if (!_initialized) {
+      _initialized = true;
+      _fromDecoration = newDecoration;
+      _toDecoration = newDecoration;
+      _fromPadding = newPadding;
+      _toPadding = newPadding;
+      _fromMargin = newMargin;
+      _toMargin = newMargin;
+      _fromAlignment = newAlignment;
+      _toAlignment = newAlignment;
+      _fromSize = newSize;
+      _toSize = newSize;
+      return;
+    }
+
+    // 装饰对象每次 build 都会新建,需按内容比较,否则会无限重启动画
+    final changed = !_sameDecoration(_toDecoration, newDecoration) ||
+        _toPadding != newPadding ||
+        _toMargin != newMargin ||
+        _toAlignment != newAlignment ||
+        _toSize != newSize;
+    if (!changed) return;
+
+    // 当前实际值作为动画起点
+    _fromDecoration = _lerpDecoration(_fromDecoration, _toDecoration, t);
+    _fromPadding = _lerpInsets(_fromPadding, _toPadding, t);
+    _fromMargin = _lerpInsets(_fromMargin, _toMargin, t);
+    _fromAlignment = Alignment.lerp(_fromAlignment, _toAlignment, t);
+    _fromSize = _lerpSize(_fromSize, _toSize, t);
+
+    _toDecoration = newDecoration;
+    _toPadding = newPadding;
+    _toMargin = newMargin;
+    _toAlignment = newAlignment;
+    _toSize = newSize;
+
+    _controller.forward(from: 0);
+  }
+
+  /// 装饰内容比较(逐字段;BoxDecoration 未实现 == )。
+  bool _sameDecoration(BoxDecoration? a, BoxDecoration? b) {
+    if (a == null || b == null) return a == b;
+    return a.color == b.color &&
+        a.gradient == b.gradient &&
+        a.borderRadius == b.borderRadius &&
+        a.shape == b.shape &&
+        a.border == b.border &&
+        a.boxShadow == b.boxShadow &&
+        a.image == b.image;
+  }
+
+  BoxDecoration? _lerpDecoration(
+    BoxDecoration? a,
+    BoxDecoration? b,
+    double t,
+  ) {
+    if (a == null || b == null) return b ?? a;
+    return BoxDecoration.lerp(a, b, t);
+  }
+
+  EdgeInsetsGeometry? _lerpInsets(
+    EdgeInsetsGeometry? a,
+    EdgeInsetsGeometry? b,
+    double t,
+  ) {
+    if (a == null || b == null) return b ?? a;
+    return EdgeInsetsGeometry.lerp(a, b, t);
+  }
+
+  Size? _lerpSize(Size? a, Size? b, double t) {
+    if (a == null || b == null) return b ?? a;
+    return Size.lerp(a, b, t);
+  }
 
   @override
   void dispose() {
-    _decoration.dispose();
-    _padding.dispose();
-    _margin.dispose();
-    _size.dispose();
-    _alignment.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   fw.Widget build(fw.BuildContext context) {
-    final decoration = _decoration.animate(
-      target: widget.decoration ??
-          (widget.color != null ? BoxDecoration(color: widget.color) : null),
-      current: widget.decoration ??
-          (widget.color != null ? BoxDecoration(color: widget.color) : null),
-      duration: widget.duration,
-      curve: widget.curve,
-      lerp: BoxDecoration.lerp,
-      vsync: this,
-      setState: setState,
-      onEnd: widget.onEnd,
-    );
-    final padding = _padding.animate(
-      target: widget.padding,
-      current: widget.padding,
-      duration: widget.duration,
-      curve: widget.curve,
-      lerp: (a, b, t) => EdgeInsetsGeometry.lerp(a, b, t)!,
-      vsync: this,
-      setState: setState,
-    );
-    final margin = _margin.animate(
-      target: widget.margin,
-      current: widget.margin,
-      duration: widget.duration,
-      curve: widget.curve,
-      lerp: (a, b, t) => EdgeInsetsGeometry.lerp(a, b, t)!,
-      vsync: this,
-      setState: setState,
-    );
-    final alignment = _alignment.animate(
-      target: widget.alignment,
-      current: widget.alignment,
-      duration: widget.duration,
-      curve: widget.curve,
-      lerp: Alignment.lerp,
-      vsync: this,
-      setState: setState,
-    );
-    final size = _size.animate(
-      target:
-          widget.width != null || widget.height != null
-              ? Size(widget.width ?? 0, widget.height ?? 0)
-              : null,
-      current:
-          widget.width != null || widget.height != null
-              ? Size(widget.width ?? 0, widget.height ?? 0)
-              : null,
-      duration: widget.duration,
-      curve: widget.curve,
-      lerp: (a, b, t) => Size.lerp(a, b, t)!,
-      vsync: this,
-      setState: setState,
-    );
-
-    return Container(
-      alignment: alignment,
-      padding: padding,
-      decoration: decoration,
-      width: size?.width == 0 ? null : size?.width,
-      height: size?.height == 0 ? null : size?.height,
-      margin: margin,
-      transform: widget.transform,
-      transformAlignment: widget.transformAlignment,
-      clipBehavior: widget.clipBehavior,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _curved.value;
+        final decoration = _lerpDecoration(_fromDecoration, _toDecoration, t);
+        final padding = _lerpInsets(_fromPadding, _toPadding, t);
+        final margin = _lerpInsets(_fromMargin, _toMargin, t);
+        final alignment = Alignment.lerp(_fromAlignment, _toAlignment, t);
+        final size = _lerpSize(_fromSize, _toSize, t);
+        return Container(
+          alignment: alignment,
+          padding: padding,
+          decoration: decoration,
+          width: size?.width == 0 ? null : size?.width,
+          height: size?.height == 0 ? null : size?.height,
+          margin: margin,
+          transform: widget.transform,
+          transformAlignment: widget.transformAlignment,
+          clipBehavior: widget.clipBehavior,
+          child: widget.child,
+        );
+      },
       child: widget.child,
     );
   }
@@ -684,6 +711,9 @@ class SafeArea extends fw.StatelessWidget {
 }
 
 /// 自定义绘制(替代 widgets 的 CustomPaint)。
+///
+/// 绘制语义(前后景 painter、preferredSize、语义重建)复用框架渲染层的
+/// RenderCustomPaint(painting/rendering 基础设施),组件本身为本库自研。
 class CustomPaint extends fw.SingleChildRenderObjectWidget {
   final CustomPainter? painter;
   final CustomPainter? foregroundPainter;
@@ -703,84 +733,26 @@ class CustomPaint extends fw.SingleChildRenderObjectWidget {
 
   @override
   fw.RenderObject createRenderObject(fw.BuildContext context) {
-    return RenderCustomPaintBox(
+    return RenderCustomPaint(
       painter: painter,
       foregroundPainter: foregroundPainter,
       preferredSize: size,
+      isComplex: isComplex,
+      willChange: willChange,
     );
   }
 
   @override
   void updateRenderObject(
     fw.BuildContext context,
-    covariant RenderCustomPaintBox renderObject,
+    covariant RenderCustomPaint renderObject,
   ) {
     renderObject
       ..painter = painter
       ..foregroundPainter = foregroundPainter
-      ..preferredSize = size;
-  }
-}
-
-/// 自写绘制渲染盒子:先画 painter,再画子项,再画 foregroundPainter。
-class RenderCustomPaintBox extends RenderProxyBox {
-  CustomPainter? _painter;
-  CustomPainter? _foregroundPainter;
-  Size _preferredSize;
-
-  RenderCustomPaintBox({
-    required CustomPainter? painter,
-    required CustomPainter? foregroundPainter,
-    required Size preferredSize,
-  })  : _painter = painter,
-        _foregroundPainter = foregroundPainter,
-        _preferredSize = preferredSize;
-
-  set painter(CustomPainter? value) {
-    if (_painter == value) return;
-    _painter?.removeListener(markNeedsPaint);
-    _painter = value;
-    value?.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
-
-  set foregroundPainter(CustomPainter? value) {
-    if (_foregroundPainter == value) return;
-    _foregroundPainter?.removeListener(markNeedsPaint);
-    _foregroundPainter = value;
-    value?.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
-
-  set preferredSize(Size value) {
-    if (_preferredSize == value) return;
-    _preferredSize = value;
-    markNeedsLayout();
-  }
-
-  @override
-  void performLayout() {
-    final child = this.child;
-    if (child != null) {
-      child!.layout(constraints, parentUsesSize: true);
-      size = child.size;
-    } else {
-      size = constraints.constrain(_preferredSize);
-    }
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (_painter != null) {
-      _painter!.paint(context.canvas, size);
-    }
-    final child = this.child;
-    if (child != null) {
-      context.paintChild(child, offset);
-    }
-    if (_foregroundPainter != null) {
-      _foregroundPainter!.paint(context.canvas, size);
-    }
+      ..preferredSize = size
+      ..isComplex = isComplex
+      ..willChange = willChange;
   }
 }
 

@@ -99,19 +99,17 @@ class _AppRootState extends fw.State<AppRoot>
       content = widget.builder!(context, content);
     }
 
+    // 度量数据由框架 View 提供的 MediaQuery 给出(与框架 MaterialApp 一致:
+    // 不额外引入 MediaQuery,避免改变 devicePixelRatio 等取值)
     return fw.Directionality(
       textDirection: fw.TextDirection.ltr,
       child: fw.FocusScope(
         node: _focusScopeNode,
-        child: fw.MediaQuery.fromView(
-          view: fw.View.of(context),
-          child: Theme(
-            data: data,
-            child: DefaultTextStyle(
-              style: data.textTheme.bodyMedium ??
-                  const TextStyle(fontSize: 13),
-              child: content,
-            ),
+        child: Theme(
+          data: data,
+          child: DefaultTextStyle(
+            style: data.textTheme.bodyMedium ?? const TextStyle(fontSize: 13),
+            child: content,
           ),
         ),
       ),

@@ -179,6 +179,9 @@ void main() {
       await tester.binding
           .setSurfaceSize(Size(columns * 170 + 16, rows * 110 + 16));
 
+      // 固定设备像素比:golden 基准图按 DPR=1 生成
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,

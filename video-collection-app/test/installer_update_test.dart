@@ -311,10 +311,10 @@ void main() {
         ),
       );
 
-      expect(find.text('发现新版本'), findsOneWidget);
-      expect(find.text('下载并安装'), findsOneWidget);
-      expect(find.text('立即更新'), findsNothing);
-      expect(find.text('暂不更新'), findsOneWidget);
+      expect(findText('发现新版本'), findsOneWidget);
+      expect(findText('下载并安装'), findsOneWidget);
+      expect(findText('立即更新'), findsNothing);
+      expect(findText('暂不更新'), findsOneWidget);
     });
   });
 }

@@ -416,6 +416,11 @@ class RenderParagraphBox extends RenderBox {
     painter.paint(context.canvas, Offset(dx, offset.dy));
   }
 
+  /// 文本自身可命中(与框架 RenderParagraph 一致):命中点落在字形范围内
+  /// 或行内任意位置时,文本节点即为命中目标。
+  @override
+  bool hitTestSelf(Offset position) => true;
+
   @override
   void dispose() {
     _painter?.dispose();

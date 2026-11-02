@@ -48,9 +48,9 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('最新作品'));
+    await tester.tap(findText('最新作品'));
     await tester.pumpAndSettle();
-    expect(find.text('最新内容').hitTestable(), findsOneWidget);
+    expect(findText('最新内容').hitTestable(), findsOneWidget);
     final controller = tester
         .widget<BrandTabs>(find.byType(BrandTabs))
         .controller;
@@ -58,7 +58,7 @@ void main() {
     await tester.drag(find.byType(TabBarView), const Offset(300, 0));
     await tester.pumpAndSettle();
     expect(controller.index, 0);
-    expect(find.text('人气内容').hitTestable(), findsOneWidget);
+    expect(findText('人气内容').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -84,14 +84,14 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('动画'));
+    await tester.tap(findText('动画'));
     await tester.pump();
     expect(selected, isTrue);
-    await tester.tap(find.text('动画'));
+    await tester.tap(findText('动画'));
     await tester.pump();
     expect(selected, isFalse);
     final disabled = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '暂不可用'),
+      findWidgetWithText(TextButton, '暂不可用'),
     );
     expect(disabled.onPressed, isNull);
   });
@@ -122,13 +122,13 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.text('排序'));
+        await tester.tap(findText('排序'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('人气优先'));
+        await tester.tap(findText('人气优先'));
         await tester.pumpAndSettle();
         expect(result, 'popular');
         expect(find.byType(BrandDialog), findsNothing);
-        await tester.tap(find.text('排序'));
+        await tester.tap(findText('排序'));
         await tester.pumpAndSettle();
         await tester.tapAt(const Offset(5, 5));
         await tester.pumpAndSettle();
@@ -164,7 +164,7 @@ void main() {
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('屏蔽词'),
+      findText('屏蔽词'),
       300,
       scrollable: find.byType(ListView).first,
     );
@@ -177,11 +177,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
-    expect(find.text('星空下的旅人'), findsOneWidget);
+    expect(findText('星空下的旅人'), findsOneWidget);
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
-    expect(find.text('外观模式'), findsOneWidget);
-    expect(find.text('主题颜色'), findsOneWidget);
+    expect(findText('外观模式'), findsOneWidget);
+    expect(findText('主题颜色'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     state.dispose();

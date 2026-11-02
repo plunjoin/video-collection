@@ -59,10 +59,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('发现'));
+      await tester.tap(findText('发现'));
       await tester.pumpAndSettle();
       expect(selected, 1);
-      await tester.tap(find.text('我的'));
+      await tester.tap(findText('我的'));
       await tester.pumpAndSettle();
       expect(selected, 4);
       expect(tester.takeException(), isNull);
@@ -103,7 +103,7 @@ void main() {
       ),
     );
     // 选集矩阵只显示序号（“第 2 话” → “2”）
-    await tester.tap(find.text('2'));
+    await tester.tap(findText('2'));
     expect(selected, (0, 1));
     expect(tester.takeException(), isNull);
   });
@@ -147,9 +147,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 2500));
     await tester.pump();
-    await tester.tap(find.text('我的').last);
+    await tester.tap(findText('我的').last);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('星空下的旅人'), findsOneWidget);
+    expect(findText('星空下的旅人'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

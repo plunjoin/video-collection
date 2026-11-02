@@ -228,6 +228,17 @@ class RenderScrollViewViewport extends RenderBox
   }
 
   set childOffsets(List<double> value) {
+    // 逐项比较:内容未变时不触发重入布局(避免语义收集期布局断言)
+    if (_childOffsets.length == value.length) {
+      var same = true;
+      for (var i = 0; i < value.length; i++) {
+        if (_childOffsets[i] != value[i]) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
     _childOffsets = value;
     markNeedsLayout();
   }

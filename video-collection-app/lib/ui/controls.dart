@@ -1372,13 +1372,17 @@ class _PagerWidgetState extends fw.State<_PagerWidget> {
     }
   }
 
+  /// 页面宽度:由 [fw.LayoutBuilder] 在布局阶段提供真实宽度。
   double _pageExtent() {
+    if (_layoutWidth > 0) return _layoutWidth;
     final ro = context.findRenderObject();
-    if (ro is RenderBox && ro.hasSize) {
+    if (ro is RenderBox && ro.hasSize && ro.size.width > 0) {
       return ro.size.width;
     }
     return 600;
   }
+
+  double _layoutWidth = 0;
 
   void _snapTo(int page) {
     final clamped = page.clamp(0, widget.pageCount - 1);
@@ -1390,11 +1394,26 @@ class _PagerWidgetState extends fw.State<_PagerWidget> {
 
   @override
   fw.Widget build(fw.BuildContext context) {
-    final pageExtent = _pageExtent();
-    final pages = <fw.Widget>[];
-    for (var i = 0; i < widget.pageCount; i++) {
-      pages.add(widget.pageBuilder(context, i));
+    return fw.LayoutBuilder(
+      builder: (context, constraints) {
+        _layoutWidth = constraints.maxWidth;
+        return _buildPager(context, constraints.maxWidth);
+      },
+    );
+  }
+
+  fw.Widget _buildPager(fw.BuildContext context, double pageExtent) {
+    // 只构建当前页与相邻页(懒加载),用 Transform 平移实现滑动效果。
+    final currentPage = _offset / pageExtent;
+    final base = currentPage.round().clamp(0, widget.pageCount - 1);
+    final first = (base - 1).clamp(0, widget.pageCount - 1);
+    final last = (base + 1).clamp(0, widget.pageCount - 1);
+
+    final pages = <int, fw.Widget>{};
+    for (var i = first; i <= last; i++) {
+      pages[i] = widget.pageBuilder(context, i);
     }
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onHorizontalDragStart: (_) => _dragging = true,
@@ -1418,23 +1437,21 @@ class _PagerWidgetState extends fw.State<_PagerWidget> {
       },
       child: ClipRect(
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            Positioned(
-              left: -_offset,
-              top: 0,
-              bottom: 0,
-              width: pageExtent * widget.pageCount,
-              child: Row(
-                children: [
-                  for (var i = 0; i < pages.length; i++)
-                    SizedBox(
-                      width: pageExtent,
-                      height: double.infinity,
-                      child: pages[i],
+            for (final entry in pages.entries)
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: entry.key != base,
+                  child: Transform.translate(
+                    offset: Offset(
+                      (entry.key - currentPage) * pageExtent,
+                      0,
                     ),
-                ],
+                    child: entry.value,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

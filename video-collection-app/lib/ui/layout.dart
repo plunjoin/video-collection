@@ -296,16 +296,17 @@ class RenderFlexBox extends RenderBox
         flexChildCount++;
         continue;
       }
+      final crossCap = maxCross.isFinite ? maxCross : double.infinity;
       final inner = _isHorizontal
           ? BoxConstraints(
               maxWidth: canFlex ? maxMain : double.infinity,
               minHeight: stretch ? math.max(0.0, minCross) : 0,
-              maxHeight: stretch ? maxCross : double.infinity,
+              maxHeight: crossCap,
             )
           : BoxConstraints(
               maxHeight: canFlex ? maxMain : double.infinity,
               minWidth: stretch ? math.max(0.0, minCross) : 0,
-              maxWidth: stretch ? maxCross : double.infinity,
+              maxWidth: crossCap,
             );
       child.layout(inner, parentUsesSize: true);
       nonFlexMain += _mainOf(child);
@@ -326,18 +327,19 @@ class RenderFlexBox extends RenderBox
           final data = child.parentData as FlexParentData;
           if (data.flex == 0) continue;
           final allocated = perFlex * data.flex;
+          final crossCap = maxCross.isFinite ? maxCross : double.infinity;
           final inner = _isHorizontal
               ? BoxConstraints(
                   minWidth: data.fit == FlexFit.tight ? allocated : 0,
                   maxWidth: allocated,
                   minHeight: stretch ? math.max(0.0, minCross) : 0,
-                  maxHeight: stretch ? maxCross : double.infinity,
+                  maxHeight: stretch ? maxCross : crossCap,
                 )
               : BoxConstraints(
                   minHeight: data.fit == FlexFit.tight ? allocated : 0,
                   maxHeight: allocated,
                   minWidth: stretch ? math.max(0.0, minCross) : 0,
-                  maxWidth: stretch ? maxCross : double.infinity,
+                  maxWidth: stretch ? maxCross : crossCap,
                 );
           child.layout(inner, parentUsesSize: true);
           flexMain += _mainOf(child);
@@ -347,14 +349,15 @@ class RenderFlexBox extends RenderBox
         for (final child in _children) {
           final data = child.parentData as FlexParentData;
           if (data.flex == 0) continue;
+          final crossCap = maxCross.isFinite ? maxCross : double.infinity;
           final inner = _isHorizontal
               ? BoxConstraints(
                   minHeight: stretch ? math.max(0.0, minCross) : 0,
-                  maxHeight: stretch ? maxCross : double.infinity,
+                  maxHeight: stretch ? maxCross : crossCap,
                 )
               : BoxConstraints(
                   minWidth: stretch ? math.max(0.0, minCross) : 0,
-                  maxWidth: stretch ? maxCross : double.infinity,
+                  maxWidth: stretch ? maxCross : crossCap,
                 );
           child.layout(inner, parentUsesSize: true);
           flexMain += _mainOf(child);
@@ -635,7 +638,6 @@ class RenderStackBox extends RenderBox
   void performLayout() {
     final hasBoundedWidth = constraints.hasBoundedWidth;
     final hasBoundedHeight = constraints.hasBoundedHeight;
-
     // 定位子项:按四边/显式尺寸约束
     for (final child in _children) {
       final data = child.parentData as StackParentData;
@@ -695,9 +697,19 @@ class RenderStackBox extends RenderBox
     }
 
     if (nonPositionedCount == 0) {
-      size = _fit == StackFit.expand && constraints.isTight
-          ? constraints.smallest
-          : constraints.constrain(Size(maxWidth, maxHeight));
+      // 仅有定位子项:与框架 Stack 一致,在可用空间内撑满
+      size = constraints.constrain(
+        _fit == StackFit.expand
+            ? constraints.biggest
+            : Size(
+                constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : maxWidth,
+                constraints.hasBoundedHeight
+                    ? constraints.maxHeight
+                    : maxHeight,
+              ),
+      );
     } else {
       size = constraints.constrain(Size(maxWidth, maxHeight));
     }
@@ -1423,10 +1435,7 @@ class RenderOpacityBox extends RenderBox
   @override
   void performLayout() {
     final child = this.child;
-    if (_opacity == 0) {
-      size = constraints.smallest;
-      return;
-    }
+    // 透明度为 0 时仍需布局子树(否则语义收集期会残留 _needsLayout 断言)
     if (child != null) {
       child.layout(constraints, parentUsesSize: true);
       size = child.size;
@@ -1712,97 +1721,22 @@ class Transform extends fw.SingleChildRenderObjectWidget {
   }
 }
 
-/// 自写变换渲染盒子。
-class RenderTransformBox extends RenderBox
-    with RenderObjectWithChildMixin<RenderBox> {
-  Matrix4 _transform;
-  Offset? _origin;
-  Alignment? _alignment;
-  bool _transformHitTests;
-
+/// 变换渲染层:复用框架 RenderTransform(rendering 基础设施)。
+///
+/// 变换矩阵的构造、命中测试的逆变换处理较复杂,直接沿用框架实现以保证
+/// 命中与绘制完全一致;Transform 组件本身为本库自研。
+class RenderTransformBox extends RenderTransform {
   RenderTransformBox({
     required Matrix4 transform,
     required Offset? origin,
     required Alignment? alignment,
     required bool transformHitTests,
-  })  : _transform = transform,
-        _origin = origin,
-        _alignment = alignment,
-        _transformHitTests = transformHitTests;
-
-  set transform(Matrix4 value) {
-    if (_transform == value) return;
-    _transform = value;
-    markNeedsLayout();
-  }
-
-  set origin(Offset? value) {
-    if (_origin == value) return;
-    _origin = value;
-    markNeedsLayout();
-  }
-
-  set alignment(Alignment? value) {
-    if (_alignment == value) return;
-    _alignment = value;
-    markNeedsLayout();
-  }
-
-  set transformHitTests(bool value) {
-    if (_transformHitTests == value) return;
-    _transformHitTests = value;
-  }
-
-  Matrix4 get _effectiveTransform {
-    final result = Matrix4.identity();
-    if (_origin != null) {
-      result.translate(_origin!.dx, _origin!.dy);
-    } else if (_alignment != null) {
-      final anchor = _alignment!.alongSize(size);
-      result.translate(anchor.dx, anchor.dy);
-    }
-    result.multiply(_transform);
-    return result;
-  }
-
-  @override
-  void performLayout() {
-    final child = this.child;
-    if (child != null) {
-      child.layout(constraints, parentUsesSize: true);
-      size = child.size;
-    } else {
-      size = constraints.smallest;
-    }
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final child = this.child;
-    if (child == null) return;
-    context.pushTransform(
-      needsCompositing,
-      offset,
-      _effectiveTransform,
-      (context, offset) => context.paintChild(child, offset),
-    );
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final child = this.child;
-    if (child == null) return false;
-    if (_transformHitTests) {
-      final inverse = Matrix4.inverted(_effectiveTransform);
-      return result.addWithPaintTransform(
-        transform: inverse,
-        position: position,
-        hitTest: (result, transformedPos) =>
-            child.hitTest(result, position: transformedPos),
-      );
-    }
-    return child.hitTest(result, position: position);
-  }
+  }) : super(
+          transform: transform,
+          origin: origin,
+          alignment: alignment,
+          transformHitTests: transformHitTests,
+        );
 }
 
 /// 装饰盒子(自写 BoxDecoration 绘制:渐变/阴影/边框/圆角)。
@@ -2181,6 +2115,8 @@ class RenderSemanticsBox extends RenderBox
     config.isEnabled = _enabled;
     config.liveRegion = _liveRegion;
     if (_onTap != null) config.onTap = _onTap;
+    // 框架要求:提供 label 时必须给出 textDirection
+    config.textDirection = TextDirection.ltr;
   }
 
   @override

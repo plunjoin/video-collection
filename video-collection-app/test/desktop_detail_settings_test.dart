@@ -35,11 +35,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('desktop-detail-columns')), width >= 840 ? findsOneWidget : findsNothing);
-      await tester.tap(find.text('剧集'));
+      await tester.tap(findText('剧集'));
       await tester.pumpAndSettle();
       // 选集矩阵只显示序号（“第 2 话” → “2”）
-      await tester.ensureVisible(find.text('2'));
-      await tester.tap(find.text('2'));
+      await tester.ensureVisible(findText('2'));
+      await tester.tap(findText('2'));
       expect(selected, (0, 1));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
@@ -54,8 +54,8 @@ void main() {
     await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(
       theme: AppTheme.lightTheme, home: const SettingsScreen())));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('樱花粉'));
-    await tester.tap(find.text('深色'));
+    await tester.tap(findText('樱花粉'));
+    await tester.tap(findText('深色'));
     await tester.pumpAndSettle();
     expect(state.accent, 'pink');
     expect(state.themeMode, ThemeMode.dark);
@@ -63,11 +63,11 @@ void main() {
     expect(prefs.getString('accent'), 'pink');
     expect(prefs.getString('theme_mode'), 'dark');
     await tester.scrollUntilVisible(
-      find.text('服务端地址'),
+      findText('服务端地址'),
       400,
       scrollable: find.byType(ListView).first,
     );
-    expect(find.text('服务端地址'), findsOneWidget);
+    expect(findText('服务端地址'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

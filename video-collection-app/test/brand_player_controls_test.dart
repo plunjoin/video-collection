@@ -67,10 +67,10 @@ void main() {
       ),
     );
 
-    expect(find.text('弹幕开'), findsOneWidget);
-    expect(find.text('1.0x'), findsOneWidget);
+    expect(findText('弹幕开'), findsOneWidget);
+    expect(findText('1.0x'), findsOneWidget);
 
-    await tester.tap(find.text('弹幕开'));
+    await tester.tap(findText('弹幕开'));
     await tester.pump();
     expect(toggled, isTrue);
   });
@@ -128,25 +128,25 @@ void main() {
       ),
     );
 
-    expect(find.text('葬送的芙莉莲'), findsOneWidget);
-    expect(find.text('第1话 冒险的结束'), findsOneWidget);
-    expect(find.text('线路1'), findsOneWidget);
-    expect(find.text('极光增强'), findsOneWidget);
-    expect(find.text('16:9'), findsOneWidget);
+    expect(findText('葬送的芙莉莲'), findsOneWidget);
+    expect(findText('第1话 冒险的结束'), findsOneWidget);
+    expect(findText('线路1'), findsOneWidget);
+    expect(findText('极光增强'), findsOneWidget);
+    expect(findText('16:9'), findsOneWidget);
 
     await tester.tap(findBrandIcon(BIcons.arrowLeft));
     await tester.pump();
     expect(backTapped, isTrue);
 
-    await tester.tap(find.text('极光增强'));
+    await tester.tap(findText('极光增强'));
     await tester.pump();
     expect(enhanceTapped, isTrue);
 
-    await tester.tap(find.text('16:9'));
+    await tester.tap(findText('16:9'));
     await tester.pump();
     expect(aspectTapped, isTrue);
 
-    await tester.tap(find.text('线路1'));
+    await tester.tap(findText('线路1'));
     await tester.pump();
     expect(routeTapped, isTrue);
   });
@@ -183,20 +183,20 @@ void main() {
       ),
     );
 
-    expect(find.text('2:15'), findsOneWidget);
-    expect(find.text(' / 24:30'), findsOneWidget);
-    expect(find.text('弹幕开'), findsOneWidget);
-    expect(find.text('1.25x'), findsOneWidget);
+    expect(findText('2:15'), findsOneWidget);
+    expect(findText(' / 24:30'), findsOneWidget);
+    expect(findText('弹幕开'), findsOneWidget);
+    expect(findText('1.25x'), findsOneWidget);
     // 新版 dock 的选集入口为图标按钮（tooltip 标识）
     expect(find.byTooltip('选集与线路'), findsOneWidget);
 
     // Danmaku pill tap
-    await tester.tap(find.text('弹幕开'));
+    await tester.tap(findText('弹幕开'));
     await tester.pump();
     expect(danmakuToggled, isTrue);
 
     // Speed pill tap
-    await tester.tap(find.text('1.25x'));
+    await tester.tap(findText('1.25x'));
     await tester.pump();
     expect(speedSelected, isTrue);
 
@@ -246,7 +246,7 @@ void main() {
     );
 
     expect(findBrandIcon(BIcons.volume), findsOneWidget);
-    expect(find.text('音量: 80%'), findsOneWidget);
+    expect(findText('音量: 80%'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
@@ -273,15 +273,15 @@ void main() {
     );
 
     // Initial state
-    expect(find.text('播放倍速'), findsOneWidget);
-    expect(find.text('0.5x'), findsNWidgets(2));
-    expect(find.text('4.0x'), findsOneWidget);
-    expect(find.text('4.0x 极速'), findsOneWidget);
-    expect(find.text('1.0x 标准'), findsOneWidget);
+    expect(findText('播放倍速'), findsOneWidget);
+    expect(findText('0.5x'), findsNWidgets(2));
+    expect(findText('4.0x'), findsOneWidget);
+    expect(findText('4.0x 极速'), findsOneWidget);
+    expect(findText('1.0x 标准'), findsOneWidget);
     expect(find.byType(Slider), findsOneWidget);
 
     // Tap preset chip 2.0x
-    await tester.tap(find.widgetWithText(InkWell, '2.0x'));
+    await tester.tap(findWidgetWithText(InkWell, '2.0x'));
     await tester.pumpAndSettle();
     expect(speed, 2.0);
 
@@ -302,7 +302,7 @@ void main() {
       ),
     );
 
-    expect(find.text('2.0x 快进中'), findsOneWidget);
+    expect(findText('2.0x 快进中'), findsOneWidget);
     expect(findBrandIcon(BIcons.fastForward), findsOneWidget);
   });
 }
