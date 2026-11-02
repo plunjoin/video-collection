@@ -752,7 +752,7 @@ class RenderStackBox extends RenderBox
       context.pushClipRect(
         needsCompositing,
         offset,
-        offset & size,
+        Offset.zero & size,
         (context, offset) => defaultPaint(context, offset),
       );
     } else {
@@ -1505,7 +1505,7 @@ class RenderClipRectBox extends RenderBox
     context.pushClipRect(
       needsCompositing,
       offset,
-      offset & size,
+      Offset.zero & size,
       (context, offset) => context.paintChild(child, offset),
     );
   }
@@ -1580,8 +1580,8 @@ class RenderClipRRectBox extends RenderBox
     context.pushClipRRect(
       needsCompositing,
       offset,
-      offset & size,
-      _borderRadius.toRRect(offset & size),
+      Offset.zero & size,
+      _borderRadius.toRRect(Offset.zero & size),
       (context, offset) => context.paintChild(child, offset),
     );
   }
@@ -1630,7 +1630,7 @@ class RenderClipOvalBox extends RenderBox
   void paint(PaintingContext context, Offset offset) {
     final child = this.child;
     if (child == null) return;
-    final rect = offset & size;
+    final rect = Offset.zero & size;
     final path = Path()..addOval(rect);
     context.pushClipPath(
       needsCompositing,

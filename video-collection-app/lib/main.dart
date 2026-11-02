@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'providers/app_state_provider.dart';
+import 'screens/settings_screen.dart';
 import 'screens/startup_screen.dart';
 import 'ui/kit.dart';
 import 'utils/native_window.dart';
@@ -12,12 +13,15 @@ import 'utils/responsive.dart';
 
 /// 命令行深链：`--open-player=视频ID` 启动后直达播放页
 String? _openPlayerVideoId;
+bool _openSettingsDirectly = false;
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   for (final arg in args) {
     if (arg.startsWith('--open-player=')) {
       _openPlayerVideoId = arg.substring('--open-player='.length);
+    } else if (arg == '--open-settings') {
+      _openSettingsDirectly = true;
     }
   }
   // 初始化 MediaKit 流媒体硬解内核 (原生全面支持 HLS/m3u8, mp4, ts 切片)
@@ -90,7 +94,22 @@ class BlliiApp extends StatelessWidget {
           builder: (context, child) => VirtualWindowFrame(
             child: child ?? const SizedBox.shrink(),
           ),
-          home: StartupScreen(openPlayerVideoId: _openPlayerVideoId),
+          home: _openSettingsDirectly
+              ? Scaffold(
+                  body: Builder(
+                    builder: (ctx) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        Navigator.of(ctx).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
+                      });
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                )
+              : StartupScreen(openPlayerVideoId: _openPlayerVideoId),
         );
       },
     );

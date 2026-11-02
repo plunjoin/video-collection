@@ -167,6 +167,8 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
   final double scrollOffset;
   final List<double> childOffsets;
   final bool shrinkWrap;
+  final EdgeInsets padding;
+  final void Function(double contentExtent)? onContentExtent;
 
   const ScrollViewportWidget({
     fw.Key? key,
@@ -174,6 +176,8 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
     required this.scrollOffset,
     required this.childOffsets,
     this.shrinkWrap = false,
+    this.padding = EdgeInsets.zero,
+    this.onContentExtent,
     required List<fw.Widget> children,
   }) : super(key: key, children: children);
 
@@ -184,6 +188,8 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
       scrollOffset: scrollOffset,
       childOffsets: childOffsets,
       shrinkWrap: shrinkWrap,
+      padding: padding,
+      onContentExtent: onContentExtent,
     );
   }
 
@@ -196,7 +202,9 @@ class ScrollViewportWidget extends fw.MultiChildRenderObjectWidget {
       ..scrollDirection = scrollDirection
       ..scrollOffset = scrollOffset
       ..childOffsets = childOffsets
-      ..shrinkWrap = shrinkWrap;
+      ..shrinkWrap = shrinkWrap
+      ..padding = padding
+      ..onContentExtent = onContentExtent;
   }
 }
 
@@ -211,16 +219,32 @@ class RenderScrollViewViewport extends RenderBox
   double _scrollOffset;
   List<double> _childOffsets;
   bool _shrinkWrap;
+  EdgeInsets _padding;
+  void Function(double contentExtent)? _onContentExtent;
 
   RenderScrollViewViewport({
     required Axis scrollDirection,
     required double scrollOffset,
     required List<double> childOffsets,
     bool shrinkWrap = false,
+    EdgeInsets padding = EdgeInsets.zero,
+    void Function(double contentExtent)? onContentExtent,
   })  : _scrollDirection = scrollDirection,
         _scrollOffset = scrollOffset,
         _childOffsets = childOffsets,
-        _shrinkWrap = shrinkWrap;
+        _shrinkWrap = shrinkWrap,
+        _padding = padding,
+        _onContentExtent = onContentExtent;
+
+  set padding(EdgeInsets value) {
+    if (_padding == value) return;
+    _padding = value;
+    markNeedsLayout();
+  }
+
+  set onContentExtent(void Function(double contentExtent)? value) {
+    _onContentExtent = value;
+  }
 
   set shrinkWrap(bool value) {
     if (_shrinkWrap == value) return;
@@ -274,64 +298,66 @@ class RenderScrollViewViewport extends RenderBox
   @override
   void performLayout() {
     final isHorizontal = _scrollDirection == Axis.horizontal;
-    final crossMax =
-        isHorizontal ? constraints.maxHeight : constraints.maxWidth;
-    final crossMin =
-        isHorizontal ? constraints.minHeight : constraints.minWidth;
+    final padStart = isHorizontal ? _padding.left : _padding.top;
+    final padEnd = isHorizontal ? _padding.right : _padding.bottom;
+    final crossPad = isHorizontal ? _padding.top : _padding.left;
+    final crossTotal = isHorizontal ? _padding.vertical : _padding.horizontal;
 
-    // 主轴无界时:子项按内容自然长度布局(框架 ScrollView 语义)
+    final crossMaxAvail =
+        isHorizontal ? constraints.maxHeight : constraints.maxWidth;
+    final crossMax = crossMaxAvail.isFinite
+        ? math.max(0.0, crossMaxAvail - crossTotal)
+        : crossMaxAvail;
+    final crossMin = isHorizontal ? constraints.minHeight : constraints.minWidth;
+
+    final sequential = _childOffsets.isEmpty;
+    var cursor = padStart;
     var index = 0;
+
     for (final child in _children) {
       final inner = isHorizontal
           ? BoxConstraints(
-              minHeight: crossMin,
-              maxHeight: math.max(crossMax, crossMin),
+              minHeight: math.min(crossMin, crossMax),
+              maxHeight: crossMax.isFinite ? crossMax : double.infinity,
             )
           : BoxConstraints(
-              minWidth: crossMin,
-              maxWidth: math.max(crossMax, crossMin),
+              minWidth: math.min(crossMin, crossMax),
+              maxWidth: crossMax.isFinite ? crossMax : double.infinity,
             );
       child.layout(inner, parentUsesSize: true);
-      final offset =
-          index < _childOffsets.length ? _childOffsets[index] : 0.0;
+
+      final offset = sequential
+          ? cursor
+          : (index < _childOffsets.length ? _childOffsets[index] : cursor);
+
       (child.parentData as _ViewportParentData).offset = isHorizontal
-          ? Offset(offset, 0)
-          : Offset(0, offset);
+          ? Offset(offset, crossPad)
+          : Offset(crossPad, offset);
+
+      final extent = isHorizontal ? child.size.width : child.size.height;
+      cursor = offset + extent;
       index++;
     }
+
+    final contentMain = cursor + padEnd;
+    _onContentExtent?.call(contentMain);
 
     final mainMax =
         isHorizontal ? constraints.maxWidth : constraints.maxHeight;
     final mainMin =
         isHorizontal ? constraints.minWidth : constraints.minHeight;
 
-    // 内容主轴总长(shrinkWrap 时按内容定高)
-    var contentMain = 0.0;
-    var slot = 0;
-    for (final child in _children) {
-      final offset =
-          slot < _childOffsets.length ? _childOffsets[slot] : 0.0;
-      final extent = isHorizontal ? child.size.width : child.size.height;
-      final end = offset + extent;
-      if (end > contentMain) contentMain = end;
-      slot++;
-    }
-
-    // 主轴无界时按内容定尺寸(框架 ScrollView 语义);
-    // shrinkWrap 时同样按内容定尺寸。
     final unboundedMain = !mainMax.isFinite;
     final mainSize = (_shrinkWrap || unboundedMain)
         ? contentMain
         : mainMax;
     final crossSize =
-        crossMax.isFinite ? crossMax : _crossContentExtent(isHorizontal);
-    // 纵向滚动时宽度填满可用空间(框架语义);横向滚动时高度填满。
-    // 横向滚动:宽度=内容宽度,高度=可用高度;纵向滚动:宽度=可用宽度,高度=内容高度
+        crossMax.isFinite ? crossMaxAvail : _crossContentExtent(isHorizontal);
     final resolvedWidth = isHorizontal
         ? math.max(mainMin, mainSize)
-        : (crossMax.isFinite ? crossMax : crossSize);
+        : crossSize;
     final resolvedHeight = isHorizontal
-        ? (crossMax.isFinite ? crossMax : crossSize)
+        ? crossSize
         : math.max(mainMin, mainSize);
     size = constraints.constrain(Size(resolvedWidth, resolvedHeight));
   }
@@ -354,16 +380,14 @@ class RenderScrollViewViewport extends RenderBox
     context.pushClipRect(
       needsCompositing,
       offset,
-      offset & size,
+      Offset.zero & size,
       (context, offset) {
         var index = 0;
         var child = firstChild;
         while (child != null) {
           final data = child.parentData as _ViewportParentData;
-          final childOffset = index < _childOffsets.length
-              ? _childOffsets[index]
-              : 0.0;
-          final screenPos = childOffset - _scrollOffset;
+          final childMainPos = isHorizontal ? data.offset.dx : data.offset.dy;
+          final screenPos = childMainPos - _scrollOffset;
           final extent = isHorizontal ? child.size.width : child.size.height;
           if (screenPos + extent >= 0 && screenPos <= viewportMain) {
             context.paintChild(
@@ -394,11 +418,8 @@ class RenderScrollViewViewport extends RenderBox
     var index = children.length - 1;
     for (final child in children.reversed) {
       final data = child.parentData as _ViewportParentData;
-      final childOffset =
-          index >= 0 && index < _childOffsets.length
-              ? _childOffsets[index]
-              : 0.0;
-      final screenPos = childOffset - _scrollOffset;
+      final childMainPos = isHorizontal ? data.offset.dx : data.offset.dy;
+      final screenPos = childMainPos - _scrollOffset;
       final extent = isHorizontal ? child.size.width : child.size.height;
       if (screenPos + extent >= 0 && screenPos <= viewportMain) {
         final hit = result.addWithPaintOffset(
@@ -411,7 +432,6 @@ class RenderScrollViewViewport extends RenderBox
         );
         if (hit) return true;
       }
-      index--;
     }
     return false;
   }
@@ -509,29 +529,21 @@ mixin UiScrollableState<T extends fw.StatefulWidget> on fw.State<T> {
     _measureViewport();
 
     final isHorizontal = scrollDirection == Axis.horizontal;
-    final padStart = padding != null
-        ? (isHorizontal ? (padding as EdgeInsets).left : (padding as EdgeInsets).top)
-        : 0.0;
-    final padEnd = padding != null
-        ? (isHorizontal
-            ? (padding as EdgeInsets).right
-            : (padding as EdgeInsets).bottom)
-        : 0.0;
+    final resolvedPad = padding is EdgeInsets ? padding : EdgeInsets.zero;
 
-    _maxExtent = math.max(
-      0,
-      contentExtent + padStart + padEnd - _viewportExtent,
-    );
-
-    final shiftedOffsets = [
-      for (final o in childOffsets) o + padStart,
-    ];
+    if (contentExtent > 0) {
+      _maxExtent = math.max(0, contentExtent - _viewportExtent);
+    }
 
     fw.Widget viewport = ScrollViewportWidget(
       scrollDirection: scrollDirection,
       scrollOffset: _offset,
-      childOffsets: shiftedOffsets,
+      childOffsets: childOffsets,
       shrinkWrap: shrinkWrap,
+      padding: resolvedPad,
+      onContentExtent: (extent) {
+        _maxExtent = math.max(0.0, extent - _viewportExtent);
+      },
       children: children,
     );
 
@@ -827,9 +839,9 @@ class _ListViewState extends fw.State<ListView>
       }
       return _wrapScrollable(
         buildScrollable(
-          contentExtent: _totalExtent(),
+          contentExtent: 0,
           children: children,
-          childOffsets: offsets,
+          childOffsets: const [],
           padding: widget.padding,
         ),
       );
