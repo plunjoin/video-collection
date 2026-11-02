@@ -62,6 +62,7 @@ var portalFiles embed.FS
 //   - /admin、/admin/ 及任意 /admin/<route> 未命中静态文件时回退 index.html；
 //   - 命中 /admin/assets/* 等静态资源时直接返回（长缓存）；
 //   - index.html 不缓存，保证发布后即时生效。
+//   - 添加 X-Robots-Tag: noindex,nofollow 防止搜索引擎索引管理后台。
 func AdminHandler() http.Handler {
 	sub, err := fs.Sub(adminFiles, "admin/dist")
 	if err != nil {
@@ -69,6 +70,9 @@ func AdminHandler() http.Handler {
 	}
 	fileServer := http.FileServer(http.FS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 添加 X-Robots-Tag 防止搜索引擎索引管理后台
+		w.Header().Set("X-Robots-Tag", "noindex,nofollow")
+
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return

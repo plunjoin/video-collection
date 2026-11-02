@@ -228,6 +228,13 @@ func main() {
 	}
 	apiServer.RegisterRoutes(mux)
 
+	// (C2) 公开站点 SEO 路由（必须在 portal handler 之前注册）
+	mux.HandleFunc("/sitemap.xml", apiServer.HandleSitemap)
+	mux.HandleFunc("/robots.txt", apiServer.HandleRobotsTxt)
+	mux.HandleFunc("/llms.txt", apiServer.HandleLLMsTxt)
+	mux.HandleFunc("/.well-known/llms.txt", apiServer.HandleLLMsTxt)
+
+
 	// (D) 管理后台 SPA：生产走内嵌产物（admin_prod.go，go:embed），dev 构建走
 	// webfront DevServer（admin_dev.go，/admin 也支持 HMR）
 	// 注意：需在根路径兜底之前注册，/admin/* 由 SPA history 路由处理
