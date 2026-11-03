@@ -1,16 +1,18 @@
 // 尺寸目检板:渲染底栏 / 侧边栏(展开+收起) / 详情页 hero 的真实尺寸,
 // 用于核对图标大小是否协调。运行:
 // flutter test test/ui_size_review_test.dart --update-goldens
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/models/video_model.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/screens/anime_detail_screen.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/widgets/brand_widgets.dart';
-import 'package:video_collection_app/widgets/desktop_side_rail.dart';
+import 'package:video_collection_app/shared/models/video_model.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/desktop/pages/anime_detail_desktop_page.dart'
+    as desktop_detail;
+import 'package:video_collection_app/desktop/widgets/desktop_side_rail.dart';
+import 'package:video_collection_app/mobile/pages/anime_detail_mobile_page.dart'
+    as mobile_detail;
+import 'package:video_collection_app/mobile/widgets/brand_bottom_nav.dart';
 import 'test_kit.dart';
 
 VideoRecord _fakeVideo() => VideoRecord.fromJson(const {
@@ -130,7 +132,7 @@ void main() {
 
     await tester.pumpWidget(
       host(
-        AnimeDetailContent(
+        mobile_detail.AnimeDetailContent(
           video: _fakeVideo(),
           related: const [],
           onPlay: (_, _) {},
@@ -155,7 +157,7 @@ void main() {
 
     await tester.pumpWidget(
       host(
-        AnimeDetailContent(
+        desktop_detail.AnimeDetailContent(
           video: _fakeVideo(),
           related: const [],
           onPlay: (_, _) {},

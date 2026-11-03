@@ -1,15 +1,15 @@
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/models/video_model.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/screens/anime_detail_screen.dart';
-import 'package:video_collection_app/screens/settings_screen.dart';
-import 'package:video_collection_app/services/fullscreen_service.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/widgets/brand_intro.dart';
+import 'package:video_collection_app/shared/models/video_model.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/desktop/pages/anime_detail_desktop_page.dart'
+    show AnimeDetailContent;
+import 'package:video_collection_app/desktop/pages/settings_desktop_page.dart';
+import 'package:video_collection_app/shared/services/fullscreen_service.dart';
+import 'package:video_collection_app/shared/widgets/brand_intro.dart';
 import 'test_kit.dart';
 
 void main() {
@@ -52,7 +52,7 @@ void main() {
       while (!state.isInitialized) { await Future<void>.delayed(Duration.zero); }
     });
     await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(
-      theme: AppTheme.lightTheme, home: const SettingsScreen())));
+      theme: AppTheme.lightTheme, home: const SettingsDesktopPage())));
     await tester.pumpAndSettle();
     await tester.tap(findText('樱花粉'));
     await tester.tap(findText('深色'));

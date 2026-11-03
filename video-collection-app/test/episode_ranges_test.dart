@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/widgets/episode_selector.dart';
-import 'test_kit.dart';
+import 'package:video_collection_app/shared/widgets/episode_selector.dart';
 
 void main() {
   test('episodes split into 1-99 ranges and collapse after 30', () {

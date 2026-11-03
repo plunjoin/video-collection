@@ -1,12 +1,11 @@
 import 'package:flutter/services.dart';
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/screens/profile_screen.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/widgets/brand_controls.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/mobile/pages/profile_mobile_page.dart';
+import 'package:video_collection_app/shared/widgets/brand_controls.dart';
 import 'test_kit.dart';
 
 void main() {
@@ -154,7 +153,7 @@ void main() {
         value: state,
         child: MaterialApp(
           theme: AppTheme.lightTheme,
-          home: const ProfileScreen(),
+          home: const ProfileMobilePage(),
         ),
       ),
     );

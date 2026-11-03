@@ -1,7 +1,7 @@
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/models/update_model.dart';
-import 'package:video_collection_app/widgets/update_dialog.dart';
+import 'package:video_collection_app/shared/models/update_model.dart';
+import 'package:video_collection_app/shared/widgets/update_dialog.dart';
 import 'test_kit.dart';
 
 void main() {

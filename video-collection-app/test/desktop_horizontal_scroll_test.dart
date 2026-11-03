@@ -1,8 +1,7 @@
 import 'package:flutter/gestures.dart';
-import 'package:video_collection_app/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/widgets/desktop_horizontal_scroll.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
+import 'package:video_collection_app/shared/widgets/desktop_horizontal_scroll.dart';
 import 'test_kit.dart';
 
 void main() {
@@ -56,13 +55,11 @@ void main() {
       ),
     );
 
-    ScrollPosition position() {
-      final state = tester.state<UiScrollableState>(find.byType(ListView));
-      return state.scrollController?.position ?? ScrollPosition();
-    }
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(find.byType(Scrollable)).position;
 
     await tester.drag(
-      find.byType(ListView),
+      find.byType(Scrollable),
       const Offset(-180, 0),
       kind: PointerDeviceKind.mouse,
     );

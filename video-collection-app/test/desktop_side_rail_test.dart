@@ -1,11 +1,10 @@
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/utils/responsive.dart';
-import 'package:video_collection_app/widgets/desktop_side_rail.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/shared/utils/responsive.dart';
+import 'package:video_collection_app/desktop/widgets/desktop_side_rail.dart';
 import 'test_kit.dart';
 
 void main() {

@@ -1,16 +1,17 @@
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/main.dart';
-import 'package:video_collection_app/models/video_model.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/ui/kit.dart';
-import 'package:video_collection_app/widgets/brand_widgets.dart';
-import 'package:video_collection_app/widgets/brand_controls.dart';
-import 'package:video_collection_app/widgets/episode_selector.dart';
-import 'package:video_collection_app/widgets/hero_banner.dart';
-import 'package:video_collection_app/widgets/search_bar_widget.dart';
+import 'package:video_collection_app/mobile/mobile_app.dart';
+import 'package:video_collection_app/shared/app_bootstrap.dart';
+import 'package:video_collection_app/shared/models/video_model.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/mobile/widgets/brand_bottom_nav.dart';
+import 'package:video_collection_app/shared/widgets/brand_widgets.dart';
+import 'package:video_collection_app/shared/widgets/brand_controls.dart';
+import 'package:video_collection_app/shared/widgets/episode_selector.dart';
+import 'package:video_collection_app/shared/widgets/hero_banner.dart';
+import 'package:video_collection_app/shared/widgets/search_bar_widget.dart';
 import 'test_kit.dart';
 
 void main() {
@@ -147,7 +148,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AppStateProvider(),
-        child: const BlliiApp(),
+        child: const MobileBlliiApp(launchArgs: AppLaunchArgs()),
       ),
     );
     await tester.pump();

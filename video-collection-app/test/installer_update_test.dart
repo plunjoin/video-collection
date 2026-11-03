@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_collection_app/models/update_model.dart';
-import 'package:video_collection_app/providers/app_state_provider.dart';
-import 'package:video_collection_app/services/api_service.dart';
-import 'package:video_collection_app/services/installer_update_service.dart';
-import 'package:video_collection_app/services/update_service.dart';
-import 'package:video_collection_app/widgets/update_dialog.dart';
+import 'package:video_collection_app/shared/models/update_model.dart';
+import 'package:video_collection_app/shared/providers/app_state_provider.dart';
+import 'package:video_collection_app/shared/services/api_service.dart';
+import 'package:video_collection_app/shared/services/installer_update_service.dart';
+import 'package:video_collection_app/shared/services/update_service.dart';
+import 'package:video_collection_app/shared/widgets/update_dialog.dart';
 import 'test_kit.dart';
 
 /// 可控的假安装器服务, 用于验证 Provider 的下载/安装状态流转
@@ -64,20 +64,29 @@ void main() {
       );
     });
 
-    test('zip / apk / empty links are not supported', () {
+    test('zip / apk / empty links are not supported on windows', () {
       expect(
         InstallerUpdateService.canInstallWithInstaller(
           'https://example.com/bllii_for_windows_v1.2.0.zip',
         ),
         isFalse,
       );
+      // 本测试跑在 Windows 上: APK 只在 Android 端走站内安装
       expect(
         InstallerUpdateService.canInstallWithInstaller(
           'https://example.com/bllii.apk',
         ),
         isFalse,
       );
+      expect(
+        InstallerUpdateService.canInstallWithInstaller(
+          'https://example.com/bllii.apk?token=1',
+        ),
+        isFalse,
+      );
       expect(InstallerUpdateService.canInstallWithInstaller(''), isFalse);
+      expect(InstallerUpdateService.installerExtensionForPlatform(), '.exe');
+      expect(InstallerUpdateService.installsAutomatically, isFalse);
     });
   });
 
@@ -271,6 +280,34 @@ void main() {
       await provider.downloadUpdate();
       expect(provider.downloadedInstallerPath, isNull);
       expect(provider.updateDownloadError, isNotNull);
+    });
+
+    test('apk links are not installed in-app on windows', () async {
+      final backendClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'code': 1,
+            'data': {
+              'version': '1.2.0',
+              'title': '发现新版本 v1.2.0',
+              'changelog': '修复',
+              'download_url': 'https://example.com/bllii.apk',
+              'platforms': {'android': 'https://example.com/bllii.apk'},
+              'has_update': true,
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final provider = AppStateProvider(
+        api: ApiService.withClient(backendClient),
+        updateService: UpdateService(client: backendClient),
+        installerUpdate: _FakeInstallerUpdate(),
+      );
+
+      await provider.checkAppUpdate();
+      expect(provider.canUpdateWithInstaller, isFalse);
     });
 
     testWidgets('UpdateDialog shows download-and-install for exe links',

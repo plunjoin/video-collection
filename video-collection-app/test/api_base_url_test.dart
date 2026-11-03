@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/services/api_service.dart';
-import 'test_kit.dart';
+import 'package:video_collection_app/shared/services/api_service.dart';
 
 void main() {
   test('release build uses the baked API address', () {

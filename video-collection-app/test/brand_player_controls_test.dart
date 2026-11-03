@@ -1,7 +1,7 @@
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/theme/brand_icons.dart';
-import 'package:video_collection_app/widgets/brand_player_controls.dart';
+import 'package:video_collection_app/shared/theme/brand_icons.dart';
+import 'package:video_collection_app/shared/widgets/brand_player_controls.dart';
 import 'test_kit.dart';
 
 /// BrandIcon 不走字体，find.byIcon 不适用；按 data 匹配。

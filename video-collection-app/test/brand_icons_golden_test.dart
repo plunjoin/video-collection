@@ -3,9 +3,9 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:video_collection_app/ui/kit.dart';
+import 'package:video_collection_app/shared/ui/kit.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_collection_app/theme/brand_icons.dart';
+import 'package:video_collection_app/shared/theme/brand_icons.dart';
 import 'test_kit.dart';
 
 List<(String, BrandIconData)> _iconEntries() {

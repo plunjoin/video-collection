@@ -4,9 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:video_collection_app/services/m3u8_cleaner.dart';
-import 'package:video_collection_app/services/client_playlist_service.dart';
-import 'test_kit.dart';
+import 'package:video_collection_app/shared/services/m3u8_cleaner.dart';
+import 'package:video_collection_app/shared/services/client_playlist_service.dart';
 
 List<String> segments(String text) => text
     .split('\n')
