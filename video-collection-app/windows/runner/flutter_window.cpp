@@ -19,14 +19,12 @@ constexpr int kTopResizeGripPx = 6;
 
 constexpr wchar_t kViewProcProp[] = L"BlliiOriginalViewProc";
 
-// 顶部系统拖拽带开关：与 Dart 侧 kBrandAppBarTopInset(34 逻辑px) 对齐。
-// 全屏播放时通过 bllii/native_window 的 setControlsVisible(false) 一并关闭。
+// 顶部系统拖拽带开关。
+// 拖拽带已收缩：整条 34px 的 HTCAPTION 会把页面头部的返回键
+// 一并吃掉（点击到不了 Flutter）。窗口拖拽改由各页面头部的
+// WindowDragArea 承担，这里只保留最顶缘的原生缩放热区。
+// 全屏播放时通过 bllii/native_window 的 setControlsVisible(false) 关闭。
 bool g_caption_band_enabled = true;
-
-// 顶部让位带手动拖拽状态（自实现移动循环，确定性行为）
-bool g_band_dragging = false;
-POINT g_band_last = {};
-DWORD g_band_last_down = 0;
 
 LRESULT CALLBACK FlutterViewSubclassProc(HWND hwnd, UINT message,
                                          WPARAM wparam, LPARAM lparam) {
@@ -37,69 +35,12 @@ LRESULT CALLBACK FlutterViewSubclassProc(HWND hwnd, UINT message,
     if (root && g_caption_band_enabled) {
       POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
       ScreenToClient(hwnd, &pt);
-      UINT dpi = FlutterDesktopGetDpiForHWND(root);
-      int band = static_cast<int>(34.0 * dpi / 96.0);
-      // 最顶 6px 优先作为上边框缩放手柄（最大化时无意义）
+      // 最顶 6px 作为上边框缩放手柄（最大化时无意义）。
+      // 不再把整条顶部让位带标成 HTCAPTION：那会吞掉头部返回键的点击。
       if (!IsZoomed(root) && pt.y >= 0 && pt.y < kTopResizeGripPx) {
         return HTTOP;
       }
-      // 顶部让位带 → 系统标题栏拖拽区。
-      // 最大化时同样生效：拖动 = 原生「还原并跟随鼠标」，双击 = 还原。
-      if (pt.y >= 0 && pt.y < band) {
-        return HTCAPTION;
-      }
     }
-  }
-  // 顶部让位带：自实现拖拽循环（按下捕获 → 跟踪移动 → 松开释放），
-  // 双击切换最大化/还原。移动目标 = 顶层主窗口（软件窗口本身）。
-  if (message == WM_NCLBUTTONDOWN && g_caption_band_enabled) {
-    POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};  // 屏幕坐标
-    HWND root = GetAncestor(hwnd, GA_ROOT);
-    if (root) {
-      RECT rr;
-      GetWindowRect(root, &rr);
-      UINT dpi = FlutterDesktopGetDpiForHWND(root);
-      int band = static_cast<int>(34.0 * dpi / 96.0);
-      if (pt.y >= rr.top && pt.y < rr.top + band) {
-        const DWORD now = GetTickCount();
-        if (now - g_band_last_down <= GetDoubleClickTime()) {
-          // 双击：最大化/还原切换
-          PostMessageW(root, WM_SYSCOMMAND,
-                       IsZoomed(root) ? SC_RESTORE : SC_MAXIMIZE, 0);
-          g_band_last_down = 0;
-          return 0;
-        }
-        g_band_last_down = now;
-        if (!IsZoomed(root)) {
-          g_band_dragging = true;
-          g_band_last = pt;
-          SetCapture(hwnd);
-        }
-        return 0;
-      }
-    }
-  }
-  if (message == WM_MOUSEMOVE && g_band_dragging) {
-    POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-    ClientToScreen(hwnd, &pt);
-    HWND root = GetAncestor(hwnd, GA_ROOT);
-    if (root) {
-      RECT rr;
-      GetWindowRect(root, &rr);
-      SetWindowPos(root, nullptr, rr.left + pt.x - g_band_last.x,
-                   rr.top + pt.y - g_band_last.y, 0, 0,
-                   SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
-    }
-    g_band_last = pt;
-    return 0;
-  }
-  if (message == WM_LBUTTONUP && g_band_dragging) {
-    g_band_dragging = false;
-    if (GetCapture() == hwnd) ReleaseCapture();
-    return 0;
-  }
-  if (message == WM_CAPTURECHANGED) {
-    g_band_dragging = false;
   }
   if (message == WM_NCDESTROY) {
     RemovePropW(hwnd, kViewProcProp);
