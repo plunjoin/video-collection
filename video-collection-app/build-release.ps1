@@ -50,7 +50,7 @@ if ($Target -eq "all" -or $Target -eq "windows") {
     Write-Host ""
     Write-Host "[1/2] 开始构建 Windows 桌面端..." -ForegroundColor Green
     Set-Location $AppDir
-    flutter build windows --release --dart-define-from-file=env/prod.json @VersionDefines
+    flutter build windows --release -t lib/main_desktop.dart --dart-define-from-file=env/prod.json @VersionDefines
     
     $winReleaseDir = Join-Path $AppDir "build\windows\x64\runner\Release"
     $winZip = Join-Path $DistDir "bllii_for_windows_${Version}.zip"
@@ -121,7 +121,7 @@ if ($Target -eq "all" -or $Target -eq "android") {
     Write-Host ""
     Write-Host "[2/2] 开始构建 Android APK..." -ForegroundColor Green
     Set-Location $AppDir
-    flutter build apk --release --dart-define-from-file=env/prod.json @VersionDefines
+    flutter build apk --release -t lib/main_mobile.dart --dart-define-from-file=env/prod.json @VersionDefines
     
     $apkSrc = Join-Path $AppDir "build\app\outputs\flutter-apk\app-release.apk"
     $apkDest = Join-Path $DistDir "bllii_for_android_${Version}.apk"

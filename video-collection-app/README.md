@@ -46,15 +46,33 @@
 
 ## 🚀 运行与构建指南
 
+### 0. 代码分层与端入口
+
+`lib/` 按 shared / mobile / desktop 三层组织,两端各自独立入口:
+
+```
+lib/
+├── main_mobile.dart   # 移动端入口 (Android/iOS):只组合 shared + mobile
+├── main_desktop.dart  # 桌面端入口 (Windows/macOS/Linux,含 web):只组合 shared + desktop
+├── main.dart          # 自动选端入口 (flutter run 默认;正式打包请用上面的端入口)
+├── mobile/            # 移动端 UI:pages / router / shell / BrandBottomNav
+├── desktop/           # 桌面端 UI:pages / router / shell / DesktopSideRail
+└── shared/            # 两端共享:models/providers/services/theme/ui/widgets/navigation
+```
+
+分层规则(由 `test/architecture_layers_test.dart` 守卫,违例即测试失败):
+`mobile/` 与 `desktop/` 只准依赖 `shared/`(及本层),互相禁止引用;`shared/` 不依赖任何端。
+页面全量落在两端 `pages/`;shared 只保留导航桥(`AppNavActions` / `ShellChrome`)与通用原子组件。
+
 ### 1. 运行 Windows 桌面端
 ```bash
 cd video-collection-app
-flutter run -d windows
+flutter run -t lib/main_desktop.dart -d windows
 ```
 
 ### 2. 运行 Chrome / Edge 网页版
 ```bash
-flutter run -d chrome
+flutter run -d chrome    # web 走桌面入口 (main.dart 自动选端)
 # 或
 flutter run -d edge
 ```
@@ -66,8 +84,8 @@ flutter run -d edge
 **方式 A：使用配置文件（推荐）**
 ```bash
 # 生产包（读取 env/prod.json）
-flutter build apk --release --dart-define-from-file=env/prod.json
-flutter build windows --release --dart-define-from-file=env/prod.json
+flutter build apk --release -t lib/main_mobile.dart --dart-define-from-file=env/prod.json
+flutter build windows --release -t lib/main_desktop.dart --dart-define-from-file=env/prod.json
 flutter build web --release --dart-define-from-file=env/prod.json
 ```
 
