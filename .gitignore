@@ -37,6 +37,8 @@ vite.config.d.ts
 /bin/
 /docs/
 /pkg/
+/test/
+*/test/
 vendor/
 
 # ---------- Flutter / Dart ----------
