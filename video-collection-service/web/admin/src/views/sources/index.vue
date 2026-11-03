@@ -4,7 +4,7 @@
       <!-- 头部操作区 -->
       <div class="table-header">
         <div class="header-left">
-          <span class="page-title">Bllii-Familiar · 使魔节点管理</span>
+          <span class="page-title">追番使魔 · 使魔节点管理</span>
           <span class="sub-desc">追番使魔多协议与自定义映射节点，支持全网新番感知与通用采集</span>
         </div>
         <div class="header-right">

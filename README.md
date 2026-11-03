@@ -2,12 +2,12 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./bllii-brand-kit/png/bllii-horizontal-white.png">
-  <img src="./bllii-brand-kit/png/bllii-horizontal.png" alt="Bllii" width="280">
+  <img src="./bllii-brand-kit/png/bllii-horizontal.png" alt="AniPocket 故事口袋" width="280">
 </picture>
 
-# Bllii · video-collection
+# AniPocket 故事口袋 · video-collection
 
-**Bllii · 二次元番剧与网络采集聚合平台 (Bllii-Familiar 追番使魔)**
+**AniPocket 故事口袋 · 二次元番剧与网络采集聚合平台 (Familiar 追番使魔)**
 
 从数据采集、内容管理到多端浏览与播放，共享一套 RESTful API。
 
@@ -36,7 +36,7 @@
 
 | 能力 | 主要功能 |
 | :--- | :--- |
-| **Bllii-Familiar 使魔采集** | 网络视频 JSON、XML、RSS / Atom、自定义 REST JSON；多源自动化增量与全量采集 |
+| **追番使魔采集** | 网络视频 JSON、XML、RSS / Atom、自定义 REST JSON；多源自动化增量与全量采集 |
 | **使魔规则工坊** | 静态网页 CSS、JSON 接口、数据库、Excel / CSV；字段映射、清洗、样本预览与入库 |
 | **内容浏览与播放** | 首页推荐、分类筛选、搜索、排行榜、新番时间表、详情、多线路选集与播放 |
 | **用户与互动** | 登录注册、追番收藏、观看历史与进度同步；资讯、社区、通用评论及站内通知 API |

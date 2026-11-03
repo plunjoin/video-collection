@@ -78,7 +78,7 @@ export default function NotificationsPage() {
   const loaded = items.length;
 
   return (
-    <Layout title="消息通知 - bllii">
+    <Layout title="消息通知 - AniPocket">
       <div className="inbox">
         <header className="inbox__header">
           <h1>消息通知 <span>{unread ? `(${unread} 未读)` : ''}</span></h1>

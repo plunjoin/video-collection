@@ -27,7 +27,7 @@ export default function FollowPage() {
   }, []);
 
   return (
-    <Layout title="追番列表与我的收藏 - bllii" activeNav="追番">
+    <Layout title="追番列表与我的收藏 - AniPocket" activeNav="追番">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         <div className="mb-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

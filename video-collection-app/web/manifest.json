@@ -1,11 +1,11 @@
 {
-    "name": "bllii",
-    "short_name": "bllii",
+    "name": "AniPocket 故事口袋",
+    "short_name": "AniPocket",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F9FAFF",
     "theme_color": "#F9FAFF",
-    "description": "A new Flutter project.",
+    "description": "动漫番剧在线播放与聚合平台",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

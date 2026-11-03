@@ -4,7 +4,7 @@
     <!-- 站内下载 APK 后拉起系统安装界面 (仅 Android 8+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="bllii"
+        android:label="AniPocket"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

@@ -1,6 +1,6 @@
-# Bllii - 二次元番剧聚合客户端 (Flutter 版)
+# AniPocket 故事口袋 - 二次元番剧聚合客户端 (Flutter 版)
 
-本项目是基于 **Flutter 3 + Material 3** 打造的现代化二次元影视与番剧流媒体客户端，高精度对标与复刻 Bllii Web 门户（`video-collection-service/web/portal`）的沉浸式视觉设计、配色体系与接口规范。
+本项目是基于 **Flutter 3 + Material 3** 打造的现代化二次元影视与番剧流媒体客户端，高精度对标与复刻 AniPocket Web 门户（`video-collection-service/web/portal`）的沉浸式视觉设计、配色体系与接口规范。
 
 登录后在“我的 → 积分 / 装扮 / 消息”使用每日签到、积分求片、装扮兑换佩戴和个人通知；账号权限、积分规则及后台审核见 [运营说明](../video-collection-service/docs/community-operations.md)。
 
@@ -10,7 +10,7 @@
 
 | 核心模块 | Flutter 实现 | Web 端对应组件 | 特性说明 |
 | :--- | :--- | :--- | :--- |
-| **顶部品牌与搜索** | `SearchBarWidget` | `Navbar.astro` | Bllii 标志性蓝紫渐变徽标，胶囊搜索栏，即时关键词检索 |
+| **顶部品牌与搜索** | `SearchBarWidget` | `Navbar.astro` | AniPocket 标志性蓝紫渐变徽标，胶囊搜索栏，即时关键词检索 |
 | **主视觉轮播展台** | `HeroBannerWidget` | `HeroBanner.astro` | 16:9 沉浸海报大图、多维题材标签、立即观看与一键追番 |
 | **金刚区快捷入口** | `QuickNavWidget` | `QuickNav.astro` | 新番时刻、排行榜、全部分类、我的追番、观看历史 5大彩色渐变圆钮 |
 | **正在热播** | `HomeScreen` + `AnimePosterCard` | `CurrentlyAiring.astro` | 3列海报卡片网格，右上角集数角标 |

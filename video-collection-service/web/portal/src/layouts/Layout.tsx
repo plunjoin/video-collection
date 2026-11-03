@@ -28,9 +28,9 @@ const pageIntros: Record<string, { title: string; description: string; eyebrow: 
 };
 
 export default function Layout({
-  title = 'bllii - 在更多的故事里，遇见更好的你',
+  title = 'AniPocket 故事口袋 - 在更多的故事里，遇见更好的你',
   activeNav = '首页',
-  description = 'bllii 动漫番剧在线播放与聚合平台',
+  description = 'AniPocket 故事口袋 动漫番剧在线播放与聚合平台',
   children
 }: Props) {
   useEffect(() => {
@@ -52,11 +52,11 @@ export default function Layout({
   const intro = pageIntros[page];
 
   return (
-    <div className="bllii-site min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased selection:bg-[#f3f7ff]0 selection:text-white">
+    <div className="anipocket-site min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased selection:bg-[#f3f7ff]0 selection:text-white">
       <SecurityGuard />
       <div className="brand-shell">
         <Navbar activeNav={activeNav} />
-        <main className="bllii-page flex-1 pb-16" data-page={page}>
+        <main className="anipocket-page flex-1 pb-16" data-page={page}>
           <div className="festival-ribbon" data-festival-ribbon hidden></div>
           {intro && <PageIntro {...intro} />}
           {children}

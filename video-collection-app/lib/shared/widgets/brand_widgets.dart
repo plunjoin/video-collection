@@ -22,7 +22,7 @@ class BrandLogo extends StatelessWidget {
       width: width,
       height: symbolOnly ? width : width * 0.388,
       fit: BoxFit.contain,
-      semanticLabel: 'bllii',
+      semanticLabel: 'AniPocket 故事口袋',
     );
   }
 }
@@ -475,7 +475,7 @@ class BrandStoryBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'bllii · 热爱收藏夹',
+                  'AniPocket 故事口袋 · 热爱收藏夹',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
                 ),
                 const SizedBox(height: 8),

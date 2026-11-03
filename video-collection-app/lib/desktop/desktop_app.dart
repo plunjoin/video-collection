@@ -27,7 +27,7 @@ class DesktopBlliiApp extends StatelessWidget {
                 MediaQuery.platformBrightnessOf(context) == Brightness.dark);
         NativeWindow.setTheme(darkNow);
         return AppRoot(
-          title: 'bllii · More Stories, Together',
+          title: 'AniPocket 故事口袋 · More Stories, Together',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(Brightness.light, appState.accentColor),
           darkTheme: buildAppTheme(Brightness.dark, appState.accentColor),

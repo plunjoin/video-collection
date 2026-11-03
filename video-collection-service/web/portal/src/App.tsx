@@ -151,7 +151,7 @@ export default function App({ url = '/', ...props }: AppProps) {
 
     // 404 Fallback
     return (
-      <Layout title="页面未找到 - bllii" activeNav="">
+      <Layout title="页面未找到 - AniPocket" activeNav="">
         <div className="min-h-[50vh] flex items-center justify-center flex-col gap-4">
           <img src="/brand/bllii-symbol.svg" width={64} height={64} alt="" />
           <h1 className="text-xl font-bold text-slate-800">404 - 页面未找到</h1>

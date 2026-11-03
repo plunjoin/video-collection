@@ -19,7 +19,7 @@ class MobileBlliiApp extends StatelessWidget {
     return Consumer<AppStateProvider>(
       builder: (context, appState, child) {
         return AppRoot(
-          title: 'bllii · More Stories, Together',
+          title: 'AniPocket 故事口袋 · More Stories, Together',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(Brightness.light, appState.accentColor),
           darkTheme: buildAppTheme(Brightness.dark, appState.accentColor),

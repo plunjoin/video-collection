@@ -7,7 +7,7 @@
   --brand-line: #e2e6f0;
   --brand-gradient: #3f6fd8;
 }
-.bllii-site { color: var(--brand-ink); background: #f5f6fa; }
+.anipocket-site, .bllii-site { color: var(--brand-ink); background: #f5f6fa; }
 button, a, input { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid #3f6fd8; outline-offset: 4px; }
 [hidden] { display: none !important; }

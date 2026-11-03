@@ -40,7 +40,7 @@ export default function HomePage(props: Props) {
   }, []);
 
   return (
-    <Layout title="bllii — 在更多的故事里，遇见更好的你" activeNav="首页">
+    <Layout title="AniPocket 故事口袋 — 在更多的故事里，遇见更好的你" activeNav="首页">
       <HeroBanner videos={animeList.slice(0, 5)} />
       {/* 广告位：首页顶部横幅（admin 未配置时自动留空） */}
       <AdSlot slot="banner" />

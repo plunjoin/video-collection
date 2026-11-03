@@ -1587,7 +1587,7 @@ class _PlayerMobilePageState extends State<PlayerMobilePage> {
     final synopsis = widget.video.content.trim();
     final upName = widget.video.subName.isNotEmpty
         ? widget.video.subName
-        : 'bllii 放映室';
+        : 'AniPocket 放映室';
     final meta = [
       if (widget.video.year.isNotEmpty) '发布于 ${widget.video.year}',
       if (widget.video.hits > 0)

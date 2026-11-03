@@ -3,7 +3,7 @@
     <div class="login-card">
       <!-- 品牌头 -->
       <div class="login-header">
-        <img class="logo-mark" :src="'/brand/bllii-symbol.svg'" alt="bllii" />
+        <img class="logo-mark" :src="'/brand/bllii-symbol.svg'" alt="AniPocket 故事口袋" />
         <h1 class="title">视频采集管理</h1>
         <p class="subtitle">可配置多源采集 • 智能清洗聚合 • 统一服务架构</p>
       </div>

@@ -31,7 +31,7 @@ export default function RankPage({ initialTop }: Props) {
   const currentList = groups[tab]?.list || [];
 
   return (
-    <Layout title="人气排行榜 — bllii" activeNav="排行榜">
+    <Layout title="人气排行榜 — AniPocket" activeNav="排行榜">
       <div className="page-content max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         <div className="page-toolbar flex gap-2 mb-6" role="tablist" aria-label="榜单类型">
           {groups.map((group, i) => (

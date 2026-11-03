@@ -95,7 +95,7 @@ export default function Navbar({ activeNav = '首页' }: Props) {
         admin: '管理员',
         observer: '观察员',
         operator: '运营人员',
-      } as Record<string, string>)[user.role] || 'bllii 追番官'
+      } as Record<string, string>)[user.role] || 'AniPocket 追番官'
     : '普通用户';
 
   return (
@@ -103,8 +103,8 @@ export default function Navbar({ activeNav = '首页' }: Props) {
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* 左侧 Logo 与导航 */}
         <div className="flex items-center gap-8">
-          <a href="/" className="brand-logo" aria-label="bllii 首页">
-            <img src="/brand/bllii-horizontal.svg" alt="bllii" width="140" height="54" />
+          <a href="/" className="brand-logo" aria-label="AniPocket 故事口袋首页">
+            <img src="/brand/bllii-horizontal.svg" alt="AniPocket" width="140" height="54" />
           </a>
 
           <nav className="hidden lg:flex items-center gap-5">

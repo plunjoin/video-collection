@@ -59,7 +59,7 @@ export default function SearchPage() {
   };
 
   return (
-    <Layout title="番剧搜索 - bllii" activeNav="首页">
+    <Layout title="番剧搜索 - AniPocket" activeNav="首页">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 pt-6 pb-16">
         <div className="max-w-2xl mx-auto mb-8 text-center space-y-4">
           <form onSubmit={handleSubmit} className="relative">

@@ -372,7 +372,7 @@ class _AnimeDetailContentState extends State<AnimeDetailContent> {
             left: 16,
             bottom: 14,
             child: Text(
-              'bllii 出品',
+              'AniPocket 出品',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: .86),
                 fontSize: 11,
