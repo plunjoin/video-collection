@@ -128,7 +128,7 @@ p {
 .retention-subtitle {
   margin: 16px 0 8px;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--text-primary);
 }
 

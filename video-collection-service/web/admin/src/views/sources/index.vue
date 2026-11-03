@@ -575,8 +575,8 @@ onMounted(async () => {
 
         .page-title {
           font-size: 13px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
+          font-weight: 600;
+          letter-spacing: 0;
           color: var(--text-primary);
         }
         .sub-desc {

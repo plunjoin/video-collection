@@ -32,7 +32,7 @@ onMounted(load)
   h2 {
     flex: 1;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
     margin: 0;
     display: flex;
@@ -86,11 +86,11 @@ article {
   background: rgba(255, 255, 255, 0.03);
 
   &:hover {
-    background: rgba(126, 148, 255, 0.08);
+    background: rgba(142, 168, 255, 0.08);
   }
 
   &.unread {
-    background: rgba(126, 148, 255, 0.08);
+    background: rgba(142, 168, 255, 0.08);
   }
 }
 </style>

@@ -855,8 +855,8 @@ onMounted(loadData)
 
       .page-title {
         font-size: 13px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
+        font-weight: 600;
+        letter-spacing: 0;
         color: var(--text-primary);
       }
 
@@ -1024,7 +1024,7 @@ onMounted(loadData)
         border: 1px solid var(--border-color);
         border-radius: var(--radius-pill, 999px);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
         &:hover:not(:disabled) {
           border-color: var(--brand);

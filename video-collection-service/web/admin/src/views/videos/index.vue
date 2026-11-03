@@ -487,7 +487,7 @@ onMounted(() => {
       .selected-text {
         font-size: 11px;
         color: var(--danger);
-        font-weight: 650;
+        font-weight: 600;
       }
     }
 
@@ -497,7 +497,7 @@ onMounted(() => {
       gap: 2px;
       .main-title {
         font-size: 12px;
-        font-weight: 650;
+        font-weight: 600;
         color: var(--text-primary);
       }
       .sub-remarks {
@@ -557,7 +557,7 @@ onMounted(() => {
         .meta-title {
           margin: 0;
           font-size: 14px;
-          font-weight: 700;
+          font-weight: 600;
           color: var(--text-primary);
         }
 

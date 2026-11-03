@@ -3,8 +3,8 @@
     <!-- 左侧：折叠开关 + 当前页标题 -->
     <div class="left-panel">
       <button class="rail-toggle" type="button" :aria-label="appStore.sidebarCollapse ? '打开边栏' : '收起边栏'" :aria-expanded="!appStore.sidebarCollapse" @click="appStore.toggleSidebar">
-        <PanelLeftOpen v-if="appStore.sidebarCollapse" :size="19" />
-        <PanelLeft v-else :size="19" />
+        <PanelLeftOpen v-if="appStore.sidebarCollapse" :size="16" />
+        <PanelLeft v-else :size="16" />
       </button>
       <div class="page-heading">
         <h1 class="page-title">{{ currentTitle }}</h1>
@@ -28,7 +28,7 @@
 
       <r-tooltip :content="appStore.isDark ? '切换至明亮模式' : '切换至暗黑模式'" placement="bottom">
         <div class="tool-btn" @click="appStore.toggleDarkMode()">
-          <r-icon :size="17">
+          <r-icon :size="16">
             <Sunny v-if="appStore.isDark" />
             <Moon v-else />
           </r-icon>
@@ -37,14 +37,14 @@
 
       <r-tooltip content="全屏切换" placement="bottom">
         <div class="tool-btn" @click="toggleFullScreen">
-          <r-icon :size="17"><FullScreen /></r-icon>
+          <r-icon :size="16"><FullScreen /></r-icon>
         </div>
       </r-tooltip>
 
       <r-tooltip content="消息通知" placement="bottom">
         <r-badge :value="unread" :hidden="!unread" :max="99">
           <div class="tool-btn" @click="router.push('/notifications')">
-            <r-icon :size="17"><Bell /></r-icon>
+            <r-icon :size="16"><Bell /></r-icon>
           </div>
         </r-badge>
       </r-tooltip>
@@ -72,7 +72,9 @@ const appStore = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const portalUrl = '/'
-const envLabel = 'prod'
+// 环境标签：本地（dev 服务 / 本机自测）显示 dev，其余按 prod 处理。
+// 注意：构建链是 esbuild（无 define 注入），不能用 import.meta.env.MODE。
+const envLabel = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'dev' : 'prod'
 
 const unread = ref(0)
 let inboxTimer: ReturnType<typeof setInterval>
@@ -144,7 +146,7 @@ const toggleFullScreen = () => {
       }
 
       &:focus-visible {
-        box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.45);
+        box-shadow: 0 0 0 2px rgba(63, 111, 216, 0.45);
       }
     }
 
@@ -159,22 +161,23 @@ const toggleFullScreen = () => {
         margin: 0;
         color: var(--text-primary);
         font-size: 13px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
+        font-weight: 600;
+        letter-spacing: 0;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
       .page-env {
-        padding: 1px 6px;
+        padding: 1px 8px;
         color: var(--text-secondary);
         background: rgba(20, 32, 57, 0.04);
         border: 1px solid var(--nav-border-light, rgba(20, 32, 57, 0.05));
-        border-radius: var(--radius-pill);
-        font-size: 9px;
-        font-weight: 700;
-        line-height: 1.3;
-        text-transform: uppercase;
+        border-radius: var(--radius-xs);
+        font-size: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-weight: 500;
+        line-height: 1.4;
+        text-transform: none;
       }
     }
   }
@@ -204,7 +207,7 @@ const toggleFullScreen = () => {
       }
 
       &:focus-visible {
-        box-shadow: 0 0 0 2px rgba(79, 110, 242, 0.45);
+        box-shadow: 0 0 0 2px rgba(63, 111, 216, 0.45);
       }
     }
   }

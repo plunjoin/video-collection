@@ -49,7 +49,7 @@
         </div>
         <r-select v-model="filterType" placeholder="实体类别 (全部)" style="width: 170px;" clearable @change="handleSearch">
           <r-option label="全部大类" value="" />
-          <r-option label="🎬 作品 (Work)" value="work" />
+          <r-option label="作品 (Work)" value="work" />
           <r-option label="👤 人物/演职 (Person)" value="person" />
           <r-option label="🎭 虚拟角色 (Character)" value="character" />
           <r-option label="⏳ 纪元时间线 (Event)" value="event" />
@@ -197,7 +197,7 @@
         <div class="form-row-grid">
           <r-form-item label="实体大类" required>
             <r-select v-model="form.type">
-              <r-option label="🎬 作品 (work)" value="work" />
+              <r-option label="作品 (work)" value="work" />
               <r-option label="👤 真实人物 (person)" value="person" />
               <r-option label="🎭 虚拟角色 (character)" value="character" />
               <r-option label="⏳ 事件/时间线 (event)" value="event" />
@@ -444,7 +444,7 @@
               <r-icon :size="14"><Film /></r-icon> 拓扑路径连线矩阵 ({{ graphData?.edges?.length || 0 }})
             </button>
           </div>
-          <span class="graph-tip">💡 提示：点击任意节点卡片可下钻漫游，切换为该节点的关联星盘</span>
+          <span class="graph-tip">提示：点击任意节点卡片可下钻漫游，切换为该节点的关联星盘</span>
         </div>
 
         <!-- 视角 1：实体节点卡片网格 -->
@@ -563,7 +563,7 @@ const readOnly = computed(() => userStore.userInfo?.role === 'observer')
 const hasFilters = computed(() => Boolean(searchQuery.value.trim() || filterType.value || filterSubType.value))
 
 const typeLabels: Record<string, string> = {
-  work: '🎬 作品',
+  work: '作品',
   person: '👤 人物',
   character: '🎭 角色',
   event: '⏳ 纪元',
@@ -934,10 +934,10 @@ onMounted(() => {
 
     .eyebrow {
       font-size: 9.5px;
-      letter-spacing: 1.5px;
-      font-weight: 700;
+      letter-spacing: 0;
+      font-weight: 600;
       color: var(--brand);
-      text-transform: uppercase;
+      text-transform: none;
       display: block;
       margin-bottom: 2px;
     }
@@ -950,7 +950,7 @@ onMounted(() => {
 
       .page-title {
         font-size: 17px;
-        font-weight: 700;
+        font-weight: 600;
         color: var(--text-primary);
         margin: 0;
       }
@@ -972,7 +972,7 @@ onMounted(() => {
 
           strong {
             color: var(--text-primary);
-            font-weight: 700;
+            font-weight: 600;
           }
 
           &.primary {
@@ -1046,7 +1046,7 @@ onMounted(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
+      font-weight: 600;
       font-size: 16px;
       border: 1px dashed var(--border-color);
       background: var(--bg-hover, #f8fafc);
@@ -1219,7 +1219,7 @@ onMounted(() => {
     .rel-badge {
       background: rgba(59, 130, 246, 0.15);
       color: #3b82f6;
-      font-weight: 700;
+      font-weight: 600;
       padding: 0 4px;
       border-radius: 9999px;
       font-size: 10px;
@@ -1324,7 +1324,7 @@ onMounted(() => {
       img { width: 100%; height: 100%; object-fit: cover; }
       .brief-thumb-empty {
         width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-        font-weight: 700; color: #94a3b8; font-size: 18px;
+        font-weight: 600; color: #94a3b8; font-size: 18px;
       }
     }
 
@@ -1338,7 +1338,7 @@ onMounted(() => {
         align-items: baseline;
         gap: 8px;
 
-        h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
         small { color: var(--text-secondary); font-size: 12px; }
       }
 
@@ -1371,7 +1371,7 @@ onMounted(() => {
       align-items: center;
       margin-bottom: 10px;
 
-      h4 { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+      h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
       .sub-note { font-size: 11px; color: var(--text-secondary); }
     }
 
@@ -1389,7 +1389,7 @@ onMounted(() => {
       justify-content: space-between;
       margin-bottom: 8px;
 
-      h4 { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+      h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
       .count-pill {
         font-size: 11px;
         padding: 1px 6px;
@@ -1464,7 +1464,7 @@ onMounted(() => {
         .hero-thumb-placeholder {
           width: 100%; height: 100%;
           display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 20px;
+          font-weight: 600; font-size: 20px;
           background: #e0e7ff; color: #4338ca;
         }
       }
@@ -1484,7 +1484,7 @@ onMounted(() => {
           .hero-title {
             margin: 0;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 600;
             color: var(--text-primary);
           }
 
@@ -1534,7 +1534,7 @@ onMounted(() => {
 
         .stat-num {
           font-size: 18px;
-          font-weight: 700;
+          font-weight: 600;
           color: var(--text-primary);
         }
         .stat-lbl {
@@ -1574,7 +1574,7 @@ onMounted(() => {
         background: var(--card-bg, #fff);
         color: var(--text-secondary);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
         &:hover {
           background: var(--bg-hover, #f8fafc);
@@ -1613,13 +1613,12 @@ onMounted(() => {
         border: 1px solid var(--border-color);
         border-radius: 8px;
         cursor: pointer;
-        transition: all 0.18s ease;
+        transition: opacity 0.18s ease, transform 0.18s ease;
         position: relative;
 
         &:hover {
           border-color: var(--brand, #4f46e5);
           box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
-          transform: translateY(-1px);
 
           .card-hover-arrow {
             opacity: 1;
@@ -1640,7 +1639,7 @@ onMounted(() => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 700;
+          font-weight: 600;
           font-size: 15px;
           color: #fff;
           background: #64748b;
@@ -1731,7 +1730,7 @@ onMounted(() => {
         align-items: center;
         justify-content: center;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 600;
       }
     }
 

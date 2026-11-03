@@ -3,13 +3,11 @@
     <r-card shadow="never" class="section-card welcome-card">
       <div class="welcome-row">
         <div class="welcome-copy">
-          <span class="eyebrow">内容运营工作台</span>
-          <h1>视频、资讯与业务数据，一站管理</h1>
+          <h1>在库视频 {{ formatNumber(stats.total_videos) }} 部、资讯 {{ formatNumber(stats.total_news) }} 篇</h1>
           <p>资源库按类型浏览；使魔负责采集入库；系统日志记录登录与关键操作。</p>
         </div>
         <div class="welcome-actions">
           <r-button type="primary" @click="$router.push('/resources')">进入资源库</r-button>
-          <r-button @click="$router.push('/business-types')">业务类型</r-button>
           <r-button @click="$router.push('/scheduler')">使魔调度</r-button>
         </div>
       </div>
@@ -20,18 +18,13 @@
         <r-card
           shadow="hover"
           class="stat-card is-clickable"
-          :body-style="{ padding: '12px 14px' }"
+          :body-style="{ padding: '12px 16px' }"
           @click="item.to && $router.push(item.to)"
         >
-          <div class="card-header">
-            <span class="card-label">{{ item.label }}</span>
-            <div class="card-icon" :style="{ background: item.iconBg, color: item.iconColor }">
-              <r-icon><component :is="item.icon" /></r-icon>
-            </div>
-          </div>
+          <span class="card-label">{{ item.label }}</span>
           <div class="card-value">
             <span class="num">{{ stats[item.key] ?? 0 }}</span>
-            <span v-if="item.sub" class="sub-badge">{{ item.sub }}</span>
+            <span v-if="item.sub" class="sub-note">{{ item.sub }}</span>
           </div>
         </r-card>
       </r-col>
@@ -53,14 +46,12 @@
           class="shortcut-item"
           @click="$router.push(item.path)"
         >
-          <div class="shortcut-icon" :style="{ background: item.iconBg, color: item.iconColor }">
-            <r-icon><component :is="item.icon" /></r-icon>
-          </div>
+          <component :is="item.icon" class="shortcut-icon" :size="16" aria-hidden="true" />
           <div class="shortcut-copy">
             <strong>{{ item.title }}</strong>
             <span>{{ item.desc }}</span>
           </div>
-          <span class="shortcut-arrow">→</span>
+          <CaretRight class="shortcut-arrow" :size="14" aria-hidden="true" />
         </button>
       </div>
     </r-card>
@@ -156,10 +147,8 @@
             <div v-for="src in sources" :key="src.id" class="source-item">
               <div class="source-info">
                 <div class="name-row">
+                  <span class="status-dot" :class="src.active ? 'is-on' : 'is-off'" aria-hidden="true"></span>
                   <span class="name">{{ src.name }}</span>
-                  <r-tag size="small" :type="src.active ? 'success' : 'info'">
-                    {{ src.active ? '启用中' : '已停用' }}
-                  </r-tag>
                   <r-tag size="small" type="warning" effect="plain">{{ src.type.toUpperCase() }}</r-tag>
                 </div>
                 <div class="api-url" :title="src.api">{{ src.api }}</div>
@@ -248,19 +237,17 @@ import { getCategories } from '@/api/videos'
 import type { AdminStats, AnalyticsOverview, SourceConfig, Category } from '@/types'
 import { notify } from '@/components/radix/feedback'
 import {
-  Connection,
+  CaretRight,
   Film,
-  Calendar,
-  User,
+  Reading,
+  Document,
+  SetUp,
+  Clock,
   Lightning,
   Refresh,
   Download,
   Plus,
-  TrendCharts,
-  Document,
-  Reading,
-  Clock,
-  SetUp
+  TrendCharts
 } from '@/components/radix/icons'
 
 const stats = ref<Partial<AdminStats>>({})
@@ -347,49 +334,37 @@ const shortcuts = [
     path: '/resources/video',
     title: '视频资源',
     desc: '番剧与点播内容',
-    icon: Film,
-    iconBg: 'rgba(16, 185, 129, 0.15)',
-    iconColor: '#10b981'
+    icon: Film
   },
   {
     path: '/resources/news',
     title: '资讯文章',
     desc: '发布与维护站内资讯',
-    icon: Reading,
-    iconBg: 'rgba(59, 130, 246, 0.15)',
-    iconColor: '#3b82f6'
+    icon: Reading
   },
   {
     path: '/business-types',
     title: '业务类型',
     desc: '自定义字段与入库结构',
-    icon: Document,
-    iconBg: 'rgba(139, 92, 246, 0.15)',
-    iconColor: '#8b5cf6'
+    icon: Document
   },
   {
     path: '/resources',
     title: '资源库总览',
     desc: '视频 / 资讯 / 业务数据',
-    icon: SetUp,
-    iconBg: 'rgba(99, 102, 241, 0.15)',
-    iconColor: '#6366f1'
+    icon: SetUp
   },
   {
     path: '/scheduler',
     title: '使魔调度',
     desc: '定时采集与任务进度',
-    icon: Clock,
-    iconBg: 'rgba(245, 158, 11, 0.15)',
-    iconColor: '#f59e0b'
+    icon: Clock
   },
   {
     path: '/system-logs',
     title: '系统日志',
     desc: '登录、业务与操作记录',
-    icon: Document,
-    iconBg: 'rgba(244, 63, 94, 0.12)',
-    iconColor: '#f43f5e'
+    icon: Document
   }
 ]
 
@@ -418,50 +393,32 @@ const statCards = computed(() => [
   {
     key: 'total_videos' as const,
     label: '视频库存',
-    icon: Film,
-    iconBg: 'rgba(16, 185, 129, 0.15)',
-    iconColor: '#10b981',
     to: '/resources/video'
   },
   {
     key: 'total_news' as const,
     label: '资讯文章',
-    icon: Reading,
-    iconBg: 'rgba(59, 130, 246, 0.15)',
-    iconColor: '#3b82f6',
     to: '/resources/news'
   },
   {
     key: 'total_business_types' as const,
     label: '业务类型',
-    icon: Document,
-    iconBg: 'rgba(139, 92, 246, 0.15)',
-    iconColor: '#8b5cf6',
     to: '/business-types'
   },
   {
     key: 'total_sources' as const,
     label: '使魔节点',
-    icon: Connection,
-    iconBg: 'rgba(99, 102, 241, 0.15)',
-    iconColor: '#6366f1',
     sub: `启用 ${stats.value.active_sources ?? 0}`,
     to: '/sources'
   },
   {
     key: 'today_updated' as const,
     label: '今日视频更新',
-    icon: Calendar,
-    iconBg: 'rgba(245, 158, 11, 0.15)',
-    iconColor: '#f59e0b',
     to: '/resources/video'
   },
   {
     key: 'total_users' as const,
     label: '系统用户',
-    icon: User,
-    iconBg: 'rgba(14, 165, 233, 0.15)',
-    iconColor: '#0ea5e9',
     to: '/users'
   }
 ])
@@ -542,7 +499,7 @@ onMounted(() => {
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 
   .welcome-card {
     .welcome-row {
@@ -557,22 +514,14 @@ onMounted(() => {
       min-width: 0;
       max-width: 720px;
 
-      .eyebrow {
-        display: inline-block;
-        margin-bottom: 6px;
-        color: var(--brand);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-      }
-
       h1 {
         margin: 0 0 6px;
         color: var(--text-primary);
         font-size: 18px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
+        font-weight: 600;
+        letter-spacing: 0;
         line-height: 1.35;
+        font-variant-numeric: tabular-nums;
       }
 
       p {
@@ -592,55 +541,40 @@ onMounted(() => {
 
   .stats-row {
     .stat-card {
-      transition: all 0.2s ease;
+      transition: border-color .16s ease;
 
       &.is-clickable {
         cursor: pointer;
       }
 
       &:hover {
-        transform: translateY(-1px);
-        border-color: rgba(79, 110, 242, 0.25);
+        border-color: var(--border-strong);
       }
 
-      .card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 6px;
-
-        .card-label {
-          font-size: 11px;
-          color: var(--text-secondary);
-          font-weight: 600;
-        }
-
-        .card-icon {
-          width: 28px;
-          height: 28px;
-          border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+      .card-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
       }
 
       .card-value {
         display: flex;
         align-items: baseline;
-        gap: 6px;
+        gap: 8px;
 
         .num {
-          font-size: 20px;
-          font-weight: 700;
+          font-size: 22px;
+          font-weight: 600;
           color: var(--text-primary);
-          letter-spacing: -0.02em;
+          letter-spacing: 0;
+          font-variant-numeric: tabular-nums;
         }
 
-        .sub-badge {
-          font-size: 9px;
-          color: var(--success);
-          font-weight: 650;
+        .sub-note {
+          font-size: 11px;
+          color: var(--text-secondary);
+          font-variant-numeric: tabular-nums;
         }
       }
     }
@@ -658,8 +592,8 @@ onMounted(() => {
       .title-wrap {
         display: flex;
         align-items: center;
-        gap: 6px;
-        color: var(--brand);
+        gap: 8px;
+        color: var(--text-secondary);
         min-width: 0;
 
         .title-icon {
@@ -667,14 +601,14 @@ onMounted(() => {
         }
 
         .title-text {
-          font-size: 12px;
-          font-weight: 650;
+          font-size: 13px;
+          font-weight: 600;
           color: var(--text-primary);
           white-space: nowrap;
         }
 
         .title-aux {
-          font-size: 10px;
+          font-size: 11px;
           color: var(--text-secondary);
           white-space: nowrap;
         }
@@ -691,7 +625,7 @@ onMounted(() => {
   .shortcut-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    gap: 12px;
     margin-top: 12px;
   }
 
@@ -700,26 +634,21 @@ onMounted(() => {
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: rgba(20, 32, 57, 0.03);
     text-align: left;
     cursor: pointer;
-    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    transition: border-color 0.16s ease, background 0.16s ease;
 
     &:hover {
-      border-color: rgba(79, 110, 242, 0.28);
+      border-color: var(--border-strong);
       background: var(--nav-bg-subtle);
-      transform: translateY(-1px);
     }
 
     .shortcut-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: var(--radius-sm);
-      display: grid;
-      place-items: center;
+      color: var(--text-secondary);
       flex-shrink: 0;
     }
 
@@ -733,19 +662,18 @@ onMounted(() => {
       strong {
         color: var(--text-primary);
         font-size: 12px;
-        font-weight: 650;
+        font-weight: 500;
       }
 
       span {
         color: var(--text-secondary);
-        font-size: 10px;
+        font-size: 11px;
         line-height: 1.4;
       }
     }
 
     .shortcut-arrow {
       color: var(--text-secondary);
-      font-size: 12px;
       flex-shrink: 0;
     }
   }
@@ -757,28 +685,28 @@ onMounted(() => {
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
 
       .title-wrap {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         min-width: 0;
-        color: var(--brand);
+        color: var(--text-secondary);
 
         .title-icon {
           font-size: 15px;
         }
 
         .title-text {
-          font-size: 12px;
-          font-weight: 650;
+          font-size: 13px;
+          font-weight: 600;
           color: var(--text-primary);
           white-space: nowrap;
         }
 
         .title-aux {
-          font-size: 10px;
+          font-size: 11px;
           color: var(--text-secondary);
           white-space: nowrap;
         }
@@ -787,32 +715,32 @@ onMounted(() => {
 
     .analytics-body {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 220px;
+      grid-template-columns: minmax(0, 1fr) 280px;
       align-items: stretch;
-      gap: 10px;
-      min-height: 76px;
+      gap: 12px;
+      min-height: 120px;
     }
 
     .an-metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
       min-width: 0;
     }
 
     .an-metric {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       min-width: 0;
-      padding: 8px 10px;
+      padding: 12px;
       border-radius: var(--radius-sm);
       background: rgba(20, 32, 57, 0.03);
       border: 1px solid var(--border-color);
 
       .an-label {
-        font-size: 10.5px;
-        font-weight: 600;
+        font-size: 11px;
+        font-weight: 500;
         color: var(--text-secondary);
         white-space: nowrap;
       }
@@ -825,62 +753,60 @@ onMounted(() => {
       }
 
       .an-value {
-        font-size: 17px;
-        font-weight: 700;
+        font-size: 18px;
+        font-weight: 600;
         color: var(--text-primary);
-        letter-spacing: -0.02em;
+        letter-spacing: 0;
         font-variant-numeric: tabular-nums;
       }
 
       .an-delta {
-        padding: 0 5px;
-        border-radius: var(--radius-pill);
-        font-size: 9.5px;
-        font-weight: 650;
+        font-size: 11px;
+        font-weight: 500;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
 
         &.is-up {
-          color: #1d7a52;
-          background: rgba(47, 158, 110, 0.12);
+          color: var(--success);
         }
 
         &.is-down {
-          color: #b93c3c;
-          background: rgba(229, 72, 77, 0.1);
+          color: var(--danger);
         }
       }
 
       .an-sub {
         overflow: hidden;
         color: var(--text-secondary);
-        font-size: 9.5px;
+        font-size: 11px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
     }
 
+    /* 主图表：7 天浏览量，今天的柱用 accent，其余落在中性层 */
     .an-trend {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 8px;
       min-width: 0;
-      padding: 8px 10px;
+      padding: 12px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-color);
-      background: rgba(79, 110, 242, 0.04);
+      background: rgba(20, 32, 57, 0.03);
 
       .an-trend-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        font-size: 10px;
+        font-size: 11px;
         color: var(--text-secondary);
 
         .an-trend-max {
           color: var(--text-regular);
-          font-weight: 600;
+          font-weight: 500;
+          font-variant-numeric: tabular-nums;
         }
       }
 
@@ -888,15 +814,16 @@ onMounted(() => {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         align-items: end;
-        gap: 4px;
-        height: 54px;
+        gap: 8px;
+        flex: 1;
+        min-height: 72px;
       }
 
       .an-bar-col {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 3px;
+        gap: 4px;
         height: 100%;
         min-width: 0;
       }
@@ -911,15 +838,19 @@ onMounted(() => {
 
       .an-bar {
         width: 100%;
-        max-width: 30px;
-        border-radius: 3px 3px 2px 2px;
-        background: linear-gradient(180deg, rgba(79, 110, 242, 0.9), rgba(79, 110, 242, 0.45));
-        transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        max-width: 32px;
+        border-radius: 2px 2px 0 0;
+        background: rgba(63, 111, 216, 0.35);
+
+        &:last-child {
+          background: var(--brand);
+        }
       }
 
       .an-bar-label {
         color: var(--text-secondary);
-        font-size: 8.5px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px;
         white-space: nowrap;
       }
     }
@@ -938,6 +869,10 @@ onMounted(() => {
     @media (max-width: 1180px) {
       .analytics-body {
         grid-template-columns: minmax(0, 1fr);
+      }
+
+      .an-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
     }
 
@@ -958,8 +893,8 @@ onMounted(() => {
         justify-content: space-between;
 
         .title {
-          font-size: 12px;
-          font-weight: 650;
+          font-size: 13px;
+          font-weight: 600;
           color: var(--text-primary);
         }
       }
@@ -973,7 +908,7 @@ onMounted(() => {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 8px 10px;
+          padding: 8px 12px;
           background: rgba(20, 32, 57, 0.035);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-sm);
@@ -982,7 +917,7 @@ onMounted(() => {
 
           &:hover {
             background: var(--nav-bg-subtle);
-            border-color: rgba(79, 110, 242, 0.25);
+            border-color: var(--border-strong);
           }
 
           .source-info {
@@ -992,18 +927,36 @@ onMounted(() => {
             .name-row {
               display: flex;
               align-items: center;
-              gap: 6px;
+              gap: 8px;
               margin-bottom: 2px;
+
+              /* 签名细节：节点运行状态点（启用=实心品牌点，停用=空心灰点） */
+              .status-dot {
+                width: 8px;
+                height: 8px;
+                flex: 0 0 8px;
+                border-radius: 50%;
+
+                &.is-on {
+                  background: var(--brand);
+                }
+
+                &.is-off {
+                  background: transparent;
+                  border: 1.5px solid var(--text-secondary);
+                }
+              }
 
               .name {
                 font-size: 12px;
-                font-weight: 650;
+                font-weight: 500;
                 color: var(--text-primary);
               }
             }
 
             .api-url {
-              font-size: 10px;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+              font-size: 11px;
               color: var(--text-secondary);
               overflow: hidden;
               text-overflow: ellipsis;
@@ -1027,7 +980,7 @@ onMounted(() => {
         .overview-item {
           display: block;
           width: 100%;
-          padding: 10px 12px;
+          padding: 12px;
           border: 1px solid var(--border-color);
           border-radius: var(--radius-sm);
           background: rgba(20, 32, 57, 0.03);
@@ -1036,7 +989,7 @@ onMounted(() => {
           transition: border-color 0.16s ease, background 0.16s ease;
 
           &:hover {
-            border-color: rgba(79, 110, 242, 0.28);
+            border-color: var(--border-strong);
             background: var(--nav-bg-subtle);
           }
 
@@ -1050,22 +1003,22 @@ onMounted(() => {
 
           .overview-label {
             color: var(--text-secondary);
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 12px;
+            font-weight: 500;
           }
 
           .overview-count {
             color: var(--text-primary);
             font-size: 18px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+            font-weight: 600;
+            letter-spacing: 0;
             font-variant-numeric: tabular-nums;
           }
 
           p {
             margin: 0;
             color: var(--text-secondary);
-            font-size: 10px;
+            font-size: 11px;
           }
         }
       }
@@ -1081,32 +1034,33 @@ onMounted(() => {
           align-items: center;
           justify-content: space-between;
           color: var(--text-primary);
-          font-size: 11px;
-          font-weight: 650;
+          font-size: 12px;
+          font-weight: 500;
         }
 
         .cat-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
-          gap: 6px;
+          gap: 8px;
 
           .cat-chip {
-            padding: 5px 8px;
-            background: rgba(79, 110, 242, 0.06);
-            border: 1px solid rgba(79, 110, 242, 0.16);
+            padding: 6px 8px;
+            background: rgba(20, 32, 57, 0.03);
+            border: 1px solid var(--border-color);
             border-radius: var(--radius-xs);
             display: flex;
             flex-direction: column;
 
             .cat-name {
               font-size: 11px;
-              font-weight: 650;
-              color: var(--brand);
+              font-weight: 500;
+              color: var(--text-primary);
             }
 
             .cat-id {
-              font-size: 9px;
+              font-size: 10px;
               color: var(--text-secondary);
+              font-variant-numeric: tabular-nums;
             }
           }
         }
@@ -1135,22 +1089,17 @@ onMounted(() => {
 }
 
 html.dark .analytics-card {
-  .an-metric {
-    background: rgba(255, 255, 255, 0.04);
-  }
-
+  .an-metric,
   .an-trend {
-    background: rgba(126, 148, 255, 0.07);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .an-delta.is-up {
     color: #67d3a1;
-    background: rgba(47, 158, 110, 0.18);
   }
 
   .an-delta.is-down {
     color: #f28b8e;
-    background: rgba(229, 72, 77, 0.16);
   }
 }
 </style>

@@ -429,7 +429,7 @@ onMounted(loadList)
 
         .page-title {
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           color: var(--text-primary);
         }
 

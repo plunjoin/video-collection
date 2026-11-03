@@ -33,11 +33,11 @@ const userStore = useUserStore()
 <style scoped>
 .layout-wrapper {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  /* 背景系统由 body 提供（基础色 + 环境光 + 局部空间光），外壳保持透明 */
+  /* 背景系统由 body 提供（基础色），外壳保持透明 */
   background-color: transparent;
 
   .main-container {
@@ -52,19 +52,15 @@ const userStore = useUserStore()
     background: var(--glass-panel);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    box-shadow: 0 1px 2px rgba(22, 33, 58, 0.04), 0 8px 24px rgba(22, 33, 58, 0.05), var(--glass-highlight);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: none;
   }
 
   .role-alert {
-    margin: 10px 14px 0;
-    padding: 7px 12px;
-    font-size: 11px;
+    margin: 12px 16px 0;
+    padding: 8px 12px;
+    font-size: 12px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--glass-border);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
   }
 }
 </style>

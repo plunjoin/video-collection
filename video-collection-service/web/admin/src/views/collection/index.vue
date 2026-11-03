@@ -21,9 +21,9 @@
           </r-button>
           <template #dropdown>
             <r-dropdown-menu>
-              <r-dropdown-item command="maccms_video">🎬 MacCMS · 标准影视采集 (自动分集)</r-dropdown-item>
-              <r-dropdown-item command="agihunt_ai_news" divided>⚡ AGI Hunt · AI 实时快讯 / 日报</r-dropdown-item>
-              <r-dropdown-item command="tmdb_movie" divided>🎬 TMDB · 热门影视作品全量</r-dropdown-item>
+              <r-dropdown-item command="maccms_video">MacCMS · 标准影视采集 (自动分集)</r-dropdown-item>
+              <r-dropdown-item command="agihunt_ai_news" divided>AGI Hunt · AI 实时快讯 / 日报</r-dropdown-item>
+              <r-dropdown-item command="tmdb_movie" divided>TMDB · 热门影视作品全量</r-dropdown-item>
               <r-dropdown-item command="tmdb_popular_person">👤 TMDB · 热门影人与演职员档案库</r-dropdown-item>
               <r-dropdown-item command="tmdb_search_person">🔍 TMDB · 演员名称精准检索</r-dropdown-item>
             </r-dropdown-menu>
@@ -363,7 +363,7 @@
           <r-form-item label="实体大类" required>
             <r-select v-model="wikiForm.type">
               <r-option label="👤 真实人物 (person)" value="person" />
-              <r-option label="🎬 作品 (work)" value="work" />
+              <r-option label="作品 (work)" value="work" />
               <r-option label="🎭 虚拟角色 (character)" value="character" />
               <r-option label="⏳ 纪元时间线 (event)" value="event" />
               <r-option label="🏢 机构制作方 (org)" value="org" />
@@ -1147,10 +1147,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 .studio-header, .editor-heading, .section-title, .editor-footer, .library-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .studio-header {
   margin-bottom: 14px;
-  h1 { margin: 3px 0; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+  h1 { margin: 3px 0; font-size: 13px; font-weight: 600; letter-spacing: 0; }
   p { margin: 0; font-size: 10px; color: var(--text-secondary); }
 }
-.eyebrow { font-size: 9.5px; letter-spacing: 1.5px; font-weight: 700; color: var(--brand); }
+.eyebrow { font-size: 9.5px; letter-spacing: 0; font-weight: 600; color: var(--brand); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; .r-button + .r-button { margin-left: 0; } }
 .studio-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: start; }
 .rule-library, .workspace { background: var(--card-bg, #fff); border: 1px solid var(--border-color); border-radius: 12px; }
@@ -1166,10 +1166,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
   &:hover { background: var(--nav-bg-subtle, #f5f7ff); }
 }
 .workspace { padding: 16px; min-width: 0; }
-.editor-heading { margin-bottom: 14px; h2 { font-size: 13px; font-weight: 700; margin: 0 0 2px; } }
+.editor-heading { margin-bottom: 14px; h2 { font-size: 13px; font-weight: 600; margin: 0 0 2px; } }
 .steps { margin-bottom: 18px; }
 :deep(.r-step.is-simple .r-step__title) { max-width: none; white-space: nowrap; font-size: 11px; }
-h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
+h3 { font-size: 12px; font-weight: 600; margin: 16px 0 8px; }
 .helper { font-size: 10.5px; line-height: 1.6; color: var(--text-secondary); }
 .source-cards {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0;
@@ -1208,7 +1208,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 :global(html.dark .collection-studio .rule-item.selected),
 :global(html.dark .collection-studio .source-cards button.chosen),
 :global(html.dark .collection-studio .rule-item:hover) {
-  background: rgba(126, 148, 255, 0.1);
+  background: rgba(142, 168, 255, 0.1);
   color: var(--brand);
   border-color: var(--brand);
 }
@@ -1265,7 +1265,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 
         strong {
           color: var(--text-primary);
-          font-weight: 700;
+          font-weight: 600;
         }
 
         &.warning {
@@ -1331,7 +1331,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 
   .table-thumb-empty {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     color: #94a3b8;
   }
 }
@@ -1471,7 +1471,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
         border-radius: 4px;
         color: var(--brand);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
         &:hover {
           background: rgba(99, 102, 241, 0.08);
@@ -1539,7 +1539,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 
       .task-no {
         font-size: 11.5px;
-        font-weight: 700;
+        font-weight: 600;
         color: var(--text-primary);
         background: rgba(0, 0, 0, 0.05);
         padding: 2px 6px;
@@ -1582,7 +1582,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
 
       .m-val {
         font-size: 15px;
-        font-weight: 700;
+        font-weight: 600;
         color: var(--text-primary);
       }
 
@@ -1660,7 +1660,7 @@ h3 { font-size: 12px; font-weight: 650; margin: 16px 0 8px; }
       }
 
       .term-lvl {
-        font-weight: 700;
+        font-weight: 600;
         flex-shrink: 0;
 
         &.info { color: #409eff; }

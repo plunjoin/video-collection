@@ -45,7 +45,6 @@
           type="primary"
           class="submit-btn"
           :loading="loading"
-          round
           @click="handleLogin"
         >
           {{ loading ? '登录验证中…' : '登录管理后台' }}
@@ -114,22 +113,17 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(66, 133, 244, 0.10), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 110%, rgba(217, 101, 112, 0.08), transparent 60%),
-    var(--bg-color);
+  background: var(--bg-color);
   padding: 24px;
 
   .login-card {
     width: 100%;
     max-width: 400px;
-    padding: 44px 40px 32px;
-    background: var(--glass-panel-strong);/* 与浮层/大面板同族玻璃材质 */
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-pop), var(--glass-highlight);
-    backdrop-filter: var(--glass-blur-strong);
-    -webkit-backdrop-filter: var(--glass-blur-strong);
+    padding: 40px 40px 32px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop);
 
     .login-header {
       text-align: center;
@@ -140,29 +134,30 @@ const handleLogin = async () => {
         width: 48px;
         height: 48px;
         object-fit: contain;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
       }
       .title {
         margin: 0;
-        font-size: 22px;
-        font-weight: 500;
+        font-size: 20px;
+        font-weight: 600;
         color: var(--text-primary);
-        letter-spacing: 0.5px;
+        letter-spacing: 0;
       }
       .subtitle {
         margin: 8px 0 0;
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--text-secondary);
       }
     }
 
     .login-form {
       :deep(.r-input__wrapper) {
-        padding: 8px 14px;
-        border-radius: 999px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
         background: var(--surface);
-        box-shadow: 0 0 0 1px var(--border-strong) inset;
-        &:hover { box-shadow: 0 0 0 1px var(--text-secondary) inset; }
+        box-shadow: 0 0 0 1px var(--border-color) inset;
+        transition: box-shadow 0.16s ease;
+        &:hover { box-shadow: 0 0 0 1px var(--border-strong) inset; }
         &.is-focus { box-shadow: 0 0 0 1px var(--brand) inset !important; }
       }
 
@@ -170,7 +165,7 @@ const handleLogin = async () => {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
         .hint-text {
           font-size: 12px;
           color: var(--text-secondary);
@@ -178,33 +173,32 @@ const handleLogin = async () => {
             color: var(--text-primary);
             background: var(--surface-hover);
             padding: 2px 6px;
-            border-radius: 6px;
+            border-radius: 5px;
           }
         }
       }
 
       .submit-btn {
         width: 100%;
-        height: 46px;
-        font-size: 15px;
+        height: 40px;
+        font-size: 13px;
         font-weight: 500;
         background: var(--brand);
         border: none;
-        transition: all 0.18s ease;
+        transition: background 0.16s ease;
 
         &:hover {
           background: var(--brand-hover);
-          transform: translateY(-1px);
         }
       }
     }
 
     .login-footer {
       text-align: center;
-      margin-top: 26px;
+      margin-top: 24px;
       font-size: 11px;
       color: var(--text-secondary);
-      letter-spacing: 0.3px;
+      letter-spacing: 0;
     }
   }
 }

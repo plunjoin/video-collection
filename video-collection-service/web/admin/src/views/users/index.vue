@@ -357,8 +357,8 @@ onMounted(() => {
 
         .page-title {
           font-size: 13px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
+          font-weight: 600;
+          letter-spacing: 0;
           color: var(--text-primary);
         }
         .sub-desc {
@@ -402,7 +402,7 @@ onMounted(() => {
       background: none;
       border: 0;
       font-size: inherit;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
   }
@@ -422,7 +422,7 @@ onMounted(() => {
         height: 52px;
         border-radius: 50%;
         object-fit: cover;
-        background: var(--nav-bg-active, rgba(79, 110, 242, 0.1));
+        background: var(--nav-bg-active, rgba(63, 111, 216, 0.1));
 
         &--text {
           display: inline-flex;
@@ -430,7 +430,7 @@ onMounted(() => {
           justify-content: center;
           color: var(--brand);
           font-size: 20px;
-          font-weight: 700;
+          font-weight: 600;
         }
       }
 

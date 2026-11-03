@@ -153,8 +153,8 @@ onMounted(() => {
 
         .page-title {
           font-size: 13px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
+          font-weight: 600;
+          letter-spacing: 0;
           color: var(--text-primary);
         }
         .sub-desc {
@@ -177,7 +177,7 @@ onMounted(() => {
       .theme-card {
         border-radius: var(--radius-md);
         border: 1px solid var(--border-color);
-        transition: all 0.2s ease;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         overflow: hidden;
 
         &.is-active {
@@ -206,7 +206,7 @@ onMounted(() => {
             background: rgba(47, 158, 110, 0.9);
             color: #fff;
             font-size: 9px;
-            font-weight: 650;
+            font-weight: 600;
             padding: 2px 6px;
             border-radius: var(--radius-xs);
             display: flex;
@@ -229,7 +229,7 @@ onMounted(() => {
 
             .theme-name {
               font-size: 12px;
-              font-weight: 650;
+              font-weight: 600;
               color: var(--text-primary);
             }
           }

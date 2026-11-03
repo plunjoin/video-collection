@@ -16,7 +16,7 @@
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 14px 16px 24px;
+  padding: 16px 20px 32px;
   overflow-x: hidden;
   overflow-y: auto;
   background-color: transparent;
@@ -24,7 +24,7 @@
   scrollbar-color: rgba(113, 128, 155, 0.32) transparent;
 
   @media (max-width: 720px) {
-    padding: 10px 10px 18px;
+    padding: 12px 12px 20px;
   }
 }
 </style>

@@ -31,7 +31,7 @@ const onDialogChange = (open: boolean) => { if (!open && currentConfirmation.val
 <style scoped>
 .r-feedback-host { position: fixed; z-index: 2000; inset-block-start: 1rem; inset-inline-end: 1rem; display: flex; width: min(24rem, calc(100vw - 2rem)); flex-direction: column; gap: .6rem; pointer-events: none; }
 .r-toast { display: flex; align-items: flex-start; gap: .7rem; padding: .8rem 1rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-pop); pointer-events: auto; }
-.r-toast__mark { display: grid; width: 1.35rem; height: 1.35rem; flex: none; place-items: center; border-radius: 50%; background: var(--surface-hover); font-weight: 700; }
+.r-toast__mark { display: grid; width: 1.35rem; height: 1.35rem; flex: none; place-items: center; border-radius: 50%; background: var(--surface-hover); font-weight: 600; }
 .r-toast--success .r-toast__mark { color: #16803c; background: #e9f8ef; }
 .r-toast--warning .r-toast__mark { color: #a65c00; background: #fff4dd; }
 .r-toast--error .r-toast__mark { color: #b42318; background: #fff0ef; }

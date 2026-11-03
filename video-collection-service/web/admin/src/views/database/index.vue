@@ -833,8 +833,8 @@ onMounted(() => {
 
         .page-title {
           font-size: 13px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
+          font-weight: 600;
+          letter-spacing: 0;
           color: var(--text-primary);
         }
         .sub-desc {
@@ -896,7 +896,7 @@ onMounted(() => {
         transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
         &:hover {
-          border-color: rgba(79, 110, 242, 0.28);
+          border-color: rgba(63, 111, 216, 0.28);
           background: rgba(255, 255, 255, 0.8);
           box-shadow: 0 2px 10px rgba(22, 33, 58, 0.05);
         }

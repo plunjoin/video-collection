@@ -176,8 +176,8 @@
               <r-select v-model="taskStatusFilter" placeholder="运行状态 (全部)" style="width: 140px;" clearable @change="loadTasks">
                 <r-option label="全部状态" value="" />
                 <r-option label="⏳ 正在采集中" value="running" />
-                <r-option label="✅ 采集成功" value="success" />
-                <r-option label="❌ 失败/中断" value="failed" />
+                <r-option label="采集成功" value="success" />
+                <r-option label="失败/中断" value="failed" />
               </r-select>
               <r-select v-model="taskTriggerFilter" placeholder="触发方式 (全部)" style="width: 140px;" clearable @change="loadTasks">
                 <r-option label="全部方式" value="" />
@@ -611,7 +611,7 @@ onBeforeUnmount(() => {
 
     .card-title {
       font-size: 13px;
-      font-weight: 650;
+      font-weight: 600;
       color: var(--text-primary);
     }
 
@@ -664,10 +664,10 @@ onBeforeUnmount(() => {
         display: grid;
         place-items: center;
         border-radius: 6px;
-        background: rgba(79, 110, 242, 0.1);
+        background: rgba(63, 111, 216, 0.1);
         color: var(--brand);
         font-size: 10px;
-        font-weight: 700;
+        font-weight: 600;
         font-variant-numeric: tabular-nums;
       }
 
@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
           display: block;
           margin-bottom: 3px;
           font-size: 11.5px;
-          font-weight: 650;
+          font-weight: 600;
           color: var(--text-primary);
         }
 
@@ -789,7 +789,7 @@ onBeforeUnmount(() => {
       }
       .pill-val {
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 600;
         color: var(--text-primary);
       }
 
@@ -832,7 +832,7 @@ onBeforeUnmount(() => {
     font-family: monospace;
     font-weight: 600;
     color: var(--brand);
-    background: rgba(79, 110, 242, 0.08);
+    background: rgba(63, 111, 216, 0.08);
     padding: 2px 6px;
     border-radius: 4px;
   }
@@ -919,7 +919,7 @@ onBeforeUnmount(() => {
         flex-shrink: 0;
       }
       .log-level-badge {
-        font-weight: 700;
+        font-weight: 600;
         font-size: 10.5px;
         flex-shrink: 0;
 
@@ -1022,7 +1022,7 @@ onBeforeUnmount(() => {
 
         .log-time { color: #858b97; flex-shrink: 0; }
         .log-level-badge {
-          font-weight: 700;
+          font-weight: 600;
           flex-shrink: 0;
           &.info { color: #409eff; }
           &.success { color: #67c23a; }

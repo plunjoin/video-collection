@@ -311,9 +311,9 @@ onMounted(loadData)
   .page-title {
     margin: 0 0 3px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 
   .page-subtitle {
@@ -370,9 +370,9 @@ onMounted(loadData)
   .kpi-value {
     color: var(--text-primary);
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.15;
   }
 
@@ -393,7 +393,7 @@ onMounted(loadData)
   padding: 1px 6px;
   border-radius: var(--radius-pill);
   font-size: 9.5px;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 
   &.delta--up {
@@ -434,7 +434,7 @@ onMounted(loadData)
   .title {
     color: var(--text-primary);
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
   }
 
   .title-aux {
@@ -466,7 +466,7 @@ onMounted(loadData)
   transition: background 0.16s ease;
 
   &:hover {
-    background: rgba(79, 110, 242, 0.06);
+    background: rgba(63, 111, 216, 0.06);
   }
 
   .platform-icon {
@@ -479,7 +479,7 @@ onMounted(loadData)
     border-radius: var(--radius-sm);
     color: #fff;
     background: linear-gradient(135deg, #5d7af5, #3d5ce0);
-    box-shadow: 0 2px 8px rgba(79, 110, 242, 0.22);
+    box-shadow: 0 2px 8px rgba(63, 111, 216, 0.22);
   }
 
   &[data-platform='app'] .platform-icon {
@@ -497,7 +497,7 @@ onMounted(loadData)
     strong {
       color: var(--text-primary);
       font-size: 12.5px;
-      font-weight: 650;
+      font-weight: 600;
     }
   }
 
@@ -510,7 +510,7 @@ onMounted(loadData)
     .platform-bar-fill {
       height: 100%;
       border-radius: var(--radius-pill);
-      background: linear-gradient(90deg, rgba(79, 110, 242, 0.85), rgba(43, 185, 168, 0.85));
+      background: linear-gradient(90deg, rgba(63, 111, 216, 0.85), rgba(43, 185, 168, 0.85));
       transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     }
   }
@@ -525,7 +525,7 @@ onMounted(loadData)
     .num {
       color: var(--text-primary);
       font-size: 13px;
-      font-weight: 650;
+      font-weight: 600;
 
       small {
         color: var(--text-secondary);
@@ -536,7 +536,7 @@ onMounted(loadData)
 
     .num-soft {
       color: var(--text-regular);
-      font-weight: 550;
+      font-weight: 500;
     }
 
     .share {
@@ -610,7 +610,7 @@ onMounted(loadData)
     .event-bar-fill {
       height: 100%;
       border-radius: var(--radius-pill);
-      background: linear-gradient(90deg, rgba(79, 110, 242, 0.85), rgba(139, 124, 246, 0.8));
+      background: linear-gradient(90deg, rgba(63, 111, 216, 0.85), rgba(139, 124, 246, 0.8));
       transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     }
   }
@@ -658,7 +658,7 @@ html.dark .platform-item {
   background: rgba(255, 255, 255, 0.04);
 
   &:hover {
-    background: rgba(126, 148, 255, 0.08);
+    background: rgba(142, 168, 255, 0.08);
   }
 }
 

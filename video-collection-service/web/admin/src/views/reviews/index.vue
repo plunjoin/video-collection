@@ -53,7 +53,7 @@ onMounted(load)
   h2 {
     flex: 1;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
     margin: 0;
   }
