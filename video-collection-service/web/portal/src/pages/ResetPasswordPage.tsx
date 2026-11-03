@@ -4,7 +4,7 @@ import BrandIcon from '../components/BrandIcon';
 import { resetPassword, sendCode, type ContactChannel } from '../lib/auth';
 
 const inputClass =
-  'w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all';
+  'w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all';
 
 const CHANNELS: Array<{ key: ContactChannel; label: string; placeholder: string; type: string }> = [
   { key: 'email', label: '邮箱', placeholder: '请输入绑定过的邮箱', type: 'email' },
@@ -129,7 +129,7 @@ export default function ResetPasswordPage() {
                   setCode('');
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  channel === item.key ? 'bg-white text-[#597bea] shadow-sm' : 'text-slate-500'
+                  channel === item.key ? 'bg-white text-[#3f6fd8] shadow-sm' : 'text-slate-500'
                 }`}
               >
                 {item.label}找回
@@ -193,7 +193,7 @@ export default function ResetPasswordPage() {
                     type="button"
                     disabled={sending || countdown > 0}
                     onClick={() => void handleSend()}
-                    className="h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[#597bea] hover:text-[#597bea] disabled:opacity-50"
+                    className="h-11 shrink-0 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[#3f6fd8] hover:text-[#3f6fd8] disabled:opacity-50"
                   >
                     {countdown > 0 ? `${countdown}s` : sending ? '发送中…' : '获取验证码'}
                   </button>
@@ -241,7 +241,7 @@ export default function ResetPasswordPage() {
                 重置成功后所有设备都会被下线，需要用新密码重新登录。
               </p>
               <p className="text-center text-[11px] text-slate-400">
-                还没绑定邮箱或手机？<a href="/login" className="text-[#597bea]">先登录后在账号设置里绑定</a>
+                还没绑定邮箱或手机？<a href="/login" className="text-[#3f6fd8]">先登录后在账号设置里绑定</a>
               </p>
             </form>
           )}

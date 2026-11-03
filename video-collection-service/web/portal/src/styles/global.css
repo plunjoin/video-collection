@@ -24,45 +24,23 @@
   scrollbar-width: none;
 }
 
-/* 玻璃拟态阴影与磨砂效果 */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
+.glass-panel { background: #ffffff; }
+.glass-dark { background: #222836; }
+.text-gradient { color: #30364c; -webkit-text-fill-color: currentColor; }
 
-.glass-dark {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-/* 渐变文本 */
-.text-gradient {
-  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* 自定义柔和卡片浮动过渡 */
+/* 卡片悬停反馈 */
 .card-hover-effect {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color .16s ease, box-shadow .16s ease;
 }
 .card-hover-effect:hover {
-  transform: translateY(-4px);
-  /* box-shadow: 0 14px 30px -4px rgba(37, 99, 235, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.04); */
+  border-color: #cbd0dc;
+  box-shadow: 0 4px 18px rgba(42, 50, 78, 0.06);
 }
 
 /* 金银铜榜单角标渐变 */
-.badge-gold {
-  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-}
-.badge-silver {
-  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-}
-.badge-bronze {
-  background: linear-gradient(135deg, #fb923c 0%, #c2410c 100%);
-}
+.badge-gold { background: #c07400; }
+.badge-silver { background: #64748b; }
+.badge-bronze { background: #a35a23; }
 .badge-normal {
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(4px);

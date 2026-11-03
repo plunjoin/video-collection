@@ -69,7 +69,7 @@ export function initStoryPocket() {
     if (!write()) { stories = previous; return; }
     render(); notice(exists ? '已移出故事口袋' : '已放进故事口袋');
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !exists) {
-      button.animate([{ boxShadow: '0 0 0 0 #ff89c780' }, { boxShadow: '0 0 0 10px #ff89c700' }], { duration: 480, easing: 'ease-out' });
+      button.animate([{ boxShadow: '0 0 0 0 #3f6fd880' }, { boxShadow: '0 0 0 10px #3f6fd800' }], { duration: 480, easing: 'ease-out' });
       button.querySelector('svg')?.animate([{ clipPath: 'inset(100% 0 0)' }, { clipPath: 'inset(0)' }], { duration: 320, easing: 'ease-out' });
     }
   });

@@ -42,7 +42,7 @@ export default function NewsPage() {
             type="button"
             onClick={() => setCategory('')}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-              !category ? 'bg-[#597bea] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
+              !category ? 'bg-[#3f6fd8] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             全部
@@ -53,7 +53,7 @@ export default function NewsPage() {
               type="button"
               onClick={() => setCategory(cat)}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-                category === cat ? 'bg-[#597bea] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
+                category === cat ? 'bg-[#3f6fd8] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
               {cat}

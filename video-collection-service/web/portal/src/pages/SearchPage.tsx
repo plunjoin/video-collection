@@ -20,15 +20,29 @@ export default function SearchPage() {
       doSearch(q);
     }
 
+    // 浏览器返回/前进时同步搜索词
+    const handlePopState = () => {
+      const q2 = new URLSearchParams(window.location.search).get('q') || '';
+      setKeyword(q2);
+      if (q2) doSearch(q2); else { setResults([]); setSearched(false); }
+    };
+    window.addEventListener('popstate', handlePopState);
+
     getVideos({ page: 1, pageSize: 6 })
       .then((res) => {
         setHotVideos(res.list || []);
       })
       .catch(() => {});
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const doSearch = (query: string) => {
     if (!query.trim()) return;
+    // 把搜索词写进地址栏：刷新、分享、返回都能还原结果
+    const url = '/search?q=' + encodeURIComponent(query.trim());
+    if (window.location.pathname + window.location.search !== url) {
+      window.history.pushState({}, '', url);
+    }
     setLoading(true);
     setSearched(true);
     getVideos({ page: 1, pageSize: 36, keyword: query.trim() })
@@ -54,11 +68,11 @@ export default function SearchPage() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="请输入想看的番剧名称、角色或声优..."
-              className="w-full h-12 pl-5 pr-28 rounded-full bg-white text-sm text-slate-800 shadow-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+              className="w-full h-12 pl-5 pr-28 rounded-full bg-white text-sm text-slate-800 shadow-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all"
             />
             <button
               type="submit"
-              className="absolute right-1.5 top-1.5 bottom-1.5 px-6 rounded-full bg-[#597bea] hover:bg-blue-600 text-white text-sm font-semibold transition-colors cursor-pointer"
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-6 rounded-full bg-[#3f6fd8] hover:bg-[#3560c0] text-white text-sm font-semibold transition-colors cursor-pointer"
             >
               搜索
             </button>
@@ -75,7 +89,7 @@ export default function SearchPage() {
                     setKeyword(anime.name);
                     doSearch(anime.name);
                   }}
-                  className="text-slate-600 hover:text-blue-600 hover:underline cursor-pointer"
+                  className="text-slate-600 hover:text-[#3f6fd8] hover:underline cursor-pointer"
                 >
                   {anime.name}
                 </button>
@@ -100,7 +114,7 @@ export default function SearchPage() {
         {!loading && results.length > 0 && (
           <div>
             <div className="text-xs text-slate-500 mb-4">
-              找到 <span className="font-bold text-blue-600">{results.length}</span> 部与 “{keyword}” 相关的番剧
+              找到 <span className="font-bold text-[#3f6fd8]">{results.length}</span> 部与 “{keyword}” 相关的番剧
             </div>
             <div className="video-grid">
               {results.map((video) => (

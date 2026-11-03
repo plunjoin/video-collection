@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BrandIcon from './BrandIcon';
 
 export interface ReportTarget {
   targetType: 'video' | 'news' | 'post' | 'wiki_subject';
@@ -57,12 +58,14 @@ export default function ReportDialog({ target, onClose }: { target: ReportTarget
       >
         {done ? (
           <div className="text-center py-4">
-            <div className="text-3xl mb-2">🙏</div>
+            <div className="flex justify-center mb-2 text-emerald-500">
+              <BrandIcon name="check" size={36} />
+            </div>
             <h3 className="text-base font-bold text-slate-800 mb-1">纠错已提交</h3>
             <p className="text-xs text-slate-400 mb-4">感谢你的贡献，管理员会尽快核实处理。</p>
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-[#597bea] text-white text-sm font-semibold"
+              className="px-5 py-2 rounded-xl bg-[#3f6fd8] text-white text-sm font-semibold"
             >
               知道了
             </button>
@@ -97,7 +100,7 @@ export default function ReportDialog({ target, onClose }: { target: ReportTarget
               <button
                 onClick={submit}
                 disabled={submitting || !content.trim()}
-                className="px-5 py-2 rounded-xl bg-[#597bea] hover:bg-[#4b6fd6] disabled:opacity-50 text-white text-sm font-semibold"
+                className="px-5 py-2 rounded-xl bg-[#3f6fd8] hover:bg-[#3560c0] disabled:opacity-50 text-white text-sm font-semibold"
               >
                 {submitting ? '提交中...' : '提交纠错'}
               </button>

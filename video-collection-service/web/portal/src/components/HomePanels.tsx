@@ -23,7 +23,6 @@ export default function HomePanels({ latest = [], rankings = [] }: Props) {
             <span className="schedule-dot"></span>
             <strong>{video.name}</strong>
             <span>{video.remarks || '更新中'}</span>
-            <i>追番</i>
           </a>
         ))}
         {!latest.length && <p className="brand-empty">暂无更新</p>}

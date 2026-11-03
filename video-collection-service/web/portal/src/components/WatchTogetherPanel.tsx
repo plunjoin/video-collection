@@ -128,7 +128,7 @@ export default function WatchTogetherPanel({
         </p>
         <a
           href={loginHref()}
-          className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#597bea] text-white text-xs font-bold hover:bg-blue-600 transition-colors"
+          className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#3f6fd8] text-white text-xs font-bold hover:bg-[#3560c0] transition-colors"
         >
           去登录
         </a>
@@ -159,7 +159,7 @@ export default function WatchTogetherPanel({
           </span>
           <span
             className={`relative inline-block w-9 h-5 rounded-full transition-colors shrink-0 ${
-              allowAllControl ? 'bg-[#597bea]' : 'bg-slate-200'
+              allowAllControl ? 'bg-[#3f6fd8]' : 'bg-slate-200'
             }`}
           >
             <span
@@ -173,7 +173,7 @@ export default function WatchTogetherPanel({
           type="button"
           onClick={handleCreate}
           disabled={busy}
-          className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#597bea] text-white text-sm font-bold hover:bg-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+          className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#3f6fd8] text-white text-sm font-bold hover:bg-[#3560c0] transition-colors cursor-pointer disabled:opacity-50"
         >
           <BrandIcon name="play" size={16} />
           <span>{busy ? '创建中…' : '为当前影片创建房间'}</span>
@@ -246,7 +246,7 @@ export default function WatchTogetherPanel({
         <button
           type="button"
           onClick={() => copyCode(snap.code)}
-          className="shrink-0 ml-auto px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#FF89C7] via-[#AE8CFF] to-[#80B6FF] text-white text-xs font-black tracking-widest cursor-pointer"
+          className="shrink-0 ml-auto px-2.5 py-1 rounded-lg bg-[#3f6fd8] text-white text-xs font-semibold cursor-pointer"
           title="点击复制房间码"
         >
           {snap.code}
@@ -356,7 +356,7 @@ export default function WatchTogetherPanel({
             type="button"
             onClick={handleSend}
             disabled={busy}
-            className="p-2 rounded-xl bg-[#597bea] text-white hover:bg-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+            className="p-2 rounded-xl bg-[#3f6fd8] text-white hover:bg-[#3560c0] transition-colors cursor-pointer disabled:opacity-50"
             title="发送"
           >
             <BrandIcon name="send" size={15} />

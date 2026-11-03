@@ -38,12 +38,12 @@ interface Notice {
 }
 
 const inputClass =
-  'w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all';
+  'w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all';
 const labelClass = 'block text-xs font-semibold text-slate-600 mb-1.5';
 const primaryButtonClass =
   'h-11 px-6 rounded-xl text-white font-semibold text-xs transition-all shadow-md cursor-pointer disabled:opacity-60';
 const ghostButtonClass =
-  'h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[#597bea] hover:text-[#597bea] disabled:opacity-50';
+  'h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[#3f6fd8] hover:text-[#3f6fd8] disabled:opacity-50';
 
 function describeAgent(userAgent: string): string {
   if (!userAgent) return '未知设备';
@@ -633,7 +633,7 @@ export default function AccountPage() {
               alt=""
               width={56}
               height={56}
-              className="h-14 w-14 rounded-full object-cover ring-2 ring-[#597bea]/30"
+              className="h-14 w-14 rounded-full object-cover ring-2 ring-[#3f6fd8]/30"
             />
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold text-slate-800">{user.nickname || user.username}</h1>
@@ -719,7 +719,7 @@ export default function AccountPage() {
                           key={item.id}
                           className={`relative rounded-xl border p-1 transition-all ${
                             item.current
-                              ? 'border-[#597bea] ring-2 ring-blue-500/20'
+                              ? 'border-[#3f6fd8] ring-2 ring-[#3f6fd8]/20'
                               : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
@@ -729,7 +729,7 @@ export default function AccountPage() {
                             className="aspect-square w-full rounded-lg bg-slate-50 object-cover"
                           />
                           {item.current && (
-                            <span className="absolute left-1.5 top-1.5 rounded-md bg-[#597bea] px-1 py-0.5 text-[9px] font-semibold leading-tight text-white">
+                            <span className="absolute left-1.5 top-1.5 rounded-md bg-[#3f6fd8] px-1 py-0.5 text-[9px] font-semibold leading-tight text-white">
                               使用中
                             </span>
                           )}
@@ -738,7 +738,7 @@ export default function AccountPage() {
                               type="button"
                               disabled={item.current || avatarBusyId !== null}
                               onClick={() => void handleUseAvatar(item)}
-                              className="text-[10px] font-semibold text-[#597bea] transition-colors disabled:text-slate-300"
+                              className="text-[10px] font-semibold text-[#3f6fd8] transition-colors disabled:text-slate-300"
                             >
                               使用
                             </button>
@@ -927,7 +927,7 @@ export default function AccountPage() {
                         setLoadingSessions(false);
                       });
                     }}
-                    className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:border-[#597bea] hover:text-[#597bea]"
+                    className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:border-[#3f6fd8] hover:text-[#3f6fd8]"
                   >
                     刷新
                   </button>

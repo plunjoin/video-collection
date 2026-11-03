@@ -40,7 +40,7 @@ export default function RankPage({ initialTop }: Props) {
               type="button"
               onClick={() => setTab(i)}
               className={`page-pill px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                tab === i ? 'bg-[#597bea] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
+                tab === i ? 'bg-[#3f6fd8] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
               {group.label}

@@ -37,6 +37,13 @@ export default function LatestPage({ initialData }: Props) {
     { label: '更早更新', list: data.earlier },
   ];
 
+  // 默认 tab 上没有内容时，自动落到第一个有更新的分组，不让用户先看到空状态
+  useEffect(() => {
+    const firstNonEmpty = groups.findIndex((g) => g.list.length > 0);
+    if (firstNonEmpty > 0) setTab(firstNonEmpty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.today.length, data.yesterday.length, data.earlier.length]);
+
   const currentGroup = groups[tab] || groups[0];
 
   return (
@@ -49,7 +56,7 @@ export default function LatestPage({ initialData }: Props) {
               type="button"
               onClick={() => setTab(i)}
               className={`page-pill px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                tab === i ? 'bg-[#597bea] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
+                tab === i ? 'bg-[#3f6fd8] text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
               {group.label} · {group.list.length}

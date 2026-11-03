@@ -30,7 +30,7 @@ function SubjectCard({ subject }: { subject: WikiSubjectInfo }) {
           {subject.summary && <div className="text-xs text-slate-500 truncate mt-0.5">{subject.summary}</div>}
         </div>
         {linkedVideo ? (
-          <span className="px-3 py-1.5 rounded-full bg-[#597bea] text-white text-xs font-semibold shrink-0">去观看</span>
+          <span className="px-3 py-1.5 rounded-full bg-[#3f6fd8] text-white text-xs font-semibold shrink-0">去观看</span>
         ) : (
           <span className="text-purple-400 text-sm shrink-0">›</span>
         )}

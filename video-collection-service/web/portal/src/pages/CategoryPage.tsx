@@ -98,7 +98,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                   onClick={() => setSelectedChannel(ch.value)}
                   className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                     selectedChannel === ch.value
-                      ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20'
+                      ? 'bg-[#3f6fd8] text-white shadow-sm shadow-[#3f6fd8]/15'
                       : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -121,7 +121,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                     onClick={() => setSelectedGenre(val)}
                     className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                       selectedGenre === val
-                        ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20'
+                        ? 'bg-[#3f6fd8] text-white shadow-sm shadow-[#3f6fd8]/15'
                         : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -145,7 +145,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                     onClick={() => setSelectedArea(val)}
                     className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                       selectedArea === val
-                        ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20'
+                        ? 'bg-[#3f6fd8] text-white shadow-sm shadow-[#3f6fd8]/15'
                         : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -169,7 +169,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                     onClick={() => setSelectedYear(val)}
                     className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                       selectedYear === val
-                        ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/20'
+                        ? 'bg-[#3f6fd8] text-white shadow-sm shadow-[#3f6fd8]/15'
                         : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -191,7 +191,7 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                 onClick={() => setSelectedSort(s.value)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   selectedSort === s.value
-                    ? 'bg-white shadow-sm text-[#597bea] ring-1 ring-blue-200'
+                    ? 'bg-white shadow-sm text-[#3f6fd8] ring-1 ring-[#c6d5f6]'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -202,13 +202,13 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
 
           <div className="flex items-center gap-3 text-xs text-slate-400">
             <span className="font-medium text-slate-600">
-              共筛选出 <span className="text-[#597bea] font-bold">{String(total)}</span> 部作品
+              共筛选出 <span className="text-[#3f6fd8] font-bold">{String(total)}</span> 部作品
             </span>
             {hasFilter && (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-[#597bea] font-medium hover:underline cursor-pointer"
+                className="text-[#3f6fd8] font-medium hover:underline cursor-pointer"
               >
                 重置全部条件
               </button>
@@ -249,13 +249,13 @@ export default function CategoryPage({ initialVideos = [], initialTotal = 0 }: C
                     }}
                   />
                   {anime.remarks && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#3f6fd8] text-white backdrop-blur-sm">
                       {anime.remarks}
                     </span>
                   )}
                 </div>
                 <div className="mt-2.5 px-0.5">
-                  <h3 className="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                  <h3 className="text-sm font-semibold text-slate-800 group-hover:text-[#3f6fd8] transition-colors line-clamp-1">
                     {anime.name}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">

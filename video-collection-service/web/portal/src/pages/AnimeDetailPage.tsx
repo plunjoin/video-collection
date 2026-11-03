@@ -148,7 +148,7 @@ function AiAskSection({ seed }: { seed: string }) {
         <button
           type="submit"
           disabled={busy || !question.trim()}
-          className="px-5 py-2.5 rounded-xl bg-[#597bea] hover:bg-[#4b6fd6] disabled:opacity-50 text-white font-semibold text-sm shadow-sm transition-all"
+          className="px-5 py-2.5 rounded-xl bg-[#3f6fd8] hover:bg-[#3560c0] disabled:opacity-50 text-white font-semibold text-sm shadow-sm transition-all"
         >
           {busy ? '思考中...' : '提问'}
         </button>
@@ -291,7 +291,7 @@ export default function AnimeDetailPage({ id = '317', detail: initialDetail }: P
             <div className="pt-6 flex items-center gap-4">
               <a
                 href={`/play/${video.id}`}
-                className="px-6 py-3 rounded-2xl bg-[#597bea] hover:bg-[#4b6fd6] text-white font-semibold text-sm shadow-md transition-all flex items-center gap-2"
+                className="px-6 py-3 rounded-2xl bg-[#3f6fd8] hover:bg-[#3560c0] text-white font-semibold text-sm shadow-md transition-all flex items-center gap-2"
               >
                 <BrandIcon name="play" size={18} />
                 <span>立即播放</span>

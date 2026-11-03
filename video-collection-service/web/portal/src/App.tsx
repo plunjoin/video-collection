@@ -17,6 +17,7 @@ import PointsPage from './pages/PointsPage';
 import AccountPage from './pages/AccountPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import WikiSubjectPage from './pages/WikiSubjectPage';
+import Layout from './layouts/Layout';
 
 export const RouteContext = React.createContext<{ url: string }>({ url: '/' });
 
@@ -150,14 +151,16 @@ export default function App({ url = '/', ...props }: AppProps) {
 
     // 404 Fallback
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-slate-50">
-        <img src="/brand/bllii-symbol.svg" width={64} height={64} alt="" />
-        <h1 className="text-xl font-bold text-slate-800">404 - 页面未找到</h1>
-        <p className="text-sm text-slate-500">故事可能已经启程去往别处。</p>
-        <a href="/" className="px-5 py-2.5 bg-[#597bea] text-white font-semibold rounded-xl text-xs shadow-md">
-          返回首页
-        </a>
-      </div>
+      <Layout title="页面未找到 - bllii" activeNav="">
+        <div className="min-h-[50vh] flex items-center justify-center flex-col gap-4">
+          <img src="/brand/bllii-symbol.svg" width={64} height={64} alt="" />
+          <h1 className="text-xl font-bold text-slate-800">404 - 页面未找到</h1>
+          <p className="text-sm text-slate-500">故事可能已经启程去往别处。</p>
+          <a href="/" className="px-5 py-2.5 bg-[#3f6fd8] text-white font-semibold rounded-xl text-xs">
+            返回首页
+          </a>
+        </div>
+      </Layout>
     );
   };
 

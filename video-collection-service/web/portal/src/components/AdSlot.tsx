@@ -80,7 +80,7 @@ export default function AdSlot({
                 )}
               </div>
               <div className="mt-2.5 px-0.5">
-                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-[#3f6fd8] transition-colors line-clamp-1">
                   {ad.title || '推广'}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">推广内容</p>

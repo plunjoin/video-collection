@@ -67,7 +67,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setTab('login'); setAlert(null); }}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                tab === 'login' ? 'bg-white text-[#597bea] shadow-sm' : 'text-slate-500'
+                tab === 'login' ? 'bg-white text-[#3f6fd8] shadow-sm' : 'text-slate-500'
               }`}
             >
               账号登录
@@ -76,7 +76,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setTab('register'); setAlert(null); }}
               className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
-                tab === 'register' ? 'bg-white text-[#597bea] shadow-sm' : 'text-slate-500'
+                tab === 'register' ? 'bg-white text-[#3f6fd8] shadow-sm' : 'text-slate-500'
               }`}
             >
               免费注册
@@ -105,7 +105,7 @@ export default function LoginPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="请输入用户名"
                   required
-                  className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+                  className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <BrandIcon name="user" size={16} />
@@ -122,7 +122,7 @@ export default function LoginPage() {
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="给自己起一个喜欢的昵称"
-                    className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+                    className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all"
                   />
                 </div>
               </div>
@@ -137,7 +137,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入密码"
                   required
-                  className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#597bea] transition-all"
+                  className="w-full h-11 pl-4 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:border-[#3f6fd8] transition-all"
                 />
               </div>
             </div>
@@ -153,7 +153,7 @@ export default function LoginPage() {
 
             {tab === 'login' && (
               <p className="text-center text-[11px] text-slate-400">
-                忘记密码？<a href="/reset" className="font-semibold text-[#597bea]">用邮箱或手机号找回</a>
+                忘记密码？<a href="/reset" className="font-semibold text-[#3f6fd8]">用邮箱或手机号找回</a>
               </p>
             )}
           </form>

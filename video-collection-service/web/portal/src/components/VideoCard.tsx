@@ -1,6 +1,7 @@
 import React from 'react';
 import type { VideoRecord } from '../lib/api';
 import BrandIcon from './BrandIcon';
+import { formatCount } from '../lib/format';
 
 interface Props {
   video: VideoRecord;
@@ -40,15 +41,14 @@ export default function VideoCard({ video, badge, rank }: Props) {
           </span>
         </div>
         <h3>{video.name}</h3>
-        <p>{video.remarks || video.type_name || '一起发现好故事'}</p>
-        <div className="video-card__meta">
-          <span>
-            <BrandIcon name="play" size={13} /> {(video.hits ? String(video.hits) : "") || "立即观看"}
-          </span>
-          <span>
-            <BrandIcon name="heart" size={13} /> 追番
-          </span>
-        </div>
+        <p>{video.remarks || video.type_name}</p>
+                {video.hits ? (
+          <div className="video-card__meta">
+            <span>
+              <BrandIcon name="play" size={13} /> {formatCount(video.hits)}
+            </span>
+          </div>
+        ) : null}
       </a>
       <button 
         className="video-card__pocket" 

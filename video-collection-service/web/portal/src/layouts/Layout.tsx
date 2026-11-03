@@ -52,7 +52,7 @@ export default function Layout({
   const intro = pageIntros[page];
 
   return (
-    <div className="bllii-site min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased selection:bg-primary-500 selection:text-white">
+    <div className="bllii-site min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased selection:bg-[#f3f7ff]0 selection:text-white">
       <SecurityGuard />
       <div className="brand-shell">
         <Navbar activeNav={activeNav} />

@@ -12,7 +12,7 @@ export function render(url: string, props: Record<string, any>) {
     `<meta name="description" content="${props?.description || 'bllii 动漫番剧在线播放与聚合平台'}">` +
     `<link rel="icon" type="image/svg+xml" href="/brand/bllii-symbol.svg">` +
     `<link rel="manifest" href="/manifest.webmanifest">` +
-    `<meta name="theme-color" content="#597bea">` +
+    `<meta name="theme-color" content="#3f6fd8">` +
     `<script src="/js/tracker.js" defer></script>`;
   return { html, head };
 }

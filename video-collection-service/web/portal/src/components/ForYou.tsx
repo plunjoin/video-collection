@@ -70,7 +70,7 @@ export default function ForYou() {
                 <img
                   src={anime.picture || anime.pic || '/brand/bllii-app-blue.svg'}
                   alt={anime.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover"
                   loading="lazy"
                   onError={(e) => {
                     const target = e.currentTarget;
@@ -79,13 +79,13 @@ export default function ForYou() {
                   }}
                 />
                 {anime.remarks && (
-                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#597bea] text-white backdrop-blur-sm">
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#3f6fd8] text-white backdrop-blur-sm">
                     {anime.remarks}
                   </span>
                 )}
               </div>
               <div className="mt-2.5 px-0.5">
-                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-[#3f6fd8] transition-colors line-clamp-1">
                   {anime.name}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">

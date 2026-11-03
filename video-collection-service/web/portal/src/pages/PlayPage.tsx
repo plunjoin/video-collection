@@ -883,7 +883,7 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
                         onClick={() => handleSelectRoute(idx)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           selectedGroupIdx === idx
-                            ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/30'
+                            ? 'bg-[#3f6fd8] text-white shadow-sm shadow-blue-500/30'
                             : isFocusMode
                             ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -936,7 +936,7 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
                       onClick={() => handleSelectEp(eIdx)}
                       className={`h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer truncate px-1 ${
                         isCurrent
-                          ? 'bg-[#597bea] text-white shadow-sm shadow-blue-500/30 ring-2 ring-blue-400/50'
+                          ? 'bg-[#3f6fd8] text-white shadow-sm shadow-blue-500/30 ring-2 ring-blue-400/50'
                           : isFocusMode
                           ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-blue-600'
@@ -976,7 +976,7 @@ export default function PlayPage({ id = '317', video: initialVideo, related: ini
 
             <div className="flex-1 space-y-3.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#597bea] text-white">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#3f6fd8] text-white">
                   {video.type_name || '番剧'}
                 </span>
                 {video.remarks && (

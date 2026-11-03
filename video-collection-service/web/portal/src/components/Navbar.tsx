@@ -63,12 +63,23 @@ export default function Navbar({ activeNav = '首页' }: Props) {
         setMenuOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
     document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 未读数定时刷新：仅在页签可见时轮询，避免长期停留页面数字过期
+    const unreadTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshUnread();
+    }, 60000);
 
     return () => {
       window.removeEventListener('auth-changed', handleAuth);
       window.removeEventListener('notifications-changed', handleNotif);
       document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      clearInterval(unreadTimer);
     };
   }, []);
 
@@ -109,8 +120,8 @@ export default function Navbar({ activeNav = '首页' }: Props) {
                   aria-current={isActive ? 'page' : undefined}
                   className={`text-[13px] font-medium transition-colors ${
                     isActive
-                      ? 'text-[#597bea] font-semibold'
-                      : 'text-slate-700 hover:text-[#597bea]'
+                      ? 'text-[#3f6fd8] font-semibold'
+                      : 'text-slate-700 hover:text-[#3f6fd8]'
                   }`}
                 >
                   {item.name}
@@ -127,12 +138,12 @@ export default function Navbar({ activeNav = '首页' }: Props) {
               type="text"
               name="q"
               placeholder="搜索番剧、资讯、社区…"
-              className="w-full h-9 pl-4 pr-9 rounded-full bg-slate-100/90 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white border border-transparent focus:border-blue-400 transition-all"
+              className="w-full h-9 pl-4 pr-9 rounded-full bg-slate-100/90 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3f6fd8]/20 focus:bg-white border border-transparent focus:border-blue-400 transition-all"
             />
             <button
               type="submit"
               aria-label="搜索"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#597bea] cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#3f6fd8] cursor-pointer"
             >
               <BrandIcon name="search" size={20} className="w-4 h-4 text-blue-500" />
             </button>
@@ -146,7 +157,7 @@ export default function Navbar({ activeNav = '首页' }: Props) {
           <a
             href="/notifications"
             aria-label="消息通知"
-            className="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square rounded-full text-slate-500 hover:text-[#597bea] hover:bg-slate-100 flex items-center justify-center transition-colors relative shrink-0"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square rounded-full text-slate-500 hover:text-[#3f6fd8] hover:bg-slate-100 flex items-center justify-center transition-colors relative shrink-0"
           >
             <BrandIcon name="bell" size={20} className="w-4.5 h-4.5" />
             {unreadCount > 0 && (
@@ -160,7 +171,7 @@ export default function Navbar({ activeNav = '首页' }: Props) {
           {!user && (
             <a
               href="/login"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-[#597bea] text-xs font-semibold transition-all border border-blue-200/60 shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-[#3f6fd8] text-xs font-semibold transition-colors"
             >
               <BrandIcon name="user" size={16} className="w-3.5 h-3.5" />
               <span>登录 / 注册</span>
@@ -184,7 +195,7 @@ export default function Navbar({ activeNav = '首页' }: Props) {
                       ? '3px solid ' + user.decorations!.frame
                       : undefined,
                   }}
-                  className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-full object-cover ring-2 ring-[#597bea]/60 group-hover:ring-[#597bea] transition-all shadow-sm shrink-0"
+                  className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-full object-cover ring-2 ring-[#3f6fd8]/60 group-hover:ring-[#3f6fd8] transition-all shadow-sm shrink-0"
                 />
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
               </button>
@@ -193,10 +204,10 @@ export default function Navbar({ activeNav = '首页' }: Props) {
                 className={`nav-dropdown-container absolute right-0 top-full pt-1.5 w-56 transition-all duration-150 z-50 ${
                   menuOpen
                     ? 'opacity-100 pointer-events-auto'
-                    : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+                    : 'opacity-0 pointer-events-none'
                 }`}
               >
-                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100/90 py-2 overflow-hidden ring-1 ring-black/5">
+                <div className="bg-white rounded-xl shadow-xl shadow-slate-200/80 border border-slate-100/90 py-2 overflow-hidden ring-1 ring-black/5">
                   <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                     <p
                       className="text-xs font-bold text-slate-800 truncate"
@@ -216,22 +227,23 @@ export default function Navbar({ activeNav = '首页' }: Props) {
                   </div>
 
                   <div className="py-1 text-xs text-slate-600">
-                    <a href="/points" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea]">
-                      ✦ 同好成长站
+                    <a href="/points" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#3f6fd8]">
+                      <BrandIcon name="sparkles" size={20} className="w-4 h-4 text-slate-400" />
+                      <span>同好成长站</span>
                     </a>
-                    <a href="/follow" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                    <a href="/follow" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#3f6fd8] transition-colors">
                       <BrandIcon name="bookmark" size={20} className="w-4 h-4 text-slate-400" />
                       <span>我的追番</span>
                     </a>
-                    <a href="/follow?tab=history" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                    <a href="/follow?tab=history" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#3f6fd8] transition-colors">
                       <BrandIcon name="history" size={20} className="w-4 h-4 text-slate-400" />
                       <span>观看历史</span>
                     </a>
-                    <a href="/category" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                    <a href="/category" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#3f6fd8] transition-colors">
                       <BrandIcon name="library" size={20} className="w-4 h-4 text-slate-400" />
                       <span>发现番剧</span>
                     </a>
-                    <a href="/account" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#597bea] transition-colors">
+                    <a href="/account" className="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 hover:text-[#3f6fd8] transition-colors">
                       <BrandIcon name="user" size={20} className="w-4 h-4 text-slate-400" />
                       <span>账号设置</span>
                     </a>

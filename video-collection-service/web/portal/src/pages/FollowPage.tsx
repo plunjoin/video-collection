@@ -40,7 +40,7 @@ export default function FollowPage() {
                 <span className="text-slate-600">当前处于未登录访客模式</span>
                 <a
                   href="/login?redirect=/follow"
-                  className="px-3 py-1 rounded-full bg-[#597bea] text-white font-semibold hover:bg-blue-600 transition-colors shadow-sm"
+                  className="px-3 py-1 rounded-full bg-[#3f6fd8] text-white font-semibold hover:bg-[#3560c0] transition-colors shadow-sm"
                 >
                   立即登录同步
                 </a>
@@ -54,7 +54,7 @@ export default function FollowPage() {
               onClick={() => setTab('following')}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
                 tab === 'following'
-                  ? 'bg-[#597bea] text-white shadow-sm'
+                  ? 'bg-[#3f6fd8] text-white shadow-sm'
                   : 'bg-white text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
               }`}
             >
@@ -65,7 +65,7 @@ export default function FollowPage() {
               onClick={() => setTab('history')}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
                 tab === 'history'
-                  ? 'bg-[#597bea] text-white shadow-sm'
+                  ? 'bg-[#3f6fd8] text-white shadow-sm'
                   : 'bg-white text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
               }`}
             >
@@ -98,7 +98,7 @@ export default function FollowPage() {
                   </span>
                 </div>
                 <div className="mt-2.5 px-0.5">
-                  <h3 className="text-sm font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-1">
+                  <h3 className="text-sm font-semibold text-slate-800 group-hover:text-[#3f6fd8] transition-colors line-clamp-1">
                     {anime.name}
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">

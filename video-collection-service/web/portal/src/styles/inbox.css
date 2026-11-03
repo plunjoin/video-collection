@@ -3,14 +3,14 @@
 .inbox__header h1 { font-size: 18px; font-weight: 650; color: #30375b; }
 .inbox__header span { font-size: 12px; font-weight: 400; color: #99a2be; }
 .inbox__header button, .inbox__actions button, .inbox__actions a, .inbox__more { padding: 7px 14px; border: 1px solid #e7eafa; border-radius: 99px; background: #f8faff; color: #7e89ab; font-size: 12px; cursor: pointer; }
-.inbox__header button:hover, .inbox__actions button:hover, .inbox__actions a:hover, .inbox__more:hover { border-color: #c4c9f1; color: #9271d9; }
+.inbox__header button:hover, .inbox__actions button:hover, .inbox__actions a:hover, .inbox__more:hover { border-color: #c4c9f1; color: #3f6fd8; }
 .inbox__tabs { display: flex; gap: 8px; margin-bottom: 16px; }
 .inbox__tabs button { padding: 7px 17px; border: 1px solid #e7eafa; border-radius: 99px; background: #f8f9ff; color: #7e89ab; cursor: pointer; font-size: 12px; }
-.inbox__tabs button[aria-pressed="true"] { border-color: #d8bdff; background: #fcf7ff; color: #9264db; font-weight: 600; }
+.inbox__tabs button[aria-pressed="true"] { border-color: #c6d5f6; background: #f3f7ff; color: #3f6fd8; font-weight: 600; }
 .inbox__status { min-height: 18px; color: #c45c69; font-size: 12px; }
 .inbox__list { display: flex; flex-direction: column; gap: 14px; }
 .inbox__item { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 18px 20px; border: 1px solid #eceffa; border-radius: 14px; background: #fff; }
-.inbox__item.is-unread { border-color: #e9dffa; background: #fdfbff; }
+.inbox__item.is-unread { border-color: #dce6f8; background: #f5f8ff; }
 .inbox__content { min-width: 0; }
 .inbox__content strong { display: block; font-size: 13px; color: #4a5273; }
 .inbox__content p { margin: 7px 0; color: #5a637e; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
