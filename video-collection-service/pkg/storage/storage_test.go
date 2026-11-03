@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,38 +59,42 @@ func TestSafeKeyRejectsTraversal(t *testing.T) {
 }
 
 // OSS 使用经典 V1 签名：Authorization: OSS ak:<base64(hmac-sha1)>
+// 且恒走虚拟主机式（桶名在 Host、路径只有对象键）。
 func TestOSSSignature(t *testing.T) {
-	var gotAuth, gotResource, gotMethod string
+	var gotAuth, gotResource, gotHost string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		gotMethod = r.Method
 		gotResource = r.URL.Path
+		gotHost = r.Host
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
 	up, err := NewOSS(integration.Storage{
-		Provider:  "oss",
-		Endpoint:  srv.URL,
+		Provider: "oss",
+		// 模拟用户把带桶名的完整域名填进 Endpoint，应被归一化剥掉桶名
+		Endpoint:  "http://demo-bucket." + strings.TrimPrefix(srv.URL, "http://"),
 		Bucket:    "demo-bucket",
 		AccessKey: "ak",
 		SecretKey: "sk",
 		Prefix:    "uploads",
-		PathStyle: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 虚拟主机式的 Host（demo-bucket.127.0.0.1）无法解析，用代理把请求转发到测试服务器。
+	proxyURL, _ := url.Parse(srv.URL)
+	up.client = &http.Client{Transport: &http.Transport{Proxy: func(*http.Request) (*url.URL, error) { return proxyURL, nil }}}
 
 	url, err := up.Put(context.Background(), "avatars/a.png", []byte("data"), "image/png")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotMethod != http.MethodPut {
-		t.Fatalf("应为 PUT，实际 %s", gotMethod)
+	if gotResource != "/uploads/avatars/a.png" {
+		t.Fatalf("对象路径不应包含桶名: %s", gotResource)
 	}
-	if gotResource != "/demo-bucket/uploads/avatars/a.png" {
-		t.Fatalf("对象路径错误: %s", gotResource)
+	if !strings.HasPrefix(gotHost, "demo-bucket.") {
+		t.Fatalf("Host 应带桶名前缀: %s", gotHost)
 	}
 	if !strings.HasPrefix(gotAuth, "OSS ak:") {
 		t.Fatalf("Authorization 格式错误: %s", gotAuth)

@@ -19,6 +19,9 @@ import (
 // OSS 阿里云对象存储（经典 V1 签名）。
 // 与 S3 分开实现：OSS 的 V1 签名只需 HMAC-SHA1，兼容性最好，
 // 也不依赖 x-amz-* 头；S3 兼容模式请把 provider 配成 s3。
+// OSS 仅支持虚拟主机式访问（bucket.endpoint/key）：实测把桶放进路径
+// 会被当成对象键的一部分，签名校验必然失败（SignatureDoesNotMatch），
+// 因此本实现忽略 PathStyle，恒走桶名在 Host 的形式。
 type OSS struct {
 	endpoint  *url.URL
 	bucket    string
@@ -26,7 +29,6 @@ type OSS struct {
 	secretKey string
 	domain    string
 	prefix    string
-	pathStyle bool
 	client    *http.Client
 }
 
@@ -42,17 +44,22 @@ func NewOSS(cfg integration.Storage) (*OSS, error) {
 	if err != nil || u.Host == "" {
 		return nil, fmt.Errorf("Endpoint 格式不正确: %s", cfg.Endpoint)
 	}
-	if strings.TrimSpace(cfg.Bucket) == "" {
+	bucket := strings.TrimSpace(cfg.Bucket)
+	if bucket == "" {
 		return nil, fmt.Errorf("Bucket 不能为空")
+	}
+	// 用户常把带桶名的完整域名（bucket.oss-region.aliyuncs.com）填进 Endpoint，
+	// 这里剥掉桶名归一成区域 endpoint，避免请求主机变成 bucket.bucket.oss-region。
+	if rest, ok := strings.CutPrefix(u.Host, bucket+"."); ok {
+		u.Host = rest
 	}
 	return &OSS{
 		endpoint:  u,
-		bucket:    strings.TrimSpace(cfg.Bucket),
+		bucket:    bucket,
 		accessKey: strings.TrimSpace(cfg.AccessKey),
 		secretKey: cfg.SecretKey,
 		domain:    strings.TrimRight(strings.TrimSpace(cfg.Domain), "/"),
 		prefix:    cfg.NormalizedPrefix(),
-		pathStyle: cfg.PathStyle,
 		client:    &http.Client{Timeout: 20 * time.Second},
 	}, nil
 }
@@ -67,9 +74,6 @@ func (o *OSS) URL(key string) string {
 	k := o.objectKey(key)
 	if o.domain != "" {
 		return o.domain + "/" + escapeKey(k)
-	}
-	if o.pathStyle {
-		return o.endpoint.Scheme + "://" + o.endpoint.Host + "/" + o.bucket + "/" + escapeKey(k)
 	}
 	return o.endpoint.Scheme + "://" + o.bucket + "." + o.endpoint.Host + "/" + escapeKey(k)
 }
@@ -93,15 +97,10 @@ func (o *OSS) Delete(ctx context.Context, key string) error {
 
 // do 发送一次 V1 签名请求。
 func (o *OSS) do(ctx context.Context, method, objectKey string, body []byte, contentType string) error {
-	// V1 签名的 CanonicalizedResource 恒为 /bucket/key，两种访问风格一致，
-	// 只有 Host 与请求路径不同。
-	resource := "/" + o.bucket + "/" + objectKey
+	// 虚拟主机式：桶名在 Host，路径只有对象键，CanonicalizedResource 恒为 /bucket/key。
 	host := o.bucket + "." + o.endpoint.Host
 	reqPath := "/" + objectKey
-	if o.pathStyle {
-		host = o.endpoint.Host
-		reqPath = "/" + o.bucket + "/" + objectKey
-	}
+	resource := "/" + o.bucket + "/" + objectKey
 
 	u := &url.URL{Scheme: o.endpoint.Scheme, Host: host, Path: reqPath}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), bytes.NewReader(body))
